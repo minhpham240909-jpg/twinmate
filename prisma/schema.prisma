@@ -1,0 +1,649 @@
+// Clerva 2.0 - Prisma Schema
+// Database: PostgreSQL via Supabase
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL") // Commented out for Supabase pooled connection
+  // extensions = [vector] // Enable later for AI embeddings
+}
+
+// ==========================================
+// USER & AUTH
+// ==========================================
+
+enum UserRole {
+  FREE
+  PREMIUM
+}
+
+enum OnlineStatus {
+  ONLINE
+  BUSY
+  OFFLINE
+  LOOKING_FOR_PARTNER
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum StudyStyle {
+  VISUAL
+  AUDITORY
+  KINESTHETIC
+  READING_WRITING
+  COLLABORATIVE
+  INDEPENDENT
+  SOLO
+  MIXED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String? // null if OAuth only
+  name          String
+  avatarUrl     String?
+  role          UserRole @default(FREE)
+  emailVerified Boolean  @default(false)
+
+  // OAuth
+  googleId String? @unique
+
+  // Stripe
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?
+  subscriptionStatus   String? // active, canceled, past_due, etc.
+  subscriptionEndsAt   DateTime?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  // Relations
+  profile               Profile?
+  sentMatches           Match[]              @relation("SentMatches")
+  receivedMatches       Match[]              @relation("ReceivedMatches")
+  sentMessages          Message[]            @relation("SentMessages")
+  groupMemberships      GroupMember[]
+  sessions              Session[]
+  badges                UserBadge[]
+  studySessions         StudySession[]       @relation("SessionUser")
+  createdSessions       StudySession[]       @relation("SessionCreator")
+  sessionParticipations SessionParticipant[]
+  sessionMessages       SessionMessage[]
+  notifications         Notification[]
+
+  @@index([email])
+  @@index([googleId])
+  @@index([role])
+}
+
+model Profile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Core profile
+  bio       String? @db.Text
+  timezone  String?
+  location  String?
+  latitude  Float?
+  longitude Float?
+
+  // Academic/Learning
+  subjects   String[] // ["Math", "Physics", "CS"]
+  interests  String[] // ["ML", "Gaming", "Music"]
+  goals      String[] // ["Prep for SAT", "Build portfolio"]
+  skillLevel SkillLevel? // Optional
+  studyStyle StudyStyle? // Optional
+
+  // Availability
+  availableDays  String[] // ["Monday", "Wednesday"]
+  availableHours String[] // ["18:00-20:00", "09:00-12:00"]
+
+  // Custom Descriptions for Partner Search
+  subjectCustomDescription      String? @db.Text
+  skillLevelCustomDescription   String? @db.Text
+  studyStyleCustomDescription   String? @db.Text
+  interestsCustomDescription    String? @db.Text
+  availabilityCustomDescription String? @db.Text
+
+  // NEW: Add more about yourself
+  aboutYourselfItems String[] @default([]) // Custom tags/items
+  aboutYourself      String?  @db.Text // Detailed description
+
+  // Status
+  onlineStatus        OnlineStatus @default(OFFLINE)
+  isLookingForPartner Boolean      @default(false)
+
+  // Privacy
+  showLocation Boolean @default(false)
+  showEmail    Boolean @default(false)
+
+  // Gamification
+  studyStreak     Int       @default(0)
+  totalStudyHours Float     @default(0)
+  lastStudyDate   DateTime?
+
+  // Notifications
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+
+  // AI embeddings for semantic matching (enable later with vector extension)
+  // embeddingVector Unsupported("vector(1536)")? // OpenAI ada-002 dimension
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([subjects])
+  @@index([interests])
+  @@index([onlineStatus])
+}
+
+// ==========================================
+// MATCHING & CONNECTIONS
+// ==========================================
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model Match {
+  id String @id @default(uuid())
+
+  senderId String
+  sender   User   @relation("SentMatches", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String
+  receiver   User   @relation("ReceivedMatches", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  status  MatchStatus @default(PENDING)
+  message String?     @db.Text
+
+  // AI Match Score
+  compatibilityScore Float? // 0-100
+  matchReason        String? @db.Text // AI-generated explanation
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  respondedAt DateTime?
+
+  @@unique([senderId, receiverId])
+  @@index([senderId, status])
+  @@index([receiverId, status])
+}
+
+// ==========================================
+// GROUPS
+// ==========================================
+
+enum GroupPrivacy {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+model Group {
+  id                          String       @id @default(uuid())
+  name                        String
+  description                 String?      @db.Text
+  subject                     String
+  subjectCustomDescription    String?      @db.Text
+  skillLevel                  String? // Beginner, Intermediate, Advanced, Expert
+  skillLevelCustomDescription String?      @db.Text
+  avatarUrl                   String?
+  privacy                     GroupPrivacy @default(PUBLIC)
+  maxMembers                  Int          @default(10)
+
+  ownerId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  GroupMember[]
+  messages Message[]
+  invites  GroupInvite[]
+
+  @@index([subject])
+  @@index([privacy])
+  @@index([ownerId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model GroupMember {
+  id String @id @default(uuid())
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role MemberRole @default(MEMBER)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@index([groupId])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model GroupInvite {
+  id String @id @default(uuid())
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  inviterId String // User who sent the invite
+  inviteeId String // User who received the invite
+
+  status  InviteStatus @default(PENDING)
+  message String?      @db.Text
+
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@unique([groupId, inviteeId])
+  @@index([inviteeId, status])
+  @@index([groupId])
+}
+
+// ==========================================
+// MESSAGING
+// ==========================================
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+  CALL
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  STARTED
+  COMPLETED
+  MISSED
+  CANCELLED
+  DECLINED
+}
+
+model Message {
+  id      String      @id @default(uuid())
+  content String      @db.Text
+  type    MessageType @default(TEXT)
+
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Either DM or Group message
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  recipientId String? // For DMs
+
+  // Attachments
+  fileUrl  String?
+  fileName String?
+  fileSize Int?
+
+  // Status
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  deliveredAt DateTime? // New field for delivery status
+  isEdited    Boolean   @default(false)
+
+  // Call metadata (only for CALL type messages)
+  callType      CallType?
+  callDuration  Int? // Duration in seconds
+  callStatus    CallStatus?
+  callStartedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Individual indexes
+  @@index([senderId])
+  @@index([groupId])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@index([deliveredAt]) // New index for delivery status
+  @@index([deletedAt])
+  // Critical composite indexes for performance
+  @@index([senderId, recipientId, createdAt]) // DM message loading
+  @@index([groupId, createdAt]) // Group message loading
+  @@index([recipientId, isRead]) // Unread count queries for DMs
+  @@index([groupId, isRead]) // Unread count queries for groups
+  @@index([senderId, recipientId, groupId]) // Message filtering
+}
+
+// New model for per-user conversation archives
+model ConversationArchive {
+  id               String    @id @default(uuid())
+  userId           String
+  conversationType String // 'partner' or 'group'
+  conversationId   String // partner userId or groupId
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, conversationType, conversationId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+// ==========================================
+// STUDY SESSIONS
+// ==========================================
+
+enum SessionType {
+  SOLO
+  ONE_ON_ONE
+  GROUP
+}
+
+enum SessionStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum SessionRole {
+  HOST
+  CO_HOST
+  PARTICIPANT
+}
+
+enum ParticipantStatus {
+  INVITED
+  JOINED
+  LEFT
+  REMOVED
+}
+
+model StudySession {
+  id          String        @id @default(uuid())
+  title       String
+  description String?       @db.Text
+  type        SessionType
+  status      SessionStatus @default(SCHEDULED)
+
+  // Creator/Host
+  createdBy String
+  creator   User   @relation("SessionCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  // Legacy field (keep for backward compatibility)
+  userId String
+  user   User   @relation("SessionUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session Metadata
+  subject         String?
+  tags            String[] @default([])
+  maxParticipants Int      @default(10)
+  isPublic        Boolean  @default(false)
+
+  // Timing
+  scheduledAt     DateTime?
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  durationMinutes Int?
+
+  // AI-generated summary
+  aiSummary   String?  @db.Text
+  aiKeyPoints String[] @default([])
+  aiTodos     String[] @default([])
+
+  // Video/Audio room
+  roomId       String?
+  agoraChannel String? @unique
+  recordingUrl String?
+
+  // Relations
+  participants SessionParticipant[]
+  goals        SessionGoal[]
+  messages     SessionMessage[]
+  timer        SessionTimer?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdBy])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([startedAt])
+  @@index([agoraChannel])
+}
+
+model SessionParticipant {
+  id        String       @id @default(uuid())
+  sessionId String
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role   SessionRole       @default(PARTICIPANT)
+  status ParticipantStatus @default(INVITED)
+
+  joinedAt  DateTime?
+  leftAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([status])
+}
+
+model SessionGoal {
+  id        String       @id @default(uuid())
+  sessionId String
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?   @db.Text
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  order       Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+model SessionMessage {
+  id        String       @id @default(uuid())
+  sessionId String
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content String      @db.Text
+  type    MessageType @default(TEXT)
+
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  @@index([sessionId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+enum TimerState {
+  IDLE
+  RUNNING
+  PAUSED
+  BREAK
+  BREAK_PAUSED
+}
+
+model SessionTimer {
+  id        String       @id @default(uuid())
+  sessionId String       @unique
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Timer Settings
+  studyDuration Int // Study duration in minutes
+  breakDuration Int // Break duration in minutes
+
+  // Current State
+  state         TimerState @default(IDLE)
+  timeRemaining Int // Remaining seconds
+  currentCycle  Int        @default(1) // Study Session 1, 2, 3...
+  isBreakTime   Boolean    @default(false)
+
+  // Tracking
+  lastStartedAt  DateTime?
+  lastPausedAt   DateTime?
+  totalStudyTime Int       @default(0) // Total study seconds accumulated
+  totalBreakTime Int       @default(0) // Total break seconds accumulated
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+// ==========================================
+// GAMIFICATION
+// ==========================================
+
+enum BadgeType {
+  STUDY_STREAK
+  HOURS_LOGGED
+  PARTNERSHIPS
+  QUIZZES_PASSED
+  SPECIAL
+}
+
+model Badge {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String
+  type        BadgeType
+  iconUrl     String
+  requirement Int // e.g., 7 for 7-day streak
+
+  users UserBadge[]
+
+  @@index([type])
+}
+
+model UserBadge {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  badgeId String
+  badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+}
+
+// ==========================================
+// NOTIFICATIONS
+// ==========================================
+
+enum NotificationType {
+  MATCH_REQUEST
+  MATCH_ACCEPTED
+  MATCH_DECLINED
+  NEW_MESSAGE
+  GROUP_INVITE
+  GROUP_REMOVED
+  STUDY_REMINDER
+  BADGE_EARNED
+  STREAK_REMINDER
+  CONNECTION_REQUEST
+  CONNECTION_ACCEPTED
+  CONNECTION_DECLINED
+  SESSION_INVITE
+  SESSION_STARTED
+  SESSION_JOINED
+  SESSION_ENDED
+  SESSION_GOAL_COMPLETED
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String           @db.Text
+
+  isRead    Boolean @default(false)
+  actionUrl String?
+
+  // Reference to related entities
+  relatedUserId  String? // ID of the user who triggered the notification
+  relatedMatchId String? // ID of the match/connection request
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// ==========================================
+// SESSIONS (NextAuth)
+// ==========================================
+
+model Session {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
