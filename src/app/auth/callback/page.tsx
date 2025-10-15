@@ -33,23 +33,23 @@ export default function AuthCallbackPage() {
           return
         }
 
-        // Now sync the user to our database via API
-        const syncResponse = await fetch('/api/auth/sync-user', {
+        // Session is now established, redirect to dashboard immediately
+        router.push('/dashboard')
+
+        // Sync user to database in the background (non-blocking)
+        // Dashboard will work even if this fails
+        fetch('/api/auth/sync-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+        }).then(response => {
+          if (response.ok) {
+            console.log('User synced to database successfully')
+          } else {
+            console.warn('Failed to sync user, will retry on next page load')
+          }
+        }).catch(err => {
+          console.error('Sync user error:', err)
         })
-
-        if (!syncResponse.ok) {
-          console.error('Failed to sync user to database')
-          // Continue anyway - user is authenticated in Supabase
-        }
-
-        // Session is now established, redirect to dashboard
-        // Give a small delay to ensure cookies are set
-        setTimeout(() => {
-          router.push('/dashboard')
-          router.refresh()
-        }, 500)
       } catch (err) {
         console.error('Callback error:', err)
         setError('An unexpected error occurred')

@@ -6,12 +6,16 @@ import { useEffect, useState } from 'react'
 import NotificationPanel from '@/components/NotificationPanel'
 import StudyPartnersModal from '@/components/StudyPartnersModal'
 import { useSessionCleanup } from '@/hooks/useSessionCleanup'
+import { useUserSync } from '@/hooks/useUserSync'
 
 export default function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
+
+  // Ensure user is synced to database
+  useUserSync()
 
   // Auto-cleanup inactive study sessions
   useSessionCleanup()
