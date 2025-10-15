@@ -1,0 +1,17 @@
+// Next.js Middleware - Disabled for Vercel Edge Runtime compatibility
+// Auth refresh will happen client-side instead
+
+import { NextResponse } from 'next/server'
+
+export function middleware() {
+  return NextResponse.next()
+}
+
+// Only run on specific paths to reduce edge invocations
+export const config = {
+  matcher: [
+    // Only match API routes and auth routes
+    '/api/:path*',
+    '/auth/:path*',
+  ],
+}
