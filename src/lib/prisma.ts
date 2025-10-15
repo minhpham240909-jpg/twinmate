@@ -35,7 +35,8 @@ if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('dummy')) {
   })
 }
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Always cache the Prisma client in global scope to prevent multiple instances
+globalForPrisma.prisma = prisma
 
 // Graceful shutdown
 if (typeof window === 'undefined') {
