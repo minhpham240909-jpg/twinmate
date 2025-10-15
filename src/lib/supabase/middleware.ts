@@ -2,14 +2,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
+// Sanitize environment variables
+const sanitizeEnvVar = (value: string | undefined): string => {
+  if (!value) return ''
+  return value.replace(/[\r\n\s]+/g, '').trim()
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
     request,
   })
 
+  const supabaseUrl = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL) || 'https://placeholder.supabase.co'
+  const supabaseKey = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTIwMDAsImV4cCI6MTk2MDc2ODAwMH0.placeholder'
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -29,7 +38,7 @@ export async function updateSession(request: NextRequest) {
   )
 
   // Refreshing the auth token
-  const { data: { user } } = await supabase.auth.getUser()
+  await supabase.auth.getUser()
 
   return response
 }
