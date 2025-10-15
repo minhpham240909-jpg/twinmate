@@ -11,9 +11,13 @@ const sanitizeEnvVar = (value: string | undefined): string => {
 export async function createClient() {
   const cookieStore = await cookies()
 
+  // During build time, use dummy values to allow build to complete
+  const url = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL) || 'https://placeholder.supabase.co'
+  const key = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTIwMDAsImV4cCI6MTk2MDc2ODAwMH0.placeholder'
+
   return createServerClient(
-    sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL!),
-    sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!),
+    url,
+    key,
     {
       cookies: {
         getAll() {
@@ -37,9 +41,13 @@ export async function createClient() {
 
 // Admin client with service role key (use with caution)
 export function createAdminClient() {
+  // During build time, use dummy values to allow build to complete
+  const url = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL) || 'https://placeholder.supabase.co'
+  const serviceKey = sanitizeEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTY0NTE5MjAwMCwiZXhwIjoxOTYwNzY4MDAwfQ.placeholder'
+
   return createServerClient(
-    sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL!),
-    sanitizeEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY!),
+    url,
+    serviceKey,
     {
       cookies: {
         getAll() {

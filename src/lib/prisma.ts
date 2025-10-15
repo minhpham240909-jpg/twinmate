@@ -27,10 +27,13 @@ export const prisma =
     },
   })
 
-// Optimize Prisma for serverless/edge environments
-prisma.$connect().catch((e) => {
-  console.error('Failed to connect to database:', e)
-})
+// Only connect if we have a real DATABASE_URL (not the dummy one)
+// This prevents connection attempts during build time
+if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('dummy')) {
+  prisma.$connect().catch((e) => {
+    console.error('Failed to connect to database:', e)
+  })
+}
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
