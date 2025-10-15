@@ -16,5 +16,7 @@ export function createClient() {
   const url = supabaseUrl || 'https://placeholder.supabase.co'
   const key = supabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTIwMDAsImV4cCI6MTk2MDc2ODAwMH0.placeholder'
 
+  // Use default cookie handling (browser storage)
+  // This automatically handles session persistence
   return createBrowserClient(url, key)
 }
