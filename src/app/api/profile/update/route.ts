@@ -28,22 +28,43 @@ const profileSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify user is authenticated
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('[Profile Update] Starting profile update request...')
 
-    if (authError || !user) {
+    // Try to get access token from cookie
+    const accessToken = request.cookies.get('sb-access-token')?.value
+
+    console.log('[Profile Update] Has access token cookie:', !!accessToken)
+
+    if (!accessToken) {
+      console.error('[Profile Update] No access token cookie found')
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No access token cookie. Please sign in again.' },
         { status: 401 }
       )
     }
 
+    // Verify user is authenticated using the access token directly
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+
+    if (authError || !user) {
+      console.error('[Profile Update] Auth error:', authError)
+      return NextResponse.json(
+        { error: 'Unauthorized - Invalid token. Please sign in again.' },
+        { status: 401 }
+      )
+    }
+
+    console.log('[Profile Update] User authenticated:', user.email)
+
     // Parse and validate request body
     const body = await request.json()
+    console.log('[Profile Update] Request body keys:', Object.keys(body))
+
     const validation = profileSchema.safeParse(body)
 
     if (!validation.success) {
+      console.error('[Profile Update] Validation failed:', validation.error.issues)
       return NextResponse.json(
         { error: 'Invalid data', details: validation.error.issues },
         { status: 400 }
@@ -51,9 +72,11 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data
+    console.log('[Profile Update] Data validated successfully')
 
     // Verify user is updating their own profile
     if (data.userId !== user.id) {
+      console.error('[Profile Update] User ID mismatch:', { requested: data.userId, actual: user.id })
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -79,9 +102,12 @@ export async function POST(request: NextRequest) {
       aboutYourself: data.aboutYourself || null,
     }
 
+    console.log('[Profile Update] Starting database transaction...')
+
     // Wrap user and profile updates in a transaction to ensure atomicity
     const profile = await prisma.$transaction(async (tx) => {
       // Update user name and avatar
+      console.log('[Profile Update] Updating user:', user.id)
       await tx.user.update({
         where: { id: user.id },
         data: {
@@ -95,14 +121,18 @@ export async function POST(request: NextRequest) {
         where: { userId: user.id },
       })
 
+      console.log('[Profile Update] Profile exists:', !!existingProfile)
+
       if (existingProfile) {
         // Update existing profile
+        console.log('[Profile Update] Updating existing profile...')
         return await tx.profile.update({
           where: { userId: user.id },
           data: profileDataFields,
         })
       } else {
         // Create new profile
+        console.log('[Profile Update] Creating new profile...')
         return await tx.profile.create({
           data: {
             userId: user.id,
@@ -112,14 +142,18 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('[Profile Update] Transaction completed successfully')
+
     return NextResponse.json({
       success: true,
       profile,
     })
   } catch (error) {
-    console.error('Profile update error:', error)
+    console.error('[Profile Update] ERROR occurred:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Error details:', errorMessage)
+    const errorStack = error instanceof Error ? error.stack : ''
+    console.error('[Profile Update] Error message:', errorMessage)
+    console.error('[Profile Update] Error stack:', errorStack)
     return NextResponse.json(
       { error: 'Internal server error', details: errorMessage },
       { status: 500 }

@@ -19,6 +19,8 @@ export default function SignUpForm() {
     e.preventDefault()
     setError('')
 
+    console.log('[SignUp] Starting signup process...')
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
@@ -32,6 +34,8 @@ export default function SignUpForm() {
     setLoading(true)
 
     try {
+      console.log('[SignUp] Creating account for:', formData.email)
+
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -45,31 +49,21 @@ export default function SignUpForm() {
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('[SignUp] Signup failed:', data.error)
         setError(data.error || 'Something went wrong')
+        setLoading(false)
         return
       }
 
-      // Success - now automatically sign in the user
-      const signInResponse = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      })
+      console.log('[SignUp] ✅ Account created successfully!')
+      console.log('[SignUp] Message:', data.message)
 
-      if (signInResponse.ok) {
-        // Successfully signed in - go to dashboard
-        router.push('/dashboard')
-        router.refresh()
-      } else {
-        // Signup worked but signin failed - redirect to signin page
-        router.push('/auth/signin?registered=true')
-      }
+      // Redirect to signin page with success message
+      // User may need to verify email if email verification is enabled
+      router.push('/auth/signin?registered=true')
     } catch (err) {
+      console.error('[SignUp] Network error:', err)
       setError('Network error. Please try again.')
-    } finally {
       setLoading(false)
     }
   }

@@ -178,6 +178,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           userId: user.id,
           name: formData.name,
@@ -201,7 +202,9 @@ export default function ProfilePage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('Failed to save profile:', errorData)
+        console.error('[CLIENT] Failed to save profile:', errorData)
+        console.error('[CLIENT] Response status:', response.status)
+        console.error('[CLIENT] Response statusText:', response.statusText)
         throw new Error(errorData.error || 'Failed to save profile')
       }
 

@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/auth/context";
 import { Toaster } from "react-hot-toast";
 import FloatingSessionButton from "@/components/FloatingSessionButton";
 import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
+import SessionSyncWrapper from "@/components/SessionSyncWrapper";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
+        <SessionSyncWrapper />
         <AuthProvider>
           <BackgroundSessionProvider>
             {children}

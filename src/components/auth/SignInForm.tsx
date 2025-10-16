@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { syncSessionToCookies } from '@/lib/auth/session-sync'
 
 export default function SignInForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const registered = searchParams.get('registered')
+  const supabase = createClient()
 
   const [formData, setFormData] = useState({
     email: '',
@@ -21,26 +23,57 @@ export default function SignInForm() {
     setError('')
     setLoading(true)
 
+    console.log('[SignIn] Starting signin process...')
+    console.log('[SignIn] Email:', formData.email)
+
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      // Sign in using CLIENT-SIDE Supabase to establish session properly
+      console.log('[SignIn] Calling Supabase signInWithPassword...')
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
       })
 
-      const data = await response.json()
+      console.log('[SignIn] Supabase response:', {
+        hasUser: !!data.user,
+        hasSession: !!data.session,
+        error: signInError
+      })
 
-      if (!response.ok) {
-        setError(data.error || 'Invalid credentials')
+      if (signInError) {
+        console.error('[SignIn] Authentication error:', signInError)
+        setError(signInError.message || 'Invalid credentials')
+        setLoading(false)
         return
       }
 
-      // Success - redirect to dashboard
-      router.push('/dashboard')
-      router.refresh()
+      if (!data.user) {
+        console.error('[SignIn] No user returned from Supabase')
+        setError('Sign in failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      console.log('[SignIn] ✅ Sign in successful! User:', data.user.email)
+      console.log('[SignIn] Syncing session to cookies...')
+
+      // Critical: Sync session to cookies so server can access it
+      syncSessionToCookies()
+
+      // Wait longer to ensure:
+      // 1. Cookies are properly set
+      // 2. Auth context updates
+      // 3. Session is fully established
+      console.log('[SignIn] Waiting for session to stabilize...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      console.log('[SignIn] ✅ Cookies synced! Redirecting to dashboard...')
+
+      // Force a full page navigation to ensure everything reloads
+      window.location.href = '/dashboard'
     } catch (err) {
+      console.error('[SignIn] Unexpected error:', err)
       setError('Network error. Please try again.')
-    } finally {
       setLoading(false)
     }
   }

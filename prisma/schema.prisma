@@ -7,9 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL") // Commented out for Supabase pooled connection
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Enable for migrations
   // extensions = [vector] // Enable later for AI embeddings
 }
 

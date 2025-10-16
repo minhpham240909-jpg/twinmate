@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(new URL('/auth/error?message=' + encodeURIComponent(error.message), requestUrl.origin))
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         // Sync user to database
         try {
           let dbUser = await prisma.user.findUnique({
@@ -60,10 +60,32 @@ export async function GET(request: Request) {
           console.error('Database sync error:', dbError)
           // Continue anyway - user can be synced later
         }
+
+        // Set custom cookies with access and refresh tokens and redirect to dashboard
+        const response = NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
+
+        const expires = new Date(data.session.expires_at! * 1000)
+
+        response.cookies.set('sb-access-token', data.session.access_token, {
+          expires,
+          path: '/',
+          sameSite: 'lax',
+          httpOnly: false, // Allow JavaScript to read for session sync
+        })
+
+        response.cookies.set('sb-refresh-token', data.session.refresh_token, {
+          expires,
+          path: '/',
+          sameSite: 'lax',
+          httpOnly: false, // Allow JavaScript to read for session sync
+        })
+
+        console.log('[OAuth Callback] ✅ Cookies set, redirecting to dashboard')
+        return response
       }
 
-      // Redirect to dashboard
-      return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
+      // If no session, redirect to signin
+      return NextResponse.redirect(new URL('/auth/signin', requestUrl.origin))
     } catch (err) {
       console.error('Callback error:', err)
       return NextResponse.redirect(new URL('/auth/error?message=Authentication+failed', requestUrl.origin))

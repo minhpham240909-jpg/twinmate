@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12)
 
     // Create user in Supabase Auth first
+    // Supabase will send verification email if enabled in dashboard
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
         data: {
           name,
         },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
       },
     })
 
