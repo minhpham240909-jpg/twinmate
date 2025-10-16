@@ -30,22 +30,9 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[Profile Update] Starting profile update request...')
 
-    // Try to get access token from cookie
-    const accessToken = request.cookies.get('sb-access-token')?.value
-
-    console.log('[Profile Update] Has access token cookie:', !!accessToken)
-
-    if (!accessToken) {
-      console.error('[Profile Update] No access token cookie found')
-      return NextResponse.json(
-        { error: 'Unauthorized - No access token cookie. Please sign in again.' },
-        { status: 401 }
-      )
-    }
-
-    // Verify user is authenticated using the access token directly
+    // Use server client which automatically reads Supabase cookies
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       console.error('[Profile Update] Auth error:', authError)
