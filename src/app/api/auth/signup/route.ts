@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -13,6 +14,18 @@ const signUpSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 3 signup attempts per minute
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.auth)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many signup attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers
+      }
+    )
+  }
+
   let createdAuthUser: { id: string } | null = null
   const supabase = await createClient()
 

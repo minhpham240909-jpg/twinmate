@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -10,6 +11,18 @@ const signInSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 5 signin attempts per minute
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.auth)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many login attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers
+      }
+    )
+  }
+
   try {
     const body = await request.json()
 

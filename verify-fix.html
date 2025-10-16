@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Authentication Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #00ff00; border-radius: 5px; }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        button { background: #00ff00; color: #000; padding: 10px 20px; border: none; cursor: pointer; margin: 5px; }
+        button:hover { background: #00cc00; }
+        pre { background: #000; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Clerva Authentication Fix Verification</h1>
+
+    <div class="step">
+        <h2>Step 1: Check Cookies</h2>
+        <button onclick="checkCookies()">Check Browser Cookies</button>
+        <pre id="cookies-result"></pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Check LocalStorage</h2>
+        <button onclick="checkLocalStorage()">Check LocalStorage Session</button>
+        <pre id="storage-result"></pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 3: Sync Session to Cookies</h2>
+        <button onclick="syncSession()">Sync Session Now</button>
+        <pre id="sync-result"></pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 4: Test Profile API</h2>
+        <button onclick="testProfileAPI()">Test Profile Update Endpoint</button>
+        <pre id="api-result"></pre>
+    </div>
+
+    <div class="step">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Make sure you're signed in to Clerva in another tab</li>
+            <li>Click each button in order</li>
+            <li>All checks should show SUCCESS</li>
+            <li>If any fail, sign out and sign in again</li>
+        </ol>
+    </div>
+
+    <script>
+        function checkCookies() {
+            const result = document.getElementById('cookies-result');
+            const cookies = document.cookie.split(';').map(c => c.trim());
+            const authCookies = cookies.filter(c => c.includes('sb-'));
+
+            if (authCookies.length > 0) {
+                result.className = 'success';
+                result.textContent = '✅ SUCCESS: Found auth cookies:\n' + authCookies.join('\n');
+            } else {
+                result.className = 'error';
+                result.textContent = '❌ ERROR: No auth cookies found.\nAll cookies:\n' + cookies.join('\n');
+            }
+        }
+
+        function checkLocalStorage() {
+            const result = document.getElementById('storage-result');
+            const keys = Object.keys(localStorage).filter(k => k.includes('sb-'));
+
+            if (keys.length > 0) {
+                result.className = 'success';
+                const sessionKey = keys.find(k => k.includes('auth-token'));
+                if (sessionKey) {
+                    const session = JSON.parse(localStorage.getItem(sessionKey));
+                    result.textContent = '✅ SUCCESS: Found session in localStorage\n' +
+                        'Access Token: ' + (session.access_token ? 'Present' : 'Missing') + '\n' +
+                        'Refresh Token: ' + (session.refresh_token ? 'Present' : 'Missing') + '\n' +
+                        'Expires: ' + new Date(session.expires_at * 1000).toLocaleString();
+                } else {
+                    result.textContent = '✅ Session keys found:\n' + keys.join('\n');
+                }
+            } else {
+                result.className = 'warning';
+                result.textContent = '⚠️ WARNING: No session in localStorage.\nYou may not be signed in.';
+            }
+        }
+
+        function syncSession() {
+            const result = document.getElementById('sync-result');
+
+            try {
+                // Get session from localStorage
+                const keys = Object.keys(localStorage).filter(k => k.includes('auth-token'));
+                if (keys.length === 0) {
+                    result.className = 'error';
+                    result.textContent = '❌ ERROR: No session to sync. Please sign in first.';
+                    return;
+                }
+
+                const sessionData = localStorage.getItem(keys[0]);
+                const session = JSON.parse(sessionData);
+
+                if (!session.access_token) {
+                    result.className = 'error';
+                    result.textContent = '❌ ERROR: Session missing access token.';
+                    return;
+                }
+
+                // Set cookies
+                const expires = new Date(session.expires_at * 1000).toUTCString();
+                document.cookie = `sb-access-token=${session.access_token}; path=/; expires=${expires}; SameSite=Lax`;
+                document.cookie = `sb-refresh-token=${session.refresh_token}; path=/; expires=${expires}; SameSite=Lax`;
+
+                result.className = 'success';
+                result.textContent = '✅ SUCCESS: Session synced to cookies!\nExpires: ' + new Date(session.expires_at * 1000).toLocaleString();
+
+                // Re-check cookies
+                setTimeout(checkCookies, 500);
+            } catch (e) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR: ' + e.message;
+            }
+        }
+
+        async function testProfileAPI() {
+            const result = document.getElementById('api-result');
+            result.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('/api/profile/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        userId: 'test',
+                        name: 'Test',
+                        subjects: [],
+                        interests: [],
+                        goals: [],
+                        availableDays: [],
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.status === 401) {
+                    result.className = 'error';
+                    result.textContent = '❌ FAILED: Not authenticated (401)\n' +
+                        'Response: ' + JSON.stringify(data, null, 2) + '\n\n' +
+                        'Action: Click "Sync Session Now" above and try again.';
+                } else if (response.status === 403) {
+                    result.className = 'success';
+                    result.textContent = '✅ SUCCESS: Authentication working!\n' +
+                        'Got 403 Forbidden because userId mismatch (expected)\n' +
+                        'This means the server CAN read your auth cookies!';
+                } else if (response.status === 400) {
+                    result.className = 'success';
+                    result.textContent = '✅ SUCCESS: Authentication working!\n' +
+                        'Got 400 Bad Request (validation error - expected)\n' +
+                        'This means you are authenticated!';
+                } else {
+                    result.className = 'success';
+                    result.textContent = '✅ Result: ' + response.status + '\n' +
+                        JSON.stringify(data, null, 2);
+                }
+            } catch (e) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR: ' + e.message;
+            }
+        }
+
+        // Auto-run checks on load
+        window.onload = function() {
+            checkCookies();
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

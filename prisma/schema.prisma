@@ -140,8 +140,8 @@ model Profile {
   emailNotifications Boolean @default(true)
   pushNotifications  Boolean @default(true)
 
-  // AI embeddings for semantic matching (enable later with vector extension)
-  // embeddingVector Unsupported("vector(1536)")? // OpenAI ada-002 dimension
+  // AI embeddings for semantic matching (enable with pgvector extension)
+  embedding Unsupported("vector(1536)")? // OpenAI text-embedding-3-small dimension
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

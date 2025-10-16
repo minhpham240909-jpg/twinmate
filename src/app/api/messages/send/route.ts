@@ -2,8 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { MessageType } from '@prisma/client'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  // Rate limiting: 20 messages per minute
+  const rateLimitResult = await rateLimit(req, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many messages. Please slow down.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers
+      }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

@@ -27,8 +27,6 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hot-toast": "^2.6.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
     "stripe": "^18.5.0",
     "tailwindcss": "^4",
     "zod": "^4.1.11",

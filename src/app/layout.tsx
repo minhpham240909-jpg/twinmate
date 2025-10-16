@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 import FloatingSessionButton from "@/components/FloatingSessionButton";
 import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
 import SessionSyncWrapper from "@/components/SessionSyncWrapper";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,37 +27,39 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
-        <SessionSyncWrapper />
-        <AuthProvider>
-          <BackgroundSessionProvider>
-            {children}
-            <FloatingSessionButton />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
-                  duration: 3000,
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
+        <ErrorBoundary>
+          <SessionSyncWrapper />
+          <AuthProvider>
+            <BackgroundSessionProvider>
+              {children}
+              <FloatingSessionButton />
+              <Toaster
+                position="top-right"
+                toastOptions={{
                   duration: 4000,
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
                   },
-                },
-              }}
-            />
-          </BackgroundSessionProvider>
-        </AuthProvider>
+                  success: {
+                    duration: 3000,
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#fff',
+                    },
+                  },
+                  error: {
+                    duration: 4000,
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </BackgroundSessionProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );
