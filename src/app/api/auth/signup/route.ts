@@ -43,11 +43,26 @@ export async function POST(request: NextRequest) {
 
     const { email, password, name } = validation.data
 
+    // Check if email already exists in database (Facebook approach)
+    // This prevents duplicate accounts and provides clear error message
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true },
+    })
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'An account with this email already exists. Please sign in or use a different email.' },
+        { status: 409 }
+      )
+    }
+
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12)
 
-    // Create user in Supabase Auth first
-    // Supabase will send verification email if enabled in dashboard
+    // Create user in Supabase Auth
+    // Supabase will send verification email automatically
+    // If email is invalid/doesn't exist, Supabase handles bounced emails
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -60,8 +75,16 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
+      // Handle specific Supabase auth errors
+      let errorMessage = authError.message
+
+      // Check if it's a duplicate email error from Supabase
+      if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
+        errorMessage = 'An account with this email already exists. Please sign in or use a different email.'
+      }
+
       return NextResponse.json(
-        { error: authError.message },
+        { error: errorMessage },
         { status: 400 }
       )
     }
