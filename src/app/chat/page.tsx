@@ -190,23 +190,40 @@ function ChatPageContent() {
         selectedConversation.id,
         (newMessage) => {
           const msg = newMessage as unknown as Message
-          // Prevent duplicates - check both ID and content to handle optimistic updates
+          // Prevent duplicates with comprehensive checks
           setMessages(prev => {
-            // Check if message already exists by ID
+            // Check if message already exists by ID (most reliable check)
             const existsById = prev.some(m => m.id === msg.id)
-            if (existsById) return prev
+            if (existsById) {
+              console.log('[DM] Blocked duplicate by ID:', msg.id)
+              return prev
+            }
 
-            // Check if this is a duplicate of an optimistic message (same content, sender, within 5 seconds)
-            const now = new Date(msg.createdAt).getTime()
-            const isDuplicate = prev.some(m =>
+            // Check if exact same message exists (same content + sender + exact timestamp)
+            const exactDuplicate = prev.some(m =>
               m.senderId === msg.senderId &&
               m.content === msg.content &&
-              Math.abs(new Date(m.createdAt).getTime() - now) < 5000 // Within 5 seconds
+              m.createdAt === msg.createdAt
             )
-            if (isDuplicate) return prev
+            if (exactDuplicate) {
+              console.log('[DM] Blocked exact duplicate:', msg.content.substring(0, 20))
+              return prev
+            }
 
+            // Check if this is a very recent duplicate (within 2 seconds with same content/sender)
+            const now = new Date(msg.createdAt).getTime()
+            const recentDuplicate = prev.some(m =>
+              m.senderId === msg.senderId &&
+              m.content.trim() === msg.content.trim() &&
+              Math.abs(new Date(m.createdAt).getTime() - now) < 2000
+            )
+            if (recentDuplicate) {
+              console.log('[DM] Blocked recent duplicate:', msg.content.substring(0, 20))
+              return prev
+            }
+
+            console.log('[DM] Adding new message:', msg.id)
             const updated = [...prev, msg]
-            // Update both memory and localStorage cache
             messagesCache.current.set(cacheKey, updated)
             localStorage.setItem(cacheKey, JSON.stringify(updated))
             return updated
@@ -219,23 +236,40 @@ function ChatPageContent() {
     } else if (selectedConversation.type === 'group') {
       cleanup = subscribeToMessages(`group:${selectedConversation.id}`, (newMessage) => {
         const msg = newMessage as unknown as Message
-        // Prevent duplicates - check both ID and content to handle optimistic updates
+        // Prevent duplicates with comprehensive checks
         setMessages(prev => {
-          // Check if message already exists by ID
+          // Check if message already exists by ID (most reliable check)
           const existsById = prev.some(m => m.id === msg.id)
-          if (existsById) return prev
+          if (existsById) {
+            console.log('[Group] Blocked duplicate by ID:', msg.id)
+            return prev
+          }
 
-          // Check if this is a duplicate of an optimistic message (same content, sender, within 5 seconds)
-          const now = new Date(msg.createdAt).getTime()
-          const isDuplicate = prev.some(m =>
+          // Check if exact same message exists (same content + sender + exact timestamp)
+          const exactDuplicate = prev.some(m =>
             m.senderId === msg.senderId &&
             m.content === msg.content &&
-            Math.abs(new Date(m.createdAt).getTime() - now) < 5000 // Within 5 seconds
+            m.createdAt === msg.createdAt
           )
-          if (isDuplicate) return prev
+          if (exactDuplicate) {
+            console.log('[Group] Blocked exact duplicate:', msg.content.substring(0, 20))
+            return prev
+          }
 
+          // Check if this is a very recent duplicate (within 2 seconds with same content/sender)
+          const now = new Date(msg.createdAt).getTime()
+          const recentDuplicate = prev.some(m =>
+            m.senderId === msg.senderId &&
+            m.content.trim() === msg.content.trim() &&
+            Math.abs(new Date(m.createdAt).getTime() - now) < 2000
+          )
+          if (recentDuplicate) {
+            console.log('[Group] Blocked recent duplicate:', msg.content.substring(0, 20))
+            return prev
+          }
+
+          console.log('[Group] Adding new message:', msg.id)
           const updated = [...prev, msg]
-          // Update both memory and localStorage cache
           messagesCache.current.set(cacheKey, updated)
           localStorage.setItem(cacheKey, JSON.stringify(updated))
           return updated
@@ -339,12 +373,24 @@ function ChatPageContent() {
       if (data.success) {
         // Replace optimistic message with real message from server
         setMessages(prev => {
-          const updated = prev.map(msg =>
-            msg.id === optimisticMessage.id ? data.message : msg
-          )
-          messagesCache.current.set(cacheKey, updated)
-          localStorage.setItem(cacheKey, JSON.stringify(updated))
-          return updated
+          // Check if real message already exists (from real-time subscription)
+          const realMessageExists = prev.some(m => m.id === data.message.id)
+
+          if (realMessageExists) {
+            // Real-time already added it, just remove the optimistic one
+            const updated = prev.filter(msg => msg.id !== optimisticMessage.id)
+            messagesCache.current.set(cacheKey, updated)
+            localStorage.setItem(cacheKey, JSON.stringify(updated))
+            return updated
+          } else {
+            // Real-time hasn't fired yet, replace optimistic with real
+            const updated = prev.map(msg =>
+              msg.id === optimisticMessage.id ? data.message : msg
+            )
+            messagesCache.current.set(cacheKey, updated)
+            localStorage.setItem(cacheKey, JSON.stringify(updated))
+            return updated
+          }
         })
       } else {
         // Remove optimistic message on error
