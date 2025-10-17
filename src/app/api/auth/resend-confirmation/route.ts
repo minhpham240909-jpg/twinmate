@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
-import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { rateLimit } from '@/lib/rate-limit'
 
 const resendSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -11,7 +11,7 @@ const resendSchema = z.object({
 export async function POST(request: NextRequest) {
   // Rate limiting: 3 attempts per 5 minutes
   const rateLimitResult = await rateLimit(request, {
-    maxRequests: 3,
+    max: 3,
     windowMs: 5 * 60 * 1000, // 5 minutes
   })
 
