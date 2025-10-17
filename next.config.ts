@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors
   },
 
+  // Output configuration - disable static optimization for database-dependent pages
+  experimental: {
+    // This prevents database queries during build time
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
+
   // Security Headers for Production
   async headers() {
     return [

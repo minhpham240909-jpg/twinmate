@@ -5,13 +5,20 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+// Check if we're in build mode (Next.js sets this during build)
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
+
 // During build time, DATABASE_URL might not be available
 // Use a dummy URL to allow build to complete
 const getDatabaseUrl = () => {
+  if (isBuildTime) {
+    // Return a dummy URL during build to prevent connection attempts
+    return 'postgresql://dummy:dummy@localhost:5432/dummy'
+  }
   if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL
   }
-  // Dummy URL for build time only
+  // Fallback dummy URL
   return 'postgresql://dummy:dummy@localhost:5432/dummy'
 }
 
@@ -27,9 +34,8 @@ export const prisma =
     },
   })
 
-// Only connect if we have a real DATABASE_URL (not the dummy one)
-// This prevents connection attempts during build time
-if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('dummy')) {
+// Only connect if we're NOT in build mode and have a real DATABASE_URL
+if (!isBuildTime && process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('dummy')) {
   prisma.$connect().catch((e) => {
     console.error('Failed to connect to database:', e)
   })

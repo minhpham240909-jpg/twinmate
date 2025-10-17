@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   keywords: ["study partners", "learning", "collaboration", "education", "AI tutor"],
 };
 
+// Force dynamic rendering for all pages (prevents database queries during build)
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{
