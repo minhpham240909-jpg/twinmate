@@ -25,8 +25,11 @@ export async function GET(request: Request) {
             where: { id: data.user.id },
           })
 
+          // Check if this is an email confirmation (user already exists but email wasn't verified)
+          const isEmailConfirmation = dbUser && !dbUser.emailVerified
+
           if (!dbUser) {
-            // Create user and profile in transaction
+            // Create user and profile in transaction (OAuth flow)
             const email = data.user.email!
             const result = await prisma.$transaction(async (tx) => {
               const newUser = await tx.user.create({
@@ -50,11 +53,18 @@ export async function GET(request: Request) {
 
             dbUser = result
           } else {
-            // Update last login
+            // Update user: mark email as verified and update last login
             await prisma.user.update({
               where: { id: data.user.id },
-              data: { lastLoginAt: new Date() },
+              data: {
+                emailVerified: true,
+                lastLoginAt: new Date(),
+              },
             })
+
+            if (isEmailConfirmation) {
+              console.log('[Auth Callback] ✅ Email confirmed for user:', data.user.email)
+            }
           }
         } catch (dbError) {
           console.error('Database sync error:', dbError)

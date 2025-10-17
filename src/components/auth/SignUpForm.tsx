@@ -58,9 +58,9 @@ export default function SignUpForm() {
       console.log('[SignUp] ✅ Account created successfully!')
       console.log('[SignUp] Message:', data.message)
 
-      // Redirect to signin page with success message
-      // User may need to verify email if email verification is enabled
-      router.push('/auth/signin?registered=true')
+      // Redirect to email confirmation page
+      // User needs to verify their email before accessing the app
+      router.push(`/auth/confirm-email?email=${encodeURIComponent(formData.email)}`)
     } catch (err) {
       console.error('[SignUp] Network error:', err)
       setError('Network error. Please try again.')
