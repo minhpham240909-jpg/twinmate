@@ -190,10 +190,21 @@ function ChatPageContent() {
         selectedConversation.id,
         (newMessage) => {
           const msg = newMessage as unknown as Message
-          // Prevent duplicates - only add if message ID doesn't exist
+          // Prevent duplicates - check both ID and content to handle optimistic updates
           setMessages(prev => {
-            const exists = prev.some(m => m.id === msg.id)
-            if (exists) return prev
+            // Check if message already exists by ID
+            const existsById = prev.some(m => m.id === msg.id)
+            if (existsById) return prev
+
+            // Check if this is a duplicate of an optimistic message (same content, sender, within 5 seconds)
+            const now = new Date(msg.createdAt).getTime()
+            const isDuplicate = prev.some(m =>
+              m.senderId === msg.senderId &&
+              m.content === msg.content &&
+              Math.abs(new Date(m.createdAt).getTime() - now) < 5000 // Within 5 seconds
+            )
+            if (isDuplicate) return prev
+
             const updated = [...prev, msg]
             // Update both memory and localStorage cache
             messagesCache.current.set(cacheKey, updated)
@@ -208,10 +219,21 @@ function ChatPageContent() {
     } else if (selectedConversation.type === 'group') {
       cleanup = subscribeToMessages(`group:${selectedConversation.id}`, (newMessage) => {
         const msg = newMessage as unknown as Message
-        // Prevent duplicates - only add if message ID doesn't exist
+        // Prevent duplicates - check both ID and content to handle optimistic updates
         setMessages(prev => {
-          const exists = prev.some(m => m.id === msg.id)
-          if (exists) return prev
+          // Check if message already exists by ID
+          const existsById = prev.some(m => m.id === msg.id)
+          if (existsById) return prev
+
+          // Check if this is a duplicate of an optimistic message (same content, sender, within 5 seconds)
+          const now = new Date(msg.createdAt).getTime()
+          const isDuplicate = prev.some(m =>
+            m.senderId === msg.senderId &&
+            m.content === msg.content &&
+            Math.abs(new Date(m.createdAt).getTime() - now) < 5000 // Within 5 seconds
+          )
+          if (isDuplicate) return prev
+
           const updated = [...prev, msg]
           // Update both memory and localStorage cache
           messagesCache.current.set(cacheKey, updated)
