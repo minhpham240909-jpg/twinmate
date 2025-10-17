@@ -156,7 +156,7 @@ async function rateLimitWithRedis(
     const remaining = Math.max(0, max - count)
     const reset = Math.floor((now + (ttl * 1000)) / 1000) // Unix timestamp in seconds
 
-    const headers = {
+    const headers: Record<string, string> = {
       'X-RateLimit-Limit': max.toString(),
       'X-RateLimit-Remaining': remaining.toString(),
       'X-RateLimit-Reset': reset.toString(),
@@ -223,7 +223,7 @@ function rateLimitWithMemory(
   const remaining = Math.max(0, max - record.count)
   const reset = Math.floor(record.resetTime / 1000)
 
-  const headers = {
+  const headers: Record<string, string> = {
     'X-RateLimit-Limit': max.toString(),
     'X-RateLimit-Remaining': remaining.toString(),
     'X-RateLimit-Reset': reset.toString(),

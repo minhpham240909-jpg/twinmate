@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false, // TODO: Re-enable after fixing Agora SDK double-mount issue
 
+  // ESLint - Don't fail build on warnings
+  eslint: {
+    ignoreDuringBuilds: false, // Still run ESLint
+  },
+  typescript: {
+    ignoreBuildErrors: false, // Don't ignore TypeScript errors
+  },
+
   // Security Headers for Production
   async headers() {
     return [
