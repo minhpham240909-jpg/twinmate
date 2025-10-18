@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { subscribeToDM, subscribeToMessages, type ConnectionStatus } from '@/lib/supabase/realtime'
-import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng'
+import MessageVideoCall from '@/components/messages/MessageVideoCall'
 
 interface Conversation {
   id: string
@@ -69,16 +69,8 @@ function ChatPageContent() {
   const [isInCall, setIsInCall] = useState(false)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false)
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
-  const agoraClient = useRef<IAgoraRTCClient | null>(null)
-  const localVideoTrack = useRef<ICameraVideoTrack | null>(null)
-  const localAudioTrack = useRef<IMicrophoneAudioTrack | null>(null)
-  const localVideoRef = useRef<HTMLDivElement>(null)
-  const remoteVideoRef = useRef<HTMLDivElement>(null)
   const callMessageId = useRef<string | null>(null)
   const callStartTime = useRef<number>(0)
-  const remoteUserJoined = useRef<boolean>(false)
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [isGroupAdmin, setIsGroupAdmin] = useState(false)
 
@@ -455,8 +447,8 @@ function ChatPageContent() {
     }
   }
 
-  // Video/Audio call functions
-  const startCall = async (enableVideo: boolean = false) => {
+  // Video/Audio call functions - Simplified with VideoCall component
+  const startCall = async (callType: 'VIDEO' | 'AUDIO' = 'VIDEO') => {
     if (!selectedConversation || !user) return
 
     try {
@@ -468,7 +460,7 @@ function ChatPageContent() {
           action: 'start',
           conversationId: selectedConversation.id,
           conversationType: selectedConversation.type,
-          callType: enableVideo ? 'VIDEO' : 'AUDIO'
+          callType
         })
       })
 
@@ -477,180 +469,27 @@ function ChatPageContent() {
       if (callMessageData.success) {
         callMessageId.current = callMessageData.message.id
         callStartTime.current = Date.now()
-        remoteUserJoined.current = false
 
         // Add message to UI immediately
         setMessages(prev => [...prev, callMessageData.message])
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+
+        // Start the video call interface
+        setIsInCall(true)
+      } else {
+        alert(callMessageData.error || 'Failed to start call')
       }
-
-      // Dynamically import AgoraRTC only when needed (client-side only)
-      const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
-
-      // Get Agora token - create short channel name (max 64 bytes, no dashes allowed)
-      const channelName = selectedConversation.type === 'partner'
-        ? `dm${[user.id, selectedConversation.id].sort().join('').replace(/-/g, '').slice(0, 60)}`
-        : `grp${selectedConversation.id.replace(/-/g, '').slice(0, 60)}`
-
-      const tokenRes = await fetch('/api/messages/agora-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelName })
-      })
-
-      const tokenData = await tokenRes.json()
-
-      if (!tokenData.success) {
-        alert(tokenData.error || 'Failed to start call')
-        return
-      }
-
-      // Initialize Agora client
-      agoraClient.current = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' })
-
-      // Join channel
-      await agoraClient.current.join(
-        tokenData.appId,
-        channelName,
-        tokenData.token,
-        tokenData.uid
-      )
-
-      // Create and publish audio track
-      localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack()
-      await agoraClient.current.publish([localAudioTrack.current])
-
-      // Create and publish video track if enabled
-      if (enableVideo) {
-        localVideoTrack.current = await AgoraRTC.createCameraVideoTrack()
-        await agoraClient.current.publish([localVideoTrack.current])
-        localVideoTrack.current.play(localVideoRef.current!)
-        setIsVideoEnabled(true)
-      }
-
-      // Listen for remote users joining
-      agoraClient.current.on('user-joined', () => {
-        remoteUserJoined.current = true
-      })
-
-      // Listen for remote users publishing media
-      agoraClient.current.on('user-published', async (remoteUser, mediaType) => {
-        await agoraClient.current!.subscribe(remoteUser, mediaType)
-
-        if (mediaType === 'video') {
-          remoteUser.videoTrack?.play(remoteVideoRef.current!)
-        }
-        if (mediaType === 'audio') {
-          remoteUser.audioTrack?.play()
-        }
-      })
-
-      setIsInCall(true)
-      setIsAudioEnabled(true)
-
     } catch (error) {
       console.error('Error starting call:', error)
       alert('Failed to start call. Please try again.')
     }
   }
 
-  const endCall = async () => {
-    try {
-      // Calculate call duration and status
-      const callDuration = Math.floor((Date.now() - callStartTime.current) / 1000)
-      const callStatus = remoteUserJoined.current ? 'COMPLETED' :
-                        (callDuration < 30 ? 'CANCELLED' : 'MISSED')
-
-      // Update call message with final status
-      if (callMessageId.current) {
-        const updateRes = await fetch('/api/messages/call', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'end',
-            messageId: callMessageId.current,
-            callDuration,
-            callStatus,
-            conversationId: selectedConversation?.id,
-            conversationType: selectedConversation?.type,
-            callType: isVideoEnabled ? 'VIDEO' : 'AUDIO'
-          })
-        })
-
-        const updateData = await updateRes.json()
-
-        if (updateData.success) {
-          // Update the message in the UI
-          setMessages(prev => prev.map(msg =>
-            msg.id === callMessageId.current ? updateData.message : msg
-          ))
-        }
-
-        // Reset call tracking
-        callMessageId.current = null
-        callStartTime.current = 0
-        remoteUserJoined.current = false
-      }
-
-      // Stop and close tracks
-      if (localVideoTrack.current) {
-        localVideoTrack.current.stop()
-        localVideoTrack.current.close()
-        localVideoTrack.current = null
-      }
-      if (localAudioTrack.current) {
-        localAudioTrack.current.stop()
-        localAudioTrack.current.close()
-        localAudioTrack.current = null
-      }
-
-      // Leave channel
-      if (agoraClient.current) {
-        await agoraClient.current.leave()
-        agoraClient.current = null
-      }
-
-      setIsInCall(false)
-      setIsVideoEnabled(false)
-      setIsAudioEnabled(true)
-    } catch (error) {
-      console.error('Error ending call:', error)
-    }
-  }
-
-  const toggleVideo = async () => {
-    if (!agoraClient.current) return
-
-    try {
-      if (isVideoEnabled && localVideoTrack.current) {
-        await agoraClient.current.unpublish([localVideoTrack.current])
-        localVideoTrack.current.stop()
-        localVideoTrack.current.close()
-        localVideoTrack.current = null
-        setIsVideoEnabled(false)
-      } else {
-        // Dynamically import AgoraRTC
-        const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
-        localVideoTrack.current = await AgoraRTC.createCameraVideoTrack()
-        await agoraClient.current.publish([localVideoTrack.current])
-        localVideoTrack.current.play(localVideoRef.current!)
-        setIsVideoEnabled(true)
-      }
-    } catch (error) {
-      console.error('Error toggling video:', error)
-    }
-  }
-
-  const toggleAudio = () => {
-    if (localAudioTrack.current) {
-      if (isAudioEnabled) {
-        localAudioTrack.current.setEnabled(false)
-        setIsAudioEnabled(false)
-      } else {
-        localAudioTrack.current.setEnabled(true)
-        setIsAudioEnabled(true)
-      }
-    }
+  const handleCallEnd = () => {
+    setIsInCall(false)
+    // Reset call tracking
+    callMessageId.current = null
+    callStartTime.current = 0
   }
 
   // Redirect if not authenticated, but don't block UI
@@ -852,7 +691,7 @@ function ChatPageContent() {
                         {!isInCall && (
                           <>
                             <button
-                              onClick={() => startCall(false)}
+                              onClick={() => startCall('AUDIO')}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                               title="Audio Call"
                             >
@@ -861,7 +700,7 @@ function ChatPageContent() {
                               </svg>
                             </button>
                             <button
-                              onClick={() => startCall(true)}
+                              onClick={() => startCall('VIDEO')}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                               title="Video Call"
                             >
@@ -874,62 +713,17 @@ function ChatPageContent() {
                       </div>
                     </div>
 
-                    {/* Call Interface - Fixed */}
-                    {isInCall && (
-                      <div className="flex-shrink-0 p-4 bg-gray-900 text-white">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                            <span className="text-sm">Call in progress...</span>
-                          </div>
-                          <button
-                            onClick={endCall}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
-                          >
-                            End Call
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div ref={localVideoRef} className="aspect-video bg-gray-800 rounded-lg overflow-hidden">
-                            {!isVideoEnabled && (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <span className="text-gray-400">Camera off</span>
-                              </div>
-                            )}
-                          </div>
-                          <div ref={remoteVideoRef} className="aspect-video bg-gray-800 rounded-lg overflow-hidden">
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-gray-400">Waiting for other user...</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex justify-center gap-4">
-                          <button
-                            onClick={toggleAudio}
-                            className={`p-3 rounded-full transition ${isAudioEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              {isAudioEnabled ? (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                              ) : (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                              )}
-                            </svg>
-                          </button>
-                          <button
-                            onClick={toggleVideo}
-                            className={`p-3 rounded-full transition ${isVideoEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              {isVideoEnabled ? (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                              ) : (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                              )}
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                    {/* Full Screen Video Call Interface */}
+                    {isInCall && selectedConversation && user && profile && callMessageId.current && (
+                      <MessageVideoCall
+                        conversationId={selectedConversation.id}
+                        conversationType={selectedConversation.type}
+                        userId={user.id}
+                        userName={profile.name || user.email || 'User'}
+                        onCallEnd={handleCallEnd}
+                        callMessageId={callMessageId.current}
+                        callStartTime={callStartTime.current}
+                      />
                     )}
 
                     {/* Messages - Scrollable area */}
