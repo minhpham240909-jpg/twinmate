@@ -6,7 +6,6 @@ import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
-import crypto from 'crypto'
 
 const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -61,10 +60,6 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12)
 
-    // Generate Gravatar URL based on email
-    const emailHash = crypto.createHash('md5').update(email.toLowerCase().trim()).digest('hex')
-    const gravatarUrl = `https://www.gravatar.com/avatar/${emailHash}?d=identicon&s=200`
-
     // Create user in Supabase Auth
     // Supabase will send verification email automatically
     // If email is invalid/doesn't exist, Supabase handles bounced emails
@@ -114,7 +109,7 @@ export async function POST(request: NextRequest) {
             email,
             passwordHash,
             name,
-            avatarUrl: gravatarUrl, // Set Gravatar avatar for email signups
+            // avatarUrl is null - users can upload their own avatar later
             role: 'FREE',
           },
         })
