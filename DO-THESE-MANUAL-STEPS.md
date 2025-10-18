@@ -1,4 +1,4 @@
-# ✅ FINAL MANUAL STEPS - Complete These to Reach 99/100 Deployment & 85/100 DSA
+ # ✅ FINAL MANUAL STEPS - Complete These to Reach 99/100 Deployment & 85/100 DSA
 
 ## 🎉 WHAT I'VE ALREADY DONE FOR YOU:
 

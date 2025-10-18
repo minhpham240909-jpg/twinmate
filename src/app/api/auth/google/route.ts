@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
           access_type: 'offline',
           prompt: 'consent',
         },
+        // Note: Supabase automatically confirms OAuth emails
+        // Email verification for OAuth users happens at the Supabase project settings level
       },
     })
 

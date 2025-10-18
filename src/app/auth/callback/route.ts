@@ -25,12 +25,18 @@ export async function GET(request: Request) {
             where: { id: data.user.id },
           })
 
-          // Check if this is an email confirmation (user already exists but email wasn't verified)
-          const isEmailConfirmation = dbUser && !dbUser.emailVerified
+          const isGoogleOAuth = data.user.app_metadata?.provider === 'google'
+          const isEmailConfirmedBySupabase = data.user.email_confirmed_at !== null
 
           if (!dbUser) {
-            // Create user and profile in transaction (OAuth flow)
+            // Create user and profile in transaction
             const email = data.user.email!
+
+            // Email verification strategy:
+            // - Google OAuth: Trust Google's verification (emailVerified = true)
+            // - Email/Password: Require email confirmation (emailVerified set by Supabase callback)
+            const emailVerified = isGoogleOAuth ? true : isEmailConfirmedBySupabase
+
             const result = await prisma.$transaction(async (tx) => {
               const newUser = await tx.user.create({
                 data: {
@@ -38,9 +44,9 @@ export async function GET(request: Request) {
                   email: email,
                   name: data.user.user_metadata?.name || email.split('@')[0],
                   avatarUrl: data.user.user_metadata?.avatar_url,
-                  googleId: data.user.app_metadata?.provider === 'google' ? data.user.id : null,
+                  googleId: isGoogleOAuth ? data.user.id : null,
                   role: 'FREE',
-                  emailVerified: true,
+                  emailVerified,
                 },
               })
 
@@ -52,17 +58,21 @@ export async function GET(request: Request) {
             })
 
             dbUser = result
+            console.log('[Auth Callback] Created new user:', email, 'via', isGoogleOAuth ? 'Google OAuth' : 'Email/Password')
           } else {
-            // Update user: mark email as verified and update last login
+            // Existing user - update emailVerified if confirmed by Supabase
+            const wasUnverified = !dbUser.emailVerified
+            const nowVerified = isEmailConfirmedBySupabase || isGoogleOAuth
+
             await prisma.user.update({
               where: { id: data.user.id },
               data: {
-                emailVerified: true,
+                emailVerified: nowVerified,
                 lastLoginAt: new Date(),
               },
             })
 
-            if (isEmailConfirmation) {
+            if (wasUnverified && nowVerified) {
               console.log('[Auth Callback] ✅ Email confirmed for user:', data.user.email)
             }
           }
