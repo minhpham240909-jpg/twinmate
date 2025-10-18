@@ -27,7 +27,27 @@ export default function SignInForm() {
     console.log('[SignIn] Email:', formData.email)
 
     try {
-      // Sign in using CLIENT-SIDE Supabase to establish session properly
+      // First check via API if account exists (provides better error messages)
+      console.log('[SignIn] Checking account existence via API...')
+      const apiResponse = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const apiData = await apiResponse.json()
+
+      if (!apiResponse.ok) {
+        console.error('[SignIn] API error:', apiData.error)
+        setError(apiData.error || 'Invalid credentials')
+        setLoading(false)
+        return
+      }
+
+      // If API check passed, proceed with client-side Supabase signin
       console.log('[SignIn] Calling Supabase signInWithPassword...')
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
