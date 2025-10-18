@@ -1,9 +1,31 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // This endpoint cleans up sessions that were created but never started within 30 minutes
-export async function POST() {
+// SECURITY: Protected by API key to prevent unauthorized cleanup operations
+export async function POST(request: NextRequest) {
   try {
+    // Verify API key for cron job authentication
+    const apiKey = request.headers.get('x-api-key')
+    const validApiKey = process.env.CLEANUP_API_KEY
+
+    // Reject if no API key is configured (security failsafe)
+    if (!validApiKey) {
+      console.error('CLEANUP_API_KEY not configured in environment variables')
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable' },
+        { status: 503 }
+      )
+    }
+
+    // Reject if API key doesn't match
+    if (!apiKey || apiKey !== validApiKey) {
+      console.warn('Unauthorized cleanup attempt with invalid API key')
+      return NextResponse.json(
+        { error: 'Unauthorized - Invalid API key' },
+        { status: 401 }
+      )
+    }
     // Find sessions that are SCHEDULED and older than 30 minutes with no study time
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
 
