@@ -87,15 +87,20 @@ export default function VideoCall({
 
   // Auto-join on mount (only once)
   useEffect(() => {
+    console.log('🔄 VideoCall mount effect running - hasJoined:', hasJoinedRef.current)
     if (!hasJoinedRef.current) {
       hasJoinedRef.current = true
+      console.log('📞 Triggering joinCall() from VideoCall component')
       joinCall()
+    } else {
+      console.log('⏭️ Skipping joinCall - already called')
     }
 
     return () => {
+      console.log('🧹 VideoCall component unmounting')
       // Cleanup handled by useVideoCall hook
     }
-  }, [])
+  }, [joinCall])
 
   // Keyboard shortcuts
   useEffect(() => {

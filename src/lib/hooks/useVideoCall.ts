@@ -252,9 +252,16 @@ export function useVideoCall({
    * Join the video call
    */
   const joinCall = useCallback(async () => {
+    console.log('🎯 joinCall called - Current state:', {
+      isConnecting,
+      isConnected,
+      isJoiningRef: isJoiningRef.current,
+      channelName
+    })
+
     // Prevent duplicate join attempts
     if (isConnecting || isConnected || isJoiningRef.current) {
-      console.warn('Already connecting or connected')
+      console.warn('⛔ Already connecting or connected - aborting join')
       return
     }
 
@@ -262,17 +269,19 @@ export function useVideoCall({
     isJoiningRef.current = true
     setIsConnecting(true)
     setConnectionError(null)
+    console.log('✅ Starting join process...')
 
     try {
       // Initialize client if not already done
       let agoraClient = clientRef.current
       if (!agoraClient) {
+        console.log('📡 Initializing Agora client...')
         agoraClient = initializeClient()
       }
 
       // Check if client is already connected
       if (agoraClient.connectionState === 'CONNECTED' || agoraClient.connectionState === 'CONNECTING') {
-        console.log('Client already connected or connecting, skipping join')
+        console.log('✅ Client already connected or connecting, skipping join')
         setIsConnected(true)
         setIsConnecting(false)
         isJoiningRef.current = false
@@ -280,14 +289,16 @@ export function useVideoCall({
       }
 
       // Fetch token
+      console.log('🔑 Fetching Agora token for channel:', channelName)
       const tokenData = await fetchAgoraToken(channelName)
+      console.log('✅ Token fetched successfully:', { appId: tokenData.appId, uid: tokenData.uid })
+
       tokenRef.current = tokenData.token
       appIdRef.current = tokenData.appId
       uidRef.current = tokenData.uid
 
-      console.log('Joining channel:', channelName, 'with UID:', tokenData.uid)
-
       // Join the channel
+      console.log('🚀 Joining Agora channel:', channelName, 'with UID:', tokenData.uid)
       await agoraClient.join(
         tokenData.appId,
         channelName,
@@ -295,12 +306,18 @@ export function useVideoCall({
         tokenData.uid
       )
 
-      console.log('Successfully joined channel')
+      console.log('✅ Successfully joined Agora channel')
 
       // Create local tracks
+      console.log('🎥 Creating local media tracks (video:', localVideoEnabled, ', audio:', localAudioEnabled, ')...')
       const tracks = await createLocalTracks({
         videoEnabled: localVideoEnabled,
         audioEnabled: localAudioEnabled,
+      })
+
+      console.log('✅ Local tracks created:', {
+        hasVideo: !!tracks.videoTrack,
+        hasAudio: !!tracks.audioTrack
       })
 
       localTracksRef.current = {
@@ -316,20 +333,25 @@ export function useVideoCall({
       if (tracks.audioTrack) tracksToPublish.push(tracks.audioTrack)
 
       if (tracksToPublish.length > 0) {
+        console.log('📤 Publishing', tracksToPublish.length, 'local tracks...')
         await agoraClient.publish(tracksToPublish)
-        console.log('Published local tracks')
+        console.log('✅ Published local tracks successfully')
+      } else {
+        console.warn('⚠️ No tracks to publish')
       }
 
       setIsConnected(true)
       setIsConnecting(false)
       isJoiningRef.current = false
+      console.log('🎉 Call connection complete!')
       toast.success('Connected to call')
     } catch (error) {
-      console.error('Error joining call:', error)
+      console.error('❌ Error joining call:', error)
 
       let errorMessage = 'Failed to join call'
 
       if (error && typeof error === 'object' && 'code' in error) {
+        console.error('Error code:', error.code)
         if (error.code === 'PERMISSION_DENIED') {
           errorMessage = 'Camera or microphone permission denied. Please enable them in your browser settings.'
         } else if (error.code === 'NETWORK_ERROR') {
@@ -338,8 +360,11 @@ export function useVideoCall({
       }
 
       if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        console.error('Error message:', error.message)
         errorMessage = error.message
       }
+
+      console.error('Final error message:', errorMessage)
 
       setConnectionError(errorMessage)
       toast.error(errorMessage)
