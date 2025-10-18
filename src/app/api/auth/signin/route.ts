@@ -37,6 +37,19 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = validation.data
 
+    // Check if user exists in database first
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, emailVerified: true },
+    })
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'Account not found. Please sign up to access the app.' },
+        { status: 404 }
+      )
+    }
+
     // Sign in with Supabase Auth
     const supabase = await createClient()
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -45,8 +58,17 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
+      // Check if it's an email verification issue
+      if (authError.message.includes('Email not confirmed')) {
+        return NextResponse.json(
+          { error: 'Please confirm your email before signing in. Check your inbox for the confirmation link.' },
+          { status: 401 }
+        )
+      }
+
+      // Wrong password
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid password. Please try again.' },
         { status: 401 }
       )
     }
