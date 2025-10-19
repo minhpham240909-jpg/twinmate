@@ -94,6 +94,23 @@ const nextConfig: NextConfig = {
 
   // Compression
   compress: true,
+
+  // Webpack configuration - suppress warnings for third-party libraries
+  webpack: (config) => {
+    // Suppress Supabase library warnings about Node.js APIs in Edge Runtime
+    // These are safe to ignore because:
+    // 1. The Supabase client gracefully handles Edge Runtime environments
+    // 2. These Node.js APIs are only used for version detection/logging, not core functionality
+    // 3. All realtime features use 'use client' directive (client-side only)
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      {
+        module: /node_modules\/@supabase/,
+        message: /A Node\.js API is used/,
+      },
+    ];
+    return config;
+  },
 };
 
 export default nextConfig;
