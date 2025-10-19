@@ -856,8 +856,15 @@ function ChatPageContent() {
                           type="text"
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                          placeholder="Type a message..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              if (message.trim()) {
+                                handleSendMessage()
+                              }
+                            }
+                          }}
+                          placeholder="Type a message... (Press Enter to send)"
                           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                         <button

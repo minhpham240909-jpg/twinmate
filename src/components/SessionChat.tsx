@@ -456,7 +456,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
+            placeholder="Type a message... (Press Enter to send)"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
             disabled={sending}
           />
