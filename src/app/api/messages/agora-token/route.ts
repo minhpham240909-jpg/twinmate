@@ -24,8 +24,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Get Agora credentials from environment variables
-    const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID
-    const appCertificate = process.env.AGORA_APP_CERTIFICATE
+    // Sanitize to remove any newlines or whitespace that might cause token generation to fail
+    const sanitize = (val: string | undefined) => val?.replace(/[\r\n\s]+/g, '').trim() || ''
+    const appId = sanitize(process.env.NEXT_PUBLIC_AGORA_APP_ID)
+    const appCertificate = sanitize(process.env.AGORA_APP_CERTIFICATE)
 
     if (!appId || !appCertificate) {
       return NextResponse.json(

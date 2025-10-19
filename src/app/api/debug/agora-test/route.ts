@@ -4,14 +4,20 @@ import { RtcTokenBuilder, RtcRole } from 'agora-token'
 
 export async function GET() {
   try {
-    const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID
-    const appCertificate = process.env.AGORA_APP_CERTIFICATE
+    // Sanitize environment variables to remove newlines/whitespace
+    const sanitize = (val: string | undefined) => val?.replace(/[\r\n\s]+/g, '').trim() || ''
+    const appIdRaw = process.env.NEXT_PUBLIC_AGORA_APP_ID
+    const appCertificateRaw = process.env.AGORA_APP_CERTIFICATE
+    const appId = sanitize(appIdRaw)
+    const appCertificate = sanitize(appCertificateRaw)
 
     const info = {
       appId: appId ? `${appId.substring(0, 10)}...` : '❌ MISSING',
       appCertificate: appCertificate ? `${appCertificate.substring(0, 10)}...` : '❌ MISSING',
       appIdFull: appId || '❌ MISSING',
       certificateFull: appCertificate || '❌ MISSING',
+      hadNewlineInAppId: appIdRaw !== appId,
+      hadNewlineInCertificate: appCertificateRaw !== appCertificate,
     }
 
     if (!appId || !appCertificate) {
