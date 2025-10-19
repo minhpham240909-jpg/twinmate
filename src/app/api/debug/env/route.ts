@@ -22,6 +22,9 @@ export async function GET() {
     NEXT_PUBLIC_AGORA_APP_ID: process.env.NEXT_PUBLIC_AGORA_APP_ID
       ? `${process.env.NEXT_PUBLIC_AGORA_APP_ID.substring(0, 10)}...`
       : '❌ MISSING',
+    AGORA_APP_CERTIFICATE: process.env.AGORA_APP_CERTIFICATE
+      ? `${process.env.AGORA_APP_CERTIFICATE.substring(0, 10)}...`
+      : '❌ MISSING',
     CLEANUP_API_KEY: process.env.CLEANUP_API_KEY
       ? `${process.env.CLEANUP_API_KEY.substring(0, 10)}...`
       : '❌ MISSING',
