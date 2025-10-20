@@ -193,6 +193,8 @@ export async function createLocalTracks(options?: {
 
   const { videoEnabled = true, audioEnabled = true, cameraId, microphoneId } = options || {}
 
+  console.log('🎬 createLocalTracks called with:', { videoEnabled, audioEnabled, cameraId, microphoneId })
+
   try {
     const tracks: {
       videoTrack?: Awaited<ReturnType<typeof AgoraRTC.createCameraVideoTrack>>
@@ -200,6 +202,7 @@ export async function createLocalTracks(options?: {
     } = {}
 
     if (videoEnabled) {
+      console.log('📹 Creating camera video track...')
       tracks.videoTrack = await AgoraRTC.createCameraVideoTrack({
         cameraId,
         encoderConfig: {
@@ -210,9 +213,13 @@ export async function createLocalTracks(options?: {
           bitrateMax: 1000,
         },
       })
+      console.log('✅ Video track created successfully')
+    } else {
+      console.log('⏭️ Skipping video track creation (videoEnabled: false)')
     }
 
     if (audioEnabled) {
+      console.log('🎤 Creating microphone audio track...')
       tracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
         microphoneId,
         encoderConfig: {
@@ -221,8 +228,12 @@ export async function createLocalTracks(options?: {
           bitrate: 128,
         },
       })
+      console.log('✅ Audio track created successfully')
+    } else {
+      console.log('⏭️ Skipping audio track creation (audioEnabled: false)')
     }
 
+    console.log('🎬 Final tracks:', { hasVideo: !!tracks.videoTrack, hasAudio: !!tracks.audioTrack })
     return tracks
   } catch (error) {
     console.error('Error creating local tracks:', error)
