@@ -9,15 +9,10 @@ export default function FloatingSessionButton() {
   const router = useRouter()
   const pathname = usePathname()
   const { activeSessionId } = useBackgroundSession()
+
+  // Always call hooks unconditionally (before early returns)
   const { timer } = useTimerSync(activeSessionId || '')
   const [displayTime, setDisplayTime] = useState(0)
-
-  // Don't show button if:
-  // 1. No active session
-  // 2. Already on the session page
-  if (!activeSessionId || pathname?.startsWith(`/study-sessions/${activeSessionId}`)) {
-    return null
-  }
 
   // Calculate display time based on timer state
   useEffect(() => {
@@ -63,6 +58,13 @@ export default function FloatingSessionButton() {
       setDisplayTime(timer.timeRemaining)
     }
   }, [timer])
+
+  // Don't show button if:
+  // 1. No active session
+  // 2. Already on the session page
+  if (!activeSessionId || pathname?.startsWith(`/study-sessions/${activeSessionId}`)) {
+    return null
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
