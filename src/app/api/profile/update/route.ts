@@ -37,7 +37,7 @@ const profileSchema = z.object({
   // NEW: School and Languages
   school: z.string().optional().nullable(),
   languages: z.string().optional().nullable(),
-}).passthrough()
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,24 +86,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare data for database - convert empty strings to null and string to array
+    // Helper function to safely trim and check if string is not empty
+    const cleanString = (value: string | null | undefined): string | null => {
+      if (!value || typeof value !== 'string') return null
+      const trimmed = value.trim()
+      return trimmed !== '' ? trimmed : null
+    }
+
     const profileDataFields = {
-      bio: data.bio && data.bio.trim() !== '' ? data.bio : null,
+      bio: cleanString(data.bio),
       subjects: data.subjects || [],
       interests: data.interests || [],
       goals: data.goals || [],
-      skillLevel: data.skillLevel && data.skillLevel.trim() !== '' ? data.skillLevel : null,
-      studyStyle: data.studyStyle && data.studyStyle.trim() !== '' ? (data.studyStyle as StudyStyle) : null,
+      skillLevel: cleanString(data.skillLevel) as any,
+      studyStyle: cleanString(data.studyStyle) as StudyStyle | null,
       availableDays: data.availableDays || [],
-      availableHours: data.availableHours && data.availableHours.trim() !== '' ? [data.availableHours] : [],
-      subjectCustomDescription: data.subjectCustomDescription && data.subjectCustomDescription.trim() !== '' ? data.subjectCustomDescription : null,
-      skillLevelCustomDescription: data.skillLevelCustomDescription && data.skillLevelCustomDescription.trim() !== '' ? data.skillLevelCustomDescription : null,
-      studyStyleCustomDescription: data.studyStyleCustomDescription && data.studyStyleCustomDescription.trim() !== '' ? data.studyStyleCustomDescription : null,
-      interestsCustomDescription: data.interestsCustomDescription && data.interestsCustomDescription.trim() !== '' ? data.interestsCustomDescription : null,
-      availabilityCustomDescription: data.availabilityCustomDescription && data.availabilityCustomDescription.trim() !== '' ? data.availabilityCustomDescription : null,
+      availableHours: cleanString(data.availableHours) ? [cleanString(data.availableHours)!] : [],
+      subjectCustomDescription: cleanString(data.subjectCustomDescription),
+      skillLevelCustomDescription: cleanString(data.skillLevelCustomDescription),
+      studyStyleCustomDescription: cleanString(data.studyStyleCustomDescription),
+      interestsCustomDescription: cleanString(data.interestsCustomDescription),
+      availabilityCustomDescription: cleanString(data.availabilityCustomDescription),
       aboutYourselfItems: data.aboutYourselfItems || [],
-      aboutYourself: data.aboutYourself && data.aboutYourself.trim() !== '' ? data.aboutYourself : null,
-      school: data.school && data.school.trim() !== '' ? data.school : null,
-      languages: data.languages && data.languages.trim() !== '' ? data.languages : null,
+      aboutYourself: cleanString(data.aboutYourself),
+      school: cleanString(data.school),
+      languages: cleanString(data.languages),
     }
 
     console.log('[Profile Update] Prepared profile data fields:', JSON.stringify(profileDataFields, null, 2))
