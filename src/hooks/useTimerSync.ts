@@ -29,6 +29,8 @@ export function useTimerSync(sessionId: string) {
   useEffect(() => {
     if (!sessionId) return
 
+    let pollingInterval: NodeJS.Timeout | null = null
+
     // Fetch timer from API
     const fetchTimer = async () => {
       try {
@@ -55,6 +57,11 @@ export function useTimerSync(sessionId: string) {
     // Initial fetch
     fetchTimer()
 
+    // Set up polling as fallback (every 2 seconds)
+    pollingInterval = setInterval(() => {
+      fetchTimer()
+    }, 2000)
+
     // Subscribe to real-time updates on SessionTimer table
     const channel = supabase
       .channel(`session-${sessionId}-timer`)
@@ -75,6 +82,7 @@ export function useTimerSync(sessionId: string) {
 
     // Cleanup
     return () => {
+      if (pollingInterval) clearInterval(pollingInterval)
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase])
