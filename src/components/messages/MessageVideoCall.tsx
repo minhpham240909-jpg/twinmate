@@ -13,6 +13,7 @@ interface MessageVideoCallProps {
   onCallEnd: () => void
   callMessageId: string
   callStartTime: number
+  callType?: 'VIDEO' | 'AUDIO' // Type of call
 }
 
 export default function MessageVideoCall({
@@ -23,6 +24,7 @@ export default function MessageVideoCall({
   onCallEnd,
   callMessageId,
   callStartTime,
+  callType = 'VIDEO',
 }: MessageVideoCallProps) {
   const hasTrackedJoin = useRef(false)
 
@@ -48,7 +50,7 @@ export default function MessageVideoCall({
           callStatus,
           conversationId,
           conversationType,
-          callType: 'VIDEO', // Can be enhanced to track actual type
+          callType, // Use the actual call type
         }),
       })
     } catch (error) {
@@ -68,6 +70,7 @@ export default function MessageVideoCall({
       onCallEnd={handleCallEnd}
       onOpenChat={undefined}
       pipMode={false}
+      audioOnly={callType === 'AUDIO'} // Enable audio-only mode for AUDIO calls
     />
   )
 }

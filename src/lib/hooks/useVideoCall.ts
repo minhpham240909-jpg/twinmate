@@ -23,6 +23,7 @@ interface UseVideoCallOptions {
   onUserJoined?: (uid: UID) => void
   onUserLeft?: (uid: UID) => void
   onError?: (error: Error) => void
+  audioOnly?: boolean // For audio-only calls (no video)
 }
 
 export function useVideoCall({
@@ -30,6 +31,7 @@ export function useVideoCall({
   onUserJoined,
   onUserLeft,
   onError,
+  audioOnly = false,
 }: UseVideoCallOptions): UseVideoCallReturn {
   // Client state
   const [client, setClient] = useState<IAgoraRTCClient | null>(null)
@@ -53,7 +55,7 @@ export function useVideoCall({
   })
 
   const [localAudioEnabled, setLocalAudioEnabled] = useState(true)
-  const [localVideoEnabled, setLocalVideoEnabled] = useState(true)
+  const [localVideoEnabled, setLocalVideoEnabled] = useState(!audioOnly) // Start with video OFF for audio-only calls
   const [isScreenSharing, setIsScreenSharing] = useState(false)
 
   // Remote users state

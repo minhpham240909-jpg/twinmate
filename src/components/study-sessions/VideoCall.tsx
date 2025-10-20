@@ -18,6 +18,7 @@ interface VideoCallProps {
   onOpenChat?: () => void
   pipMode?: boolean
   onTogglePip?: () => void
+  audioOnly?: boolean // For audio-only calls (no video)
 }
 
 interface ChatMessage {
@@ -39,6 +40,7 @@ export default function VideoCall({
   onOpenChat,
   pipMode = false,
   onTogglePip,
+  audioOnly = false, // Default to video call
 }: VideoCallProps) {
   const hasJoinedRef = useRef(false)
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
@@ -66,6 +68,7 @@ export default function VideoCall({
     localTracks,
   } = useVideoCall({
     channelName: agoraChannel,
+    audioOnly, // Pass audioOnly mode to hook
     onUserJoined: (uid) => {
       console.log('User joined callback:', uid)
     },

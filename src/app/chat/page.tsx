@@ -71,6 +71,7 @@ function ChatPageContent() {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const callMessageId = useRef<string | null>(null)
   const callStartTime = useRef<number>(0)
+  const currentCallType = useRef<'VIDEO' | 'AUDIO'>('VIDEO')
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [isGroupAdmin, setIsGroupAdmin] = useState(false)
 
@@ -469,6 +470,7 @@ function ChatPageContent() {
       if (callMessageData.success) {
         callMessageId.current = callMessageData.message.id
         callStartTime.current = Date.now()
+        currentCallType.current = callType // Store call type
 
         // Add message to UI immediately
         setMessages(prev => [...prev, callMessageData.message])
@@ -723,6 +725,7 @@ function ChatPageContent() {
                         onCallEnd={handleCallEnd}
                         callMessageId={callMessageId.current}
                         callStartTime={callStartTime.current}
+                        callType={currentCallType.current}
                       />
                     )}
 
