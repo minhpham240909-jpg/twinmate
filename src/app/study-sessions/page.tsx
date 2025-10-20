@@ -542,6 +542,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (title.trim()) {
+                    handleCreate()
+                  }
+                }
+              }}
               placeholder="e.g., Math Study Group"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -577,6 +585,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (title.trim()) {
+                    handleCreate()
+                  }
+                }
+              }}
               placeholder="e.g., Mathematics"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -593,6 +609,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (title.trim()) {
+                    handleCreate()
+                  }
+                }
+              }}
               placeholder="Search partners..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
             />
