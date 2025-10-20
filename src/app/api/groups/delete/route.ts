@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: Request) {
   try {
@@ -57,13 +57,13 @@ export async function POST(request: Request) {
       .filter((member) => member.userId !== user.id)
       .map((member) => member.userId)
 
-    // Get owner profile for notification
-    const ownerProfile = await prisma.userProfile.findUnique({
-      where: { userId: user.id },
-      select: { name: true },
+    // Get owner info for notification
+    const ownerUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, email: true },
     })
 
-    const ownerName = ownerProfile?.name || user.email || 'The owner'
+    const ownerName = ownerUser?.name || ownerUser?.email || 'The owner'
 
     // Delete the group (cascade will delete members, messages, invites)
     await prisma.group.delete({
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       await prisma.notification.createMany({
         data: memberIds.map((memberId) => ({
           userId: memberId,
-          type: 'GROUP_DELETED',
+          type: 'GROUP_REMOVED',
           title: 'Group Deleted',
           message: `${ownerName} has deleted the group "${group.name}"`,
           metadata: {
