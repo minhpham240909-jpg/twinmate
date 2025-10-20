@@ -204,8 +204,6 @@ export default function ProfilePage() {
         languages: formData.languages || undefined,
       }
 
-      console.log('[CLIENT] Sending profile update request:', requestData)
-
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -371,7 +369,7 @@ export default function ProfilePage() {
                   type="text"
                   value={customInputs.subject}
                   onChange={(e) => setCustomInputs({ ...customInputs, subject: e.target.value })}
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomItem('subject')}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('subject')}
                   placeholder="Add custom subject..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
@@ -423,7 +421,7 @@ export default function ProfilePage() {
                   type="text"
                   value={customInputs.interest}
                   onChange={(e) => setCustomInputs({ ...customInputs, interest: e.target.value })}
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomItem('interest')}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('interest')}
                   placeholder="Add custom interest..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                 />
@@ -475,7 +473,7 @@ export default function ProfilePage() {
                   type="text"
                   value={customInputs.goal}
                   onChange={(e) => setCustomInputs({ ...customInputs, goal: e.target.value })}
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomItem('goal')}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('goal')}
                   placeholder="Add custom goal..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                 />
@@ -632,7 +630,7 @@ export default function ProfilePage() {
                         type="text"
                         value={customInputs.aboutYourselfItem}
                         onChange={(e) => setCustomInputs({ ...customInputs, aboutYourselfItem: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem('aboutYourselfItem'))}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem('aboutYourselfItem'))}
                         placeholder="Add a tag..."
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />

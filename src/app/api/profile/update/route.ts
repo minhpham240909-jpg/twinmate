@@ -41,8 +41,6 @@ const profileSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Profile Update] Starting profile update request...')
-
     // Use server client which automatically reads Supabase cookies
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -55,18 +53,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[Profile Update] User authenticated:', user.email)
-
     // Parse and validate request body
     const body = await request.json()
-    console.log('[Profile Update] Request body keys:', Object.keys(body))
-    console.log('[Profile Update] Full request body:', JSON.stringify(body, null, 2))
-
     const validation = profileSchema.safeParse(body)
 
     if (!validation.success) {
       console.error('[Profile Update] Validation failed:', validation.error.issues)
-      console.error('[Profile Update] Failed body:', JSON.stringify(body, null, 2))
       return NextResponse.json(
         { error: 'Invalid data', details: validation.error.issues },
         { status: 400 }
@@ -74,7 +66,6 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data
-    console.log('[Profile Update] Data validated successfully')
 
     // Verify user is updating their own profile
     if (data.userId !== user.id) {
@@ -113,14 +104,9 @@ export async function POST(request: NextRequest) {
       languages: cleanString(data.languages),
     }
 
-    console.log('[Profile Update] Prepared profile data fields:', JSON.stringify(profileDataFields, null, 2))
-
-    console.log('[Profile Update] Starting database transaction...')
-
     // Wrap user and profile updates in a transaction to ensure atomicity
     const profile = await prisma.$transaction(async (tx) => {
       // Update user name and avatar
-      console.log('[Profile Update] Updating user:', user.id)
       await tx.user.update({
         where: { id: user.id },
         data: {
@@ -134,18 +120,14 @@ export async function POST(request: NextRequest) {
         where: { userId: user.id },
       })
 
-      console.log('[Profile Update] Profile exists:', !!existingProfile)
-
       if (existingProfile) {
         // Update existing profile
-        console.log('[Profile Update] Updating existing profile...')
         return await tx.profile.update({
           where: { userId: user.id },
           data: profileDataFields,
         })
       } else {
         // Create new profile
-        console.log('[Profile Update] Creating new profile...')
         return await tx.profile.create({
           data: {
             userId: user.id,
@@ -154,8 +136,6 @@ export async function POST(request: NextRequest) {
         })
       }
     })
-
-    console.log('[Profile Update] Transaction completed successfully')
 
     return NextResponse.json({
       success: true,
