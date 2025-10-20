@@ -360,19 +360,6 @@ export default function DashboardPage() {
                 </h4>
                 <p className="text-sm text-gray-600">Create a study session with your partners</p>
               </button>
-
-              <button
-                onClick={() => router.push('/ai-coach')}
-                className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition text-left"
-              >
-                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mb-3">
-                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-1">AI Study Coach</h4>
-                <p className="text-sm text-gray-600">Get personalized study recommendations</p>
-              </button>
             </div>
           </div>
         </div>
