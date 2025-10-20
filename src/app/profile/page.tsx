@@ -26,6 +26,9 @@ export default function ProfilePage() {
     // NEW: Add more about yourself
     aboutYourselfItems: [] as string[],
     aboutYourself: '',
+    // NEW: School and Languages
+    school: '',
+    languages: '',
   })
 
   const [customInputs, setCustomInputs] = useState({
@@ -64,6 +67,9 @@ export default function ProfilePage() {
         // NEW: Load aboutYourself fields
         aboutYourselfItems: (profile as { aboutYourselfItems?: string[] }).aboutYourselfItems || [],
         aboutYourself: (profile as { aboutYourself?: string }).aboutYourself || '',
+        // NEW: Load school and languages
+        school: (profile as { school?: string }).school || '',
+        languages: (profile as { languages?: string }).languages || '',
       })
       // Show "Add more about yourself" if it has content
       const profileWithAbout = profile as { aboutYourself?: string; aboutYourselfItems?: string[] }
@@ -197,6 +203,9 @@ export default function ProfilePage() {
           // NEW: Include aboutYourself fields
           aboutYourselfItems: formData.aboutYourselfItems,
           aboutYourself: formData.aboutYourself,
+          // NEW: Include school and languages
+          school: formData.school,
+          languages: formData.languages,
         }),
       })
 
@@ -473,6 +482,36 @@ export default function ProfilePage() {
                   Add
                 </button>
               </div>
+            </div>
+
+            {/* School */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                School / University (Optional)
+              </label>
+              <textarea
+                value={formData.school}
+                onChange={(e) => setFormData({ ...formData, school: e.target.value })}
+                placeholder="e.g., Harvard University, MIT, Stanford..."
+                rows={2}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">This helps you find partners from the same school</p>
+            </div>
+
+            {/* Languages */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Languages Spoken (Optional)
+              </label>
+              <textarea
+                value={formData.languages}
+                onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
+                placeholder="e.g., English, Spanish, Mandarin, French..."
+                rows={2}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">This helps you find partners who speak the same languages</p>
             </div>
 
             {/* Skill Level */}

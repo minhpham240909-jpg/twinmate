@@ -46,6 +46,9 @@ export default function SearchPage() {
   const [studyStyleCustomDescription, setStudyStyleCustomDescription] = useState('')
   const [interestsCustomDescription, setInterestsCustomDescription] = useState('')
   const [availabilityCustomDescription, setAvailabilityCustomDescription] = useState('')
+  // NEW: School and Languages filters
+  const [schoolFilter, setSchoolFilter] = useState('')
+  const [languagesFilter, setLanguagesFilter] = useState('')
   const [showFilters, setShowFilters] = useState(() => {
     // Load filter visibility from localStorage
     if (typeof window !== 'undefined') {
@@ -242,7 +245,9 @@ export default function SearchPage() {
       skillLevelCustomDescription.trim() !== '' ||
       studyStyleCustomDescription.trim() !== '' ||
       interestsCustomDescription.trim() !== '' ||
-      availabilityCustomDescription.trim() !== ''
+      availabilityCustomDescription.trim() !== '' ||
+      schoolFilter.trim() !== '' ||
+      languagesFilter.trim() !== ''
 
     if (!hasFilters) {
       setSearchError('Please select at least one filter to find partners.')
@@ -267,6 +272,8 @@ export default function SearchPage() {
           studyStyleCustomDescription,
           interestsCustomDescription,
           availabilityCustomDescription,
+          school: schoolFilter,
+          languages: languagesFilter,
         }),
       })
 
@@ -583,6 +590,36 @@ export default function SearchPage() {
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
                   />
+                </div>
+
+                {/* School Filter */}
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    School / University
+                  </label>
+                  <textarea
+                    value={schoolFilter}
+                    onChange={(e) => setSchoolFilter(e.target.value)}
+                    placeholder="e.g., Harvard, MIT, Stanford..."
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Find partners from the same school</p>
+                </div>
+
+                {/* Languages Filter */}
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Languages
+                  </label>
+                  <textarea
+                    value={languagesFilter}
+                    onChange={(e) => setLanguagesFilter(e.target.value)}
+                    placeholder="e.g., English, Spanish, Mandarin..."
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Find partners who speak these languages</p>
                 </div>
 
                 <button

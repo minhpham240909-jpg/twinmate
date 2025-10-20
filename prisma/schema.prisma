@@ -107,6 +107,8 @@ model Profile {
   goals      String[] // ["Prep for SAT", "Build portfolio"]
   skillLevel SkillLevel? // Optional
   studyStyle StudyStyle? // Optional
+  school     String? @db.Text // Custom school name
+  languages  String? @db.Text // Custom languages (comma-separated or free text)
 
   // Availability
   availableDays  String[] // ["Monday", "Wednesday"]

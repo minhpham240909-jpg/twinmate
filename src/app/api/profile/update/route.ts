@@ -24,6 +24,9 @@ const profileSchema = z.object({
   // NEW: Add more about yourself fields
   aboutYourselfItems: z.array(z.string()).optional(),
   aboutYourself: z.string().optional(),
+  // NEW: School and Languages
+  school: z.string().optional(),
+  languages: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -87,6 +90,8 @@ export async function POST(request: NextRequest) {
       availabilityCustomDescription: data.availabilityCustomDescription || null,
       aboutYourselfItems: data.aboutYourselfItems || [],
       aboutYourself: data.aboutYourself || null,
+      school: data.school || null,
+      languages: data.languages || null,
     }
 
     console.log('[Profile Update] Starting database transaction...')

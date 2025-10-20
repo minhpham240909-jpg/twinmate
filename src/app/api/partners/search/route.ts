@@ -17,6 +17,9 @@ const searchSchema = z.object({
   availabilityCustomDescription: z.string().optional(),
   // NEW: Search in aboutYourself field
   aboutYourselfSearch: z.string().optional(),
+  // NEW: School and Languages filters
+  school: z.string().optional(),
+  languages: z.string().optional(),
   page: z.number().optional().default(1),
   limit: z.number().optional().default(20),
 })
@@ -58,6 +61,8 @@ export async function POST(request: NextRequest) {
       interestsCustomDescription,
       availabilityCustomDescription,
       aboutYourselfSearch,
+      school,
+      languages,
       page,
       limit,
     } = validation.data
@@ -75,7 +80,9 @@ export async function POST(request: NextRequest) {
       (studyStyleCustomDescription && studyStyleCustomDescription.trim().length > 0) ||
       (interestsCustomDescription && interestsCustomDescription.trim().length > 0) ||
       (availabilityCustomDescription && availabilityCustomDescription.trim().length > 0) ||
-      (aboutYourselfSearch && aboutYourselfSearch.trim().length > 0)
+      (aboutYourselfSearch && aboutYourselfSearch.trim().length > 0) ||
+      (school && school.trim().length > 0) ||
+      (languages && languages.trim().length > 0)
 
     if (!hasSearchCriteria) {
       return NextResponse.json(
@@ -171,7 +178,7 @@ export async function POST(request: NextRequest) {
     // Custom description search - search in user's bio and fields
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
         studyStyleCustomDescription || interestsCustomDescription || availabilityCustomDescription ||
-        aboutYourselfSearch) {
+        aboutYourselfSearch || school || languages) {
 
       const searchTerms: string[] = []
 
@@ -182,6 +189,8 @@ export async function POST(request: NextRequest) {
       if (interestsCustomDescription) searchTerms.push(interestsCustomDescription)
       if (availabilityCustomDescription) searchTerms.push(availabilityCustomDescription)
       if (aboutYourselfSearch) searchTerms.push(aboutYourselfSearch)
+      if (school) searchTerms.push(school)
+      if (languages) searchTerms.push(languages)
 
       // Create OR conditions for each search term across multiple fields
       const searchConditions = searchTerms.flatMap(term => {
@@ -203,6 +212,8 @@ export async function POST(request: NextRequest) {
             { interestsCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
             { availabilityCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
             { aboutYourself: { contains: keyword, mode: 'insensitive' as const } },
+            { school: { contains: keyword, mode: 'insensitive' as const } },
+            { languages: { contains: keyword, mode: 'insensitive' as const } },
           ]
         })
       })
