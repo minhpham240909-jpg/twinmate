@@ -61,20 +61,22 @@ export async function POST(
         break
 
       case 'pause':
-        // Pause the timer
-        if (currentTimer.state === 'RUNNING') {
+        // Pause the timer and calculate actual remaining time
+        if (currentTimer.state === 'RUNNING' || currentTimer.state === 'BREAK') {
+          // Calculate how much time has elapsed since lastStartedAt
+          const now = new Date()
+          const elapsedSeconds = currentTimer.lastStartedAt
+            ? Math.floor((now.getTime() - new Date(currentTimer.lastStartedAt).getTime()) / 1000)
+            : 0
+
+          // Calculate actual time remaining
+          const actualTimeRemaining = Math.max(0, currentTimer.timeRemaining - elapsedSeconds)
+
           updatedTimer = await prisma.sessionTimer.update({
             where: { sessionId },
             data: {
-              state: 'PAUSED',
-              lastPausedAt: new Date(),
-            },
-          })
-        } else if (currentTimer.state === 'BREAK') {
-          updatedTimer = await prisma.sessionTimer.update({
-            where: { sessionId },
-            data: {
-              state: 'BREAK_PAUSED',
+              state: currentTimer.state === 'RUNNING' ? 'PAUSED' : 'BREAK_PAUSED',
+              timeRemaining: actualTimeRemaining, // Save the actual remaining time
               lastPausedAt: new Date(),
             },
           })
@@ -82,14 +84,15 @@ export async function POST(
         break
 
       case 'resume':
-        // Resume the timer
+        // Resume the timer from where it was paused
         if (currentTimer.state === 'PAUSED') {
           updatedTimer = await prisma.sessionTimer.update({
             where: { sessionId },
             data: {
               state: 'RUNNING',
-              lastStartedAt: new Date(),
+              lastStartedAt: new Date(), // Reset start time to now
               lastPausedAt: null,
+              // timeRemaining stays the same (it was already saved during pause)
             },
           })
         } else if (currentTimer.state === 'BREAK_PAUSED') {
@@ -97,8 +100,9 @@ export async function POST(
             where: { sessionId },
             data: {
               state: 'BREAK',
-              lastStartedAt: new Date(),
+              lastStartedAt: new Date(), // Reset start time to now
               lastPausedAt: null,
+              // timeRemaining stays the same (it was already saved during pause)
             },
           })
         }
