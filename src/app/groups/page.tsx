@@ -85,6 +85,9 @@ export default function GroupsPage() {
   const [groupInvites, setGroupInvites] = useState<GroupInvite[]>([])
   const [showInvitesModal, setShowInvitesModal] = useState(false)
 
+  // Delete group state
+  const [deletingGroup, setDeletingGroup] = useState(false)
+
   // Avatar upload state
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -455,6 +458,38 @@ export default function GroupsPage() {
     } catch (error) {
       console.error('Error responding to invite:', error)
       toast.error('Failed to respond to invite')
+    }
+  }
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this group? All members will be notified.')) {
+      return
+    }
+
+    try {
+      setDeletingGroup(true)
+      const response = await fetch('/api/groups/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast.success(`Group deleted. ${data.notifiedMembers} member(s) notified.`)
+        setShowManageModal(false)
+        setSelectedGroup(null)
+        // Refresh groups list
+        await fetchMyGroups()
+      } else {
+        toast.error(data.error || 'Failed to delete group')
+      }
+    } catch (error) {
+      console.error('Error deleting group:', error)
+      toast.error('Failed to delete group')
+    } finally {
+      setDeletingGroup(false)
     }
   }
 
@@ -1196,7 +1231,15 @@ export default function GroupsPage() {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              {/* Delete Group Button - Only for Owner */}
+              <button
+                onClick={() => handleDeleteGroup(selectedGroup.id)}
+                disabled={deletingGroup}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deletingGroup ? 'Deleting Group...' : 'Delete Group Permanently'}
+              </button>
               <button
                 onClick={() => setShowManageModal(false)}
                 className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
