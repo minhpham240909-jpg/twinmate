@@ -184,24 +184,24 @@ export default function ProfilePage() {
       const requestData = {
         userId: user.id,
         name: formData.name,
-        bio: formData.bio,
-        avatarUrl: formData.avatarUrl,
+        bio: formData.bio || undefined,
+        avatarUrl: formData.avatarUrl || undefined,
         subjects: formData.subjects,
         interests: formData.interests,
         goals: formData.goals,
-        skillLevel: formData.skillLevel,
-        skillLevelCustomDescription: formData.skillLevelDescription,
-        studyStyle: formData.studyStyle,
-        studyStyleCustomDescription: formData.studyStyleDescription,
+        skillLevel: formData.skillLevel || undefined,
+        skillLevelCustomDescription: formData.skillLevelDescription || undefined,
+        studyStyle: formData.studyStyle || undefined,
+        studyStyleCustomDescription: formData.studyStyleDescription || undefined,
         availableDays: formData.availableDays,
-        availableHours: formData.availableHours,
-        availabilityCustomDescription: formData.availabilityDescription,
+        availableHours: formData.availableHours || undefined,
+        availabilityCustomDescription: formData.availabilityDescription || undefined,
         // NEW: Include aboutYourself fields
         aboutYourselfItems: formData.aboutYourselfItems,
-        aboutYourself: formData.aboutYourself,
+        aboutYourself: formData.aboutYourself || undefined,
         // NEW: Include school and languages
-        school: formData.school,
-        languages: formData.languages,
+        school: formData.school || undefined,
+        languages: formData.languages || undefined,
       }
 
       console.log('[CLIENT] Sending profile update request:', requestData)

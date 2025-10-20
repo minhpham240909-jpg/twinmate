@@ -50,11 +50,13 @@ export async function POST(request: NextRequest) {
     // Parse and validate request body
     const body = await request.json()
     console.log('[Profile Update] Request body keys:', Object.keys(body))
+    console.log('[Profile Update] Full request body:', JSON.stringify(body, null, 2))
 
     const validation = profileSchema.safeParse(body)
 
     if (!validation.success) {
       console.error('[Profile Update] Validation failed:', validation.error.issues)
+      console.error('[Profile Update] Failed body:', JSON.stringify(body, null, 2))
       return NextResponse.json(
         { error: 'Invalid data', details: validation.error.issues },
         { status: 400 }
