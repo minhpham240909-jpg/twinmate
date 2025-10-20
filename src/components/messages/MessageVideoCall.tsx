@@ -26,6 +26,7 @@ export default function MessageVideoCall({
   callStartTime,
   callType = 'VIDEO',
 }: MessageVideoCallProps) {
+  console.log('📞 MessageVideoCall received callType:', callType, '→ audioOnly:', callType === 'AUDIO')
   const hasTrackedJoin = useRef(false)
 
   // Generate Agora channel name (same logic as chat page)

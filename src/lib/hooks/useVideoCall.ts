@@ -33,6 +33,8 @@ export function useVideoCall({
   onError,
   audioOnly = false,
 }: UseVideoCallOptions): UseVideoCallReturn {
+  console.log('🎯 useVideoCall initialized with audioOnly:', audioOnly)
+
   // Client state
   const [client, setClient] = useState<IAgoraRTCClient | null>(null)
   const clientRef = useRef<IAgoraRTCClient | null>(null)
@@ -55,7 +57,11 @@ export function useVideoCall({
   })
 
   const [localAudioEnabled, setLocalAudioEnabled] = useState(true)
-  const [localVideoEnabled, setLocalVideoEnabled] = useState(!audioOnly) // Start with video OFF for audio-only calls
+  const [localVideoEnabled, setLocalVideoEnabled] = useState(() => {
+    const videoEnabled = !audioOnly
+    console.log('🎥 Initial localVideoEnabled:', videoEnabled, '(audioOnly:', audioOnly, ')')
+    return videoEnabled
+  }) // Start with video OFF for audio-only calls
   const [isScreenSharing, setIsScreenSharing] = useState(false)
 
   // Remote users state

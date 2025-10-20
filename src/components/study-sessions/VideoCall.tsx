@@ -42,6 +42,7 @@ export default function VideoCall({
   onTogglePip,
   audioOnly = false, // Default to video call
 }: VideoCallProps) {
+  console.log('🎬 VideoCall component rendered with audioOnly:', audioOnly)
   const hasJoinedRef = useRef(false)
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
   const [inCallMessages, setInCallMessages] = useState<ChatMessage[]>([])
