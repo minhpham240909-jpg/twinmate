@@ -807,15 +807,14 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
                 <input
+                  id="group-name-field"
                   type="text"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
-                      if (groupName.trim()) {
-                        handleCreateGroup()
-                      }
+                      document.getElementById('avatar-field')?.focus()
                     }
                   }}
                   placeholder="e.g., Calculus Study Group"
@@ -830,9 +829,16 @@ export default function GroupsPage() {
                     <img src={avatarPreview} alt="Avatar preview" className="w-16 h-16 rounded-xl object-cover" />
                   )}
                   <input
+                    id="avatar-field"
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
                     onChange={handleAvatarChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        document.getElementById('subject-field')?.focus()
+                      }
+                    }}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -842,15 +848,14 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
                 <input
+                  id="subject-field"
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
-                      if (groupName.trim()) {
-                        handleCreateGroup()
-                      }
+                      document.getElementById('subject-desc-field')?.focus()
                     }
                   }}
                   placeholder="e.g., Mathematics, Physics, Computer Science"
@@ -861,9 +866,16 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Subject Description (Optional)</label>
                 <textarea
+                  id="subject-desc-field"
                   rows={2}
                   value={subjectCustomDescription}
                   onChange={(e) => setSubjectCustomDescription(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      document.getElementById('group-desc-field')?.focus()
+                    }
+                  }}
                   placeholder="Add more details about the subject for this group..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -872,9 +884,16 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Group Description</label>
                 <textarea
+                  id="group-desc-field"
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      document.getElementById('skill-level-field')?.focus()
+                    }
+                  }}
                   placeholder="What will this group study?"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -883,6 +902,7 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Suggestion</label>
                 <select
+                  id="skill-level-field"
                   value={skillLevel}
                   onChange={(e) => setSkillLevel(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -898,9 +918,16 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Description (Optional)</label>
                 <textarea
+                  id="skill-level-desc-field"
                   rows={2}
                   value={skillLevelCustomDescription}
                   onChange={(e) => setSkillLevelCustomDescription(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      document.getElementById('max-members-field')?.focus()
+                    }
+                  }}
                   placeholder="e.g., High school level, College freshman, etc."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -909,15 +936,14 @@ export default function GroupsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Max Members</label>
                 <input
+                  id="max-members-field"
                   type="number"
                   value={maxMembers}
                   onChange={(e) => setMaxMembers(parseInt(e.target.value))}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
-                      if (groupName.trim()) {
-                        handleCreateGroup()
-                      }
+                      document.getElementById('invite-members-field')?.focus()
                     }
                   }}
                   min={2}
@@ -927,15 +953,24 @@ export default function GroupsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Invite Members (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Invite Members (Optional) - Press Enter to Create</label>
                 <div className="relative">
                   <input
+                    id="invite-members-field"
                     type="text"
                     value={inviteUsername}
                     onChange={(e) => handleUsernameSearch(e.target.value)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     onFocus={() => inviteUsername.length >= 2 && setShowSuggestions(true)}
-                    placeholder="Type username to search..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        if (groupName.trim()) {
+                          handleCreateGroup()
+                        }
+                      }
+                    }}
+                    placeholder="Type username to search... (Press Enter to create group)"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {showSuggestions && usernameSuggestions.length > 0 && (

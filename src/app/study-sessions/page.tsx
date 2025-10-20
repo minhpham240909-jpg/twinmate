@@ -539,15 +539,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
             <input
+              id="session-title-field"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  if (title.trim()) {
-                    handleCreate()
-                  }
+                  document.getElementById('session-desc-field')?.focus()
                 }
               }}
               placeholder="e.g., Math Study Group"
@@ -558,8 +557,15 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
             <textarea
+              id="session-desc-field"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  document.getElementById('session-type-field')?.focus()
+                }
+              }}
               placeholder="What will you study?"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={3}
@@ -569,6 +575,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
             <select
+              id="session-type-field"
               value={type}
               onChange={(e) => setType(e.target.value as 'SOLO' | 'ONE_ON_ONE' | 'GROUP')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -582,15 +589,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Subject (optional)</label>
             <input
+              id="session-subject-field"
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  if (title.trim()) {
-                    handleCreate()
-                  }
+                  document.getElementById('session-search-field')?.focus()
                 }
               }}
               placeholder="e.g., Mathematics"
@@ -601,11 +607,12 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           {/* Invite Partners */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Invite Partners (optional)
+              Invite Partners (optional) - Press Enter to Create
             </label>
 
             {/* Search */}
             <input
+              id="session-search-field"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -617,7 +624,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   }
                 }
               }}
-              placeholder="Search partners..."
+              placeholder="Search partners... (Press Enter to create session)"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
             />
 
