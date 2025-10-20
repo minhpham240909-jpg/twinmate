@@ -181,32 +181,36 @@ export default function ProfilePage() {
     setIsSaving(true)
 
     try {
+      const requestData = {
+        userId: user.id,
+        name: formData.name,
+        bio: formData.bio,
+        avatarUrl: formData.avatarUrl,
+        subjects: formData.subjects,
+        interests: formData.interests,
+        goals: formData.goals,
+        skillLevel: formData.skillLevel,
+        skillLevelCustomDescription: formData.skillLevelDescription,
+        studyStyle: formData.studyStyle,
+        studyStyleCustomDescription: formData.studyStyleDescription,
+        availableDays: formData.availableDays,
+        availableHours: formData.availableHours,
+        availabilityCustomDescription: formData.availabilityDescription,
+        // NEW: Include aboutYourself fields
+        aboutYourselfItems: formData.aboutYourselfItems,
+        aboutYourself: formData.aboutYourself,
+        // NEW: Include school and languages
+        school: formData.school,
+        languages: formData.languages,
+      }
+
+      console.log('[CLIENT] Sending profile update request:', requestData)
+
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({
-          userId: user.id,
-          name: formData.name,
-          bio: formData.bio,
-          avatarUrl: formData.avatarUrl,
-          subjects: formData.subjects,
-          interests: formData.interests,
-          goals: formData.goals,
-          skillLevel: formData.skillLevel,
-          skillLevelCustomDescription: formData.skillLevelDescription,
-          studyStyle: formData.studyStyle,
-          studyStyleCustomDescription: formData.studyStyleDescription,
-          availableDays: formData.availableDays,
-          availableHours: formData.availableHours,
-          availabilityCustomDescription: formData.availabilityDescription,
-          // NEW: Include aboutYourself fields
-          aboutYourselfItems: formData.aboutYourselfItems,
-          aboutYourself: formData.aboutYourself,
-          // NEW: Include school and languages
-          school: formData.school,
-          languages: formData.languages,
-        }),
+        body: JSON.stringify(requestData),
       })
 
       if (!response.ok) {
