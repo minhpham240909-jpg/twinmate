@@ -149,20 +149,62 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     fetchMessages()
   }, [sessionId])
 
-  // Subscribe to real-time messages (optimized for instant updates)
+  // Subscribe to real-time messages with fast polling fallback
   useEffect(() => {
     if (!sessionId) return
 
     let isSubscribed = true
+    let pollingInterval: NodeJS.Timeout | null = null
+    let realtimeWorking = false
 
-    // Supabase Realtime subscription for instant message updates
+    // Fast polling fallback (500ms) for instant updates if realtime fails
+    const startFastPolling = () => {
+      if (pollingInterval) return
+
+      pollingInterval = setInterval(async () => {
+        if (!isSubscribed) return
+
+        try {
+          const currentMessages = messagesRef.current
+          const lastMessageTime = currentMessages.length > 0
+            ? new Date(currentMessages[currentMessages.length - 1].createdAt).toISOString()
+            : new Date(0).toISOString()
+
+          const res = await fetch(`/api/study-sessions/${sessionId}/messages?after=${encodeURIComponent(lastMessageTime)}`)
+          const data = await res.json()
+
+          if (data.success && data.messages && data.messages.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map(m => m.id))
+              const newMessages = data.messages.filter((m: Message) => !existingIds.has(m.id))
+
+              newMessages.forEach((msg: Message) => {
+                if (msg.sender.id !== user?.id) {
+                  if (!isVisible) {
+                    playNotificationSound()
+                    showMessageNotification(msg)
+                    setUnreadCount((prev) => prev + 1)
+                  } else {
+                    playNotificationSound()
+                  }
+                }
+              })
+
+              return newMessages.length > 0 ? [...prev, ...newMessages] : prev
+            })
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+      }, 500) // 500ms for near-instant updates
+    }
+
+    // Start polling immediately for reliability
+    startFastPolling()
+
+    // Try Supabase Realtime as enhancement
     const channel = supabase
-      .channel(`session-${sessionId}-messages`, {
-        config: {
-          broadcast: { self: false },
-          presence: { key: sessionId },
-        },
-      })
+      .channel(`session-${sessionId}-messages`)
       .on(
         'postgres_changes',
         {
@@ -173,8 +215,8 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
         },
         async (payload) => {
           if (!isSubscribed) return
+          realtimeWorking = true
 
-          // Fetch the full message with sender info immediately
           const newData = payload.new as { id: string; senderId: string }
           const messageId = newData.id
 
@@ -185,20 +227,16 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
             if (data.success && data.message) {
               const newMessage = data.message
 
-              // Add new message to existing messages (avoid duplicates)
               setMessages((prev) => {
                 const exists = prev.some(m => m.id === newMessage.id)
                 if (exists) return prev
 
-                // Show notification if message is from someone else
                 if (newMessage.sender.id !== user?.id) {
                   if (!isVisible) {
-                    // Chat not visible - show notification and increment unread
                     playNotificationSound()
                     showMessageNotification(newMessage)
                     setUnreadCount((prevCount) => prevCount + 1)
                   } else {
-                    // Chat visible - just play sound
                     playNotificationSound()
                   }
                 }
@@ -220,7 +258,6 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
           filter: `sessionId=eq.${sessionId}`,
         },
         (payload) => {
-          // Handle message updates (e.g., deletions)
           const updatedMsg = payload.new as { id: string; deletedAt?: string | null }
           setMessages((prev) =>
             prev.map((msg) =>
@@ -236,6 +273,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     return () => {
       isSubscribed = false
       supabase.removeChannel(channel)
+      if (pollingInterval) clearInterval(pollingInterval)
     }
   }, [sessionId, supabase, user?.id, isVisible])
 

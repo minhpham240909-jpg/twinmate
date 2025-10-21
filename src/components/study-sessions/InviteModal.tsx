@@ -44,51 +44,46 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
     const fetchData = async () => {
       setLoading(true)
       try {
-        // Fetch partners (accepted matches)
-        const partnersRes = await fetch('/api/matches')
+        // Fetch partners (accepted matches) - use /api/partners/active
+        const partnersRes = await fetch('/api/partners/active')
         const partnersData = await partnersRes.json()
 
-        if (partnersData.success) {
-          // Extract accepted matches and map to Partner format
-          const acceptedPartners = partnersData.matches
-            .filter((m: any) => m.status === 'ACCEPTED')
-            .map((m: any) => {
-              // Return the other person in the match
-              const isReceiver = m.receiver.id === user.id
-              const partner = isReceiver ? m.sender : m.receiver
-              return {
-                id: m.sender.id + m.receiver.id, // Unique ID for the match
-                userId: partner.id,
-                name: partner.name,
-                email: partner.email,
-                avatarUrl: partner.avatarUrl,
-              }
-            })
-          setPartners(acceptedPartners)
+        if (partnersData.success && partnersData.partners) {
+          // Map partners to the format we need
+          const formattedPartners = partnersData.partners.map((p: any) => ({
+            id: p.id,
+            userId: p.id,
+            name: p.name,
+            email: p.email,
+            avatarUrl: p.avatarUrl,
+          }))
+          setPartners(formattedPartners)
         }
 
         // Fetch group members
         const groupsRes = await fetch('/api/groups/my-groups')
         const groupsData = await groupsRes.json()
 
-        if (groupsData.success) {
+        if (groupsData.success && groupsData.groups) {
           // Flatten all group members from all groups
           const allMembers: GroupMember[] = []
           groupsData.groups.forEach((group: any) => {
-            group.members.forEach((member: any) => {
-              // Don't include the current user
-              if (member.user.id !== user.id) {
-                allMembers.push({
-                  id: member.userId,
-                  userId: member.user.id,
-                  name: member.user.name,
-                  email: member.user.email,
-                  avatarUrl: member.user.avatarUrl,
-                  groupId: group.id,
-                  groupName: group.name,
-                })
-              }
-            })
+            if (group.members && Array.isArray(group.members)) {
+              group.members.forEach((member: any) => {
+                // Don't include the current user
+                if (member.user && member.user.id !== user.id) {
+                  allMembers.push({
+                    id: member.userId,
+                    userId: member.user.id,
+                    name: member.user.name,
+                    email: member.user.email,
+                    avatarUrl: member.user.avatarUrl,
+                    groupId: group.id,
+                    groupName: group.name,
+                  })
+                }
+              })
+            }
           })
           setGroupMembers(allMembers)
         }

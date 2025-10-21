@@ -127,25 +127,26 @@ export default function WaitingLobbyPage() {
     }
   }, [user, loading, fetchSession, router])
 
-  // Countdown timer
+  // Countdown timer - runs once and updates every second
   useEffect(() => {
-    if (timeRemaining <= 0) return
+    if (!session?.waitingExpiresAt) return
 
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        const newTime = prev - 1
-        if (newTime <= 0) {
-          clearInterval(interval)
-          toast.error('Session has expired')
-          router.push('/study-sessions')
-          return 0
-        }
-        return newTime
-      })
+      const expiresAt = new Date(session.waitingExpiresAt!)
+      const now = new Date()
+      const diff = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
+
+      setTimeRemaining(diff)
+
+      if (diff === 0) {
+        clearInterval(interval)
+        toast.error('Session has expired')
+        router.push('/study-sessions')
+      }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [timeRemaining, router])
+  }, [session?.waitingExpiresAt, router])
 
   // Real-time: Listen for session status changes
   useEffect(() => {
@@ -238,19 +239,57 @@ export default function WaitingLobbyPage() {
     }
   }, [sessionId])
 
-  // Real-time messages (optimized for instant updates)
+  // Real-time messages with fast polling for instant updates
   useEffect(() => {
     if (!sessionId) return
 
     let isSubscribed = true
+    let pollingInterval: NodeJS.Timeout | null = null
 
+    // Fast polling (500ms) for instant message updates
+    const startFastPolling = () => {
+      if (pollingInterval) return
+
+      pollingInterval = setInterval(async () => {
+        if (!isSubscribed) return
+
+        try {
+          const lastMessageTime = messages.length > 0
+            ? new Date(messages[messages.length - 1].createdAt).toISOString()
+            : new Date(0).toISOString()
+
+          const res = await fetch(`/api/study-sessions/${sessionId}/messages?after=${encodeURIComponent(lastMessageTime)}`)
+          const data = await res.json()
+
+          if (data.success && data.messages && data.messages.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map(m => m.id))
+              const newMessages = data.messages
+                .filter((m: any) => !existingIds.has(m.id))
+                .map((m: any) => ({
+                  id: m.id,
+                  content: m.content,
+                  senderId: m.sender.id,
+                  senderName: m.sender.name,
+                  senderAvatar: m.sender.avatarUrl,
+                  createdAt: m.createdAt,
+                }))
+
+              return newMessages.length > 0 ? [...prev, ...newMessages] : prev
+            })
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+      }, 500)
+    }
+
+    // Start fast polling immediately
+    startFastPolling()
+
+    // Also try Supabase realtime as enhancement
     const channel = supabase
-      .channel(`lobby-messages-${sessionId}`, {
-        config: {
-          broadcast: { self: false },
-          presence: { key: sessionId },
-        },
-      })
+      .channel(`lobby-messages-${sessionId}`)
       .on(
         'postgres_changes',
         {
@@ -268,7 +307,6 @@ export default function WaitingLobbyPage() {
             const data = await res.json()
             if (data.success && data.message) {
               setMessages((prev) => {
-                // Avoid duplicates
                 const exists = prev.some(m => m.id === data.message.id)
                 if (exists) return prev
 
@@ -295,8 +333,9 @@ export default function WaitingLobbyPage() {
     return () => {
       isSubscribed = false
       supabase.removeChannel(channel)
+      if (pollingInterval) clearInterval(pollingInterval)
     }
-  }, [sessionId, supabase])
+  }, [sessionId, supabase, messages])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
