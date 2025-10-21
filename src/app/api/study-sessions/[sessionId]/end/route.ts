@@ -34,6 +34,10 @@ export async function POST(
       return NextResponse.json({ error: 'Session already ended' }, { status: 400 })
     }
 
+    if (!session.startedAt) {
+      return NextResponse.json({ error: 'Session has not been started yet' }, { status: 400 })
+    }
+
     // Calculate duration
     const endedAt = new Date()
     const startedAt = new Date(session.startedAt)
