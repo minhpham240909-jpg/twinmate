@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
@@ -63,6 +63,12 @@ export default function WaitingLobbyPage() {
   const [starting, setStarting] = useState(false)
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   // Fetch session
   const fetchSession = useCallback(async () => {
@@ -127,14 +133,19 @@ export default function WaitingLobbyPage() {
     }
   }, [user, loading, fetchSession, router])
 
-  // Countdown timer - runs once and updates every second
+  // Countdown timer - updates every second
   useEffect(() => {
     if (!session?.waitingExpiresAt) return
 
+    // Calculate initial time
+    const expiresAt = new Date(session.waitingExpiresAt)
+    const initialDiff = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000))
+    setTimeRemaining(initialDiff)
+
+    // Update every second
     const interval = setInterval(() => {
-      const expiresAt = new Date(session.waitingExpiresAt!)
-      const now = new Date()
-      const diff = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
+      const now = Date.now()
+      const diff = Math.max(0, Math.floor((expiresAt.getTime() - now) / 1000))
 
       setTimeRemaining(diff)
 
@@ -338,23 +349,55 @@ export default function WaitingLobbyPage() {
   }, [sessionId, supabase, messages])
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || sending) return
+    if (!newMessage.trim() || sending || !user) return
+
+    const messageContent = newMessage.trim()
+    const tempId = `temp-${Date.now()}-${Math.random()}`
+
+    // INSTANT: Add message to UI immediately (optimistic update)
+    const optimisticMessage: WaitingMessage = {
+      id: tempId,
+      content: messageContent,
+      senderId: user.id,
+      senderName: user.email || 'You',
+      senderAvatar: null,
+      createdAt: new Date().toISOString(),
+    }
+
+    setMessages((prev) => [...prev, optimisticMessage])
+    setNewMessage('')
+    setSending(true)
 
     try {
-      setSending(true)
       const res = await fetch(`/api/study-sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage }),
+        body: JSON.stringify({ content: messageContent }),
       })
 
       const data = await res.json()
       if (data.success) {
-        setNewMessage('')
+        // Replace temporary message with real one from server
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId ? {
+              id: data.message.id,
+              content: data.message.content,
+              senderId: data.message.sender.id,
+              senderName: data.message.sender.name,
+              senderAvatar: data.message.sender.avatarUrl,
+              createdAt: data.message.createdAt,
+            } : msg
+          )
+        )
       } else {
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter((msg) => msg.id !== tempId))
         toast.error('Failed to send message')
       }
     } catch (error) {
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId))
       console.error('Error sending message:', error)
       toast.error('Failed to send message')
     } finally {
@@ -508,6 +551,7 @@ export default function WaitingLobbyPage() {
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
                 <div className="border-t p-4">
                   <div className="flex gap-2">
