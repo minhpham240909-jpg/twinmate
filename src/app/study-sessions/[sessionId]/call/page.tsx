@@ -9,6 +9,7 @@ import { useVideoCall } from '@/lib/hooks/useVideoCall'
 import SessionChat from '@/components/SessionChat'
 import SessionGoals from '@/components/SessionGoals'
 import SessionTimer from '@/components/study-sessions/SessionTimer'
+import InviteModal from '@/components/study-sessions/InviteModal'
 
 interface Participant {
   id: string
@@ -50,6 +51,7 @@ export default function StudyCallPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
   const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | null>('timer')
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
   const fetchSession = useCallback(async () => {
     if (!user || !sessionId) return
@@ -160,9 +162,20 @@ export default function StudyCallPage() {
           <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">LIVE</span>
           <span className="text-gray-400 text-sm">{remoteUsers.size + 1} participant{remoteUsers.size !== 0 ? 's' : ''}</span>
         </div>
-        <button onClick={handleEndCall} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">
-          Leave Call
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Invite
+          </button>
+          <button onClick={handleEndCall} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">
+            Leave Call
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -301,6 +314,13 @@ export default function StudyCallPage() {
           </div>
         )}
       </div>
+
+      {/* Invite Modal */}
+      <InviteModal
+        sessionId={sessionId}
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+      />
     </div>
   )
 }

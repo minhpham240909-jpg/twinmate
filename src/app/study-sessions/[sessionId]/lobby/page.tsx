@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import InviteModal from '@/components/study-sessions/InviteModal'
 
 interface Participant {
   id: string
@@ -61,6 +62,7 @@ export default function WaitingLobbyPage() {
   const [sending, setSending] = useState(false)
   const [starting, setStarting] = useState(false)
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
   // Fetch session
   const fetchSession = useCallback(async () => {
@@ -236,12 +238,19 @@ export default function WaitingLobbyPage() {
     }
   }, [sessionId])
 
-  // Real-time messages
+  // Real-time messages (optimized for instant updates)
   useEffect(() => {
     if (!sessionId) return
 
+    let isSubscribed = true
+
     const channel = supabase
-      .channel(`lobby-messages-${sessionId}`)
+      .channel(`lobby-messages-${sessionId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: sessionId },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -251,22 +260,30 @@ export default function WaitingLobbyPage() {
           filter: `sessionId=eq.${sessionId}`,
         },
         async (payload) => {
+          if (!isSubscribed) return
+
           const newMsg = payload.new as { id: string; senderId: string }
           try {
             const res = await fetch(`/api/study-sessions/${sessionId}/messages/${newMsg.id}`)
             const data = await res.json()
             if (data.success && data.message) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: data.message.id,
-                  content: data.message.content,
-                  senderId: data.message.sender.id,
-                  senderName: data.message.sender.name,
-                  senderAvatar: data.message.sender.avatarUrl,
-                  createdAt: data.message.createdAt,
-                },
-              ])
+              setMessages((prev) => {
+                // Avoid duplicates
+                const exists = prev.some(m => m.id === data.message.id)
+                if (exists) return prev
+
+                return [
+                  ...prev,
+                  {
+                    id: data.message.id,
+                    content: data.message.content,
+                    senderId: data.message.sender.id,
+                    senderName: data.message.sender.name,
+                    senderAvatar: data.message.sender.avatarUrl,
+                    createdAt: data.message.createdAt,
+                  },
+                ]
+              })
             }
           } catch (error) {
             console.error('Error fetching new message:', error)
@@ -276,6 +293,7 @@ export default function WaitingLobbyPage() {
       .subscribe()
 
     return () => {
+      isSubscribed = false
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase])
@@ -476,6 +494,19 @@ export default function WaitingLobbyPage() {
 
             {/* Right Column - Participants & Actions */}
             <div className="col-span-1 space-y-6">
+              {/* Invite Button */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  Invite Partners or Members
+                </button>
+              </div>
+
               {/* Start Button (only for creator) */}
               {isCreator && (
                 <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
@@ -534,6 +565,13 @@ export default function WaitingLobbyPage() {
           </div>
         </div>
       </main>
+
+      {/* Invite Modal */}
+      <InviteModal
+        sessionId={sessionId}
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+      />
     </div>
   )
 }

@@ -149,62 +149,20 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     fetchMessages()
   }, [sessionId])
 
-  // Subscribe to real-time messages with polling fallback
+  // Subscribe to real-time messages (optimized for instant updates)
   useEffect(() => {
     if (!sessionId) return
 
     let isSubscribed = true
-    let pollingInterval: NodeJS.Timeout | null = null
 
-    // Polling fallback - check for new messages every 3 seconds
-    const startPolling = () => {
-      if (pollingInterval) return // Already polling
-
-      pollingInterval = setInterval(async () => {
-        if (!isSubscribed) return
-
-        try {
-          // Get the latest message timestamp from the ref to avoid stale closure
-          const currentMessages = messagesRef.current
-          const lastMessageTime = currentMessages.length > 0
-            ? new Date(currentMessages[currentMessages.length - 1].createdAt).toISOString()
-            : new Date(0).toISOString()
-
-          const res = await fetch(`/api/study-sessions/${sessionId}/messages?after=${encodeURIComponent(lastMessageTime)}`)
-          const data = await res.json()
-          if (data.success && data.messages && data.messages.length > 0) {
-            setMessages((prev) => {
-              // Add only new messages that don't already exist
-              const existingIds = new Set(prev.map(m => m.id))
-              const newMessages = data.messages.filter((m: Message) => !existingIds.has(m.id))
-
-              // Show notifications for new messages from others
-              newMessages.forEach((msg: Message) => {
-                if (msg.sender.id !== user?.id) {
-                  if (!isVisible) {
-                    // Chat not visible - show notification and increment unread
-                    playNotificationSound()
-                    showMessageNotification(msg)
-                    setUnreadCount((prev) => prev + 1)
-                  } else {
-                    // Chat visible - just play sound
-                    playNotificationSound()
-                  }
-                }
-              })
-
-              return newMessages.length > 0 ? [...prev, ...newMessages] : prev
-            })
-          }
-        } catch (error) {
-          // Silently handle errors to avoid console spam
-        }
-      }, 3000)
-    }
-
-    // Try Supabase Realtime first
+    // Supabase Realtime subscription for instant message updates
     const channel = supabase
-      .channel(`session-${sessionId}-messages`)
+      .channel(`session-${sessionId}-messages`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: sessionId },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -215,12 +173,15 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
         },
         async (payload) => {
           if (!isSubscribed) return
-          // Fetch only the new message with sender info
-          const newData = payload.new as { id: string }
+
+          // Fetch the full message with sender info immediately
+          const newData = payload.new as { id: string; senderId: string }
           const messageId = newData.id
+
           try {
             const res = await fetch(`/api/study-sessions/${sessionId}/messages/${messageId}`)
             const data = await res.json()
+
             if (data.success && data.message) {
               const newMessage = data.message
 
@@ -246,23 +207,37 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
               })
             }
           } catch (error) {
-            // Silently handle errors
+            console.error('Error fetching new message:', error)
           }
         }
       )
-      .subscribe((status) => {
-        // Only start polling if realtime explicitly fails
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          startPolling()
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'SessionMessage',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        (payload) => {
+          // Handle message updates (e.g., deletions)
+          const updatedMsg = payload.new as { id: string; deletedAt?: string | null }
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === updatedMsg.id
+                ? { ...msg, deletedAt: updatedMsg.deletedAt }
+                : msg
+            )
+          )
         }
-      })
+      )
+      .subscribe()
 
     return () => {
       isSubscribed = false
       supabase.removeChannel(channel)
-      if (pollingInterval) clearInterval(pollingInterval)
     }
-  }, [sessionId, supabase])
+  }, [sessionId, supabase, user?.id, isVisible])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
