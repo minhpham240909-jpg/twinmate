@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { CallType, CallStatus } from '@prisma/client'
+import { CallType, CallStatus, NotificationType } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Otherwise, create new call message (when starting)
-    let message
+    let message: any
 
     if (conversationType === 'group') {
       // Verify user is a member of this group
@@ -128,6 +128,34 @@ export async function POST(req: NextRequest) {
         }
       })
 
+      // Get all group members except the caller to send notifications
+      const groupMembers = await prisma.groupMember.findMany({
+        where: {
+          groupId: conversationId,
+          userId: { not: userId }
+        },
+        include: {
+          user: { select: { name: true } }
+        }
+      })
+
+      // Create incoming call notifications for each group member
+      const notifications = groupMembers.map(member => ({
+        userId: member.userId,
+        type: 'INCOMING_CALL' as NotificationType,
+        title: 'Incoming Call',
+        message: `${message.sender.name} is calling the group`,
+        actionUrl: `/chat?conversation=${conversationId}&type=group`,
+        relatedUserId: userId,
+        isRead: false
+      }))
+
+      if (notifications.length > 0) {
+        await prisma.notification.createMany({
+          data: notifications
+        })
+      }
+
     } else if (conversationType === 'partner') {
       // Verify there's an accepted match
       const match = await prisma.match.findFirst({
@@ -165,6 +193,19 @@ export async function POST(req: NextRequest) {
               avatarUrl: true
             }
           }
+        }
+      })
+
+      // Create incoming call notification for the partner
+      await prisma.notification.create({
+        data: {
+          userId: conversationId,
+          type: 'INCOMING_CALL' as NotificationType,
+          title: 'Incoming Call',
+          message: `${message.sender.name} is calling you`,
+          actionUrl: `/chat?conversation=${conversationId}&type=partner`,
+          relatedUserId: userId,
+          isRead: false
         }
       })
 

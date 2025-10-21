@@ -7,6 +7,7 @@ import FloatingSessionButton from "@/components/FloatingSessionButton";
 import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
 import SessionSyncWrapper from "@/components/SessionSyncWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import IncomingCallModal from "@/components/IncomingCallModal";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
             <BackgroundSessionProvider>
               {children}
               <FloatingSessionButton />
+              <IncomingCallModal />
               <Toaster
                 position="top-right"
                 toastOptions={{

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,19 +15,21 @@ export async function POST(request: NextRequest) {
     const { notificationIds } = body
 
     if (notificationIds && Array.isArray(notificationIds) && notificationIds.length > 0) {
-      // Delete specific notifications (only if they belong to this user)
-      const { error } = await supabase
-        .from('Notification')
-        .delete()
-        .eq('userId', user.id)
-        .in('id', notificationIds)
+      // Delete specific notifications using Prisma (only if they belong to this user)
+      const deleteResult = await prisma.notification.deleteMany({
+        where: {
+          id: { in: notificationIds },
+          userId: user.id // Security: only delete user's own notifications
+        }
+      })
 
-      if (error) {
-        console.error('Error deleting notifications:', error)
-        return NextResponse.json({ error: 'Failed to delete notifications', details: error.message }, { status: 500 })
-      }
+      console.log(`Deleted ${deleteResult.count} notification(s) for user ${user.id}`)
 
-      return NextResponse.json({ success: true, message: `${notificationIds.length} notification(s) deleted` })
+      return NextResponse.json({
+        success: true,
+        message: `${deleteResult.count} notification(s) deleted`,
+        deletedCount: deleteResult.count
+      })
     } else {
       return NextResponse.json({ error: 'Invalid request - notificationIds must be a non-empty array' }, { status: 400 })
     }
