@@ -379,10 +379,11 @@ enum SessionType {
 }
 
 enum SessionStatus {
-  SCHEDULED
-  ACTIVE
-  COMPLETED
-  CANCELLED
+  WAITING    // New: Waiting lobby state (30 min timeout)
+  SCHEDULED  // Legacy: kept for backward compatibility
+  ACTIVE     // Call is in progress
+  COMPLETED  // Call has ended
+  CANCELLED  // Call was cancelled
 }
 
 enum SessionRole {
@@ -403,7 +404,7 @@ model StudySession {
   title       String
   description String?       @db.Text
   type        SessionType
-  status      SessionStatus @default(SCHEDULED)
+  status      SessionStatus @default(WAITING) // Start in waiting lobby
 
   // Creator/Host
   createdBy String
@@ -420,10 +421,12 @@ model StudySession {
   isPublic        Boolean  @default(false)
 
   // Timing
-  scheduledAt     DateTime?
-  startedAt       DateTime  @default(now())
-  endedAt         DateTime?
-  durationMinutes Int?
+  scheduledAt       DateTime?
+  waitingStartedAt  DateTime  @default(now()) // When waiting lobby was created
+  waitingExpiresAt  DateTime? // Auto-calculated: waitingStartedAt + 30 minutes
+  startedAt         DateTime? // When call actually started (null until "Start" is clicked)
+  endedAt           DateTime?
+  durationMinutes   Int?
 
   // AI-generated summary
   aiSummary   String?  @db.Text

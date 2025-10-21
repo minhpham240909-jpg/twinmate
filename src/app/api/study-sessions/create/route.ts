@@ -27,13 +27,17 @@ export async function POST(request: NextRequest) {
     // Generate unique Agora channel name
     const agoraChannel = `study${user.id.replace(/-/g, '').slice(0, 30)}${Date.now().toString().slice(-6)}`
 
-    // Create study session
+    // Calculate waiting lobby expiration time (30 minutes from now)
+    const waitingStartedAt = new Date()
+    const waitingExpiresAt = new Date(waitingStartedAt.getTime() + 30 * 60 * 1000) // 30 minutes
+
+    // Create study session in WAITING status
     const session = await prisma.studySession.create({
       data: {
         title,
         description: description || null,
         type,
-        status: 'SCHEDULED',
+        status: 'WAITING', // Start in waiting lobby
         createdBy: user.id,
         userId: user.id, // For backward compatibility
         subject: subject || null,
@@ -41,6 +45,9 @@ export async function POST(request: NextRequest) {
         agoraChannel,
         maxParticipants: 10,
         isPublic: false,
+        waitingStartedAt,
+        waitingExpiresAt,
+        startedAt: null, // Will be set when host clicks "Start"
       },
     })
 

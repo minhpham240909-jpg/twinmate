@@ -111,6 +111,13 @@ const nextConfig: NextConfig = {
     ];
     return config;
   },
+
+  // Turbopack configuration - same ignore warnings for Turbopack
+  turbopack: {
+    resolveAlias: {
+      // Add any custom aliases here if needed
+    },
+  },
 };
 
 export default nextConfig;

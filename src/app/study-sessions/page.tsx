@@ -140,8 +140,8 @@ export default function StudySessionsPage() {
         toast.success('Invitation accepted! Redirecting to session...')
         // Remove from pending invites
         setPendingInvites(prev => prev.filter(inv => inv.sessionId !== sessionId))
-        // Auto-redirect to session room
-        router.push(`/study-sessions/${sessionId}`)
+        // Auto-redirect to lobby or call based on session status
+        router.push(`/study-sessions/${sessionId}/lobby`)
       } else {
         toast.error(data.error || 'Failed to accept invitation')
       }
@@ -413,8 +413,8 @@ export default function StudySessionsPage() {
           onClose={() => setShowCreateModal(false)}
           onSuccess={(sessionId) => {
             setShowCreateModal(false)
-            // Navigate directly to session room
-            router.push(`/study-sessions/${sessionId}`)
+            // Navigate to waiting lobby
+            router.push(`/study-sessions/${sessionId}/lobby`)
           }}
         />
       )}
