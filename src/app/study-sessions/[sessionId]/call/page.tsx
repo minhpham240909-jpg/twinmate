@@ -3,13 +3,12 @@
 import React from 'react'
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { useVideoCall } from '@/lib/hooks/useVideoCall'
 import SessionChat from '@/components/SessionChat'
 import SessionGoals from '@/components/SessionGoals'
 import SessionTimer from '@/components/study-sessions/SessionTimer'
-import { createClient } from '@/lib/supabase/client'
 
 interface Participant {
   id: string
@@ -47,14 +46,12 @@ export default function StudyCallPage() {
   const router = useRouter()
   const params = useParams()
   const sessionId = params.sessionId as string
-  const supabase = createClient()
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
   const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | null>('timer')
-  const [showVideoControls, setShowVideoControls] = useState(true)
 
-  const fetchSession = async () => {
+  const fetchSession = useCallback(async () => {
     if (!user || !sessionId) return
 
     try {
@@ -89,7 +86,7 @@ export default function StudyCallPage() {
     } finally {
       setLoadingSession(false)
     }
-  }
+  }, [user, sessionId, router])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -100,7 +97,7 @@ export default function StudyCallPage() {
     if (user) {
       fetchSession()
     }
-  }, [user, loading, sessionId, router])
+  }, [user, loading, fetchSession, router])
 
   const {
     isConnected,
@@ -212,7 +209,7 @@ export default function StudyCallPage() {
           )}
 
           {/* Video Controls (Bottom) */}
-          {showVideoControls && isConnected && (
+          {isConnected && (
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
               <div className="flex items-center justify-center gap-3">
                 <button
@@ -309,20 +306,22 @@ export default function StudyCallPage() {
 }
 
 // Video Tile Component
-function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: any; hasVideo: boolean; hasAudio: boolean; name: string }) {
+function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: unknown; hasVideo: boolean; hasAudio: boolean; name: string }) {
   const videoRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     if (videoTrack && videoRef.current && hasVideo) {
-      videoTrack.play(videoRef.current)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (videoTrack as any).play(videoRef.current)
     }
 
     return () => {
       if (videoTrack && hasVideo) {
         try {
-          videoTrack.stop()
-        } catch (e) {
-          // ignore
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (videoTrack as any).stop()
+        } catch {
+          // ignore cleanup errors
         }
       }
     }
