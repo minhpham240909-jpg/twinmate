@@ -80,6 +80,8 @@ export default function WaitingLobbyPage() {
 
       if (data.success) {
         const sess = data.session
+        console.log('Fetch session: Session data received:', sess)
+        console.log('Fetch session: waitingExpiresAt:', sess.waitingExpiresAt)
 
         // If session is ACTIVE, redirect to call page
         if (sess.status === 'ACTIVE') {
@@ -97,11 +99,12 @@ export default function WaitingLobbyPage() {
 
         setSession(sess)
 
-        // Calculate time remaining
+        // Calculate time remaining (initial value, timer effect will take over)
         if (sess.waitingExpiresAt) {
           const expiresAt = new Date(sess.waitingExpiresAt)
           const now = new Date()
           const diff = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
+          console.log('Fetch session: Initial time remaining:', diff, 'seconds')
           setTimeRemaining(diff)
 
           // If expired, show message and redirect
@@ -109,6 +112,8 @@ export default function WaitingLobbyPage() {
             toast.error('Session has expired')
             router.push('/study-sessions')
           }
+        } else {
+          console.log('Fetch session: No waitingExpiresAt found in session data!')
         }
       } else {
         toast.error(data.error || 'Failed to load session')
@@ -135,14 +140,19 @@ export default function WaitingLobbyPage() {
 
   // Countdown timer - updates every second
   useEffect(() => {
-    if (!session?.waitingExpiresAt) return
+    if (!session?.waitingExpiresAt) {
+      console.log('Timer: No waitingExpiresAt found')
+      return
+    }
 
     const expiresAt = new Date(session.waitingExpiresAt).getTime()
+    console.log('Timer: Starting countdown. Expires at:', new Date(expiresAt))
 
     // Calculate and set initial time
     const updateTimer = () => {
       const now = Date.now()
       const diff = Math.max(0, Math.floor((expiresAt - now) / 1000))
+      console.log('Timer: Updating... Time remaining:', diff, 'seconds')
       setTimeRemaining(diff)
 
       if (diff === 0) {
@@ -163,7 +173,10 @@ export default function WaitingLobbyPage() {
       }
     }, 1000)
 
-    return () => clearInterval(interval)
+    return () => {
+      console.log('Timer: Cleanup interval')
+      clearInterval(interval)
+    }
   }, [session?.waitingExpiresAt, router])
 
   // Real-time: Listen for session status changes
