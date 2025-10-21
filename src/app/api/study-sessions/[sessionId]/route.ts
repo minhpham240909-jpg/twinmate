@@ -82,6 +82,7 @@ export async function GET(
         subject: session.subject,
         tags: session.tags,
         scheduledAt: session.scheduledAt,
+        waitingExpiresAt: session.waitingExpiresAt, // IMPORTANT: For countdown timer
         startedAt: session.startedAt,
         endedAt: session.endedAt,
         durationMinutes: session.durationMinutes,
