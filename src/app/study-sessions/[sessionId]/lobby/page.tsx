@@ -137,22 +137,29 @@ export default function WaitingLobbyPage() {
   useEffect(() => {
     if (!session?.waitingExpiresAt) return
 
-    // Calculate initial time
-    const expiresAt = new Date(session.waitingExpiresAt)
-    const initialDiff = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000))
-    setTimeRemaining(initialDiff)
+    const expiresAt = new Date(session.waitingExpiresAt).getTime()
 
-    // Update every second
-    const interval = setInterval(() => {
+    // Calculate and set initial time
+    const updateTimer = () => {
       const now = Date.now()
-      const diff = Math.max(0, Math.floor((expiresAt.getTime() - now) / 1000))
-
+      const diff = Math.max(0, Math.floor((expiresAt - now) / 1000))
       setTimeRemaining(diff)
 
       if (diff === 0) {
-        clearInterval(interval)
         toast.error('Session has expired')
         router.push('/study-sessions')
+        return false // Stop interval
+      }
+      return true // Continue interval
+    }
+
+    // Set initial value immediately
+    updateTimer()
+
+    // Update every second
+    const interval = setInterval(() => {
+      if (!updateTimer()) {
+        clearInterval(interval)
       }
     }, 1000)
 
@@ -292,7 +299,7 @@ export default function WaitingLobbyPage() {
         } catch (error) {
           // Silently handle errors
         }
-      }, 500)
+      }, 200) // 200ms for fast message updates
     }
 
     // Start fast polling immediately
@@ -349,22 +356,9 @@ export default function WaitingLobbyPage() {
   }, [sessionId, supabase, messages])
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || sending || !user) return
+    if (!newMessage.trim() || sending) return
 
     const messageContent = newMessage.trim()
-    const tempId = `temp-${Date.now()}-${Math.random()}`
-
-    // INSTANT: Add message to UI immediately (optimistic update)
-    const optimisticMessage: WaitingMessage = {
-      id: tempId,
-      content: messageContent,
-      senderId: user.id,
-      senderName: user.email || 'You',
-      senderAvatar: null,
-      createdAt: new Date().toISOString(),
-    }
-
-    setMessages((prev) => [...prev, optimisticMessage])
     setNewMessage('')
     setSending(true)
 
@@ -376,30 +370,15 @@ export default function WaitingLobbyPage() {
       })
 
       const data = await res.json()
-      if (data.success) {
-        // Replace temporary message with real one from server
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === tempId ? {
-              id: data.message.id,
-              content: data.message.content,
-              senderId: data.message.sender.id,
-              senderName: data.message.sender.name,
-              senderAvatar: data.message.sender.avatarUrl,
-              createdAt: data.message.createdAt,
-            } : msg
-          )
-        )
-      } else {
-        // Remove optimistic message on error
-        setMessages((prev) => prev.filter((msg) => msg.id !== tempId))
+      if (!data.success) {
         toast.error('Failed to send message')
+        setNewMessage(messageContent) // Restore message on error
       }
+      // Message will appear via real-time polling
     } catch (error) {
-      // Remove optimistic message on error
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempId))
       console.error('Error sending message:', error)
       toast.error('Failed to send message')
+      setNewMessage(messageContent) // Restore message on error
     } finally {
       setSending(false)
     }
@@ -559,7 +538,7 @@ export default function WaitingLobbyPage() {
                       type="text"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                       placeholder="Type a message..."
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />

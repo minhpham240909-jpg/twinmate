@@ -196,7 +196,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
         } catch (error) {
           // Silently handle errors
         }
-      }, 500) // 500ms for near-instant updates
+      }, 200) // 200ms for fast message updates
     }
 
     // Start polling immediately for reliability
