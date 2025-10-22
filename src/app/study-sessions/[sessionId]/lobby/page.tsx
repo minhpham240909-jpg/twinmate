@@ -208,6 +208,45 @@ export default function WaitingLobbyPage() {
     }
   }, [sessionId, supabase, router])
 
+  // Real-time: Listen for participant changes (joins/leaves)
+  useEffect(() => {
+    if (!sessionId) return
+
+    const channel = supabase
+      .channel(`lobby-participants-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'SessionParticipant',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        () => {
+          console.log('New participant joined - refreshing session data')
+          fetchSession() // Refresh to get new participant list
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'SessionParticipant',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        () => {
+          console.log('Participant left - refreshing session data')
+          fetchSession() // Refresh to get updated participant list
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [sessionId, supabase, fetchSession])
+
   // Track presence
   useEffect(() => {
     if (!user || !sessionId) return

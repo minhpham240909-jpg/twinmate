@@ -237,6 +237,23 @@ export async function createLocalTracks(options?: {
     return tracks
   } catch (error) {
     console.error('Error creating local tracks:', error)
+
+    // Provide helpful error messages for common permission issues
+    if (error && typeof error === 'object' && 'name' in error) {
+      const err = error as Error & { code?: string }
+
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        console.error('❌ Camera/Microphone permission denied. Please allow access in browser settings.')
+        throw new Error('Camera/Microphone permission denied. Please click "Allow" when prompted.')
+      } else if (err.name === 'NotFoundError' || err.name === 'DeviceNotFoundError') {
+        console.error('❌ Camera/Microphone not found. Please check device is connected.')
+        throw new Error('Camera or microphone not found. Please check your devices.')
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        console.error('❌ Camera/Microphone already in use by another application.')
+        throw new Error('Camera/Microphone is already in use. Please close other apps using it.')
+      }
+    }
+
     throw error
   }
 }

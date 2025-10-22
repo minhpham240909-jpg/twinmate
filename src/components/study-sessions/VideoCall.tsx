@@ -8,6 +8,7 @@ import type { ILocalVideoTrack, IRemoteVideoTrack } from '@/lib/agora/types'
 import { getNetworkQualityLabel } from '@/lib/agora/client'
 import { createClient } from '@/lib/supabase/client'
 import InCallMessagePopup from './InCallMessagePopup'
+import toast from 'react-hot-toast'
 
 interface VideoCallProps {
   sessionId: string
@@ -48,6 +49,7 @@ export default function VideoCall({
   const [inCallMessages, setInCallMessages] = useState<ChatMessage[]>([])
   const [showQuickActions, setShowQuickActions] = useState(false)
   const [activeOverlay, setActiveOverlay] = useState<'timer' | 'chat' | 'goals' | 'participants' | null>(null)
+  const [leaveNotification, setLeaveNotification] = useState<string | null>(null)
   const supabase = createClient()
 
   const {
@@ -72,9 +74,19 @@ export default function VideoCall({
     audioOnly, // Pass audioOnly mode to hook
     onUserJoined: (uid) => {
       console.log('User joined callback:', uid)
+      toast.success('Someone joined the call')
     },
     onUserLeft: (uid) => {
       console.log('User left callback:', uid)
+
+      // Show leave notification
+      setLeaveNotification('Someone left the session')
+
+      // Auto-hide after 3 seconds
+      setTimeout(() => setLeaveNotification(null), 3000)
+
+      // Also show toast
+      toast('Someone left the session', { icon: '👋' })
     },
     onError: (error) => {
       console.error('Video call error:', error)
@@ -237,6 +249,16 @@ export default function VideoCall({
 
   return (
     <div className={`fixed inset-0 z-50 ${audioOnly ? 'bg-gradient-to-br from-purple-900 via-gray-900 to-gray-900' : 'bg-gray-900'}`}>
+      {/* Leave Notification Overlay */}
+      {leaveNotification && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+          <div className="bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2">
+            <span className="text-2xl">👋</span>
+            <span className="font-medium">{leaveNotification}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className={`absolute top-0 left-0 right-0 bg-gradient-to-b ${audioOnly ? 'from-purple-900/50' : 'from-black/50'} to-transparent p-4 z-10`}>
         <div className="flex items-center justify-between">

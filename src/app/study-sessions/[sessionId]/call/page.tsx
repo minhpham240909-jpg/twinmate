@@ -10,6 +10,7 @@ import SessionChat from '@/components/SessionChat'
 import SessionGoals from '@/components/SessionGoals'
 import SessionTimer from '@/components/study-sessions/SessionTimer'
 import InviteModal from '@/components/study-sessions/InviteModal'
+import { createClient } from '@/lib/supabase/client'
 
 interface Participant {
   id: string
@@ -47,6 +48,7 @@ export default function StudyCallPage() {
   const router = useRouter()
   const params = useParams()
   const sessionId = params.sessionId as string
+  const supabase = createClient()
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
@@ -100,6 +102,54 @@ export default function StudyCallPage() {
       fetchSession()
     }
   }, [user, loading, fetchSession, router])
+
+  // Real-time: Listen for participant changes (joins/leaves)
+  useEffect(() => {
+    if (!sessionId) return
+
+    const channel = supabase
+      .channel(`call-participants-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'SessionParticipant',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        (payload) => {
+          console.log('New participant joined call - refreshing session data')
+          fetchSession() // Refresh to get new participant list
+
+          // Show toast notification
+          const newParticipant = payload.new as { userId?: string }
+          if (newParticipant.userId && newParticipant.userId !== user?.id) {
+            toast.success('Someone joined the session')
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'SessionParticipant',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        (payload) => {
+          console.log('Participant left call - refreshing session data')
+          fetchSession() // Refresh to get updated participant list
+
+          // Show toast notification (we'll enhance this later to show name)
+          toast('Someone left the session', { icon: '👋' })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [sessionId, supabase, fetchSession, user?.id])
 
   const {
     isConnected,
