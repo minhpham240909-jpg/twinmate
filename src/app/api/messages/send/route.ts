@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { MessageType } from '@prisma/client'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { sendMessageSchema, validateRequest } from '@/lib/validation'
 
 export async function POST(req: NextRequest) {
   // Rate limiting: 20 messages per minute
@@ -32,14 +33,17 @@ export async function POST(req: NextRequest) {
     const userId = user.id
 
     const body = await req.json()
-    const { content, type, conversationId, conversationType, fileUrl, fileName, fileSize } = body
 
-    if (!content || !conversationId || !conversationType) {
+    // Validate request body
+    const validation = validateRequest(sendMessageSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: validation.error },
         { status: 400 }
       )
     }
+
+    const { content, type, conversationId, conversationType, fileUrl, fileName, fileSize } = validation.data
 
     let message: {
       id: string

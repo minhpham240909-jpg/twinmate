@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { CallType, CallStatus, NotificationType } from '@prisma/client'
+import { callMessageSchema, validateRequest } from '@/lib/validation'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,6 +19,16 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id
     const body = await req.json()
+
+    // Validate request body
+    const validation = validateRequest(callMessageSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      )
+    }
+
     const {
       action, // 'start' or 'end'
       messageId, // For updating existing message (when ending call)
@@ -26,14 +37,7 @@ export async function POST(req: NextRequest) {
       callType, // 'AUDIO' or 'VIDEO'
       callDuration, // Duration in seconds (only when ending)
       callStatus // 'STARTED', 'COMPLETED', 'MISSED', etc.
-    } = body
-
-    if (!conversationId || !conversationType || !callType) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+    } = validation.data
 
     // If action is 'end', update existing message
     if (action === 'end' && messageId) {
@@ -63,7 +67,7 @@ export async function POST(req: NextRequest) {
           callDuration,
           callStatus: callStatus || 'COMPLETED',
           content: callStatus === 'COMPLETED'
-            ? `${callType === 'VIDEO' ? 'Video' : 'Audio'} call - ${formatDuration(callDuration)}`
+            ? `${callType === 'VIDEO' ? 'Video' : 'Audio'} call - ${formatDuration(callDuration || 0)}`
             : callStatus === 'MISSED'
             ? `Missed ${callType === 'VIDEO' ? 'video' : 'audio'} call`
             : callStatus === 'CANCELLED'

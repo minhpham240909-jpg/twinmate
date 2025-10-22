@@ -610,6 +610,7 @@ enum NotificationType {
   SESSION_JOINED
   SESSION_ENDED
   SESSION_GOAL_COMPLETED
+  INCOMING_CALL
 }
 
 model Notification {

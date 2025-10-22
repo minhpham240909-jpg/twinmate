@@ -50,122 +50,109 @@ export async function POST(request: NextRequest) {
     const { receiverId, message } = validation.data
     console.log('Current user ID:', user.id, 'Receiver ID:', receiverId)
 
-    // Check if request already exists
-    const existingMatch = await prisma.match.findUnique({
-      where: {
-        senderId_receiverId: {
-          senderId: user.id,
-          receiverId: receiverId
+    // Use transaction to prevent race conditions
+    const match = await prisma.$transaction(async (tx) => {
+      // Check if request already exists
+      const existingMatch = await tx.match.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId: user.id,
+            receiverId: receiverId
+          }
+        }
+      })
+      console.log('Existing match check result:', existingMatch ? 'FOUND' : 'NOT FOUND')
+
+      if (existingMatch) {
+        console.log('Existing match found:', existingMatch.id, 'status:', existingMatch.status)
+
+        // If there's a PENDING request, don't allow duplicate
+        if (existingMatch.status === 'PENDING') {
+          throw new Error('REQUEST_ALREADY_SENT')
+        }
+
+        // If there's an ACCEPTED connection, they're already connected
+        if (existingMatch.status === 'ACCEPTED') {
+          throw new Error('ALREADY_CONNECTED')
+        }
+
+        // If REJECTED or CANCELLED, update the existing match back to PENDING
+        return await tx.match.update({
+          where: { id: existingMatch.id },
+          data: {
+            status: 'PENDING',
+            message: message || null,
+            updatedAt: new Date(),
+            respondedAt: null
+          }
+        })
+      }
+
+      // Check if reverse request exists
+      const reverseMatch = await tx.match.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId: receiverId,
+            receiverId: user.id
+          }
+        }
+      })
+      console.log('Reverse match check result:', reverseMatch ? 'FOUND' : 'NOT FOUND')
+
+      if (reverseMatch) {
+        console.log('Reverse match found:', reverseMatch.id, 'status:', reverseMatch.status)
+
+        // Only block if there's a PENDING request from the other user
+        if (reverseMatch.status === 'PENDING') {
+          throw new Error('REVERSE_REQUEST_EXISTS')
+        }
+
+        // If ACCEPTED, they're already connected
+        if (reverseMatch.status === 'ACCEPTED') {
+          throw new Error('ALREADY_CONNECTED')
         }
       }
-    })
-    console.log('Existing match check result:', existingMatch ? 'FOUND' : 'NOT FOUND')
 
-    if (existingMatch) {
-      console.log('Existing match found:', existingMatch.id, 'status:', existingMatch.status)
-
-      // If there's a PENDING request, don't allow duplicate
-      if (existingMatch.status === 'PENDING') {
+      // Create new match request
+      return await tx.match.create({
+        data: {
+          senderId: user.id,
+          receiverId: receiverId,
+          status: 'PENDING',
+          message: message || null
+        }
+      })
+    }).catch((txError: Error) => {
+      if (txError.message === 'REQUEST_ALREADY_SENT') {
         return NextResponse.json(
           { error: 'Connection request already sent' },
           { status: 400 }
         )
       }
-
-      // If there's an ACCEPTED connection, they're already connected
-      if (existingMatch.status === 'ACCEPTED') {
+      if (txError.message === 'ALREADY_CONNECTED') {
         return NextResponse.json(
           { error: 'You are already connected with this user' },
           { status: 400 }
         )
       }
-
-      // If REJECTED or CANCELLED, update the existing match back to PENDING
-      const match = await prisma.match.update({
-        where: { id: existingMatch.id },
-        data: {
-          status: 'PENDING',
-          message: message || null,
-          updatedAt: new Date(),
-          respondedAt: null
-        }
-      })
-
-      // Get sender info for notification
-      const senderProfile = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { name: true }
-      })
-
-      // Create notification for receiver
-      await prisma.notification.create({
-        data: {
-          userId: receiverId,
-          type: 'MATCH_REQUEST',
-          title: 'New Connection Request',
-          message: `${senderProfile?.name || 'Someone'} wants to connect with you`,
-          isRead: false,
-          relatedUserId: user.id,
-          relatedMatchId: match.id,
-          actionUrl: `/partners`
-        }
-      })
-
-      return NextResponse.json({
-        success: true,
-        match,
-        message: 'Connection request sent successfully'
-      })
-    }
-
-    // Check if reverse request exists
-    const reverseMatch = await prisma.match.findUnique({
-      where: {
-        senderId_receiverId: {
-          senderId: receiverId,
-          receiverId: user.id
-        }
-      }
-    })
-    console.log('Reverse match check result:', reverseMatch ? 'FOUND' : 'NOT FOUND')
-
-    if (reverseMatch) {
-      console.log('Reverse match found:', reverseMatch.id, 'status:', reverseMatch.status)
-
-      // Only block if there's a PENDING request from the other user
-      if (reverseMatch.status === 'PENDING') {
+      if (txError.message === 'REVERSE_REQUEST_EXISTS') {
         return NextResponse.json(
           { error: 'This user has already sent you a request' },
           { status: 400 }
         )
       }
+      throw txError
+    })
 
-      // If ACCEPTED, they're already connected
-      if (reverseMatch.status === 'ACCEPTED') {
-        return NextResponse.json(
-          { error: 'You are already connected with this user' },
-          { status: 400 }
-        )
-      }
-
-      // If REJECTED or CANCELLED, allow them to send a new request
-      // (will create a new match record in the opposite direction)
+    // If error response was returned from transaction, return it
+    if (match instanceof NextResponse) {
+      return match
     }
 
-    // Get sender info
+    // Get sender info for notification
     const senderProfile = await prisma.user.findUnique({
       where: { id: user.id },
       select: { name: true }
-    })
-
-    // Create new match request
-    const match = await prisma.match.create({
-      data: {
-        senderId: user.id,
-        receiverId: receiverId,
-        status: 'PENDING',
-        message: message || null
-      }
     })
 
     // Create notification for receiver
