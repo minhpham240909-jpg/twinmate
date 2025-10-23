@@ -21,6 +21,7 @@ export async function GET(
     const posts = await prisma.post.findMany({
       where: {
         userId: userId,
+        isDeleted: false, // Exclude soft-deleted posts
       },
       include: {
         user: {

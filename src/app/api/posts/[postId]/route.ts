@@ -112,12 +112,19 @@ export async function DELETE(
       )
     }
 
-    // Delete the post (cascade will handle likes, comments, reposts)
-    await prisma.post.delete({
+    // Soft delete the post (mark as deleted, keep for 30 days)
+    await prisma.post.update({
       where: { id: postId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
     })
 
-    return NextResponse.json({ success: true, message: 'Post deleted successfully' })
+    return NextResponse.json({
+      success: true,
+      message: 'Post moved to history. You can restore it within 30 days.',
+    })
   } catch (error) {
     console.error('Error deleting post:', error)
     return NextResponse.json(

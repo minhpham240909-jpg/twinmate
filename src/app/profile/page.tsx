@@ -4,6 +4,32 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 
+type UserPost = {
+  id: string
+  content: string
+  createdAt: string
+  imageUrls?: string[]
+  likes?: { userId: string; user: { id: string; name: string; avatarUrl: string | null } }[]
+  comments?: { id: string; content: string; createdAt: string; user: { id: string; name: string; avatarUrl: string | null } }[]
+  _count?: {
+    likes: number
+    comments: number
+    reposts: number
+  }
+}
+
+type DeletedPost = {
+  id: string
+  content: string
+  deletedAt: string
+  daysRemaining: number
+  _count?: {
+    likes: number
+    comments: number
+    reposts: number
+  }
+}
+
 export default function ProfilePage() {
   const { user, profile, loading, refreshUser } = useAuth()
   const router = useRouter()
@@ -34,10 +60,14 @@ export default function ProfilePage() {
   })
 
   // State for user's posts
-  const [userPosts, setUserPosts] = useState<any[]>([])
+  const [userPosts, setUserPosts] = useState<UserPost[]>([])
   const [showPosts, setShowPosts] = useState(false)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editPostContent, setEditPostContent] = useState('')
+
+  // State for deleted posts (Post History)
+  const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
+  const [showDeletedPosts, setShowDeletedPosts] = useState(false)
 
   const [customInputs, setCustomInputs] = useState({
     subject: '',
@@ -94,6 +124,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       fetchUserPosts()
+      fetchDeletedPosts()
     }
   }, [user])
 
@@ -106,6 +137,18 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Error fetching user posts:', error)
+    }
+  }
+
+  const fetchDeletedPosts = async () => {
+    try {
+      const response = await fetch('/api/posts/deleted')
+      if (response.ok) {
+        const data = await response.json()
+        setDeletedPosts(data.posts)
+      }
+    } catch (error) {
+      console.error('Error fetching deleted posts:', error)
     }
   }
 
@@ -139,7 +182,7 @@ export default function ProfilePage() {
   }
 
   const handleDeleteProfilePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+    if (!confirm('This post will be deleted for 30 days. You can restore it anytime before permanent deletion.')) {
       return
     }
 
@@ -149,7 +192,11 @@ export default function ProfilePage() {
       })
 
       if (response.ok) {
+        const data = await response.json()
         setUserPosts(prev => prev.filter(post => post.id !== postId))
+        // Refresh deleted posts to show newly deleted post
+        await fetchDeletedPosts()
+        alert(data.message || 'Post moved to history. You can restore it within 30 days.')
       } else {
         const error = await response.json()
         alert(error.error || 'Failed to delete post')
@@ -160,7 +207,52 @@ export default function ProfilePage() {
     }
   }
 
-  const startEditProfilePost = (post: any) => {
+  const handleRestorePost = async (postId: string) => {
+    try {
+      const response = await fetch(`/api/posts/${postId}/restore`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Remove from deleted posts and refresh active posts
+        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
+        await fetchUserPosts()
+        alert(data.message || 'Post restored successfully')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to restore post')
+      }
+    } catch (error) {
+      console.error('Error restoring post:', error)
+      alert('Failed to restore post')
+    }
+  }
+
+  const handlePermanentlyDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this post? This action CANNOT be undone!')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
+        alert('Post permanently deleted')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete post')
+      }
+    } catch (error) {
+      console.error('Error permanently deleting post:', error)
+      alert('Failed to delete post')
+    }
+  }
+
+  const startEditProfilePost = (post: UserPost) => {
     setEditingPostId(post.id)
     setEditPostContent(post.content)
   }
@@ -813,7 +905,7 @@ export default function ProfilePage() {
             </div>
 
             {/* My Posts Section */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">My Posts</h3>
                 <button
@@ -909,7 +1001,7 @@ export default function ProfilePage() {
                           <div className="mb-3">
                             <p className="text-sm font-medium text-gray-700 mb-2">Liked by:</p>
                             <div className="flex flex-wrap gap-2">
-                              {post.likes.map((like: any) => (
+                              {post.likes.map((like) => (
                                 <div key={like.userId} className="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1">
                                   {like.user.avatarUrl && (
                                     <img
@@ -930,7 +1022,7 @@ export default function ProfilePage() {
                           <div>
                             <p className="text-sm font-medium text-gray-700 mb-2">Comments:</p>
                             <div className="space-y-2">
-                              {post.comments.map((comment: any) => (
+                              {post.comments.map((comment) => (
                                 <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
                                   <div className="flex items-center gap-2 mb-1">
                                     {comment.user.avatarUrl && (
@@ -951,6 +1043,79 @@ export default function ProfilePage() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Post History Section (Deleted Posts) */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Post History</h3>
+                  <p className="text-sm text-gray-600">Posts you deleted (restorable for 30 days)</p>
+                </div>
+                <button
+                  onClick={() => setShowDeletedPosts(!showDeletedPosts)}
+                  className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                >
+                  {showDeletedPosts ? 'Hide History' : 'Show History'}
+                </button>
+              </div>
+
+              {showDeletedPosts && (
+                <div className="space-y-4">
+                  {deletedPosts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No deleted posts in history.</p>
+                  ) : (
+                    deletedPosts.map((post) => (
+                      <div key={post.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        {/* Deleted Post Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                                DELETED
+                              </span>
+                              <span className="text-xs text-red-600 font-medium">
+                                {post.daysRemaining} day{post.daysRemaining !== 1 ? 's' : ''} remaining to restore
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              Deleted on {new Date(post.deletedAt).toLocaleDateString()} at {new Date(post.deletedAt).toLocaleTimeString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleRestorePost(post.id)}
+                              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
+                              title="Restore post"
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => handlePermanentlyDeletePost(post.id)}
+                              className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
+                              title="Permanently delete"
+                            >
+                              Delete Forever
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Post Content */}
+                        <div className="mb-3 opacity-75">
+                          <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
+                        </div>
+
+                        {/* Post Stats */}
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>❤️ {post._count?.likes || 0} likes</span>
+                          <span>💬 {post._count?.comments || 0} comments</span>
+                          <span>🔁 {post._count?.reposts || 0} reposts</span>
+                        </div>
                       </div>
                     ))
                   )}

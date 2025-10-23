@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     const posts = await prisma.post.findMany({
       where: {
         ...(cursor ? { id: { lt: cursor } } : {}),
+        isDeleted: false, // Exclude soft-deleted posts
         OR: [
           // Public posts from everyone
           {

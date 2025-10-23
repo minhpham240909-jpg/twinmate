@@ -24,6 +24,17 @@ type Post = {
   isRepostedByUser?: boolean
 }
 
+type Comment = {
+  id: string
+  content: string
+  createdAt: string
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
 export default function CommunityPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -35,7 +46,7 @@ export default function CommunityPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [newPostsCount, setNewPostsCount] = useState(0)
   const [showComments, setShowComments] = useState<string | null>(null)
-  const [comments, setComments] = useState<{ [key: string]: any[] }>({})
+  const [comments, setComments] = useState<{ [key: string]: Comment[] }>({})
   const [newComment, setNewComment] = useState('')
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -446,7 +457,7 @@ export default function CommunityPage() {
   }
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+    if (!confirm('This post will be deleted for 30 days. You can restore it anytime before permanent deletion.')) {
       return
     }
 
@@ -456,9 +467,12 @@ export default function CommunityPage() {
       })
 
       if (response.ok) {
+        const data = await response.json()
         // Remove post from local state
         setPosts(prev => prev.filter(post => post.id !== postId))
         setSearchResults(prev => prev.filter(post => post.id !== postId))
+        setPopularPosts(prev => prev.filter(post => post.id !== postId))
+        alert(data.message || 'Post moved to history. You can restore it within 30 days.')
       } else {
         const error = await response.json()
         alert(error.error || 'Failed to delete post')

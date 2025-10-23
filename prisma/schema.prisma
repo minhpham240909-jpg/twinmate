@@ -678,6 +678,10 @@ model Post {
   content   String  @db.Text // Post text content
   imageUrls String[] // Array of image URLs
 
+  // Soft delete fields
+  isDeleted Boolean   @default(false) // Soft delete flag
+  deletedAt DateTime? // When post was deleted (null if not deleted)
+
   // Relations
   likes    PostLike[]
   comments PostComment[]
@@ -688,6 +692,8 @@ model Post {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([isDeleted])
+  @@index([deletedAt])
 }
 
 model PostLike {

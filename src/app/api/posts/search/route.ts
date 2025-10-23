@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       posts = await prisma.post.findMany({
         where: {
           AND: [
+            { isDeleted: false }, // Exclude soft-deleted posts
             {
               content: {
                 contains: `#${hashtag}`,
@@ -93,6 +94,7 @@ export async function GET(req: NextRequest) {
       posts = await prisma.post.findMany({
         where: {
           AND: [
+            { isDeleted: false }, // Exclude soft-deleted posts
             {
               OR: [
                 { content: { contains: `@${username}`, mode: 'insensitive' } },
@@ -133,6 +135,7 @@ export async function GET(req: NextRequest) {
       posts = await prisma.post.findMany({
         where: {
           AND: [
+            { isDeleted: false }, // Exclude soft-deleted posts
             {
               content: {
                 contains: searchTerm,

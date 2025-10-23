@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     // Fetch posts with engagement counts
     const posts = await prisma.post.findMany({
       where: {
+        isDeleted: false, // Exclude soft-deleted posts
         createdAt: {
           gte: dateThreshold,
         },
