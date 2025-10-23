@@ -36,6 +36,8 @@ export default function ProfilePage() {
   // State for user's posts
   const [userPosts, setUserPosts] = useState<any[]>([])
   const [showPosts, setShowPosts] = useState(false)
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editPostContent, setEditPostContent] = useState('')
 
   const [customInputs, setCustomInputs] = useState({
     subject: '',
@@ -105,6 +107,67 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error fetching user posts:', error)
     }
+  }
+
+  const handleEditProfilePost = async (postId: string) => {
+    if (!editPostContent.trim()) return
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editPostContent }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUserPosts(prev =>
+          prev.map(post =>
+            post.id === postId ? { ...post, content: data.post.content } : post
+          )
+        )
+        setEditingPostId(null)
+        setEditPostContent('')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to edit post')
+      }
+    } catch (error) {
+      console.error('Error editing post:', error)
+      alert('Failed to edit post')
+    }
+  }
+
+  const handleDeleteProfilePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        setUserPosts(prev => prev.filter(post => post.id !== postId))
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete post')
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error)
+      alert('Failed to delete post')
+    }
+  }
+
+  const startEditProfilePost = (post: any) => {
+    setEditingPostId(post.id)
+    setEditPostContent(post.content)
+  }
+
+  const cancelEditProfilePost = () => {
+    setEditingPostId(null)
+    setEditPostContent('')
   }
 
   if (loading) {
@@ -768,13 +831,71 @@ export default function ProfilePage() {
                   ) : (
                     userPosts.map((post) => (
                       <div key={post.id} className="border border-gray-200 rounded-lg p-4">
-                        {/* Post Content */}
-                        <div className="mb-3">
-                          <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString()}
-                          </p>
+                        {/* Post Header with Edit/Delete buttons */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">
+                              {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => startEditProfilePost(post)}
+                              className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                              title="Edit post"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProfilePost(post.id)}
+                              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition"
+                              title="Delete post"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Post Content - Show edit mode or regular content */}
+                        {editingPostId === post.id ? (
+                          <div className="mb-3">
+                            <textarea
+                              value={editPostContent}
+                              onChange={(e) => setEditPostContent(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              rows={4}
+                              maxLength={5000}
+                            />
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-sm text-gray-500">
+                                {editPostContent.length}/5000
+                              </span>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={cancelEditProfilePost}
+                                  className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded transition"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleEditProfilePost(post.id)}
+                                  disabled={!editPostContent.trim()}
+                                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mb-3">
+                            <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
+                          </div>
+                        )}
 
                         {/* Post Stats */}
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">

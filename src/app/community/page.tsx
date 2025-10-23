@@ -37,6 +37,8 @@ export default function CommunityPage() {
   const [showComments, setShowComments] = useState<string | null>(null)
   const [comments, setComments] = useState<{ [key: string]: any[] }>({})
   const [newComment, setNewComment] = useState('')
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
 
   useEffect(() => {
     if (!loading && !user) {
@@ -261,6 +263,70 @@ export default function CommunityPage() {
     }
   }
 
+  const handleEditPost = async (postId: string) => {
+    if (!editContent.trim()) return
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editContent }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Update post in local state
+        setPosts(prev =>
+          prev.map(post =>
+            post.id === postId ? { ...post, content: data.post.content } : post
+          )
+        )
+        setEditingPostId(null)
+        setEditContent('')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to edit post')
+      }
+    } catch (error) {
+      console.error('Error editing post:', error)
+      alert('Failed to edit post')
+    }
+  }
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Remove post from local state
+        setPosts(prev => prev.filter(post => post.id !== postId))
+        setSearchResults(prev => prev.filter(post => post.id !== postId))
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete post')
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error)
+      alert('Failed to delete post')
+    }
+  }
+
+  const startEditPost = (post: Post) => {
+    setEditingPostId(post.id)
+    setEditContent(post.content)
+  }
+
+  const cancelEdit = () => {
+    setEditingPostId(null)
+    setEditContent('')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -374,10 +440,66 @@ export default function CommunityPage() {
                     {new Date(post.createdAt).toLocaleString()}
                   </p>
                 </div>
+
+                {/* Edit/Delete buttons - only show for user's own posts */}
+                {post.user.id === user.id && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => startEditPost(post)}
+                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      title="Edit post"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeletePost(post.id)}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      title="Delete post"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Post Content */}
-              <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
+              {/* Post Content - Show edit mode or regular content */}
+              {editingPostId === post.id ? (
+                <div className="mb-4">
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={4}
+                    maxLength={5000}
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm text-gray-500">
+                      {editContent.length}/5000
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={cancelEdit}
+                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleEditPost(post.id)}
+                        disabled={!editContent.trim()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
+              )}
 
               {/* Post Actions */}
               <div className="flex items-center gap-6 pt-4 border-t border-gray-100">
