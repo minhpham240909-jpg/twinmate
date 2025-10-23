@@ -83,6 +83,10 @@ model User {
   sessionParticipations SessionParticipant[]
   sessionMessages       SessionMessage[]
   notifications         Notification[]
+  posts                 Post[]
+  postLikes             PostLike[]
+  postComments          PostComment[]
+  postReposts           PostRepost[]
 
   @@index([email])
   @@index([googleId])
@@ -132,6 +136,9 @@ model Profile {
   // Privacy
   showLocation Boolean @default(false)
   showEmail    Boolean @default(false)
+
+  // Community Settings
+  postPrivacy PostPrivacy @default(PUBLIC)
 
   // Gamification
   studyStreak     Int       @default(0)
@@ -652,4 +659,79 @@ model Session {
 
   @@index([userId])
   @@index([token])
+}
+
+// ==========================================
+// COMMUNITY (Social Feed like X/Twitter)
+// ==========================================
+
+enum PostPrivacy {
+  PUBLIC         // Everyone can see
+  PARTNERS_ONLY  // Only connected partners can see
+}
+
+model Post {
+  id      String @id @default(uuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  content   String  @db.Text // Post text content
+  imageUrls String[] // Array of image URLs
+
+  // Relations
+  likes    PostLike[]
+  comments PostComment[]
+  reposts  PostRepost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PostLike {
+  id     String @id @default(uuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId]) // User can only like a post once
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostComment {
+  id      String @id @default(uuid())
+  postId  String
+  post    Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PostRepost {
+  id      String  @id @default(uuid())
+  postId  String
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment String? @db.Text // Optional comment for "quote repost"
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId]) // User can only repost once
+  @@index([postId])
+  @@index([userId])
+  @@index([createdAt])
 }

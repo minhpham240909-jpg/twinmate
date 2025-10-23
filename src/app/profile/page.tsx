@@ -29,7 +29,13 @@ export default function ProfilePage() {
     // NEW: School and Languages
     school: '',
     languages: '',
+    // NEW: Post Privacy
+    postPrivacy: 'PUBLIC' as 'PUBLIC' | 'PARTNERS_ONLY',
   })
+
+  // State for user's posts
+  const [userPosts, setUserPosts] = useState<any[]>([])
+  const [showPosts, setShowPosts] = useState(false)
 
   const [customInputs, setCustomInputs] = useState({
     subject: '',
@@ -70,6 +76,8 @@ export default function ProfilePage() {
         // NEW: Load school and languages
         school: (profile as { school?: string }).school || '',
         languages: (profile as { languages?: string }).languages || '',
+        // NEW: Load post privacy
+        postPrivacy: (profile as { postPrivacy?: 'PUBLIC' | 'PARTNERS_ONLY' }).postPrivacy || 'PUBLIC',
       })
       // Show "Add more about yourself" if it has content
       const profileWithAbout = profile as { aboutYourself?: string; aboutYourselfItems?: string[] }
@@ -79,6 +87,25 @@ export default function ProfilePage() {
       setPreviewImage(profile.avatarUrl || '')
     }
   }, [user, profile, loading, router])
+
+  // Fetch user's posts
+  useEffect(() => {
+    if (user) {
+      fetchUserPosts()
+    }
+  }, [user])
+
+  const fetchUserPosts = async () => {
+    try {
+      const response = await fetch(`/api/posts/user/${user?.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUserPosts(data.posts)
+      }
+    } catch (error) {
+      console.error('Error fetching user posts:', error)
+    }
+  }
 
   if (loading) {
     return (
@@ -202,6 +229,8 @@ export default function ProfilePage() {
         // NEW: Include school and languages
         school: formData.school || undefined,
         languages: formData.languages || undefined,
+        // NEW: Include post privacy
+        postPrivacy: formData.postPrivacy,
       }
 
       const response = await fetch('/api/profile/update', {
@@ -676,6 +705,134 @@ export default function ProfilePage() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Post Privacy Settings */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Community Privacy Settings</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Who can see your posts?
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-start cursor-pointer">
+                    <input
+                      type="radio"
+                      name="postPrivacy"
+                      value="PUBLIC"
+                      checked={formData.postPrivacy === 'PUBLIC'}
+                      onChange={(e) => setFormData({ ...formData, postPrivacy: e.target.value as 'PUBLIC' | 'PARTNERS_ONLY' })}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">Public</div>
+                      <div className="text-sm text-gray-600">Everyone can see your posts</div>
+                    </div>
+                  </label>
+                  <label className="flex items-start cursor-pointer">
+                    <input
+                      type="radio"
+                      name="postPrivacy"
+                      value="PARTNERS_ONLY"
+                      checked={formData.postPrivacy === 'PARTNERS_ONLY'}
+                      onChange={(e) => setFormData({ ...formData, postPrivacy: e.target.value as 'PUBLIC' | 'PARTNERS_ONLY' })}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">Partners Only</div>
+                      <div className="text-sm text-gray-600">Only your connected study partners can see your posts</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* My Posts Section */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">My Posts</h3>
+                <button
+                  onClick={() => setShowPosts(!showPosts)}
+                  className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                >
+                  {showPosts ? 'Hide Posts' : 'Show Posts'}
+                </button>
+              </div>
+
+              {showPosts && (
+                <div className="space-y-4">
+                  {userPosts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">You haven&apos;t created any posts yet.</p>
+                  ) : (
+                    userPosts.map((post) => (
+                      <div key={post.id} className="border border-gray-200 rounded-lg p-4">
+                        {/* Post Content */}
+                        <div className="mb-3">
+                          <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString()}
+                          </p>
+                        </div>
+
+                        {/* Post Stats */}
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
+                          <span>❤️ {post.likes?.length || 0} likes</span>
+                          <span>💬 {post.comments?.length || 0} comments</span>
+                          <span>🔁 {post._count?.reposts || 0} reposts</span>
+                        </div>
+
+                        {/* Who Liked */}
+                        {post.likes && post.likes.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-gray-700 mb-2">Liked by:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {post.likes.map((like: any) => (
+                                <div key={like.userId} className="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1">
+                                  {like.user.avatarUrl && (
+                                    <img
+                                      src={like.user.avatarUrl}
+                                      alt={like.user.name}
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                  )}
+                                  <span className="text-sm text-gray-700">{like.user.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Comments */}
+                        {post.comments && post.comments.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">Comments:</p>
+                            <div className="space-y-2">
+                              {post.comments.map((comment: any) => (
+                                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {comment.user.avatarUrl && (
+                                      <img
+                                        src={comment.user.avatarUrl}
+                                        alt={comment.user.name}
+                                        className="w-6 h-6 rounded-full"
+                                      />
+                                    )}
+                                    <span className="font-medium text-sm text-gray-900">{comment.user.name}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(comment.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 ml-8">{comment.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>

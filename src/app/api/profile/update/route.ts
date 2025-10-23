@@ -37,6 +37,8 @@ const profileSchema = z.object({
   // NEW: School and Languages
   school: z.string().optional().nullable(),
   languages: z.string().optional().nullable(),
+  // NEW: Post Privacy
+  postPrivacy: z.enum(['PUBLIC', 'PARTNERS_ONLY']).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
       aboutYourself: cleanString(data.aboutYourself),
       school: cleanString(data.school),
       languages: cleanString(data.languages),
+      postPrivacy: data.postPrivacy || 'PUBLIC',
     }
 
     // Wrap user and profile updates in a transaction to ensure atomicity
