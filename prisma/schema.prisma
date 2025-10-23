@@ -682,6 +682,9 @@ model Post {
   isDeleted Boolean   @default(false) // Soft delete flag
   deletedAt DateTime? // When post was deleted (null if not deleted)
 
+  // Share settings
+  allowSharing Boolean @default(true) // Allow post to be shared outside the app
+
   // Relations
   likes    PostLike[]
   comments PostComment[]

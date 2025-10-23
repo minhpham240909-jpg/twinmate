@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { content, imageUrls = [] } = body
+    const { content, imageUrls = [], allowSharing = true } = body
 
     if (!content || content.trim().length === 0) {
       return NextResponse.json(
@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         content: content.trim(),
         imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
+        allowSharing: typeof allowSharing === 'boolean' ? allowSharing : true,
       },
       include: {
         user: {

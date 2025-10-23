@@ -57,6 +57,8 @@ export default function CommunityPage() {
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
   const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
+  const [allowSharing, setAllowSharing] = useState(true)
   const [showMentions, setShowMentions] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionUsers, setMentionUsers] = useState<{ id: string; name: string; avatarUrl: string | null }[]>([])
@@ -267,7 +269,8 @@ export default function CommunityPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: newPostContent.trim() || 'Posted images',
-          imageUrls
+          imageUrls,
+          allowSharing
         }),
       })
 
@@ -284,6 +287,43 @@ export default function CommunityPage() {
       setIsPostingLoading(false)
       setIsUploadingImages(false)
     }
+  }
+
+  const handleSharePost = async (postId: string) => {
+    const shareUrl = `${window.location.origin}/share/${postId}`
+
+    // Check if Web Share API is available (mobile devices and some browsers)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Check out this post on TwinMate',
+          text: 'I found this interesting post on TwinMate - Join to connect with study partners!',
+          url: shareUrl,
+        })
+      } catch (error) {
+        // User cancelled or error occurred
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Error sharing:', error)
+          // Fallback to copy link
+          copyShareLink(shareUrl)
+        }
+      }
+    } else {
+      // Fallback: Copy link to clipboard
+      copyShareLink(shareUrl)
+    }
+
+    // Close menu after sharing
+    setOpenMenuPostId(null)
+  }
+
+  const copyShareLink = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Share link copied to clipboard!')
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+      alert('Failed to copy link. Please try again.')
+    })
   }
 
   const handleLike = async (postId: string, isLiked: boolean) => {
@@ -653,6 +693,17 @@ export default function CommunityPage() {
               {isUploadingImages && (
                 <span className="text-sm text-blue-600">Uploading images...</span>
               )}
+
+              {/* Allow Sharing Checkbox */}
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowSharing}
+                  onChange={(e) => setAllowSharing(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span>Allow sharing</span>
+              </label>
             </div>
 
             <button
@@ -728,29 +779,69 @@ export default function CommunityPage() {
                   </p>
                 </div>
 
-                {/* Edit/Delete buttons - only show for user's own posts */}
-                {post.user.id === user.id && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => startEditPost(post)}
-                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                      title="Edit post"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeletePost(post.id)}
-                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                      title="Delete post"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
+                {/* Three-dots menu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                    title="More options"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                    </svg>
+                  </button>
+
+                  {/* Dropdown menu */}
+                  {openMenuPostId === post.id && (
+                    <>
+                      {/* Backdrop to close menu */}
+                      <div className="fixed inset-0 z-10" onClick={() => setOpenMenuPostId(null)}></div>
+
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                        {/* Share option - always visible */}
+                        <button
+                          onClick={() => handleSharePost(post.id)}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                          </svg>
+                          Share post
+                        </button>
+
+                        {/* Edit and Delete - only for post owner */}
+                        {post.user.id === user.id && (
+                          <>
+                            <button
+                              onClick={() => {
+                                startEditPost(post)
+                                setOpenMenuPostId(null)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit post
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDeletePost(post.id)
+                                setOpenMenuPostId(null)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete post
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Post Content - Show edit mode or regular content */}
