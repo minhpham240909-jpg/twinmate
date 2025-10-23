@@ -39,6 +39,17 @@ export default function CommunityPage() {
   const [newComment, setNewComment] = useState('')
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
+  const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent')
+  const [popularPosts, setPopularPosts] = useState<Post[]>([])
+  const [trendingHashtags, setTrendingHashtags] = useState<{ hashtag: string; count: number }[]>([])
+  const [isLoadingPopular, setIsLoadingPopular] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
+  const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [showMentions, setShowMentions] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionUsers, setMentionUsers] = useState<{ id: string; name: string; avatarUrl: string | null }[]>([])
+  const [mentionCursorPosition, setMentionCursorPosition] = useState(0)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -50,8 +61,16 @@ export default function CommunityPage() {
   useEffect(() => {
     if (user) {
       fetchPosts()
+      fetchTrendingHashtags()
     }
   }, [user])
+
+  // Fetch popular posts when tab changes
+  useEffect(() => {
+    if (user && activeTab === 'popular' && popularPosts.length === 0) {
+      fetchPopularPosts()
+    }
+  }, [user, activeTab])
 
   // Real-time subscription for new posts
   useEffect(() => {
@@ -101,25 +120,158 @@ export default function CommunityPage() {
     }
   }
 
+  const fetchPopularPosts = async () => {
+    setIsLoadingPopular(true)
+    try {
+      const response = await fetch('/api/posts/popular?limit=20&days=7')
+      if (response.ok) {
+        const data = await response.json()
+        setPopularPosts(data.posts)
+      }
+    } catch (error) {
+      console.error('Error fetching popular posts:', error)
+    } finally {
+      setIsLoadingPopular(false)
+    }
+  }
+
+  const fetchTrendingHashtags = async () => {
+    try {
+      const response = await fetch('/api/posts/trending-hashtags?limit=5&days=7')
+      if (response.ok) {
+        const data = await response.json()
+        setTrendingHashtags(data.trending)
+      }
+    } catch (error) {
+      console.error('Error fetching trending hashtags:', error)
+    }
+  }
+
+  // Handle @ mention detection and search
+  const handleContentChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    const cursorPos = e.target.selectionStart || 0
+    setNewPostContent(value)
+    setMentionCursorPosition(cursorPos)
+
+    // Check if user typed @
+    const textBeforeCursor = value.substring(0, cursorPos)
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/)
+
+    if (mentionMatch) {
+      const query = mentionMatch[1]
+      setMentionQuery(query)
+
+      if (query.length >= 1) {
+        // Search for users
+        try {
+          const response = await fetch(`/api/users/mentions?query=${encodeURIComponent(query)}&limit=5`)
+          if (response.ok) {
+            const data = await response.json()
+            setMentionUsers(data.users)
+            setShowMentions(data.users.length > 0)
+          }
+        } catch (error) {
+          console.error('Error searching users:', error)
+        }
+      } else {
+        setShowMentions(false)
+        setMentionUsers([])
+      }
+    } else {
+      setShowMentions(false)
+      setMentionUsers([])
+    }
+  }
+
+  const insertMention = (user: { id: string; name: string; avatarUrl: string | null }) => {
+    const textBeforeCursor = newPostContent.substring(0, mentionCursorPosition)
+    const textAfterCursor = newPostContent.substring(mentionCursorPosition)
+
+    // Replace @query with @username
+    const beforeMention = textBeforeCursor.replace(/@\w*$/, `@${user.name} `)
+    const newContent = beforeMention + textAfterCursor
+
+    setNewPostContent(newContent)
+    setShowMentions(false)
+    setMentionUsers([])
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length + selectedImages.length > 4) {
+      alert('Maximum 4 images allowed per post')
+      return
+    }
+
+    setSelectedImages(prev => [...prev, ...files])
+
+    // Create preview URLs
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreviewUrls(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index))
+    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleCreatePost = async () => {
-    if (!newPostContent.trim()) return
+    if (!newPostContent.trim() && selectedImages.length === 0) return
 
     setIsPostingLoading(true)
     try {
+      let imageUrls: string[] = []
+
+      // Upload images if any
+      if (selectedImages.length > 0) {
+        setIsUploadingImages(true)
+        const formData = new FormData()
+        selectedImages.forEach(image => {
+          formData.append('images', image)
+        })
+
+        const uploadResponse = await fetch('/api/upload/post-images', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json()
+          imageUrls = uploadData.urls
+        } else {
+          throw new Error('Failed to upload images')
+        }
+        setIsUploadingImages(false)
+      }
+
+      // Create post with content and image URLs
       const response = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newPostContent }),
+        body: JSON.stringify({
+          content: newPostContent.trim() || 'Posted images',
+          imageUrls
+        }),
       })
 
       if (response.ok) {
         setNewPostContent('')
+        setSelectedImages([])
+        setImagePreviewUrls([])
         await fetchPosts()
       }
     } catch (error) {
       console.error('Error creating post:', error)
+      alert('Failed to create post. Please try again.')
     } finally {
       setIsPostingLoading(false)
+      setIsUploadingImages(false)
     }
   }
 
@@ -337,7 +489,11 @@ export default function CommunityPage() {
 
   if (!user) return null
 
-  const displayPosts = isSearching ? searchResults : posts
+  const displayPosts = isSearching
+    ? searchResults
+    : activeTab === 'popular'
+    ? popularPosts
+    : posts
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -392,24 +548,102 @@ export default function CommunityPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        {/* Create Post */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content - Left/Center */}
+          <div className="lg:col-span-2">
+            {/* Create Post */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 relative">
           <textarea
             value={newPostContent}
-            onChange={(e) => setNewPostContent(e.target.value)}
-            placeholder="What's on your mind?"
+            onChange={handleContentChange}
+            placeholder="What's on your mind? Use @ to mention users, # for hashtags"
             className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows={3}
             maxLength={5000}
           />
+
+          {/* @ Mention Autocomplete Dropdown */}
+          {showMentions && mentionUsers.length > 0 && (
+            <div className="absolute z-10 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {mentionUsers.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => insertMention(user)}
+                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-blue-50 transition text-left"
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                      {user.name[0]}
+                    </div>
+                  )}
+                  <span className="font-medium text-gray-900">@{user.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Image Previews */}
+          {imagePreviewUrls.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {imagePreviewUrls.map((url, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={url}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => removeImage(index)}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between mt-3">
-            <span className="text-sm text-gray-500">
-              {newPostContent.length}/5000
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">
+                {newPostContent.length}/5000
+              </span>
+
+              {/* Image Upload Button */}
+              <label className="cursor-pointer flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium">
+                  {selectedImages.length > 0 ? `${selectedImages.length}/4` : 'Add Images'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  disabled={selectedImages.length >= 4}
+                />
+              </label>
+
+              {isUploadingImages && (
+                <span className="text-sm text-blue-600">Uploading images...</span>
+              )}
+            </div>
+
             <button
               onClick={handleCreatePost}
-              disabled={!newPostContent.trim() || isPostingLoading}
+              disabled={(!newPostContent.trim() && selectedImages.length === 0) || isPostingLoading}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
             >
               {isPostingLoading ? 'Posting...' : 'Post'}
@@ -417,7 +651,46 @@ export default function CommunityPage() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-sm mb-6">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('recent')}
+              className={`flex-1 px-6 py-4 font-semibold transition ${
+                activeTab === 'recent'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              Recent Posts
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('popular')
+                if (popularPosts.length === 0) {
+                  fetchPopularPosts()
+                }
+              }}
+              className={`flex-1 px-6 py-4 font-semibold transition ${
+                activeTab === 'popular'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              🔥 Popular (7 days)
+            </button>
+          </div>
+        </div>
+
+        {/* Loading state for popular posts */}
+        {isLoadingPopular && (
+          <div className="flex justify-center py-8">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+
         {/* Posts Feed */}
+        {!isLoadingPopular && (
         <div className="space-y-4">
           {displayPosts.map((post) => (
             <div key={post.id} className="bg-white rounded-xl shadow-sm p-6">
@@ -498,7 +771,35 @@ export default function CommunityPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
+                <div>
+                  <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
+
+                  {/* Post Images */}
+                  {post.imageUrls && post.imageUrls.length > 0 && (
+                    <div className={`grid gap-2 mb-4 ${
+                      post.imageUrls.length === 1 ? 'grid-cols-1' :
+                      post.imageUrls.length === 2 ? 'grid-cols-2' :
+                      post.imageUrls.length === 3 ? 'grid-cols-2' :
+                      'grid-cols-2'
+                    }`}>
+                      {post.imageUrls.map((url, index) => (
+                        <div
+                          key={index}
+                          className={`relative ${
+                            post.imageUrls.length === 3 && index === 0 ? 'col-span-2' : ''
+                          }`}
+                        >
+                          <img
+                            src={url}
+                            alt={`Post image ${index + 1}`}
+                            className="w-full h-auto max-h-96 object-cover rounded-lg cursor-pointer hover:opacity-95 transition"
+                            onClick={() => window.open(url, '_blank')}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Post Actions */}
@@ -615,6 +916,45 @@ export default function CommunityPage() {
               </p>
             </div>
           )}
+        </div>
+        )}
+          </div>
+
+          {/* Sidebar - Right */}
+          <div className="lg:col-span-1">
+            {/* Trending Hashtags */}
+            <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">🔥 Trending Hashtags</h3>
+              {trendingHashtags.length > 0 ? (
+                <div className="space-y-3">
+                  {trendingHashtags.map((item, index) => (
+                    <button
+                      key={item.hashtag}
+                      onClick={() => {
+                        setSearchQuery(item.hashtag)
+                        setActiveTab('recent')
+                      }}
+                      className="w-full text-left p-3 rounded-lg hover:bg-blue-50 transition group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-gray-300 group-hover:text-blue-400 transition">
+                            #{index + 1}
+                          </span>
+                          <span className="font-semibold text-blue-600 group-hover:text-blue-700">
+                            {item.hashtag}
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-500">{item.count} posts</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No trending hashtags yet. Start using hashtags in your posts!</p>
+              )}
+            </div>
+          </div>
         </div>
       </main>
     </div>
