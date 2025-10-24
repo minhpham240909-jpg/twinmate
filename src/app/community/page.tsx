@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 type Post = {
   id: string
@@ -22,6 +23,7 @@ type Post = {
   }
   isLikedByUser?: boolean
   isRepostedByUser?: boolean
+  connectionStatus?: 'none' | 'pending' | 'connected'
 }
 
 type Comment = {
@@ -63,6 +65,7 @@ export default function CommunityPage() {
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionUsers, setMentionUsers] = useState<{ id: string; name: string; avatarUrl: string | null }[]>([])
   const [mentionCursorPosition, setMentionCursorPosition] = useState(0)
+  const [connectingPostIds, setConnectingPostIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!loading && !user) {
@@ -533,6 +536,56 @@ export default function CommunityPage() {
     setEditContent('')
   }
 
+  const handleSendConnection = async (userId: string, postId: string) => {
+    if (!user) return
+
+    setConnectingPostIds(prev => new Set(prev).add(postId))
+    try {
+      const response = await fetch('/api/connections/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverId: userId }),
+      })
+
+      if (response.ok) {
+        // Update connection status in local state
+        setPosts(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? { ...post, connectionStatus: 'pending' }
+              : post
+          )
+        )
+        setSearchResults(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? { ...post, connectionStatus: 'pending' }
+              : post
+          )
+        )
+        setPopularPosts(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? { ...post, connectionStatus: 'pending' }
+              : post
+          )
+        )
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to send connection request')
+      }
+    } catch (error) {
+      console.error('Error sending connection:', error)
+      alert('Failed to send connection request')
+    } finally {
+      setConnectingPostIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(postId)
+        return newSet
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -761,22 +814,55 @@ export default function CommunityPage() {
             <div key={post.id} className="bg-white rounded-xl shadow-sm p-6">
               {/* Post Header */}
               <div className="flex items-start gap-3 mb-4">
-                {post.user.avatarUrl ? (
-                  <img
-                    src={post.user.avatarUrl}
-                    alt={post.user.name}
-                    className="w-12 h-12 rounded-full"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {post.user.name[0]}
-                  </div>
-                )}
+                {/* Clickable Avatar */}
+                <Link href={`/profile/${post.user.id}`}>
+                  {post.user.avatarUrl ? (
+                    <img
+                      src={post.user.avatarUrl}
+                      alt={post.user.name}
+                      className="w-12 h-12 rounded-full cursor-pointer hover:opacity-80 transition"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer hover:opacity-80 transition">
+                      {post.user.name[0]}
+                    </div>
+                  )}
+                </Link>
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{post.user.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(post.createdAt).toLocaleString()}
-                  </p>
+                  {/* Clickable Name */}
+                  <Link href={`/profile/${post.user.id}`}>
+                    <p className="font-semibold text-gray-900 hover:text-blue-600 cursor-pointer transition">
+                      {post.user.name}
+                    </p>
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-gray-500">
+                      {new Date(post.createdAt).toLocaleString()}
+                    </p>
+                    {/* Connect Button (only show for other users) */}
+                    {post.user.id !== user.id && (
+                      <>
+                        <span className="text-sm text-gray-400">•</span>
+                        {post.connectionStatus === 'connected' ? (
+                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-medium">
+                            ✓ Connected
+                          </span>
+                        ) : post.connectionStatus === 'pending' ? (
+                          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded font-medium">
+                            Pending
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleSendConnection(post.user.id, post.id)}
+                            disabled={connectingPostIds.has(post.id)}
+                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {connectingPostIds.has(post.id) ? 'Sending...' : 'Connect'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Three-dots menu */}

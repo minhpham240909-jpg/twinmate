@@ -173,7 +173,40 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ posts })
+    // Get all connections for the current user
+    const userConnections = await prisma.match.findMany({
+      where: {
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id },
+        ],
+      },
+      select: {
+        id: true,
+        senderId: true,
+        receiverId: true,
+        status: true,
+      },
+    })
+
+    // Create a map of userId -> connectionStatus
+    const connectionStatusMap = new Map<string, 'none' | 'pending' | 'connected'>()
+    userConnections.forEach(connection => {
+      const otherUserId = connection.senderId === user.id ? connection.receiverId : connection.senderId
+      if (connection.status === 'ACCEPTED') {
+        connectionStatusMap.set(otherUserId, 'connected')
+      } else if (connection.status === 'PENDING') {
+        connectionStatusMap.set(otherUserId, 'pending')
+      }
+    })
+
+    // Add connection status and user interaction data to posts
+    const postsWithUserData = posts.map(post => ({
+      ...post,
+      connectionStatus: post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none'),
+    }))
+
+    return NextResponse.json({ posts: postsWithUserData })
   } catch (error) {
     console.error('Error searching posts:', error)
     return NextResponse.json(

@@ -115,11 +115,39 @@ export async function GET(req: NextRequest) {
       take: limit,
     })
 
-    // Check if user has liked each post
+    // Get all connections for the current user
+    const userConnections = await prisma.match.findMany({
+      where: {
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id },
+        ],
+      },
+      select: {
+        id: true,
+        senderId: true,
+        receiverId: true,
+        status: true,
+      },
+    })
+
+    // Create a map of userId -> connectionStatus
+    const connectionStatusMap = new Map<string, 'none' | 'pending' | 'connected'>()
+    userConnections.forEach(connection => {
+      const otherUserId = connection.senderId === user.id ? connection.receiverId : connection.senderId
+      if (connection.status === 'ACCEPTED') {
+        connectionStatusMap.set(otherUserId, 'connected')
+      } else if (connection.status === 'PENDING') {
+        connectionStatusMap.set(otherUserId, 'pending')
+      }
+    })
+
+    // Check if user has liked each post and add connection status
     const postsWithUserData = posts.map(post => ({
       ...post,
       isLikedByUser: post.likes.some(like => like.userId === user.id),
       isRepostedByUser: post.reposts.some(repost => repost.userId === user.id),
+      connectionStatus: post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none'),
     }))
 
     return NextResponse.json({

@@ -108,6 +108,33 @@ export async function GET(req: NextRequest) {
       take: 100, // Get more to calculate scores
     })
 
+    // Get all connections for the current user
+    const userConnections = await prisma.match.findMany({
+      where: {
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id },
+        ],
+      },
+      select: {
+        id: true,
+        senderId: true,
+        receiverId: true,
+        status: true,
+      },
+    })
+
+    // Create a map of userId -> connectionStatus
+    const connectionStatusMap = new Map<string, 'none' | 'pending' | 'connected'>()
+    userConnections.forEach(connection => {
+      const otherUserId = connection.senderId === user.id ? connection.receiverId : connection.senderId
+      if (connection.status === 'ACCEPTED') {
+        connectionStatusMap.set(otherUserId, 'connected')
+      } else if (connection.status === 'PENDING') {
+        connectionStatusMap.set(otherUserId, 'pending')
+      }
+    })
+
     // Calculate engagement score for each post
     // Formula: (likes × 2) + (comments × 3) + (reposts × 4)
     // Comments and reposts weighted higher as they require more effort
@@ -119,6 +146,7 @@ export async function GET(req: NextRequest) {
         post._count.reposts * 4,
       isLikedByUser: post.likes.some((like) => like.userId === user.id),
       isRepostedByUser: post.reposts.some((repost) => repost.userId === user.id),
+      connectionStatus: post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none'),
     }))
 
     // Sort by engagement score and take top N
