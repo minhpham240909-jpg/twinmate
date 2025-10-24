@@ -468,16 +468,29 @@ export default function GroupsPage() {
 
     try {
       setDeletingGroup(true)
+
+      console.log(`[FRONTEND] Attempting to delete group: ${groupId}`)
+
       const response = await fetch('/api/groups/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ groupId }),
       })
 
+      console.log(`[FRONTEND] Delete API response status: ${response.status}`)
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        toast.error('Your session has expired. Please sign in again.')
+        console.error('[FRONTEND] Authentication failed (401) - redirecting to signin')
+        setTimeout(() => router.push('/auth/signin'), 2000)
+        return
+      }
+
       const data = await response.json()
 
       if (response.ok && data.success) {
-        console.log(`[FRONTEND] Group ${data.groupId} deleted successfully`)
+        console.log(`[FRONTEND] Group ${data.groupId} deleted successfully from database`)
         toast.success(`Group permanently deleted. ${data.notifiedMembers} member(s) notified.`)
         setShowManageModal(false)
         setSelectedGroup(null)
@@ -504,7 +517,7 @@ export default function GroupsPage() {
       }
     } catch (error) {
       console.error('[FRONTEND] Error deleting group:', error)
-      toast.error('Failed to delete group')
+      toast.error('Failed to delete group. Please try again.')
     } finally {
       setDeletingGroup(false)
     }
