@@ -210,22 +210,22 @@ export default function AIAgentFeaturePage() {
                 {
                   title: 'Multi-Dimensional Matching',
                   description: 'Our AI considers subjects, learning styles, schedules, goals, personality traits, and communication preferences to find compatible partners.',
-                  image: '📊'
+                  gradient: 'from-blue-500 to-indigo-600'
                 },
                 {
                   title: 'Continuous Learning',
                   description: 'The AI learns from your interactions and feedback, improving match quality over time to better understand your preferences.',
-                  image: '🧠'
+                  gradient: 'from-indigo-500 to-purple-600'
                 },
                 {
                   title: 'Real-Time Availability',
                   description: 'Matches are based on current availability, ensuring you connect with partners who are ready to study when you are.',
-                  image: '⏰'
+                  gradient: 'from-purple-500 to-pink-600'
                 },
                 {
                   title: 'Compatibility Scores',
                   description: 'See detailed compatibility breakdowns showing why each match was recommended and what you have in common.',
-                  image: '⭐'
+                  gradient: 'from-pink-500 to-rose-600'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -233,11 +233,31 @@ export default function AIAgentFeaturePage() {
                   initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  className="bg-white p-8 rounded-xl shadow-lg border border-gray-200"
+                  whileHover={{ y: -5 }}
+                  className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 relative overflow-hidden"
                 >
-                  <div className="text-5xl mb-4">{feature.image}</div>
-                  <h3 className="text-2xl font-semibold mb-3 text-gray-900">{feature.title}</h3>
-                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                  {/* Gradient accent */}
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full blur-2xl`}></div>
+
+                  {/* 3D Icon Card */}
+                  <div className="relative mb-6">
+                    <motion.div
+                      animate={{
+                        rotateY: [0, 5, 0, -5, 0],
+                        rotateX: [0, 5, 0, -5, 0]
+                      }}
+                      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                      className="w-20 h-20 rounded-2xl shadow-lg"
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center`}>
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl"></div>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed relative">{feature.description}</p>
                 </motion.div>
               ))}
             </div>

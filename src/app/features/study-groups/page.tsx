@@ -142,9 +142,25 @@ export default function StudyGroupsPage() {
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                className="bg-gradient-to-br from-green-50 to-emerald-50 p-8 rounded-2xl border-2 border-green-200"
+                whileHover={{ y: -5 }}
+                className="bg-gradient-to-br from-green-50 to-emerald-50 p-8 rounded-3xl border-2 border-green-200 relative overflow-hidden"
               >
-                <div className="text-6xl mb-4">🎯</div>
+                {/* 3D Target Icon */}
+                <div className="relative mb-6">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.05, 1],
+                      rotateY: [0, 10, 0, -10, 0]
+                    }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-24 h-24 rounded-3xl shadow-2xl"
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl flex items-center justify-center">
+                      <div className="w-16 h-16 bg-white/30 rounded-2xl backdrop-blur border-2 border-white/50"></div>
+                    </div>
+                  </motion.div>
+                </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Goal-Oriented Learning</h3>
                 <p className="text-gray-600">
                   Set shared goals, track progress together, and celebrate milestones as a group. Stay motivated and accountable.
@@ -157,9 +173,29 @@ export default function StudyGroupsPage() {
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                className="bg-gradient-to-br from-emerald-50 to-green-50 p-8 rounded-2xl border-2 border-emerald-200 md:order-2"
+                whileHover={{ y: -5 }}
+                className="bg-gradient-to-br from-emerald-50 to-green-50 p-8 rounded-3xl border-2 border-emerald-200 md:order-2 relative overflow-hidden"
               >
-                <div className="text-6xl mb-4">📅</div>
+                {/* 3D Calendar Icon */}
+                <div className="relative mb-6">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.05, 1],
+                      rotateX: [0, 10, 0, -10, 0]
+                    }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    className="w-24 h-24 rounded-3xl shadow-2xl"
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl p-4">
+                      <div className="w-full h-full bg-white/30 rounded-2xl backdrop-blur grid grid-cols-3 gap-1 p-2">
+                        {[...Array(9)].map((_, i) => (
+                          <div key={i} className="bg-white/40 rounded"></div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Smart Scheduling</h3>
                 <p className="text-gray-600">
                   Find the best time for everyone with built-in scheduling tools. Set recurring sessions and get automatic reminders.
@@ -222,19 +258,19 @@ export default function StudyGroupsPage() {
                 {
                   title: 'Exam Prep Groups',
                   description: 'Intensive study groups focused on upcoming exams. Share practice questions, review materials, and test each other.',
-                  icon: '📚',
+                  gradient: 'from-green-500 to-emerald-600',
                   features: ['Time-limited', 'Goal-focused', 'Practice tests']
                 },
                 {
                   title: 'Subject Study Groups',
                   description: 'Long-term groups for mastering specific subjects. Build knowledge progressively with consistent peers.',
-                  icon: '🔬',
+                  gradient: 'from-emerald-500 to-teal-600',
                   features: ['Ongoing', 'Topic-based', 'Resource library']
                 },
                 {
                   title: 'Project Teams',
                   description: 'Collaborate on group projects with shared workspaces, file storage, and task management tools.',
-                  icon: '🎨',
+                  gradient: 'from-teal-500 to-cyan-600',
                   features: ['Task tracking', 'File sharing', 'Deadlines']
                 }
               ].map((type, index) => (
@@ -244,12 +280,32 @@ export default function StudyGroupsPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-white p-8 rounded-xl shadow-lg border border-gray-200"
+                  whileHover={{ y: -5 }}
+                  className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 relative overflow-hidden"
                 >
-                  <div className="text-5xl mb-4">{type.icon}</div>
-                  <h3 className="text-2xl font-semibold mb-3 text-gray-900">{type.title}</h3>
-                  <p className="text-gray-600 mb-4">{type.description}</p>
-                  <div className="space-y-2">
+                  {/* Gradient accent */}
+                  <div className={`absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br ${type.gradient} opacity-10 rounded-full blur-3xl`}></div>
+
+                  {/* 3D Icon */}
+                  <div className="relative mb-6">
+                    <motion.div
+                      animate={{
+                        y: [0, -8, 0],
+                        rotateZ: [-2, 2, -2]
+                      }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.5 }}
+                      className="w-20 h-20 rounded-2xl shadow-2xl"
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      <div className={`w-full h-full bg-gradient-to-br ${type.gradient} rounded-2xl flex items-center justify-center`}>
+                        <div className="w-12 h-12 bg-white/30 backdrop-blur rounded-xl border border-white/50"></div>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{type.title}</h3>
+                  <p className="text-gray-600 mb-4 relative">{type.description}</p>
+                  <div className="space-y-2 relative">
                     {type.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-sm text-gray-600">
                         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

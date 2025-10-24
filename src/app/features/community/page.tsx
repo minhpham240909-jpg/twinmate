@@ -104,42 +104,22 @@ export default function CommunityPage() {
                 {
                   title: 'Share Knowledge & Insights',
                   description: 'Post questions, share study tips, and discuss topics with peers. Get multiple perspectives on challenging concepts.',
-                  icon: (
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  ),
-                  image: '💡'
+                  gradient: 'from-purple-500 to-pink-600'
                 },
                 {
                   title: 'Build Your Network',
                   description: 'Connect with like-minded learners, find study partners, and build lasting friendships with people who share your goals.',
-                  icon: (
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  ),
-                  image: '🤝'
+                  gradient: 'from-pink-500 to-rose-600'
                 },
                 {
                   title: 'Resource Library',
                   description: 'Access shared study materials, notes, practice problems, and resources curated by the community.',
-                  icon: (
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  ),
-                  image: '📚'
+                  gradient: 'from-purple-600 to-indigo-600'
                 },
                 {
                   title: 'Celebrate Success',
                   description: 'Share achievements, milestones, and wins with the community. Get encouragement and motivation from peers.',
-                  icon: (
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                  ),
-                  image: '🎉'
+                  gradient: 'from-rose-500 to-pink-600'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -148,15 +128,34 @@ export default function CommunityPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-xl border-2 border-purple-200"
+                  whileHover={{ y: -5 }}
+                  className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 relative overflow-hidden"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="text-5xl">{feature.image}</div>
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-semibold mb-3 text-gray-900">{feature.title}</h3>
-                      <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-                    </div>
+                  {/* Gradient background blob */}
+                  <div className={`absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full blur-3xl`}></div>
+
+                  {/* 3D Floating Icon */}
+                  <div className="relative mb-6">
+                    <motion.div
+                      animate={{
+                        y: [0, -12, 0],
+                        rotateY: [0, 10, 0, -10, 0],
+                        scale: [1, 1.05, 1]
+                      }}
+                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 }}
+                      className="w-24 h-24 rounded-3xl shadow-2xl"
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-3xl p-5`}>
+                        <div className="w-full h-full border-2 border-white/40 rounded-2xl backdrop-blur flex items-center justify-center">
+                          <div className="w-8 h-8 bg-white/40 rounded-lg"></div>
+                        </div>
+                      </div>
+                    </motion.div>
                   </div>
+
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed relative">{feature.description}</p>
                 </motion.div>
               ))}
             </div>

@@ -220,41 +220,59 @@ export default function RealTimeCollaborationPage() {
               </p>
             </motion.div>
 
-            <div className="space-y-8">
+            <div className="grid md:grid-cols-2 gap-8">
               {[
                 {
                   title: 'Quick Study Sessions',
                   description: 'Need help with a specific problem? Jump on a quick video call, share your screen, and get instant help from your study partner.',
-                  image: '⚡'
+                  gradient: 'from-indigo-500 to-purple-600'
                 },
                 {
                   title: 'Exam Preparation',
                   description: 'Prepare for exams together with extended sessions. Use the whiteboard for problem-solving and screen sharing for reviewing materials.',
-                  image: '📚'
+                  gradient: 'from-purple-500 to-pink-600'
                 },
                 {
                   title: 'Project Collaboration',
                   description: 'Work on group projects with document collaboration, file sharing, and video conferencing all in one place.',
-                  image: '🎯'
+                  gradient: 'from-pink-500 to-rose-600'
                 },
                 {
                   title: 'Language Practice',
                   description: 'Practice speaking with language partners via video calls. Record sessions to review pronunciation and conversation skills.',
-                  image: '🗣️'
+                  gradient: 'from-indigo-600 to-blue-600'
                 }
               ].map((useCase, index) => (
                 <motion.div
                   key={index}
-                  initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  className="bg-white p-8 rounded-xl shadow-lg border border-gray-200 flex items-start gap-6"
+                  whileHover={{ y: -5 }}
+                  className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 relative overflow-hidden"
                 >
-                  <div className="text-5xl flex-shrink-0">{useCase.image}</div>
-                  <div>
-                    <h3 className="text-2xl font-semibold mb-2 text-gray-900">{useCase.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{useCase.description}</p>
+                  {/* Gradient background blob */}
+                  <div className={`absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br ${useCase.gradient} opacity-10 rounded-full blur-3xl`}></div>
+
+                  {/* 3D Floating Card */}
+                  <div className="relative mb-6">
+                    <motion.div
+                      animate={{
+                        y: [0, -10, 0],
+                        rotateZ: [0, 2, 0, -2, 0]
+                      }}
+                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                      className="w-20 h-20 rounded-2xl shadow-2xl"
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      <div className={`w-full h-full bg-gradient-to-br ${useCase.gradient} rounded-2xl p-4`}>
+                        <div className="w-full h-full border-2 border-white/30 rounded-xl"></div>
+                      </div>
+                    </motion.div>
                   </div>
+
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{useCase.title}</h3>
+                  <p className="text-gray-600 leading-relaxed relative">{useCase.description}</p>
                 </motion.div>
               ))}
             </div>
