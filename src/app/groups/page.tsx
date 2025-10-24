@@ -477,18 +477,33 @@ export default function GroupsPage() {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        toast.success(`Group deleted. ${data.notifiedMembers} member(s) notified.`)
+        console.log(`[FRONTEND] Group ${data.groupId} deleted successfully`)
+        toast.success(`Group permanently deleted. ${data.notifiedMembers} member(s) notified.`)
         setShowManageModal(false)
         setSelectedGroup(null)
-        // Refresh groups list
+
+        // Refresh groups list to ensure it's gone
         await fetchMyGroups()
-        // Also remove from search results if present
+
+        // Remove from search results immediately
         setSearchResults(prev => prev.filter(g => g.id !== groupId))
+
+        // If user has performed a search, refresh the search to verify deletion
+        if (searchResults.length > 0) {
+          console.log(`[FRONTEND] Refreshing search results to verify deletion`)
+          // Wait a moment for database to propagate, then refresh search
+          setTimeout(() => {
+            if (searchSubject || searchSubjectDesc || searchSkillLevel || searchSkillLevelDesc || searchDescription) {
+              handleFindGroups()
+            }
+          }, 500)
+        }
       } else {
         toast.error(data.error || 'Failed to delete group')
+        console.error(`[FRONTEND] Failed to delete group: ${data.error}`)
       }
     } catch (error) {
-      console.error('Error deleting group:', error)
+      console.error('[FRONTEND] Error deleting group:', error)
       toast.error('Failed to delete group')
     } finally {
       setDeletingGroup(false)

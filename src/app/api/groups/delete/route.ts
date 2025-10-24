@@ -66,9 +66,26 @@ export async function POST(request: Request) {
     const ownerName = ownerUser?.name || ownerUser?.email || 'The owner'
 
     // Delete the group (cascade will delete members, messages, invites)
+    console.log(`[DELETE GROUP] Deleting group: ${groupId} (${group.name})`)
+
     await prisma.group.delete({
       where: { id: groupId },
     })
+
+    // Verify deletion
+    const verifyDeleted = await prisma.group.findUnique({
+      where: { id: groupId },
+    })
+
+    if (verifyDeleted) {
+      console.error(`[DELETE GROUP ERROR] Group ${groupId} still exists after deletion!`)
+      return NextResponse.json(
+        { success: false, error: 'Failed to delete group from database' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`[DELETE GROUP] Successfully deleted group: ${groupId}`)
 
     // Send notification to all members (excluding owner)
     if (memberIds.length > 0) {
@@ -92,6 +109,7 @@ export async function POST(request: Request) {
       success: true,
       message: 'Group deleted successfully',
       notifiedMembers: memberIds.length,
+      groupId: groupId, // Return the deleted group ID for frontend to use
     })
   } catch (error) {
     console.error('Error deleting group:', error)
