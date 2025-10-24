@@ -7,155 +7,102 @@ import { useState } from 'react'
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6 }
-  }
-
-  const staggerContainer = {
-    animate: {
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 overflow-hidden">
-        {/* Animated Background Blobs */}
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div
-            className="absolute top-0 left-0 w-96 h-96 bg-blue-400/30 rounded-full blur-3xl"
-            animate={{
-              x: [0, 100, 0],
-              y: [0, 50, 0],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          <motion.div
-            className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400/30 rounded-full blur-3xl"
-            animate={{
-              x: [0, -100, 0],
-              y: [0, -50, 0],
-            }}
-            transition={{
-              duration: 15,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-        </div>
+      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+        {/* Subtle Grid Background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
 
         <div className="container mx-auto px-4 py-20 relative z-10">
           <motion.div
-            className="max-w-5xl mx-auto text-center"
-            initial="initial"
-            animate="animate"
-            variants={staggerContainer}
+            className="max-w-4xl mx-auto text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
           >
-            <motion.h1
-              variants={fadeInUp}
-              className="text-6xl md:text-7xl font-bold text-gray-900 mb-6"
-            >
-              Connect. Learn. <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Succeed Together.</span>
-            </motion.h1>
-
-            <motion.p
-              variants={fadeInUp}
-              className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto"
-            >
-              Describe your ideal study partner and let our AI find the perfect match for you. Study smarter, not harder.
-            </motion.p>
-
             <motion.div
-              variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="inline-block mb-6 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-100"
             >
+              AI-Powered Study Partner Matching
+            </motion.div>
+
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+              Find Your Perfect
+              <span className="block text-blue-600">Study Partner</span>
+            </h1>
+
+            <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+              Describe your ideal study partner and let our AI find the perfect match. Collaborate in real-time and achieve your academic goals together.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <Link
                 href="/auth/signup"
-                className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold text-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                className="group px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Get Started Free
                 <span className="inline-block ml-2 group-hover:translate-x-1 transition-transform">→</span>
               </Link>
               <Link
                 href="/auth/signin"
-                className="px-8 py-4 bg-white text-gray-700 border-2 border-gray-200 rounded-full font-semibold text-lg hover:border-purple-400 hover:text-purple-600 transition-all duration-200"
+                className="px-8 py-4 bg-white text-gray-700 border border-gray-300 rounded-lg font-semibold text-lg hover:border-gray-400 hover:shadow-md transition-all duration-200"
               >
                 Sign In
               </Link>
-            </motion.div>
+            </div>
 
-            {/* Connection Animation Visual */}
+            {/* Simple Illustration */}
             <motion.div
-              variants={fadeInUp}
-              className="relative w-full max-w-2xl mx-auto h-40"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="relative mx-auto max-w-3xl"
             >
-              <svg className="w-full h-full" viewBox="0 0 400 160">
-                {/* Connection Lines */}
-                <motion.line
-                  x1="100" y1="80" x2="200" y2="80"
-                  stroke="url(#gradient1)"
-                  strokeWidth="2"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-                <motion.line
-                  x1="200" y1="80" x2="300" y2="80"
-                  stroke="url(#gradient1)"
-                  strokeWidth="2"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 2, delay: 0.5, repeat: Infinity }}
-                />
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 shadow-xl border border-gray-200">
+                <div className="flex items-center justify-center gap-8">
+                  <div className="flex flex-col items-center">
+                    <div className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-blue-200">
+                      <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600 font-medium">You</p>
+                  </div>
 
-                {/* User Nodes */}
-                <motion.circle
-                  cx="100" cy="80" r="20"
-                  fill="#3B82F6"
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-                <motion.circle
-                  cx="200" cy="80" r="24"
-                  fill="url(#gradient2)"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, delay: 0.3, repeat: Infinity }}
-                />
-                <motion.circle
-                  cx="300" cy="80" r="20"
-                  fill="#9333EA"
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, delay: 0.6, repeat: Infinity }}
-                />
+                  <div className="flex-1 relative">
+                    <div className="h-1 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full"></div>
+                    <motion.div
+                      animate={{ x: [0, 10, 0] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 shadow-md"
+                    >
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </motion.div>
+                  </div>
 
-                {/* Gradients */}
-                <defs>
-                  <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#3B82F6" />
-                    <stop offset="100%" stopColor="#9333EA" />
-                  </linearGradient>
-                  <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#3B82F6" />
-                    <stop offset="100%" stopColor="#9333EA" />
-                  </linearGradient>
-                </defs>
-              </svg>
+                  <div className="flex flex-col items-center">
+                    <div className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-indigo-200">
+                      <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600 font-medium">Your Match</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
+      <section id="features" className="py-24 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -165,31 +112,30 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Everything You Need to Excel
+              Everything You Need to Succeed
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Powerful features designed to help you find partners, collaborate, and achieve your academic goals
+              Powerful features designed to help you collaborate and achieve your academic goals
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {/* AI Agent */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              className="p-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-blue-100"
+              className="group p-8 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300"
             >
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mb-6 transform rotate-3">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">AI Agent</h3>
+              <h3 className="text-xl font-semibold mb-3 text-gray-900">AI Agent</h3>
               <p className="text-gray-600 leading-relaxed">
-                Describe your ideal study partner and our AI will automatically find the best matches for you - no manual searching needed
+                Describe your ideal study partner and our AI automatically finds the best matches for you
               </p>
             </motion.div>
 
@@ -199,17 +145,16 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-purple-100"
+              className="group p-8 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-300"
             >
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-6 transform -rotate-3">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Real-time Collaboration</h3>
+              <h3 className="text-xl font-semibold mb-3 text-gray-900">Real-time Collaboration</h3>
               <p className="text-gray-600 leading-relaxed">
-                Chat, video calls, shared whiteboards, and collaborative study sessions in real-time
+                Chat, video calls, and collaborative study sessions in real-time
               </p>
             </motion.div>
 
@@ -219,17 +164,16 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-green-100"
+              className="group p-8 bg-white rounded-xl border border-gray-200 hover:border-green-300 hover:shadow-lg transition-all duration-300"
             >
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mb-6 transform rotate-3">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Study Groups</h3>
+              <h3 className="text-xl font-semibold mb-3 text-gray-900">Study Groups</h3>
               <p className="text-gray-600 leading-relaxed">
-                Create or join study groups, schedule sessions, and collaborate with multiple partners
+                Create or join study groups and collaborate with multiple partners
               </p>
             </motion.div>
 
@@ -239,17 +183,16 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              className="p-8 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-orange-100"
+              className="group p-8 bg-white rounded-xl border border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300"
             >
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mb-6 transform -rotate-3">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Community</h3>
+              <h3 className="text-xl font-semibold mb-3 text-gray-900">Community</h3>
               <p className="text-gray-600 leading-relaxed">
-                Share posts, insights, and resources with a vibrant community of learners
+                Share insights and resources with a vibrant community of learners
               </p>
             </motion.div>
           </div>
@@ -257,7 +200,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
+      <section className="py-24 bg-gray-50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -277,33 +220,26 @@ export default function HomePage() {
           <div className="max-w-5xl mx-auto">
             <div className="grid md:grid-cols-4 gap-8">
               {[
-                { step: 1, title: 'Sign Up', desc: 'Create your free account in seconds', icon: '👤' },
-                { step: 2, title: 'Create Profile', desc: 'Tell us about your subjects, interests, and learning style', icon: '📝' },
-                { step: 3, title: 'Find Partners', desc: 'Our AI matches you with compatible study partners', icon: '🤝' },
-                { step: 4, title: 'Study Together', desc: 'Connect, collaborate, and achieve your goals', icon: '🎯' }
+                { step: 1, title: 'Sign Up', desc: 'Create your free account in seconds' },
+                { step: 2, title: 'Create Profile', desc: 'Tell us about your subjects and learning style' },
+                { step: 3, title: 'Find Partners', desc: 'Our AI matches you with compatible partners' },
+                { step: 4, title: 'Study Together', desc: 'Connect, collaborate, and achieve your goals' }
               ].map((item, index) => (
                 <motion.div
                   key={item.step}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className="relative"
+                  className="relative text-center"
                 >
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg">
-                      {item.icon}
-                    </div>
-                    <div className="mb-2">
-                      <span className="inline-block px-4 py-1 bg-blue-100 text-blue-600 rounded-full text-sm font-semibold">
-                        Step {item.step}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">{item.title}</h3>
-                    <p className="text-gray-600">{item.desc}</p>
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4 shadow-lg">
+                    {item.step}
                   </div>
+                  <h3 className="text-lg font-semibold mb-2 text-gray-900">{item.title}</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
                   {index < 3 && (
-                    <div className="hidden md:block absolute top-10 right-0 w-full h-0.5 bg-gradient-to-r from-blue-300 to-purple-300 transform translate-x-1/2" />
+                    <div className="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-gray-300" />
                   )}
                 </motion.div>
               ))}
@@ -313,7 +249,7 @@ export default function HomePage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 bg-white">
+      <section className="py-24 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -326,41 +262,65 @@ export default function HomePage() {
               Why Choose Clerva?
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Join thousands of students who are studying smarter, not harder
+              Join thousands of students studying smarter, not harder
             </p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {[
               {
-                icon: '🎯',
                 title: 'Better Results',
-                desc: 'Students who study with partners score 15% higher on average'
+                desc: 'Students who study with partners score higher on average',
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )
               },
               {
-                icon: '⚡',
                 title: 'Save Time',
-                desc: 'AI matching means no more hours wasted searching for partners'
+                desc: 'AI matching means no hours wasted searching for partners',
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )
               },
               {
-                icon: '🧠',
                 title: 'Deeper Understanding',
-                desc: 'Teaching others reinforces your own learning and fills knowledge gaps'
+                desc: 'Teaching others reinforces your own learning',
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                )
               },
               {
-                icon: '💪',
                 title: 'Stay Motivated',
-                desc: 'Accountability partners keep you on track and motivated'
+                desc: 'Accountability partners keep you on track',
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                )
               },
               {
-                icon: '🌍',
                 title: 'Global Network',
-                desc: 'Connect with learners worldwide and gain diverse perspectives'
+                desc: 'Connect with learners worldwide',
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )
               },
               {
-                icon: '🔒',
                 title: 'Safe & Secure',
-                desc: 'Your data is protected with enterprise-grade security'
+                desc: 'Enterprise-grade security protects your data',
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                )
               }
             ].map((benefit, index) => (
               <motion.div
@@ -369,11 +329,13 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="p-6 text-center"
+                className="p-6 bg-white rounded-xl border border-gray-200"
               >
-                <div className="text-5xl mb-4">{benefit.icon}</div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900">{benefit.title}</h3>
-                <p className="text-gray-600">{benefit.desc}</p>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-4">
+                  {benefit.icon}
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900">{benefit.title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">{benefit.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -381,7 +343,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-gradient-to-br from-purple-50 to-blue-50">
+      <section id="faq" className="py-24 bg-gray-50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -435,17 +397,17 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.05 }}
-                className="bg-white rounded-xl shadow-md overflow-hidden"
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden"
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
                   className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                  <span className="font-semibold text-gray-900 text-lg">{faq.q}</span>
+                  <span className="font-semibold text-gray-900">{faq.q}</span>
                   <motion.svg
                     animate={{ rotate: openFaq === index ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
-                    className="w-6 h-6 text-gray-400"
+                    className="w-5 h-5 text-gray-400 flex-shrink-0 ml-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -473,29 +435,29 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-600">
+      <section className="py-24 bg-gradient-to-br from-blue-600 to-indigo-700">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center max-w-4xl mx-auto"
+            className="text-center max-w-3xl mx-auto"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               Ready to Transform Your Learning?
             </h2>
             <p className="text-xl text-blue-100 mb-8">
-              Join thousands of students who are achieving their academic goals with Clerva
+              Join thousands of students achieving their academic goals with Clerva
             </p>
             <Link
               href="/auth/signup"
-              className="inline-block px-10 py-4 bg-white text-blue-600 rounded-full font-bold text-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+              className="inline-block px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold text-lg hover:bg-gray-50 shadow-xl hover:shadow-2xl transition-all duration-200"
             >
-              Get Started Free - No Credit Card Required
+              Get Started Free
             </Link>
             <p className="text-blue-100 mt-4 text-sm">
-              Join in less than 60 seconds
+              No credit card required · Join in 60 seconds
             </p>
           </motion.div>
         </div>
@@ -507,14 +469,14 @@ export default function HomePage() {
           <div className="flex justify-center items-center gap-8 mb-8">
             <button
               onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-              className="text-gray-400 hover:text-white transition text-lg font-medium"
+              className="text-gray-400 hover:text-white transition text-sm font-medium"
             >
               Features
             </button>
-            <div className="w-px h-6 bg-gray-700"></div>
+            <div className="w-px h-4 bg-gray-700"></div>
             <button
               onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
-              className="text-gray-400 hover:text-white transition text-lg font-medium"
+              className="text-gray-400 hover:text-white transition text-sm font-medium"
             >
               FAQ
             </button>
