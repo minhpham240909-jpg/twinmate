@@ -134,9 +134,15 @@ export default function HomePage() {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold mb-3 text-gray-900">AI Agent</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed mb-4">
                 Describe your ideal study partner and our AI automatically finds the best matches for you
               </p>
+              <Link href="/features/ai-agent" className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1">
+                Learn More
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </motion.div>
 
             {/* Real-time Collaboration */}
@@ -153,9 +159,15 @@ export default function HomePage() {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold mb-3 text-gray-900">Real-time Collaboration</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed mb-4">
                 Chat, video calls, and collaborative study sessions in real-time
               </p>
+              <Link href="/features/real-time-collaboration" className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center gap-1">
+                Learn More
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </motion.div>
 
             {/* Study Groups */}
@@ -172,9 +184,15 @@ export default function HomePage() {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold mb-3 text-gray-900">Study Groups</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed mb-4">
                 Create or join study groups and collaborate with multiple partners
               </p>
+              <Link href="/features/study-groups" className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1">
+                Learn More
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </motion.div>
 
             {/* Community */}
@@ -191,9 +209,15 @@ export default function HomePage() {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold mb-3 text-gray-900">Community</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed mb-4">
                 Share insights and resources with a vibrant community of learners
               </p>
+              <Link href="/features/community" className="text-purple-600 hover:text-purple-700 font-medium text-sm flex items-center gap-1">
+                Learn More
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </motion.div>
           </div>
         </div>
