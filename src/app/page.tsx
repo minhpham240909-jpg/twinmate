@@ -155,7 +155,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section id="features" className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -381,7 +381,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 bg-gradient-to-br from-purple-50 to-blue-50">
+      <section id="faq" className="py-20 bg-gradient-to-br from-purple-50 to-blue-50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -504,37 +504,20 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h3 className="text-white font-bold text-xl mb-4">Clerva</h3>
-              <p className="text-sm">
-                AI-powered study partner matching platform helping students succeed together.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/auth/signup" className="hover:text-white transition">Features</Link></li>
-                <li><Link href="/auth/signup" className="hover:text-white transition">Pricing</Link></li>
-                <li><Link href="/auth/signup" className="hover:text-white transition">How It Works</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/auth/signup" className="hover:text-white transition">About Us</Link></li>
-                <li><Link href="/auth/signup" className="hover:text-white transition">Contact</Link></li>
-                <li><Link href="/auth/signup" className="hover:text-white transition">Privacy Policy</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Connect</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Twitter</a></li>
-                <li><a href="#" className="hover:text-white transition">LinkedIn</a></li>
-                <li><a href="#" className="hover:text-white transition">Discord</a></li>
-              </ul>
-            </div>
+          <div className="flex justify-center items-center gap-8 mb-8">
+            <button
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-gray-400 hover:text-white transition text-lg font-medium"
+            >
+              Features
+            </button>
+            <div className="w-px h-6 bg-gray-700"></div>
+            <button
+              onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-gray-400 hover:text-white transition text-lg font-medium"
+            >
+              FAQ
+            </button>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
             <p>&copy; {new Date().getFullYear()} Clerva. All rights reserved.</p>
