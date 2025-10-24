@@ -259,18 +259,21 @@ export default function StudyGroupsPage() {
                   title: 'Exam Prep Groups',
                   description: 'Intensive study groups focused on upcoming exams. Share practice questions, review materials, and test each other.',
                   gradient: 'from-green-500 to-emerald-600',
+                  image: 'https://illustrations.popsy.co/amber/study-group.svg',
                   features: ['Time-limited', 'Goal-focused', 'Practice tests']
                 },
                 {
                   title: 'Subject Study Groups',
                   description: 'Long-term groups for mastering specific subjects. Build knowledge progressively with consistent peers.',
                   gradient: 'from-emerald-500 to-teal-600',
+                  image: 'https://illustrations.popsy.co/amber/team-spirit.svg',
                   features: ['Ongoing', 'Topic-based', 'Resource library']
                 },
                 {
                   title: 'Project Teams',
                   description: 'Collaborate on group projects with shared workspaces, file storage, and task management tools.',
                   gradient: 'from-teal-500 to-cyan-600',
+                  image: 'https://illustrations.popsy.co/amber/team-collaboration.svg',
                   features: ['Task tracking', 'File sharing', 'Deadlines']
                 }
               ].map((type, index) => (
@@ -286,7 +289,7 @@ export default function StudyGroupsPage() {
                   {/* Gradient accent */}
                   <div className={`absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br ${type.gradient} opacity-10 rounded-full blur-3xl`}></div>
 
-                  {/* 3D Icon */}
+                  {/* 3D Icon with Image */}
                   <div className="relative mb-6">
                     <motion.div
                       animate={{
@@ -294,11 +297,11 @@ export default function StudyGroupsPage() {
                         rotateZ: [-2, 2, -2]
                       }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.5 }}
-                      className="w-20 h-20 rounded-2xl shadow-2xl"
+                      className="w-32 h-32 rounded-2xl shadow-2xl overflow-hidden"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className={`w-full h-full bg-gradient-to-br ${type.gradient} rounded-2xl flex items-center justify-center`}>
-                        <div className="w-12 h-12 bg-white/30 backdrop-blur rounded-xl border border-white/50"></div>
+                      <div className={`w-full h-full bg-gradient-to-br ${type.gradient} rounded-2xl p-5 flex items-center justify-center`}>
+                        <img src={type.image} alt={type.title} className="w-full h-full object-contain" />
                       </div>
                     </motion.div>
                   </div>

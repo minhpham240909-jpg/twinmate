@@ -225,22 +225,26 @@ export default function RealTimeCollaborationPage() {
                 {
                   title: 'Quick Study Sessions',
                   description: 'Need help with a specific problem? Jump on a quick video call, share your screen, and get instant help from your study partner.',
-                  gradient: 'from-indigo-500 to-purple-600'
+                  gradient: 'from-indigo-500 to-purple-600',
+                  image: 'https://illustrations.popsy.co/amber/video-call.svg'
                 },
                 {
                   title: 'Exam Preparation',
                   description: 'Prepare for exams together with extended sessions. Use the whiteboard for problem-solving and screen sharing for reviewing materials.',
-                  gradient: 'from-purple-500 to-pink-600'
+                  gradient: 'from-purple-500 to-pink-600',
+                  image: 'https://illustrations.popsy.co/amber/reading.svg'
                 },
                 {
                   title: 'Project Collaboration',
                   description: 'Work on group projects with document collaboration, file sharing, and video conferencing all in one place.',
-                  gradient: 'from-pink-500 to-rose-600'
+                  gradient: 'from-pink-500 to-rose-600',
+                  image: 'https://illustrations.popsy.co/amber/productive-work.svg'
                 },
                 {
                   title: 'Language Practice',
                   description: 'Practice speaking with language partners via video calls. Record sessions to review pronunciation and conversation skills.',
-                  gradient: 'from-indigo-600 to-blue-600'
+                  gradient: 'from-indigo-600 to-blue-600',
+                  image: 'https://illustrations.popsy.co/amber/podcast.svg'
                 }
               ].map((useCase, index) => (
                 <motion.div
@@ -254,7 +258,7 @@ export default function RealTimeCollaborationPage() {
                   {/* Gradient background blob */}
                   <div className={`absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br ${useCase.gradient} opacity-10 rounded-full blur-3xl`}></div>
 
-                  {/* 3D Floating Card */}
+                  {/* 3D Floating Card with Image */}
                   <div className="relative mb-6">
                     <motion.div
                       animate={{
@@ -262,11 +266,11 @@ export default function RealTimeCollaborationPage() {
                         rotateZ: [0, 2, 0, -2, 0]
                       }}
                       transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-20 h-20 rounded-2xl shadow-2xl"
+                      className="w-32 h-32 rounded-2xl shadow-2xl overflow-hidden"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className={`w-full h-full bg-gradient-to-br ${useCase.gradient} rounded-2xl p-4`}>
-                        <div className="w-full h-full border-2 border-white/30 rounded-xl"></div>
+                      <div className={`w-full h-full bg-gradient-to-br ${useCase.gradient} rounded-2xl p-6 flex items-center justify-center`}>
+                        <img src={useCase.image} alt={useCase.title} className="w-full h-full object-contain" />
                       </div>
                     </motion.div>
                   </div>

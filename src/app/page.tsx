@@ -51,7 +51,13 @@ export default function HomePage() {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6"></div>
+                <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl mb-6 overflow-hidden">
+                  <img
+                    src="https://illustrations.popsy.co/amber/student-with-laptop.svg"
+                    alt="Student studying"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div className="space-y-3">
                   <div className="h-4 bg-gray-200 rounded-lg"></div>
                   <div className="h-4 bg-gray-100 rounded-lg w-4/5"></div>
@@ -67,12 +73,12 @@ export default function HomePage() {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 shadow-2xl md:-translate-y-8"
               >
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 bg-white/20 rounded-full"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-white/40 rounded-lg"></div>
-                    <div className="h-2 bg-white/30 rounded-lg w-3/4"></div>
-                  </div>
+                <div className="w-full aspect-square bg-white/10 rounded-2xl mb-6 overflow-hidden backdrop-blur">
+                  <img
+                    src="https://illustrations.popsy.co/amber/person-working-on-laptop.svg"
+                    alt="AI matching profiles"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="space-y-3">
                   <div className="h-3 bg-white/30 rounded-lg"></div>
@@ -92,7 +98,13 @@ export default function HomePage() {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl mb-6"></div>
+                <div className="w-full aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl mb-6 overflow-hidden">
+                  <img
+                    src="https://illustrations.popsy.co/amber/woman-working-on-laptop-with-coffee.svg"
+                    alt="Collaboration"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div className="space-y-3">
                   <div className="h-4 bg-gray-200 rounded-lg"></div>
                   <div className="h-4 bg-gray-100 rounded-lg w-4/5"></div>

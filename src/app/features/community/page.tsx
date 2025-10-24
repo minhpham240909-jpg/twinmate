@@ -104,22 +104,26 @@ export default function CommunityPage() {
                 {
                   title: 'Share Knowledge & Insights',
                   description: 'Post questions, share study tips, and discuss topics with peers. Get multiple perspectives on challenging concepts.',
-                  gradient: 'from-purple-500 to-pink-600'
+                  gradient: 'from-purple-500 to-pink-600',
+                  image: 'https://illustrations.popsy.co/amber/sharing.svg'
                 },
                 {
                   title: 'Build Your Network',
                   description: 'Connect with like-minded learners, find study partners, and build lasting friendships with people who share your goals.',
-                  gradient: 'from-pink-500 to-rose-600'
+                  gradient: 'from-pink-500 to-rose-600',
+                  image: 'https://illustrations.popsy.co/amber/community.svg'
                 },
                 {
                   title: 'Resource Library',
                   description: 'Access shared study materials, notes, practice problems, and resources curated by the community.',
-                  gradient: 'from-purple-600 to-indigo-600'
+                  gradient: 'from-purple-600 to-indigo-600',
+                  image: 'https://illustrations.popsy.co/amber/book-lover.svg'
                 },
                 {
                   title: 'Celebrate Success',
                   description: 'Share achievements, milestones, and wins with the community. Get encouragement and motivation from peers.',
-                  gradient: 'from-rose-500 to-pink-600'
+                  gradient: 'from-rose-500 to-pink-600',
+                  image: 'https://illustrations.popsy.co/amber/success.svg'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -134,7 +138,7 @@ export default function CommunityPage() {
                   {/* Gradient background blob */}
                   <div className={`absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full blur-3xl`}></div>
 
-                  {/* 3D Floating Icon */}
+                  {/* 3D Floating Icon with Image */}
                   <div className="relative mb-6">
                     <motion.div
                       animate={{
@@ -143,13 +147,11 @@ export default function CommunityPage() {
                         scale: [1, 1.05, 1]
                       }}
                       transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 }}
-                      className="w-24 h-24 rounded-3xl shadow-2xl"
+                      className="w-32 h-32 rounded-3xl shadow-2xl overflow-hidden"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-3xl p-5`}>
-                        <div className="w-full h-full border-2 border-white/40 rounded-2xl backdrop-blur flex items-center justify-center">
-                          <div className="w-8 h-8 bg-white/40 rounded-lg"></div>
-                        </div>
+                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-3xl p-6 flex items-center justify-center`}>
+                        <img src={feature.image} alt={feature.title} className="w-full h-full object-contain" />
                       </div>
                     </motion.div>
                   </div>

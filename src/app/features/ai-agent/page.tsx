@@ -210,22 +210,26 @@ export default function AIAgentFeaturePage() {
                 {
                   title: 'Multi-Dimensional Matching',
                   description: 'Our AI considers subjects, learning styles, schedules, goals, personality traits, and communication preferences to find compatible partners.',
-                  gradient: 'from-blue-500 to-indigo-600'
+                  gradient: 'from-blue-500 to-indigo-600',
+                  image: 'https://illustrations.popsy.co/amber/data-analysis.svg'
                 },
                 {
                   title: 'Continuous Learning',
                   description: 'The AI learns from your interactions and feedback, improving match quality over time to better understand your preferences.',
-                  gradient: 'from-indigo-500 to-purple-600'
+                  gradient: 'from-indigo-500 to-purple-600',
+                  image: 'https://illustrations.popsy.co/amber/artificial-intelligence.svg'
                 },
                 {
                   title: 'Real-Time Availability',
                   description: 'Matches are based on current availability, ensuring you connect with partners who are ready to study when you are.',
-                  gradient: 'from-purple-500 to-pink-600'
+                  gradient: 'from-purple-500 to-pink-600',
+                  image: 'https://illustrations.popsy.co/amber/clock.svg'
                 },
                 {
                   title: 'Compatibility Scores',
                   description: 'See detailed compatibility breakdowns showing why each match was recommended and what you have in common.',
-                  gradient: 'from-pink-500 to-rose-600'
+                  gradient: 'from-pink-500 to-rose-600',
+                  image: 'https://illustrations.popsy.co/amber/winner.svg'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -239,7 +243,7 @@ export default function AIAgentFeaturePage() {
                   {/* Gradient accent */}
                   <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full blur-2xl`}></div>
 
-                  {/* 3D Icon Card */}
+                  {/* 3D Icon Card with Image */}
                   <div className="relative mb-6">
                     <motion.div
                       animate={{
@@ -247,11 +251,11 @@ export default function AIAgentFeaturePage() {
                         rotateX: [0, 5, 0, -5, 0]
                       }}
                       transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-20 h-20 rounded-2xl shadow-lg"
+                      className="w-32 h-32 rounded-2xl shadow-lg overflow-hidden"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center`}>
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl"></div>
+                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-2xl p-4 flex items-center justify-center`}>
+                        <img src={feature.image} alt={feature.title} className="w-full h-full object-contain" />
                       </div>
                     </motion.div>
                   </div>
