@@ -482,6 +482,8 @@ export default function GroupsPage() {
         setSelectedGroup(null)
         // Refresh groups list
         await fetchMyGroups()
+        // Also remove from search results if present
+        setSearchResults(prev => prev.filter(g => g.id !== groupId))
       } else {
         toast.error(data.error || 'Failed to delete group')
       }
