@@ -15,6 +15,7 @@ export async function GET() {
     }
 
     console.log('[CHECK GROUPS] Checking all groups in database...')
+    console.log('[CHECK GROUPS] Current user ID:', user.id)
 
     const allGroups = await prisma.group.findMany({
       select: {
@@ -37,13 +38,23 @@ export async function GET() {
 
     console.log(`[CHECK GROUPS] Total groups in database: ${allGroups.length}`)
 
+    // Mark which groups belong to current user
+    const groupsWithOwnership = allGroups.map(group => ({
+      ...group,
+      isYours: group.ownerId === user.id,
+    }))
+
+    const yourGroups = groupsWithOwnership.filter(g => g.isYours)
+
     return NextResponse.json({
       success: true,
+      currentUserId: user.id,
       totalGroups: allGroups.length,
-      groups: allGroups,
+      yourGroups: yourGroups.length,
+      groups: groupsWithOwnership,
       message: allGroups.length === 0
         ? 'No groups in database - all deletions worked!'
-        : `Found ${allGroups.length} groups in database`,
+        : `Found ${allGroups.length} groups (${yourGroups.length} owned by you)`,
     })
   } catch (error) {
     console.error('[CHECK GROUPS] Error:', error)
