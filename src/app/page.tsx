@@ -10,13 +10,13 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 bg-white">
+      <section className="relative pt-20 pb-40 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-5xl mx-auto"
+            className="text-center max-w-5xl mx-auto mb-20"
           >
             <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-8 tracking-tight leading-none">
               Find your perfect<br />study partner.
@@ -24,7 +24,7 @@ export default function HomePage() {
             <p className="text-2xl md:text-3xl text-gray-600 mb-12 font-light max-w-3xl mx-auto leading-relaxed">
               AI-powered matching connects you with compatible study partners. Collaborate in real-time and achieve more together.
             </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link
                 href="/auth/signup"
                 className="px-10 py-5 bg-blue-600 text-white text-xl font-medium rounded-full hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
@@ -32,7 +32,7 @@ export default function HomePage() {
                 Get Started
               </Link>
               <Link
-                href="#features"
+                href="#how-it-works"
                 className="px-10 py-5 text-blue-600 text-xl font-medium rounded-full border-2 border-blue-600 hover:bg-blue-50 transition-all"
               >
                 Learn More
@@ -40,89 +40,155 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Hero Product Screenshot */}
+          {/* 3D Hero Illustration */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="max-w-6xl mx-auto"
+            className="max-w-5xl mx-auto relative"
+            style={{ perspective: '1000px' }}
           >
-            <div className="relative">
-              {/* Browser Window Frame */}
-              <div className="bg-gray-100 rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-                {/* Browser Chrome */}
-                <div className="bg-gray-200 px-4 py-3 flex items-center gap-2 border-b border-gray-300">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  </div>
-                  <div className="flex-1 mx-4">
-                    <div className="bg-white rounded px-3 py-1 text-sm text-gray-600">clerva.app</div>
-                  </div>
-                </div>
-                {/* App Screenshot Mockup */}
-                <div className="bg-white aspect-video flex items-center justify-center relative overflow-hidden">
-                  {/* Dashboard mockup */}
-                  <div className="w-full h-full bg-gradient-to-br from-blue-50 to-white p-8">
-                    <div className="grid grid-cols-3 gap-6 h-full">
-                      {/* Left: Profile Card */}
-                      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-                        <div className="flex flex-col items-center">
-                          <div className="w-20 h-20 rounded-full bg-blue-100 mb-4"></div>
-                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                          <div className="h-3 bg-gray-100 rounded w-1/2 mb-4"></div>
-                          <div className="w-full space-y-2">
-                            <div className="h-2 bg-blue-100 rounded"></div>
-                            <div className="h-2 bg-blue-100 rounded w-4/5"></div>
-                            <div className="h-2 bg-blue-100 rounded w-3/4"></div>
-                          </div>
-                        </div>
-                      </div>
-                      {/* Center: Match Feed */}
-                      <div className="col-span-2 space-y-4">
-                        <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-full bg-blue-200"></div>
-                            <div className="flex-1">
-                              <div className="h-3 bg-gray-200 rounded w-1/3 mb-2"></div>
-                              <div className="h-2 bg-gray-100 rounded w-1/4"></div>
-                            </div>
-                            <div className="px-4 py-2 bg-blue-600 text-white text-xs rounded-lg">Connect</div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="h-2 bg-gray-100 rounded"></div>
-                            <div className="h-2 bg-gray-100 rounded w-5/6"></div>
-                          </div>
-                        </div>
-                        <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-full bg-indigo-200"></div>
-                            <div className="flex-1">
-                              <div className="h-3 bg-gray-200 rounded w-1/3 mb-2"></div>
-                              <div className="h-2 bg-gray-100 rounded w-1/4"></div>
-                            </div>
-                            <div className="px-4 py-2 bg-blue-600 text-white text-xs rounded-lg">Connect</div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="h-2 bg-gray-100 rounded"></div>
-                            <div className="h-2 bg-gray-100 rounded w-4/5"></div>
-                          </div>
-                        </div>
-                      </div>
+            <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
+              {/* 3D Floating Cards */}
+              <motion.div
+                animate={{
+                  rotateY: [0, 5, 0],
+                  rotateX: [0, -5, 0],
+                }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="relative z-10"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-12 shadow-2xl">
+                  <div className="flex items-center gap-6 mb-8">
+                    <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur"></div>
+                    <div className="flex-1">
+                      <div className="h-6 bg-white/30 rounded-lg w-2/3 mb-3"></div>
+                      <div className="h-4 bg-white/20 rounded-lg w-1/2"></div>
                     </div>
                   </div>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-white/20 rounded-lg"></div>
+                    <div className="h-4 bg-white/20 rounded-lg w-5/6"></div>
+                    <div className="h-4 bg-white/20 rounded-lg w-4/6"></div>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
+
+              {/* Background 3D Elements */}
+              <motion.div
+                animate={{
+                  y: [0, -20, 0],
+                  rotateZ: [0, 5, 0]
+                }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-10 -right-10 w-64 h-64 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full opacity-20 blur-3xl"
+              ></motion.div>
+
+              <motion.div
+                animate={{
+                  y: [0, 20, 0],
+                  rotateZ: [0, -5, 0]
+                }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -bottom-10 -left-10 w-64 h-64 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-full opacity-20 blur-3xl"
+              ></motion.div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* AI Matching Section */}
-      <section className="py-40 bg-gray-50">
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-40 bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-20"
+          >
+            <h2 className="text-6xl font-bold text-gray-900 mb-6">
+              Get started in minutes.
+            </h2>
+            <p className="text-xl text-gray-600 font-light max-w-2xl mx-auto">
+              Three simple steps to find your perfect study partner.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-12">
+            {[
+              {
+                step: '1',
+                title: 'Create Your Profile',
+                description: 'Sign up and tell us about your subjects, learning style, and study goals.'
+              },
+              {
+                step: '2',
+                title: 'Get Matched',
+                description: 'Our AI analyzes thousands of profiles to find your perfect study partners.'
+              },
+              {
+                step: '3',
+                title: 'Start Studying',
+                description: 'Connect instantly and collaborate with video calls, chat, and whiteboards.'
+              }
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.2 }}
+                className="relative"
+              >
+                {/* 3D Step Card */}
+                <div className="relative" style={{ perspective: '800px' }}>
+                  <motion.div
+                    whileHover={{
+                      rotateY: 5,
+                      rotateX: -5,
+                      scale: 1.02
+                    }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-2xl p-10 shadow-xl border border-gray-100"
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold mb-6 shadow-lg">
+                      {item.step}
+                    </div>
+                    <h3 className="text-3xl font-semibold text-gray-900 mb-4">{item.title}</h3>
+                    <p className="text-lg text-gray-600 font-light leading-relaxed">{item.description}</p>
+                  </motion.div>
+                </div>
+
+                {/* Connection Line */}
+                {index < 2 && (
+                  <div className="hidden md:block absolute top-1/2 -right-6 w-12 h-0.5 bg-gray-300"></div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mt-16"
+          >
+            <Link
+              href="/auth/signup"
+              className="inline-block px-10 py-5 bg-blue-600 text-white text-xl font-medium rounded-full hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
+            >
+              Get Started Free
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* AI Matching Section */}
+      <section className="py-40 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-20 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -146,77 +212,94 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
               className="relative"
+              style={{ perspective: '1000px' }}
             >
-              {/* AI Matching Interface Mockup */}
-              <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-200">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-                    <div className="h-6 bg-gray-900 rounded w-32"></div>
-                    <div className="px-4 py-2 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">95% Match</div>
+              {/* 3D AI Visualization */}
+              <motion.div
+                animate={{
+                  rotateY: [0, 10, 0],
+                  rotateX: [0, -10, 0],
+                }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                style={{ transformStyle: 'preserve-3d' }}
+                className="relative"
+              >
+                <div className="bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl p-12 shadow-2xl">
+                  {/* AI Network Nodes */}
+                  <div className="relative h-64">
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-blue-600 rounded-full shadow-xl"
+                    ></motion.div>
+
+                    {[0, 72, 144, 216, 288].map((angle, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          opacity: [0.5, 1, 0.5]
+                        }}
+                        transition={{ duration: 2, delay: i * 0.2, repeat: Infinity }}
+                        className="absolute w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full shadow-lg"
+                        style={{
+                          top: `${50 + 35 * Math.sin((angle * Math.PI) / 180)}%`,
+                          left: `${50 + 35 * Math.cos((angle * Math.PI) / 180)}%`,
+                          transform: 'translate(-50%, -50%)'
+                        }}
+                      ></motion.div>
+                    ))}
                   </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600"></div>
-                    <div className="flex-1">
-                      <div className="h-5 bg-gray-900 rounded w-1/2 mb-3"></div>
-                      <div className="space-y-2">
-                        <div className="h-3 bg-gray-200 rounded"></div>
-                        <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-                        <div className="h-3 bg-gray-200 rounded w-4/6"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 pt-4">
-                    <div className="bg-blue-50 rounded-lg p-3 text-center">
-                      <div className="h-3 bg-blue-600 rounded w-3/4 mx-auto mb-2"></div>
-                      <div className="h-2 bg-blue-200 rounded w-1/2 mx-auto"></div>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-3 text-center">
-                      <div className="h-3 bg-blue-600 rounded w-3/4 mx-auto mb-2"></div>
-                      <div className="h-2 bg-blue-200 rounded w-1/2 mx-auto"></div>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-3 text-center">
-                      <div className="h-3 bg-blue-600 rounded w-3/4 mx-auto mb-2"></div>
-                      <div className="h-2 bg-blue-200 rounded w-1/2 mx-auto"></div>
-                    </div>
-                  </div>
-                  <button className="w-full py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg">
-                    Connect
-                  </button>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           </div>
         </div>
       </section>
 
       {/* Collaboration Section */}
-      <section className="py-40 bg-white">
+      <section className="py-40 bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
+          <div className="grid md:grid-cols-2 gap-20 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
               className="order-2 md:order-1"
+              style={{ perspective: '1000px' }}
             >
-              {/* Video Call Interface Mockup */}
-              <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
-                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 p-6 relative">
-                  <div className="grid grid-cols-2 gap-3 h-full">
-                    <div className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-lg border border-white/10"></div>
-                    <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg border border-white/10"></div>
-                    <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg border border-white/10"></div>
-                    <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-lg border border-white/10"></div>
+              {/* 3D Collaboration Visualization */}
+              <motion.div
+                animate={{
+                  rotateY: [0, -10, 0],
+                  rotateX: [0, 10, 0],
+                }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                style={{ transformStyle: 'preserve-3d' }}
+                className="relative"
+              >
+                <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-8 shadow-2xl">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    {[1, 2, 3, 4].map((i) => (
+                      <motion.div
+                        key={i}
+                        animate={{
+                          scale: [1, 1.05, 1],
+                          opacity: [0.8, 1, 0.8]
+                        }}
+                        transition={{ duration: 2, delay: i * 0.3, repeat: Infinity }}
+                        className="aspect-square bg-white/10 backdrop-blur rounded-xl border border-white/20"
+                      ></motion.div>
+                    ))}
                   </div>
-                  {/* Controls Bar */}
-                  <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3 bg-gray-800/90 backdrop-blur px-6 py-3 rounded-full">
-                    <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20"></div>
-                    <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20"></div>
-                    <div className="w-10 h-10 rounded-full bg-red-500"></div>
+                  <div className="flex justify-center gap-4">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full border border-white/30"></div>
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full border border-white/30"></div>
+                    <div className="w-12 h-12 bg-red-500 rounded-full shadow-lg"></div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
 
             <motion.div
@@ -241,7 +324,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-40 bg-gray-50">
+      <section id="features" className="py-40 bg-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -288,11 +371,15 @@ export default function HomePage() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Link href={feature.href} className="block group">
-                  <div className="bg-white rounded-2xl p-10 border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 h-full">
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-2xl p-10 border border-gray-200 hover:border-blue-300 hover:shadow-2xl transition-all duration-300 h-full"
+                  >
                     <h3 className="text-3xl font-semibold text-gray-900 mb-4">{feature.title}</h3>
                     <p className="text-lg text-gray-600 font-light leading-relaxed mb-6">{feature.description}</p>
                     <span className="text-blue-600 font-medium group-hover:underline">Learn more →</span>
-                  </div>
+                  </motion.div>
                 </Link>
               </motion.div>
             ))}
@@ -301,7 +388,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-40 bg-white">
+      <section id="faq" className="py-40 bg-gray-50">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -354,7 +441,7 @@ export default function HomePage() {
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full px-6 py-8 text-left flex items-start justify-between hover:bg-gray-50 transition-colors rounded-lg"
+                  className="w-full px-6 py-8 text-left flex items-start justify-between hover:bg-white transition-colors rounded-lg"
                 >
                   <span className="text-xl font-semibold text-gray-900 pr-8">{faq.q}</span>
                   <motion.svg
