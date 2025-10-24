@@ -87,6 +87,7 @@ export default function GroupsPage() {
 
   // Delete group state
   const [deletingGroup, setDeletingGroup] = useState(false)
+  const [forceDeleting, setForceDeleting] = useState(false)
 
   // Avatar upload state
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
@@ -533,6 +534,47 @@ export default function GroupsPage() {
     setShowManageModal(true)
   }
 
+  const handleForceDeleteAll = async () => {
+    if (!confirm('⚠️ WARNING: This will PERMANENTLY DELETE ALL groups you own from the database. This cannot be undone!\n\nAre you absolutely sure?')) {
+      return
+    }
+
+    try {
+      setForceDeleting(true)
+      console.log('[FORCE DELETE] Initiating force delete all...')
+
+      const response = await fetch('/api/groups/force-delete-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const data = await response.json()
+
+      console.log('[FORCE DELETE] Response:', data)
+
+      if (response.ok && data.success) {
+        toast.success(`✅ Successfully deleted ${data.deletedCount} groups permanently!`)
+        console.log('[FORCE DELETE] Deleted groups:', data.deletedGroups)
+
+        // Clear all local state
+        setMyGroups([])
+        setSearchResults([])
+        localStorage.removeItem('myGroups')
+
+        // Refresh to verify
+        await fetchMyGroups()
+      } else {
+        toast.error(data.error || 'Failed to force delete groups')
+        console.error('[FORCE DELETE] Failed:', data)
+      }
+    } catch (error) {
+      console.error('[FORCE DELETE] Error:', error)
+      toast.error('Failed to force delete groups')
+    } finally {
+      setForceDeleting(false)
+    }
+  }
+
   // Only show loading screen if we don't have cached groups to display
   if (loading && myGroups.length === 0) {
     return (
@@ -597,27 +639,50 @@ export default function GroupsPage() {
           {/* Tabs */}
           <div className="bg-white rounded-xl shadow-sm mb-6">
             <div className="border-b border-gray-200">
-              <nav className="flex">
-                <button
-                  onClick={() => setActiveTab('my-groups')}
-                  className={`px-6 py-4 text-sm font-medium ${
-                    activeTab === 'my-groups'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  My Groups
-                </button>
-                <button
-                  onClick={() => setActiveTab('find-groups')}
-                  className={`px-6 py-4 text-sm font-medium ${
-                    activeTab === 'find-groups'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Find Groups
-                </button>
+              <nav className="flex items-center justify-between">
+                <div className="flex">
+                  <button
+                    onClick={() => setActiveTab('my-groups')}
+                    className={`px-6 py-4 text-sm font-medium ${
+                      activeTab === 'my-groups'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    My Groups
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('find-groups')}
+                    className={`px-6 py-4 text-sm font-medium ${
+                      activeTab === 'find-groups'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Find Groups
+                  </button>
+                </div>
+                {activeTab === 'my-groups' && myGroups.length > 0 && (
+                  <button
+                    onClick={handleForceDeleteAll}
+                    disabled={forceDeleting}
+                    className="mr-4 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {forceDeleting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Force Delete All My Groups
+                      </>
+                    )}
+                  </button>
+                )}
               </nav>
             </div>
           </div>
