@@ -53,7 +53,6 @@ export default function StudyPartnersModal({ isOpen, onClose, onPartnerRemoved }
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [partnerToRemove, setPartnerToRemove] = useState<Partner | null>(null)
-  const [viewingProfile, setViewingProfile] = useState<Partner | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -117,8 +116,9 @@ export default function StudyPartnersModal({ isOpen, onClose, onPartnerRemoved }
     onClose()
   }
 
-  const handleViewProfile = (partner: Partner) => {
-    setViewingProfile(partner)
+  const handleViewProfile = (partnerId: string) => {
+    router.push(`/profile/${partnerId}`)
+    onClose()
   }
 
   if (!isOpen) return null
@@ -235,13 +235,13 @@ export default function StudyPartnersModal({ isOpen, onClose, onPartnerRemoved }
                             Message
                           </button>
                           <button
-                            onClick={() => handleViewProfile(partner)}
+                            onClick={() => handleViewProfile(partner.id)}
                             className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
-                            Profile
+                            View Profile
                           </button>
                           <button
                             onClick={() => handleRemoveClick(partner)}
@@ -300,178 +300,6 @@ export default function StudyPartnersModal({ isOpen, onClose, onPartnerRemoved }
                   'Remove Partner'
                 )}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Profile View Modal - Same as Find Partners */}
-      {viewingProfile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
-              <button
-                onClick={() => setViewingProfile(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-              >
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* Profile Header */}
-              <div className="flex items-start gap-6 mb-6">
-                {viewingProfile.avatarUrl ? (
-                  <img
-                    src={viewingProfile.avatarUrl}
-                    alt={viewingProfile.name}
-                    className="w-24 h-24 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-3xl">
-                    {viewingProfile.name?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{viewingProfile.name}</h3>
-                  <div className="flex gap-2 text-sm text-gray-600">
-                    {viewingProfile.profile?.skillLevel && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
-                        {viewingProfile.profile.skillLevel.charAt(0) + viewingProfile.profile.skillLevel.slice(1).toLowerCase()}
-                      </span>
-                    )}
-                    {viewingProfile.profile?.studyStyle && (
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
-                        {viewingProfile.profile.studyStyle.charAt(0) + viewingProfile.profile.studyStyle.slice(1).toLowerCase().replace('_', ' ')}
-                      </span>
-                    )}
-                  </div>
-                  {viewingProfile.profile?.onlineStatus === 'ONLINE' && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                      <span className="text-sm text-green-600">Online</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Bio */}
-              {viewingProfile.profile?.bio && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">About</h4>
-                  <p className="text-gray-700">{viewingProfile.profile.bio}</p>
-                </div>
-              )}
-
-              {/* About Yourself */}
-              {(viewingProfile.profile?.aboutYourself || (viewingProfile.profile?.aboutYourselfItems && viewingProfile.profile.aboutYourselfItems.length > 0)) && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">More About Me</h4>
-                  {viewingProfile.profile.aboutYourself && (
-                    <p className="text-gray-700 mb-3">{viewingProfile.profile.aboutYourself}</p>
-                  )}
-                  {viewingProfile.profile.aboutYourselfItems && viewingProfile.profile.aboutYourselfItems.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {viewingProfile.profile.aboutYourselfItems.map((item, idx) => (
-                        <span key={idx} className="px-3 py-1.5 bg-purple-50 text-purple-700 text-sm rounded-lg">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Subjects */}
-              {viewingProfile.profile?.subjects && viewingProfile.profile.subjects.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Subjects</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingProfile.profile.subjects.map((subject, idx) => (
-                      <span key={idx} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-lg">
-                        {subject}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Interests */}
-              {viewingProfile.profile?.interests && viewingProfile.profile.interests.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Interests</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingProfile.profile.interests.map((interest, idx) => (
-                      <span key={idx} className="px-3 py-1.5 bg-green-50 text-green-700 text-sm rounded-lg">
-                        {interest}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Goals */}
-              {viewingProfile.profile?.goals && viewingProfile.profile.goals.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Goals</h4>
-                  <ul className="space-y-2">
-                    {viewingProfile.profile.goals.map((goal, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-gray-700">
-                        <svg className="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {goal}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Availability */}
-              {viewingProfile.profile?.availableDays && viewingProfile.profile.availableDays.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Availability</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingProfile.profile.availableDays.map((day, idx) => (
-                      <span key={idx} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-sm rounded-lg">
-                        {day}
-                      </span>
-                    ))}
-                  </div>
-                  {viewingProfile.profile.availableHours && viewingProfile.profile.availableHours.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {viewingProfile.profile.availableHours.map((hour, idx) => (
-                        <span key={idx} className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg">
-                          {hour}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setViewingProfile(null)}
-                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    const partnerId = viewingProfile.id
-                    setViewingProfile(null)
-                    handleMessage(partnerId)
-                  }}
-                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  Message
-                </button>
-              </div>
             </div>
           </div>
         </div>
