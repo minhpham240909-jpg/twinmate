@@ -226,25 +226,25 @@ export default function RealTimeCollaborationPage() {
                   title: 'Quick Study Sessions',
                   description: 'Need help with a specific problem? Jump on a quick video call, share your screen, and get instant help from your study partner.',
                   gradient: 'from-indigo-500 to-purple-600',
-                  image: 'https://illustrations.popsy.co/amber/video-call.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/video.svg'
                 },
                 {
                   title: 'Exam Preparation',
                   description: 'Prepare for exams together with extended sessions. Use the whiteboard for problem-solving and screen sharing for reviewing materials.',
                   gradient: 'from-purple-500 to-pink-600',
-                  image: 'https://illustrations.popsy.co/amber/reading.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/book-open.svg'
                 },
                 {
                   title: 'Project Collaboration',
                   description: 'Work on group projects with document collaboration, file sharing, and video conferencing all in one place.',
                   gradient: 'from-pink-500 to-rose-600',
-                  image: 'https://illustrations.popsy.co/amber/productive-work.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/folder-open.svg'
                 },
                 {
                   title: 'Language Practice',
                   description: 'Practice speaking with language partners via video calls. Record sessions to review pronunciation and conversation skills.',
                   gradient: 'from-indigo-600 to-blue-600',
-                  image: 'https://illustrations.popsy.co/amber/podcast.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/mic.svg'
                 }
               ].map((useCase, index) => (
                 <motion.div
@@ -270,7 +270,7 @@ export default function RealTimeCollaborationPage() {
                       style={{ transformStyle: 'preserve-3d' }}
                     >
                       <div className={`w-full h-full bg-gradient-to-br ${useCase.gradient} rounded-2xl p-6 flex items-center justify-center`}>
-                        <img src={useCase.image} alt={useCase.title} className="w-full h-full object-contain" />
+                        <img src={useCase.image} alt={useCase.title} className="w-full h-full object-contain opacity-90 invert" />
                       </div>
                     </motion.div>
                   </div>

@@ -51,11 +51,11 @@ export default function HomePage() {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
               >
-                <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl mb-6 overflow-hidden">
+                <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl mb-6 overflow-hidden p-6 flex items-center justify-center">
                   <img
-                    src="https://illustrations.popsy.co/amber/student-with-laptop.svg"
+                    src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/book-open.svg"
                     alt="Student studying"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain opacity-40"
                   />
                 </div>
                 <div className="space-y-3">
@@ -73,11 +73,11 @@ export default function HomePage() {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 shadow-2xl md:-translate-y-8"
               >
-                <div className="w-full aspect-square bg-white/10 rounded-2xl mb-6 overflow-hidden backdrop-blur">
+                <div className="w-full aspect-square bg-white/10 rounded-2xl mb-6 overflow-hidden backdrop-blur p-6 flex items-center justify-center">
                   <img
-                    src="https://illustrations.popsy.co/amber/person-working-on-laptop.svg"
+                    src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/users.svg"
                     alt="AI matching profiles"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain opacity-90"
                   />
                 </div>
                 <div className="space-y-3">
@@ -98,11 +98,11 @@ export default function HomePage() {
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
               >
-                <div className="w-full aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl mb-6 overflow-hidden">
+                <div className="w-full aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl mb-6 overflow-hidden p-6 flex items-center justify-center">
                   <img
-                    src="https://illustrations.popsy.co/amber/woman-working-on-laptop-with-coffee.svg"
+                    src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/message-circle.svg"
                     alt="Collaboration"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain opacity-40"
                   />
                 </div>
                 <div className="space-y-3">

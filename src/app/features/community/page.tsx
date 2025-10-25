@@ -105,25 +105,25 @@ export default function CommunityPage() {
                   title: 'Share Knowledge & Insights',
                   description: 'Post questions, share study tips, and discuss topics with peers. Get multiple perspectives on challenging concepts.',
                   gradient: 'from-purple-500 to-pink-600',
-                  image: 'https://illustrations.popsy.co/amber/sharing.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/lightbulb.svg'
                 },
                 {
                   title: 'Build Your Network',
                   description: 'Connect with like-minded learners, find study partners, and build lasting friendships with people who share your goals.',
                   gradient: 'from-pink-500 to-rose-600',
-                  image: 'https://illustrations.popsy.co/amber/community.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/network.svg'
                 },
                 {
                   title: 'Resource Library',
                   description: 'Access shared study materials, notes, practice problems, and resources curated by the community.',
                   gradient: 'from-purple-600 to-indigo-600',
-                  image: 'https://illustrations.popsy.co/amber/book-lover.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/library.svg'
                 },
                 {
                   title: 'Celebrate Success',
                   description: 'Share achievements, milestones, and wins with the community. Get encouragement and motivation from peers.',
                   gradient: 'from-rose-500 to-pink-600',
-                  image: 'https://illustrations.popsy.co/amber/success.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/trophy.svg'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -151,7 +151,7 @@ export default function CommunityPage() {
                       style={{ transformStyle: 'preserve-3d' }}
                     >
                       <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-3xl p-6 flex items-center justify-center`}>
-                        <img src={feature.image} alt={feature.title} className="w-full h-full object-contain" />
+                        <img src={feature.image} alt={feature.title} className="w-full h-full object-contain opacity-90 invert" />
                       </div>
                     </motion.div>
                   </div>

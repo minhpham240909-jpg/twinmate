@@ -259,21 +259,21 @@ export default function StudyGroupsPage() {
                   title: 'Exam Prep Groups',
                   description: 'Intensive study groups focused on upcoming exams. Share practice questions, review materials, and test each other.',
                   gradient: 'from-green-500 to-emerald-600',
-                  image: 'https://illustrations.popsy.co/amber/study-group.svg',
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/graduation-cap.svg',
                   features: ['Time-limited', 'Goal-focused', 'Practice tests']
                 },
                 {
                   title: 'Subject Study Groups',
                   description: 'Long-term groups for mastering specific subjects. Build knowledge progressively with consistent peers.',
                   gradient: 'from-emerald-500 to-teal-600',
-                  image: 'https://illustrations.popsy.co/amber/team-spirit.svg',
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/users-round.svg',
                   features: ['Ongoing', 'Topic-based', 'Resource library']
                 },
                 {
                   title: 'Project Teams',
                   description: 'Collaborate on group projects with shared workspaces, file storage, and task management tools.',
                   gradient: 'from-teal-500 to-cyan-600',
-                  image: 'https://illustrations.popsy.co/amber/team-collaboration.svg',
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/briefcase.svg',
                   features: ['Task tracking', 'File sharing', 'Deadlines']
                 }
               ].map((type, index) => (
@@ -300,8 +300,8 @@ export default function StudyGroupsPage() {
                       className="w-32 h-32 rounded-2xl shadow-2xl overflow-hidden"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className={`w-full h-full bg-gradient-to-br ${type.gradient} rounded-2xl p-5 flex items-center justify-center`}>
-                        <img src={type.image} alt={type.title} className="w-full h-full object-contain" />
+                      <div className={`w-full h-full bg-gradient-to-br ${type.gradient} rounded-2xl p-6 flex items-center justify-center`}>
+                        <img src={type.image} alt={type.title} className="w-full h-full object-contain opacity-90 invert" />
                       </div>
                     </motion.div>
                   </div>

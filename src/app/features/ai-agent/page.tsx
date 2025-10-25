@@ -211,25 +211,25 @@ export default function AIAgentFeaturePage() {
                   title: 'Multi-Dimensional Matching',
                   description: 'Our AI considers subjects, learning styles, schedules, goals, personality traits, and communication preferences to find compatible partners.',
                   gradient: 'from-blue-500 to-indigo-600',
-                  image: 'https://illustrations.popsy.co/amber/data-analysis.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/bar-chart-3.svg'
                 },
                 {
                   title: 'Continuous Learning',
                   description: 'The AI learns from your interactions and feedback, improving match quality over time to better understand your preferences.',
                   gradient: 'from-indigo-500 to-purple-600',
-                  image: 'https://illustrations.popsy.co/amber/artificial-intelligence.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/brain.svg'
                 },
                 {
                   title: 'Real-Time Availability',
                   description: 'Matches are based on current availability, ensuring you connect with partners who are ready to study when you are.',
                   gradient: 'from-purple-500 to-pink-600',
-                  image: 'https://illustrations.popsy.co/amber/clock.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/clock.svg'
                 },
                 {
                   title: 'Compatibility Scores',
                   description: 'See detailed compatibility breakdowns showing why each match was recommended and what you have in common.',
                   gradient: 'from-pink-500 to-rose-600',
-                  image: 'https://illustrations.popsy.co/amber/winner.svg'
+                  image: 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/award.svg'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -254,8 +254,8 @@ export default function AIAgentFeaturePage() {
                       className="w-32 h-32 rounded-2xl shadow-lg overflow-hidden"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-2xl p-4 flex items-center justify-center`}>
-                        <img src={feature.image} alt={feature.title} className="w-full h-full object-contain" />
+                      <div className={`w-full h-full bg-gradient-to-br ${feature.gradient} rounded-2xl p-6 flex items-center justify-center`}>
+                        <img src={feature.image} alt={feature.title} className="w-full h-full object-contain opacity-90 invert" />
                       </div>
                     </motion.div>
                   </div>
