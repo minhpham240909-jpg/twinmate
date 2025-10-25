@@ -40,78 +40,140 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Beautiful 3D Hero Visual */}
-          <div className="max-w-6xl mx-auto relative">
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Left Card */}
-              <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
-              >
-                <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl mb-6 overflow-hidden p-6 flex items-center justify-center">
-                  <img
-                    src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/book-open.svg"
-                    alt="Student studying"
-                    className="w-full h-full object-contain opacity-40"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 rounded-lg"></div>
-                  <div className="h-4 bg-gray-100 rounded-lg w-4/5"></div>
-                  <div className="h-4 bg-gray-100 rounded-lg w-3/5"></div>
-                </div>
-              </motion.div>
+          {/* Beautiful Animated Hero Visual */}
+          <div className="max-w-6xl mx-auto relative h-[500px]">
+            {/* Animated Background Gradient Blobs */}
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1],
+                x: [0, 50, 0],
+                y: [0, -30, 0],
+              }}
+              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-indigo-500/30 rounded-full blur-3xl"
+            />
+            <motion.div
+              animate={{
+                scale: [1, 1.3, 1],
+                x: [0, -40, 0],
+                y: [0, 40, 0],
+              }}
+              transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-400/30 to-pink-500/30 rounded-full blur-3xl"
+            />
+            <motion.div
+              animate={{
+                scale: [1, 1.1, 1],
+                x: [0, 30, 0],
+                y: [0, -20, 0],
+              }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+              className="absolute top-1/2 left-1/2 w-72 h-72 bg-gradient-to-br from-indigo-400/20 to-blue-500/20 rounded-full blur-3xl"
+            />
 
-              {/* Center Card - Elevated */}
+            {/* Floating Orbs */}
+            {[...Array(8)].map((_, i) => (
               <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 shadow-2xl md:-translate-y-8"
-              >
-                <div className="w-full aspect-square bg-white/10 rounded-2xl mb-6 overflow-hidden backdrop-blur p-6 flex items-center justify-center">
-                  <img
-                    src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/users.svg"
-                    alt="AI matching profiles"
-                    className="w-full h-full object-contain opacity-90"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <div className="h-3 bg-white/30 rounded-lg"></div>
-                  <div className="h-3 bg-white/30 rounded-lg w-5/6"></div>
-                  <div className="h-3 bg-white/30 rounded-lg w-4/6"></div>
-                </div>
-                <div className="mt-6 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white font-semibold">
-                  Connect
-                </div>
-              </motion.div>
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: [0.4, 0.8, 0.4],
+                  y: [0, -100, 0],
+                  x: [0, Math.sin(i) * 50, 0],
+                  scale: [1, 1.2, 1],
+                }}
+                transition={{
+                  duration: 5 + i,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: i * 0.4,
+                }}
+                className={`absolute w-16 h-16 rounded-full bg-gradient-to-br ${
+                  i % 3 === 0
+                    ? 'from-blue-400 to-indigo-500'
+                    : i % 3 === 1
+                    ? 'from-purple-400 to-pink-500'
+                    : 'from-indigo-400 to-blue-500'
+                } blur-sm`}
+                style={{
+                  left: `${10 + (i * 12)}%`,
+                  top: `${20 + (i * 8)}%`,
+                }}
+              />
+            ))}
 
-              {/* Right Card */}
+            {/* Center Animated Shapes */}
+            <div className="absolute inset-0 flex items-center justify-center">
               <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
+                animate={{
+                  rotate: [0, 360],
+                }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="relative w-80 h-80"
               >
-                <div className="w-full aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl mb-6 overflow-hidden p-6 flex items-center justify-center">
-                  <img
-                    src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/message-circle.svg"
-                    alt="Collaboration"
-                    className="w-full h-full object-contain opacity-40"
+                {[...Array(3)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      opacity: [0.3, 0.6, 0.3],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: i * 0.8,
+                    }}
+                    className={`absolute inset-0 rounded-full border-4 ${
+                      i === 0
+                        ? 'border-blue-400/40'
+                        : i === 1
+                        ? 'border-purple-400/40'
+                        : 'border-indigo-400/40'
+                    }`}
+                    style={{
+                      transform: `scale(${0.6 + i * 0.2}) rotate(${i * 45}deg)`,
+                    }}
                   />
-                </div>
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 rounded-lg"></div>
-                  <div className="h-4 bg-gray-100 rounded-lg w-4/5"></div>
-                  <div className="h-4 bg-gray-100 rounded-lg w-3/5"></div>
-                </div>
+                ))}
+
+                {/* Center Glow */}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 0.8, 0.5],
+                  }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full blur-2xl opacity-60" />
+                </motion.div>
               </motion.div>
             </div>
+
+            {/* Floating Particles */}
+            {[...Array(20)].map((_, i) => (
+              <motion.div
+                key={`particle-${i}`}
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: [0, 0.6, 0],
+                  y: [0, -200],
+                  x: [0, (i % 2 === 0 ? 1 : -1) * Math.random() * 50],
+                }}
+                transition={{
+                  duration: 3 + Math.random() * 2,
+                  repeat: Infinity,
+                  ease: "easeOut",
+                  delay: i * 0.2,
+                }}
+                className="absolute w-1 h-1 bg-blue-400 rounded-full"
+                style={{
+                  left: `${5 + (i * 4.5)}%`,
+                  bottom: '0',
+                }}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -163,18 +225,70 @@ export default function HomePage() {
                 className="relative"
               >
                 <motion.div
-                  whileHover={{ y: -5 }}
-                  className="bg-white rounded-3xl p-10 shadow-xl border border-gray-100"
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  className="bg-white rounded-3xl p-10 shadow-xl border border-gray-100 relative overflow-hidden"
                 >
-                  <div className={`w-20 h-20 bg-gradient-to-br ${item.color} rounded-2xl flex items-center justify-center text-white text-4xl font-bold mb-6 shadow-lg`}>
-                    {item.step}
-                  </div>
-                  <h3 className="text-3xl font-semibold text-gray-900 mb-4">{item.title}</h3>
-                  <p className="text-lg text-gray-600 font-light leading-relaxed">{item.description}</p>
+                  {/* Animated Background Gradient */}
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.1, 0.15, 0.1],
+                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.5 }}
+                    className={`absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br ${item.color} rounded-full blur-3xl`}
+                  />
+
+                  {/* Floating Particles */}
+                  {[...Array(3)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{
+                        y: [0, -20, 0],
+                        opacity: [0.2, 0.5, 0.2],
+                      }}
+                      transition={{
+                        duration: 2 + i,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: i * 0.3,
+                      }}
+                      className={`absolute w-2 h-2 bg-gradient-to-br ${item.color} rounded-full blur-sm`}
+                      style={{
+                        left: `${20 + i * 30}%`,
+                        bottom: `${10 + i * 20}%`,
+                      }}
+                    />
+                  ))}
+
+                  <motion.div
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className={`w-20 h-20 bg-gradient-to-br ${item.color} rounded-2xl flex items-center justify-center text-white text-4xl font-bold mb-6 shadow-lg relative z-10`}
+                  >
+                    <motion.span
+                      animate={{
+                        scale: [1, 1.1, 1],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      {item.step}
+                    </motion.span>
+                  </motion.div>
+                  <h3 className="text-3xl font-semibold text-gray-900 mb-4 relative z-10">{item.title}</h3>
+                  <p className="text-lg text-gray-600 font-light leading-relaxed relative z-10">{item.description}</p>
                 </motion.div>
 
                 {index < 2 && (
-                  <div className="hidden md:block absolute top-1/2 -right-6 w-12 h-0.5 bg-gradient-to-r from-gray-300 to-transparent"></div>
+                  <motion.div
+                    animate={{
+                      x: [0, 10, 0],
+                      opacity: [0.3, 0.6, 0.3],
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="hidden md:block absolute top-1/2 -right-6 w-12 h-0.5 bg-gradient-to-r from-blue-400 to-purple-400"
+                  />
                 )}
               </motion.div>
             ))}
@@ -224,51 +338,108 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              {/* Beautiful AI Visualization */}
-              <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl p-12 shadow-2xl">
-                <div className="relative h-80">
-                  {/* Center Node */}
+              {/* Stunning AI Visualization */}
+              <div className="relative bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-700 rounded-3xl p-12 shadow-2xl overflow-hidden">
+                {/* Animated Background */}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.5, 1],
+                    rotate: [0, 180, 360],
+                  }}
+                  transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-3xl"
+                />
+
+                <div className="relative h-96">
+                  {/* Center AI Core */}
                   <motion.div
-                    animate={{ scale: [1, 1.05, 1] }}
+                    animate={{
+                      scale: [1, 1.15, 1],
+                      boxShadow: ['0 0 20px rgba(255,255,255,0.3)', '0 0 60px rgba(255,255,255,0.6)', '0 0 20px rgba(255,255,255,0.3)'],
+                    }}
                     transition={{ duration: 3, repeat: Infinity }}
-                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full shadow-2xl flex items-center justify-center"
+                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white rounded-full shadow-2xl flex items-center justify-center"
                   >
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full"></div>
+                    <motion.div
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                      className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full"
+                    />
                   </motion.div>
 
-                  {/* Orbiting Nodes */}
-                  {[0, 60, 120, 180, 240, 300].map((_, i) => (
+                  {/* Connection Lines */}
+                  {[...Array(8)].map((_, i) => (
                     <motion.div
-                      key={i}
+                      key={`line-${i}`}
+                      initial={{ pathLength: 0 }}
                       animate={{
-                        rotate: [0, 360],
+                        pathLength: [0, 1, 0],
+                        opacity: [0.3, 0.8, 0.3],
                       }}
                       transition={{
-                        duration: 20,
+                        duration: 3,
                         repeat: Infinity,
-                        ease: "linear",
-                        delay: i * 0.5
+                        delay: i * 0.3,
+                        ease: "easeInOut"
                       }}
-                      className="absolute top-1/2 left-1/2"
+                      className="absolute top-1/2 left-1/2 w-1 bg-white/40"
                       style={{
-                        width: '200px',
-                        height: '200px',
-                        marginLeft: '-100px',
-                        marginTop: '-100px',
+                        height: '150px',
+                        transformOrigin: 'top center',
+                        transform: `rotate(${i * 45}deg)`,
                       }}
-                    >
+                    />
+                  ))}
+
+                  {/* Profile Nodes */}
+                  {[...Array(8)].map((_, i) => {
+                    const angle = (i * 45) * (Math.PI / 180)
+                    const radius = 150
+                    return (
                       <motion.div
+                        key={`node-${i}`}
+                        initial={{ scale: 0 }}
                         animate={{
-                          scale: [1, 1.2, 1],
+                          scale: [1, 1.3, 1],
+                          y: [0, -10, 0],
                         }}
                         transition={{
-                          duration: 2,
+                          duration: 2 + i * 0.2,
                           repeat: Infinity,
-                          delay: i * 0.3
+                          delay: i * 0.2,
+                          ease: "easeInOut"
                         }}
-                        className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-white/30 backdrop-blur rounded-full border-2 border-white/50"
-                      ></motion.div>
-                    </motion.div>
+                        className="absolute top-1/2 left-1/2 w-16 h-16 bg-white rounded-full shadow-xl border-4 border-purple-300/50"
+                        style={{
+                          transform: `translate(${Math.cos(angle) * radius - 32}px, ${Math.sin(angle) * radius - 32}px)`,
+                        }}
+                      >
+                        <div className="w-full h-full bg-gradient-to-br from-blue-300 to-purple-400 rounded-full" />
+                      </motion.div>
+                    )
+                  })}
+
+                  {/* Floating Particles */}
+                  {[...Array(15)].map((_, i) => (
+                    <motion.div
+                      key={`ai-particle-${i}`}
+                      animate={{
+                        y: [0, -100, 0],
+                        x: [0, Math.sin(i) * 30, 0],
+                        opacity: [0, 0.6, 0],
+                      }}
+                      transition={{
+                        duration: 4 + Math.random() * 2,
+                        repeat: Infinity,
+                        delay: i * 0.3,
+                        ease: "easeInOut"
+                      }}
+                      className="absolute w-1 h-1 bg-white rounded-full"
+                      style={{
+                        left: `${Math.random() * 100}%`,
+                        bottom: '0',
+                      }}
+                    />
                   ))}
                 </div>
               </div>
@@ -288,34 +459,135 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="order-2 md:order-1"
             >
-              {/* Beautiful Video Call Visual */}
-              <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 shadow-2xl">
-                <div className="grid grid-cols-2 gap-4 mb-8">
+              {/* Stunning Video Call Visual */}
+              <div className="bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                {/* Animated Background Waves */}
+                {[...Array(3)].map((_, i) => (
+                  <motion.div
+                    key={`wave-${i}`}
+                    animate={{
+                      x: [-100, 100, -100],
+                      opacity: [0.1, 0.2, 0.1],
+                    }}
+                    transition={{
+                      duration: 8 + i * 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: i * 0.5,
+                    }}
+                    className="absolute w-96 h-96 bg-white rounded-full blur-3xl"
+                    style={{
+                      top: `${i * 30}%`,
+                      left: `${i * 20}%`,
+                    }}
+                  />
+                ))}
+
+                <div className="relative grid grid-cols-2 gap-4 mb-8">
                   {[1, 2, 3, 4].map((i) => (
                     <motion.div
                       key={i}
+                      initial={{ scale: 0.8, opacity: 0 }}
                       animate={{
-                        opacity: [0.6, 1, 0.6],
+                        scale: [1, 1.05, 1],
+                        opacity: [0.8, 1, 0.8],
                       }}
                       transition={{
                         duration: 3,
-                        delay: i * 0.5,
-                        repeat: Infinity
+                        delay: i * 0.3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
                       }}
-                      className="aspect-square bg-white/10 backdrop-blur-sm rounded-2xl border-2 border-white/20 flex items-center justify-center"
+                      className="aspect-square bg-white/15 backdrop-blur-md rounded-2xl border-2 border-white/30 flex items-center justify-center relative overflow-hidden"
                     >
-                      <div className="w-12 h-12 bg-white/20 rounded-full"></div>
+                      {/* Animated Avatar */}
+                      <motion.div
+                        animate={{
+                          scale: [1, 1.1, 1],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          delay: i * 0.2,
+                        }}
+                        className="w-20 h-20 bg-gradient-to-br from-white/30 to-white/10 rounded-full"
+                      />
+
+                      {/* Speaking Indicator */}
+                      <motion.div
+                        animate={{
+                          scale: [0, 1.2, 0],
+                          opacity: [0, 0.6, 0],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          delay: i * 0.5,
+                        }}
+                        className="absolute inset-0 border-4 border-green-400 rounded-2xl"
+                      />
+
+                      {/* Floating Particles */}
+                      {[...Array(3)].map((_, j) => (
+                        <motion.div
+                          key={j}
+                          animate={{
+                            y: [0, -20, 0],
+                            opacity: [0, 0.5, 0],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            delay: j * 0.3 + i * 0.1,
+                          }}
+                          className="absolute w-1 h-1 bg-white rounded-full"
+                          style={{
+                            left: `${20 + j * 30}%`,
+                            bottom: '10%',
+                          }}
+                        />
+                      ))}
                     </motion.div>
                   ))}
                 </div>
-                <div className="flex justify-center gap-4 bg-black/20 backdrop-blur rounded-2xl p-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <div className="w-6 h-6 bg-white/40 rounded"></div>
-                  </div>
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <div className="w-6 h-6 bg-white/40 rounded-full"></div>
-                  </div>
-                  <div className="w-12 h-12 bg-red-500 rounded-full shadow-lg"></div>
+
+                <div className="relative flex justify-center gap-4 bg-black/30 backdrop-blur-md rounded-2xl p-6">
+                  {/* Mic Button */}
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center cursor-pointer relative"
+                  >
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="w-6 h-8 bg-white/50 rounded"
+                    />
+                  </motion.div>
+
+                  {/* Camera Button */}
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center cursor-pointer"
+                  >
+                    <div className="w-8 h-6 bg-white/50 rounded-md" />
+                  </motion.div>
+
+                  {/* End Call Button */}
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={{
+                      boxShadow: ['0 0 0 0 rgba(239, 68, 68, 0.4)', '0 0 0 20px rgba(239, 68, 68, 0)', '0 0 0 0 rgba(239, 68, 68, 0)'],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="w-14 h-14 bg-red-500 rounded-full shadow-lg cursor-pointer flex items-center justify-center"
+                  >
+                    <div className="w-6 h-1 bg-white rounded-full transform rotate-45" />
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
@@ -394,14 +666,79 @@ export default function HomePage() {
               >
                 <Link href={feature.href} className="block group">
                   <motion.div
-                    whileHover={{ y: -5 }}
+                    whileHover={{ y: -10, scale: 1.02 }}
                     transition={{ duration: 0.3 }}
                     className="bg-white rounded-3xl p-10 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 h-full relative overflow-hidden"
                   >
-                    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full -translate-y-1/2 translate-x-1/2`}></div>
-                    <h3 className="text-3xl font-semibold text-gray-900 mb-4 relative">{feature.title}</h3>
-                    <p className="text-lg text-gray-600 font-light leading-relaxed mb-6 relative">{feature.description}</p>
-                    <span className="text-blue-600 font-medium group-hover:underline relative">Learn more →</span>
+                    {/* Animated Gradient Background */}
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.3, 1],
+                        rotate: [0, 90, 0],
+                        opacity: [0.1, 0.2, 0.1],
+                      }}
+                      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: index * 0.5 }}
+                      className={`absolute -top-20 -right-20 w-64 h-64 bg-gradient-to-br ${feature.gradient} rounded-full blur-3xl`}
+                    />
+
+                    {/* Floating Particles */}
+                    {[...Array(5)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{
+                          y: [0, -30, 0],
+                          x: [0, Math.sin(i) * 10, 0],
+                          opacity: [0.2, 0.6, 0.2],
+                        }}
+                        transition={{
+                          duration: 3 + i * 0.5,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: i * 0.2,
+                        }}
+                        className={`absolute w-2 h-2 bg-gradient-to-br ${feature.gradient} rounded-full blur-sm`}
+                        style={{
+                          left: `${10 + i * 20}%`,
+                          bottom: `${5 + i * 10}%`,
+                        }}
+                      />
+                    ))}
+
+                    {/* Animated Icon */}
+                    <motion.div
+                      animate={{
+                        rotate: [0, 360],
+                      }}
+                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                      className="relative mb-6"
+                    >
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        className={`w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-2xl shadow-lg flex items-center justify-center relative z-10`}
+                      >
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.2, 1],
+                          }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="w-10 h-10 bg-white/30 rounded-xl backdrop-blur"
+                        />
+                      </motion.div>
+                    </motion.div>
+
+                    <h3 className="text-3xl font-semibold text-gray-900 mb-4 relative z-10">{feature.title}</h3>
+                    <p className="text-lg text-gray-600 font-light leading-relaxed mb-6 relative z-10">{feature.description}</p>
+                    <motion.span
+                      className="text-blue-600 font-medium group-hover:underline relative z-10 inline-flex items-center gap-2"
+                    >
+                      Learn more
+                      <motion.span
+                        animate={{ x: [0, 5, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        →
+                      </motion.span>
+                    </motion.span>
                   </motion.div>
                 </Link>
               </motion.div>
