@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
-import DotGrid from '@/components/landing/DotGrid'
+import OptimizedDotGrid from '@/components/landing/OptimizedDotGrid'
 import ElectricBorder from '@/components/landing/ElectricBorder'
+import SmoothBorder from '@/components/landing/SmoothBorder'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 
 export default function HomePage() {
@@ -17,19 +18,15 @@ export default function HomePage() {
       <FloatingSignupButton />
 
       {/* Hero Section with DotGrid Background */}
-      <section className="relative pt-32 pb-48 overflow-hidden">
-        {/* DotGrid Background */}
+      <section className="relative pt-32 pb-48 overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
+        {/* Optimized DotGrid Background */}
         <div className="absolute inset-0 opacity-40">
-          <DotGrid
+          <OptimizedDotGrid
             dotSize={3}
             gap={40}
             baseColor="#3b82f6"
             activeColor="#6366f1"
             proximity={120}
-            shockRadius={200}
-            shockStrength={4}
-            resistance={800}
-            returnDuration={1.8}
           />
         </div>
 
@@ -95,24 +92,23 @@ export default function HomePage() {
             </motion.div>
           </motion.div>
 
-          {/* Decorative Floating Elements */}
+          {/* Decorative Floating Elements - Reduced for performance */}
           <div className="mt-24 relative h-64">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{
-                  opacity: [0.3, 0.6, 0.3],
-                  y: [0, -40, 0],
-                  x: [0, Math.sin(i) * 20, 0],
+                  opacity: [0.2, 0.4, 0.2],
+                  y: [0, -30, 0],
                 }}
                 transition={{
-                  duration: 4 + i,
+                  duration: 6 + i * 2,
                   repeat: Infinity,
                   ease: 'easeInOut',
-                  delay: i * 0.3,
+                  delay: i * 0.5,
                 }}
-                className={`absolute w-32 h-32 rounded-2xl bg-gradient-to-br ${
+                className={`absolute w-32 h-32 rounded-2xl bg-gradient-to-br gpu-accelerated ${
                   i % 3 === 0
                     ? 'from-blue-400/20 to-indigo-500/20'
                     : i % 3 === 1
@@ -120,7 +116,7 @@ export default function HomePage() {
                     : 'from-indigo-400/20 to-blue-500/20'
                 } backdrop-blur-sm`}
                 style={{
-                  left: `${15 + i * 14}%`,
+                  left: `${20 + i * 25}%`,
                   top: `${Math.sin(i) * 30}%`,
                 }}
               />
@@ -130,7 +126,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-32 bg-white relative overflow-hidden">
+      <section id="how-it-works" className="py-32 bg-white relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -178,11 +174,10 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
               >
-                <ElectricBorder
+                <SmoothBorder
                   color={item.color}
-                  speed={0.8}
-                  chaos={0.4}
-                  thickness={2}
+                  gradient={`linear-gradient(135deg, ${item.color}, ${item.color}80, ${item.color})`}
+                  className="h-full"
                   style={{ borderRadius: '1.5rem' }}
                 >
                   <motion.div
@@ -205,7 +200,7 @@ export default function HomePage() {
                     <h3 className="text-2xl font-bold text-slate-900 mb-4 text-center">{item.title}</h3>
                     <p className="text-slate-600 leading-relaxed text-center">{item.description}</p>
                   </motion.div>
-                </ElectricBorder>
+                </SmoothBorder>
               </motion.div>
             ))}
           </div>
@@ -217,7 +212,7 @@ export default function HomePage() {
       </section>
 
       {/* AI Matching Section */}
-      <section className="py-32 bg-gradient-to-b from-white to-blue-50/50 relative overflow-hidden">
+      <section className="py-32 bg-gradient-to-b from-white to-blue-50/50 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Text Content */}
@@ -267,25 +262,26 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <ElectricBorder color="#6366f1" speed={0.6} chaos={0.5} thickness={3} style={{ borderRadius: '2rem' }}>
-                <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 rounded-3xl p-12 relative overflow-hidden">
-                  {/* Animated background pattern */}
-                  <div className="absolute inset-0 opacity-20">
-                    {[...Array(20)].map((_, i) => (
+              <ElectricBorder color="#6366f1" speed={0.5} chaos={0.3} thickness={2} style={{ borderRadius: '2rem' }}>
+                <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 rounded-3xl p-12 relative overflow-hidden gpu-accelerated">
+                  {/* Simplified background pattern */}
+                  <div className="absolute inset-0 opacity-10">
+                    {[...Array(8)].map((_, i) => (
                       <motion.div
                         key={i}
                         animate={{
                           y: [0, -100],
-                          opacity: [0, 1, 0],
+                          opacity: [0, 0.5, 0],
                         }}
                         transition={{
-                          duration: 3 + Math.random() * 2,
+                          duration: 4,
                           repeat: Infinity,
-                          delay: i * 0.2,
+                          delay: i * 0.5,
+                          ease: 'linear',
                         }}
-                        className="absolute w-1 h-8 bg-white rounded-full"
+                        className="absolute w-1 h-8 bg-white rounded-full gpu-accelerated"
                         style={{
-                          left: `${i * 5}%`,
+                          left: `${i * 12}%`,
                           bottom: 0,
                         }}
                       />
@@ -321,7 +317,7 @@ export default function HomePage() {
       </section>
 
       {/* Video Call Section */}
-      <section className="py-32 bg-white relative overflow-hidden">
+      <section className="py-32 bg-white relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Visual First on this section */}
@@ -332,22 +328,23 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="order-2 lg:order-1"
             >
-              <ElectricBorder color="#ec4899" speed={0.7} chaos={0.6} thickness={2} style={{ borderRadius: '2rem' }}>
-                <div className="bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 rounded-3xl p-8 relative overflow-hidden">
+              <ElectricBorder color="#ec4899" speed={0.5} chaos={0.3} thickness={2} style={{ borderRadius: '2rem' }}>
+                <div className="bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 rounded-3xl p-8 relative overflow-hidden gpu-accelerated">
                   {/* Video Grid Mockup */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     {[1, 2, 3, 4].map((i) => (
                       <motion.div
                         key={i}
                         animate={{
-                          opacity: [0.7, 1, 0.7],
+                          opacity: [0.8, 1, 0.8],
                         }}
                         transition={{
-                          duration: 2,
+                          duration: 3,
                           repeat: Infinity,
-                          delay: i * 0.3,
+                          delay: i * 0.5,
+                          ease: 'easeInOut',
                         }}
-                        className="aspect-square bg-white/10 backdrop-blur-md rounded-xl border-2 border-white/30 flex items-center justify-center relative overflow-hidden"
+                        className="aspect-square bg-white/10 backdrop-blur-md rounded-xl border-2 border-white/30 flex items-center justify-center relative overflow-hidden gpu-accelerated"
                       >
                         <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
                           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -432,7 +429,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Grid Section */}
-      <section className="py-32 bg-gradient-to-b from-white to-slate-50 relative overflow-hidden">
+      <section className="py-32 bg-gradient-to-b from-white to-slate-50 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -503,14 +500,12 @@ export default function HomePage() {
               >
                 <Link href={feature.href}>
                   <motion.div whileHover={{ y: -5 }} className="h-full">
-                    <ElectricBorder
+                    <SmoothBorder
                       color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                      speed={0.5 + Math.random() * 0.5}
-                      chaos={0.3 + Math.random() * 0.4}
-                      thickness={1.5}
-                      style={{ borderRadius: '1.5rem', height: '100%' }}
+                      className="h-full"
+                      style={{ borderRadius: '1.5rem' }}
                     >
-                      <div className="bg-white rounded-3xl p-8 h-full cursor-pointer flex flex-col">
+                      <div className="bg-white rounded-3xl p-8 h-full cursor-pointer flex flex-col gpu-accelerated">
                         <div className={`w-16 h-16 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
                           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
@@ -530,7 +525,7 @@ export default function HomePage() {
                           </motion.span>
                         </span>
                       </div>
-                    </ElectricBorder>
+                    </SmoothBorder>
                   </motion.div>
                 </Link>
               </motion.div>
@@ -540,17 +535,15 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 relative overflow-hidden">
+      <section className="py-32 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
-          <DotGrid
+          <OptimizedDotGrid
             dotSize={2}
             gap={30}
             baseColor="#ffffff"
             activeColor="#ffffff"
             proximity={100}
-            shockRadius={150}
-            shockStrength={3}
           />
         </div>
 
@@ -592,7 +585,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-32 bg-white">
+      <section className="py-32 bg-white gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
