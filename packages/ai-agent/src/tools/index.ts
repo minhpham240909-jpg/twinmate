@@ -60,7 +60,7 @@ export function createAndRegisterTools(
  * Initialize a fully configured tool registry
  */
 export function initializeToolRegistry(deps: ToolFactoryDependencies): ToolRegistry {
-  const registry = ToolRegistry.getInstance()
+  const registry = new ToolRegistry()
   createAndRegisterTools(registry, deps)
   return registry
 }

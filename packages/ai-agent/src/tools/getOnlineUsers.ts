@@ -32,7 +32,7 @@ export function createGetOnlineUsersTool(supabase: SupabaseClient): Tool<GetOnli
           is_online,
           last_seen,
           current_activity,
-          profile:user_id (
+          profile!inner (
             grade_level,
             subjects,
             learning_style
@@ -58,16 +58,20 @@ export function createGetOnlineUsersTool(supabase: SupabaseClient): Tool<GetOnli
       }
 
       // Map to output format
-      const users = data.map(p => ({
-        userId: p.user_id,
-        currentActivity: p.current_activity,
-        lastSeen: p.last_seen,
-        profile: p.profile ? {
-          gradeLevel: p.profile.grade_level,
-          subjects: p.profile.subjects || [],
-          learningStyle: p.profile.learning_style,
-        } : undefined,
-      }))
+      const users = data.map(p => {
+        // profile is returned as array from Supabase join
+        const profileData = (p.profile as any)?.[0] || p.profile
+        return {
+          userId: p.user_id,
+          currentActivity: p.current_activity,
+          lastSeen: p.last_seen,
+          profile: profileData ? {
+            gradeLevel: profileData.grade_level,
+            subjects: profileData.subjects || [],
+            learningStyle: profileData.learning_style,
+          } : undefined,
+        }
+      })
 
       return {
         users,

@@ -176,12 +176,15 @@ export type CreateStudyPlanInput = z.infer<typeof CreateStudyPlanInputSchema>
 
 export const CreateStudyPlanOutputSchema = z.object({
   planId: z.string().uuid(),
+  title: z.string(),
   weekBlocks: z.array(z.object({
     week: z.number().int().positive(),
+    focus: z.string().optional(),
     tasks: z.array(z.object({
       title: z.string(),
       etaMin: z.number().int(),
       link: z.string().optional(),
+      completed: z.boolean().optional(),
     })),
   })),
 })

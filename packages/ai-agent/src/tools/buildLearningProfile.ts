@@ -57,7 +57,7 @@ export function createBuildLearningProfileTool(
           answers,
           score,
           created_at,
-          quiz:quiz_id (
+          quiz!inner (
             title,
             topic,
             difficulty,
@@ -90,7 +90,9 @@ export function createBuildLearningProfileTool(
       const topicScores: Record<string, { total: number; count: number; scores: number[] }> = {}
 
       attempts.forEach(attempt => {
-        const topic = (attempt.quiz as any)?.topic || attempt.quiz?.title || 'Unknown'
+        // quiz is returned as an array from Supabase join
+        const quizData = (attempt.quiz as any)?.[0] || attempt.quiz
+        const topic = quizData?.topic || quizData?.title || 'Unknown'
         if (!topicScores[topic]) {
           topicScores[topic] = { total: 0, count: 0, scores: [] }
         }
