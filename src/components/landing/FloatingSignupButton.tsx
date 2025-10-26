@@ -56,7 +56,7 @@ export default function FloatingSignupButton() {
 
           {/* Button text */}
           <span className="relative z-10 flex items-center gap-2">
-            Get Started Free
+            Get Started Now
             <motion.span
               animate={{
                 x: [0, 4, 0],

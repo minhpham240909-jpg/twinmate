@@ -8,6 +8,7 @@ import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContex
 import SessionSyncWrapper from "@/components/SessionSyncWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import IncomingCallModal from "@/components/IncomingCallModal";
+import { AIAgentWrapper } from "@/components/providers/AIAgentWrapper";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,10 +36,12 @@ export default function RootLayout({
           <SessionSyncWrapper />
           <AuthProvider>
             <BackgroundSessionProvider>
-              {children}
-              <FloatingSessionButton />
-              <IncomingCallModal />
-              <Toaster
+              <AIAgentWrapper>
+                {children}
+                <FloatingSessionButton />
+                <IncomingCallModal />
+              </AIAgentWrapper>
+                <Toaster
                 position="top-right"
                 toastOptions={{
                   duration: 4000,
@@ -61,7 +64,7 @@ export default function RootLayout({
                     },
                   },
                 }}
-              />
+                />
             </BackgroundSessionProvider>
           </AuthProvider>
         </ErrorBoundary>
