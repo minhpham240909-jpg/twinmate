@@ -136,36 +136,46 @@ export async function POST(request: NextRequest) {
       where: whereConditions,
     })
 
-    // Get owner information for each group
-    const groupsWithDetails = await Promise.all(
-      groups.map(async (group) => {
-        const owner = await prisma.user.findUnique({
-          where: { id: group.ownerId },
-          select: { name: true },
-        })
+    // Get all unique owner IDs
+    const ownerIds = [...new Set(groups.map(g => g.ownerId))]
 
-        // Check if current user is a member
-        const isMember = group.members.some(member => member.userId === user.id)
-        const isOwner = group.ownerId === user.id
+    // Fetch all owners in ONE batch query
+    const owners = await prisma.user.findMany({
+      where: {
+        id: { in: ownerIds }
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    })
 
-        return {
-          id: group.id,
-          name: group.name,
-          description: group.description,
-          subject: group.subject,
-          subjectCustomDescription: group.subjectCustomDescription,
-          skillLevel: group.skillLevel,
-          skillLevelCustomDescription: group.skillLevelCustomDescription,
-          maxMembers: group.maxMembers,
-          memberCount: group.members.length,
-          ownerName: owner?.name || 'Unknown',
-          ownerId: group.ownerId,
-          isMember,
-          isOwner,
-          createdAt: group.createdAt,
-        }
-      })
-    )
+    // Create map for O(1) lookups
+    const ownerMap = new Map(owners.map(o => [o.id, o.name]))
+
+    // Get owner information for each group (no more async/await needed!)
+    const groupsWithDetails = groups.map((group) => {
+      // Check if current user is a member
+      const isMember = group.members.some(member => member.userId === user.id)
+      const isOwner = group.ownerId === user.id
+
+      return {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        subject: group.subject,
+        subjectCustomDescription: group.subjectCustomDescription,
+        skillLevel: group.skillLevel,
+        skillLevelCustomDescription: group.skillLevelCustomDescription,
+        maxMembers: group.maxMembers,
+        memberCount: group.members.length,
+        ownerName: ownerMap.get(group.ownerId) || 'Unknown',
+        ownerId: group.ownerId,
+        isMember,
+        isOwner,
+        createdAt: group.createdAt,
+      }
+    })
 
     return NextResponse.json({
       success: true,

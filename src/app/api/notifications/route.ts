@@ -26,6 +26,35 @@ export async function GET(request: NextRequest) {
       take: 50 // Limit to last 50 notifications
     })
 
+    // Get related users for notifications (batch query to avoid N+1)
+    const relatedUserIds = notifications
+      .map(n => n.relatedUserId)
+      .filter((id): id is string => id !== null)
+
+    const uniqueUserIds = [...new Set(relatedUserIds)]
+
+    const relatedUsers = uniqueUserIds.length > 0
+      ? await prisma.user.findMany({
+          where: {
+            id: { in: uniqueUserIds }
+          },
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        })
+      : []
+
+    // Create map for O(1) lookups
+    const userMap = new Map(relatedUsers.map(u => [u.id, u]))
+
+    // Attach related user data to notifications
+    const notificationsWithUsers = notifications.map(notification => ({
+      ...notification,
+      relatedUser: notification.relatedUserId ? userMap.get(notification.relatedUserId) : null,
+    }))
+
     // Get unread count
     const unreadCount = await prisma.notification.count({
       where: {
@@ -36,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      notifications,
+      notifications: notificationsWithUsers,
       unreadCount
     })
   } catch (error) {

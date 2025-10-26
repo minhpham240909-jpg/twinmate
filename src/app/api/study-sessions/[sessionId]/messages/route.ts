@@ -104,13 +104,7 @@ export async function POST(
       return NextResponse.json({ error: 'Not a participant' }, { status: 403 })
     }
 
-    // Get sender user for name
-    const senderUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { name: true }
-    })
-
-    // Create message
+    // Create message with sender info included
     const message = await prisma.sessionMessage.create({
       data: {
         sessionId,
@@ -144,7 +138,7 @@ export async function POST(
 
     // Create notifications in parallel (don't block response)
     if (otherParticipants.length > 0) {
-      const senderName = senderUser?.name || user.email || 'Someone'
+      const senderName = message.sender.name || message.sender.email || 'Someone'
       const contentPreview = content.trim().length > 50
         ? content.trim().substring(0, 50) + '...'
         : content.trim()

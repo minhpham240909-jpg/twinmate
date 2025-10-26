@@ -39,41 +39,50 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Transform data to match frontend interface
-    const groups = await Promise.all(
-      memberships.map(async (membership) => {
-        const group = membership.group
+    // Get all unique owner IDs
+    const ownerIds = [...new Set(memberships.map(m => m.group.ownerId))]
 
-        // Get owner information
-        const owner = await prisma.user.findUnique({
-          where: { id: group.ownerId },
-          select: { name: true },
-        })
+    // Fetch all owners in ONE batch query
+    const owners = await prisma.user.findMany({
+      where: {
+        id: { in: ownerIds }
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    })
 
-        return {
-          id: group.id,
-          name: group.name,
-          description: group.description,
-          subject: group.subject,
-          subjectCustomDescription: group.subjectCustomDescription,
-          skillLevel: group.skillLevel,
-          skillLevelCustomDescription: group.skillLevelCustomDescription,
-          maxMembers: group.maxMembers,
-          memberCount: group.members.length,
-          ownerName: owner?.name || 'Unknown',
-          ownerId: group.ownerId,
-          isMember: true, // Always true since we're fetching user's groups
-          isOwner: group.ownerId === user.id,
-          membersList: group.members.map(m => ({
-            id: m.user.id,
-            name: m.user.name,
-            avatarUrl: m.user.avatarUrl,
-            role: m.role,
-          })),
-          createdAt: group.createdAt,
-        }
-      })
-    )
+    // Create map for O(1) lookups
+    const ownerMap = new Map(owners.map(o => [o.id, o.name]))
+
+    // Transform data to match frontend interface (no more async/await needed!)
+    const groups = memberships.map((membership) => {
+      const group = membership.group
+
+      return {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        subject: group.subject,
+        subjectCustomDescription: group.subjectCustomDescription,
+        skillLevel: group.skillLevel,
+        skillLevelCustomDescription: group.skillLevelCustomDescription,
+        maxMembers: group.maxMembers,
+        memberCount: group.members.length,
+        ownerName: ownerMap.get(group.ownerId) || 'Unknown',
+        ownerId: group.ownerId,
+        isMember: true, // Always true since we're fetching user's groups
+        isOwner: group.ownerId === user.id,
+        membersList: group.members.map(m => ({
+          id: m.user.id,
+          name: m.user.name,
+          avatarUrl: m.user.avatarUrl,
+          role: m.role,
+        })),
+        createdAt: group.createdAt,
+      }
+    })
 
     return NextResponse.json({
       success: true,

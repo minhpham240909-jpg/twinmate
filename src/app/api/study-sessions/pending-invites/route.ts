@@ -27,6 +27,13 @@ export async function GET() {
             subject: true,
             createdAt: true,
             createdBy: true,
+            creator: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },
@@ -35,29 +42,18 @@ export async function GET() {
       },
     })
 
-    // Get inviter details for each invitation
-    const invitesWithInviter = await Promise.all(
-      pendingInvites.map(async (invite) => {
-        const inviter = await prisma.user.findUnique({
-          where: { id: invite.session.createdBy },
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-          },
-        })
-
-        return {
-          sessionId: invite.session.id,
-          title: invite.session.title,
-          description: invite.session.description,
-          type: invite.session.type,
-          subject: invite.session.subject,
-          createdAt: invite.session.createdAt,
-          inviter: inviter,
-        }
-      })
-    )
+    // Get inviter details for each invitation (no more async/await needed!)
+    const invitesWithInviter = pendingInvites.map((invite) => {
+      return {
+        sessionId: invite.session.id,
+        title: invite.session.title,
+        description: invite.session.description,
+        type: invite.session.type,
+        subject: invite.session.subject,
+        createdAt: invite.session.createdAt,
+        inviter: invite.session.creator,
+      }
+    })
 
     return NextResponse.json({
       success: true,
