@@ -90,7 +90,7 @@ export function createBuildLearningProfileTool(
       const topicScores: Record<string, { total: number; count: number; scores: number[] }> = {}
 
       attempts.forEach(attempt => {
-        const topic = attempt.quiz?.topic || 'Unknown'
+        const topic = (attempt.quiz as any)?.topic || attempt.quiz?.title || 'Unknown'
         if (!topicScores[topic]) {
           topicScores[topic] = { total: 0, count: 0, scores: [] }
         }

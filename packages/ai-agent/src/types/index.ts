@@ -74,7 +74,7 @@ export const SearchNotesInputSchema = z.object({
   query: z.string().min(1).describe('Search query text'),
   courseId: z.string().uuid().optional().describe('Filter by course ID'),
   limit: z.number().int().positive().default(10).describe('Max results'),
-  filters: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  filters: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
 })
 
 export type SearchNotesInput = z.infer<typeof SearchNotesInputSchema>
@@ -149,14 +149,16 @@ export const AddFlashcardsInputSchema = z.object({
   cards: z.array(z.object({
     front: z.string().min(1),
     back: z.string().min(1),
-    meta: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   })).min(1).max(100),
+  sourceDocId: z.string().uuid().optional(),
 })
 
 export type AddFlashcardsInput = z.infer<typeof AddFlashcardsInputSchema>
 
 export const AddFlashcardsOutputSchema = z.object({
-  saved: z.number().int().nonnegative(),
+  count: z.number().int().nonnegative(),
+  flashcardIds: z.array(z.string()),
 })
 
 export type AddFlashcardsOutput = z.infer<typeof AddFlashcardsOutputSchema>
@@ -187,23 +189,48 @@ export const CreateStudyPlanOutputSchema = z.object({
 export type CreateStudyPlanOutput = z.infer<typeof CreateStudyPlanOutputSchema>
 
 // --- Learning Profile ---
+export const BuildLearningProfileInputSchema = z.object({
+  forceRebuild: z.boolean().optional().default(false),
+})
+
+export type BuildLearningProfileInput = z.infer<typeof BuildLearningProfileInputSchema>
+
 export const BuildLearningProfileOutputSchema = z.object({
   strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),
-  recommendedStudyFocus: z.array(z.string()),
+  recommendedFocus: z.array(z.string()),
+  analytics: z.record(z.any()).optional(),
 })
 
 export type BuildLearningProfileOutput = z.infer<typeof BuildLearningProfileOutputSchema>
 
 // --- Presence & Availability ---
+export const GetOnlineUsersInputSchema = z.object({
+  activityFilter: z.array(z.string()).optional(),
+  limit: z.number().int().positive().optional().default(50),
+})
+
+export type GetOnlineUsersInput = z.infer<typeof GetOnlineUsersInputSchema>
+
 export const GetOnlineUsersOutputSchema = z.object({
-  userIds: z.array(z.string().uuid()),
+  users: z.array(z.object({
+    userId: z.string(),
+    currentActivity: z.string(),
+    lastSeen: z.string(),
+    profile: z.object({
+      gradeLevel: z.string().optional(),
+      subjects: z.array(z.string()),
+      learningStyle: z.string().optional(),
+    }).optional(),
+  })),
+  total: z.number(),
 })
 
 export type GetOnlineUsersOutput = z.infer<typeof GetOnlineUsersOutputSchema>
 
 export const GetAvailabilityInputSchema = z.object({
-  userId: z.string().uuid(),
+  targetUserId: z.string().uuid().optional(),
+  dow: z.number().int().min(0).max(6).optional(),
 })
 
 export type GetAvailabilityInput = z.infer<typeof GetAvailabilityInputSchema>
@@ -264,15 +291,18 @@ export type MatchInsightOutput = z.infer<typeof MatchInsightOutputSchema>
 
 // --- Nudges ---
 export const SendNudgeInputSchema = z.object({
-  userId: z.string().uuid(),
+  toUserId: z.string(),
   message: z.string().min(1),
-  kind: z.enum(['weakspot', 'plan', 'match', 'reminder']),
+  nudgeType: z.enum(['study_invite', 'reminder', 'match_suggestion', 'plan_update']),
+  metadata: z.record(z.string(), z.any()).optional(),
 })
 
 export type SendNudgeInput = z.infer<typeof SendNudgeInputSchema>
 
 export const SendNudgeOutputSchema = z.object({
-  ok: z.boolean(),
+  success: z.boolean(),
+  nudgeId: z.string(),
+  sentAt: z.string(),
 })
 
 export type SendNudgeOutput = z.infer<typeof SendNudgeOutputSchema>
@@ -282,10 +312,12 @@ export type SendNudgeOutput = z.infer<typeof SendNudgeOutputSchema>
 // ============================================================================
 
 export interface AgentResponse {
-  message: string
+  text: string
+  toolsUsed?: string[]
   toolResults?: ToolResult[]
   cards?: ResponseCard[]
   citations?: Citation[]
+  traceId?: string
   metadata?: Record<string, any>
 }
 
@@ -304,6 +336,9 @@ export interface ResponseCard {
   content: any
   actions?: CardAction[]
 }
+
+// Alias for backward compatibility
+export type AICard = ResponseCard
 
 export interface CardAction {
   label: string
@@ -388,7 +423,43 @@ export interface LLMResponse {
 export interface LLMToolCall {
   id: string
   name: string
-  arguments: string
+  arguments: any
+}
+
+export interface LLMProvider {
+  complete(request: LLMRequest): Promise<LLMResponse>
+}
+
+// ============================================================================
+// RAG & EMBEDDING TYPES
+// ============================================================================
+
+export interface EmbeddingProvider {
+  embed(text: string): Promise<{ embedding: number[]; tokenCount: number }>
+  embedBatch(texts: string[]): Promise<Array<{ embedding: number[]; tokenCount: number }>>
+}
+
+export interface RetrievalOptions {
+  limit?: number
+  threshold?: number
+  filters?: Record<string, any>
+  rerank?: boolean
+}
+
+export interface RetrievalResult {
+  chunks: RetrievedChunk[]
+  totalFound: number
+}
+
+export interface Chunk {
+  content: string
+  ord: number
+  tokenCount: number
+}
+
+export interface ChunkOptions {
+  maxTokens?: number
+  overlapTokens?: number
 }
 
 // ============================================================================

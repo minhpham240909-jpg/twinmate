@@ -12,6 +12,7 @@ import {
   ValidationError,
   LLMRequest,
   LLMResponse,
+  LLMMessage,
   ToolResult,
   ResponseCard,
 } from '../types'
@@ -184,9 +185,9 @@ export class AgentOrchestrator {
     const systemPrompt = this.buildSystemPrompt(context)
     const userPrompt = this.buildUserPrompt(message, context)
 
-    const messages = [
-      { role: 'system' as const, content: systemPrompt },
-      { role: 'user' as const, content: userPrompt },
+    const messages: LLMMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
     ]
 
     const toolDefinitions = this.config.toolRegistry.getToolDefinitions()
@@ -217,11 +218,6 @@ export class AgentOrchestrator {
 
         // Add tool result to conversation
         messages.push({
-          role: 'assistant' as const,
-          content: '',
-          toolCallId: toolCall.id,
-        })
-        messages.push({
           role: 'tool' as const,
           content: JSON.stringify(result.output),
           name: toolCall.name,
@@ -250,10 +246,12 @@ export class AgentOrchestrator {
     }))
 
     return {
-      message: response.content,
+      text: response.content,
+      toolsUsed: [...new Set(toolResults.map(tr => tr.toolName))],
       toolResults,
       cards,
       citations,
+      traceId: context.traceId,
       metadata: {
         toolCallCount: toolResults.length,
         iterationCount,
@@ -454,7 +452,7 @@ Available sources: ${context.retrievedChunks?.length || 0} relevant document chu
   }
 }
 
-interface HandleOptions {
+export interface HandleOptions {
   conversationId?: string
   userProfile?: any
 }
