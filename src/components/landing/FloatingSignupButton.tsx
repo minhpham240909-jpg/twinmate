@@ -29,7 +29,7 @@ export default function FloatingSignupButton() {
         stiffness: 260,
         damping: 20,
       }}
-      className="fixed bottom-8 right-8 z-50"
+      className="fixed top-8 right-8 z-50"
     >
       <Link href="/auth/signup">
         <motion.button

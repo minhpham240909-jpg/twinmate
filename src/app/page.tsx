@@ -6,8 +6,8 @@ import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
 import WebGLDotGrid from '@/components/landing/WebGLDotGrid'
 import WebGLBorder from '@/components/landing/WebGLBorder'
-import LazySection from '@/components/landing/LazySection'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
+import Footer from '@/components/landing/Footer'
 
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -592,7 +592,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-32 bg-white gpu-accelerated" style={{ contain: 'layout style paint' }}>
+      <section id="faq" className="py-32 bg-white gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -673,6 +673,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   )
 }
