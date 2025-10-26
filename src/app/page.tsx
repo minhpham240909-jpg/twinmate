@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
-import OptimizedDotGrid from '@/components/landing/OptimizedDotGrid'
-import ElectricBorder from '@/components/landing/ElectricBorder'
-import SmoothBorder from '@/components/landing/SmoothBorder'
+import WebGLDotGrid from '@/components/landing/WebGLDotGrid'
+import WebGLBorder from '@/components/landing/WebGLBorder'
+import LazySection from '@/components/landing/LazySection'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 
 export default function HomePage() {
@@ -19,14 +19,16 @@ export default function HomePage() {
 
       {/* Hero Section with DotGrid Background */}
       <section className="relative pt-32 pb-48 overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
-        {/* Optimized DotGrid Background */}
+        {/* WebGL DotGrid Background */}
         <div className="absolute inset-0 opacity-40">
-          <OptimizedDotGrid
+          <WebGLDotGrid
             dotSize={3}
             gap={40}
             baseColor="#3b82f6"
             activeColor="#6366f1"
             proximity={120}
+            shockRadius={200}
+            shockStrength={4}
           />
         </div>
 
@@ -174,11 +176,12 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
               >
-                <SmoothBorder
+                <WebGLBorder
                   color={item.color}
-                  gradient={`linear-gradient(135deg, ${item.color}, ${item.color}80, ${item.color})`}
-                  className="h-full"
-                  style={{ borderRadius: '1.5rem' }}
+                  speed={0.8}
+                  thickness={2}
+                  glowIntensity={1.2}
+                  className="h-full rounded-3xl"
                 >
                   <motion.div
                     whileHover={{ y: -5 }}
@@ -200,7 +203,7 @@ export default function HomePage() {
                     <h3 className="text-2xl font-bold text-slate-900 mb-4 text-center">{item.title}</h3>
                     <p className="text-slate-600 leading-relaxed text-center">{item.description}</p>
                   </motion.div>
-                </SmoothBorder>
+                </WebGLBorder>
               </motion.div>
             ))}
           </div>
@@ -262,7 +265,7 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <ElectricBorder color="#6366f1" speed={0.5} chaos={0.3} thickness={2} style={{ borderRadius: '2rem' }}>
+              <WebGLBorder color="#6366f1" speed={0.6} thickness={3} glowIntensity={1.5} className="rounded-3xl">
                 <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 rounded-3xl p-12 relative overflow-hidden gpu-accelerated">
                   {/* Simplified background pattern */}
                   <div className="absolute inset-0 opacity-10">
@@ -310,7 +313,7 @@ export default function HomePage() {
                     <p className="text-blue-100 text-lg">Connecting 10,000+ students worldwide</p>
                   </div>
                 </div>
-              </ElectricBorder>
+              </WebGLBorder>
             </motion.div>
           </div>
         </div>
@@ -328,7 +331,7 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="order-2 lg:order-1"
             >
-              <ElectricBorder color="#ec4899" speed={0.5} chaos={0.3} thickness={2} style={{ borderRadius: '2rem' }}>
+              <WebGLBorder color="#ec4899" speed={0.7} thickness={2} glowIntensity={1.3} className="rounded-3xl">
                 <div className="bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 rounded-3xl p-8 relative overflow-hidden gpu-accelerated">
                   {/* Video Grid Mockup */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
@@ -379,7 +382,7 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-              </ElectricBorder>
+              </WebGLBorder>
             </motion.div>
 
             {/* Text Content */}
@@ -500,10 +503,12 @@ export default function HomePage() {
               >
                 <Link href={feature.href}>
                   <motion.div whileHover={{ y: -5 }} className="h-full">
-                    <SmoothBorder
+                    <WebGLBorder
                       color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                      className="h-full"
-                      style={{ borderRadius: '1.5rem' }}
+                      speed={0.5 + index * 0.1}
+                      thickness={1.5}
+                      glowIntensity={1}
+                      className="h-full rounded-3xl"
                     >
                       <div className="bg-white rounded-3xl p-8 h-full cursor-pointer flex flex-col gpu-accelerated">
                         <div className={`w-16 h-16 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
@@ -525,7 +530,7 @@ export default function HomePage() {
                           </motion.span>
                         </span>
                       </div>
-                    </SmoothBorder>
+                    </WebGLBorder>
                   </motion.div>
                 </Link>
               </motion.div>
@@ -538,12 +543,14 @@ export default function HomePage() {
       <section className="py-32 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
-          <OptimizedDotGrid
+          <WebGLDotGrid
             dotSize={2}
             gap={30}
             baseColor="#ffffff"
             activeColor="#ffffff"
             proximity={100}
+            shockRadius={150}
+            shockStrength={3}
           />
         </div>
 
