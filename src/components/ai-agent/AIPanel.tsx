@@ -113,75 +113,43 @@ export default function AIPanel({ onClose, initialMinimized = false, initialMess
       // Get context based on current page
       const context = getPageContext(pathname)
 
-      // Call AI agent API with streaming
+      // Call AI agent API (non-streaming for now - streaming has auth issues)
       const response = await fetch('/api/ai-agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: input,
-          stream: true,
           context
         }),
         signal: abortControllerRef.current.signal,
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-
-      if (!reader) {
-        throw new Error('No response body')
-      }
-
-      let accumulatedText = ''
-      let cards: AICard[] = []
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') continue
-
-            try {
-              const parsed = JSON.parse(data)
-
-              if (parsed.type === 'text') {
-                accumulatedText += parsed.content
-                // Update message in real-time
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: accumulatedText }
-                      : msg
-                  )
-                )
-              } else if (parsed.type === 'cards') {
-                cards = parsed.data
-              } else if (parsed.type === 'done') {
-                // Final update with cards
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: accumulatedText, cards }
-                      : msg
-                  )
-                )
-              }
-            } catch (e) {
-              // Skip invalid JSON
-            }
-          }
+        let errorMessage = `HTTP ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorData.error || errorMessage
+        } catch (e) {
+          // If we can't parse JSON, use status code
         }
+        throw new Error(errorMessage)
       }
+
+      // Parse JSON response
+      const data = await response.json()
+
+      // Update assistant message with response
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                content: data.text || 'No response from AI',
+                cards: data.cards || []
+              }
+            : msg
+        )
+      )
     } catch (error: any) {
       if (error.name === 'AbortError') {
         // User cancelled - that's fine
@@ -189,10 +157,17 @@ export default function AIPanel({ onClose, initialMinimized = false, initialMess
       }
 
       console.error('AI agent error:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response,
+      })
+
+      const errorMessage = error.message || 'Sorry, I encountered an error. Please try again later.'
       setMessages(prev =>
         prev.map(msg =>
           msg.id === assistantMessageId
-            ? { ...msg, content: 'Sorry, I encountered an error. Please try again later.' }
+            ? { ...msg, content: `Error: ${errorMessage}\n\nPlease check the console for details.` }
             : msg
         )
       )
