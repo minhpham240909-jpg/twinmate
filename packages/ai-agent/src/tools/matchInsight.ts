@@ -10,7 +10,13 @@ import {
   MatchInsightOutput,
   AgentContext,
 } from '../types'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { SupabaseClient } from '@supabase/supabase-js'
+import {
+  computeSharedWindows,
+  computeNextBestTimes,
+  canStudyNow as checkCanStudyNow,
+  type AvailabilityWindow,
+} from '../lib/availability'
 
 export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsightInput, MatchInsightOutput> {
   return {
@@ -21,7 +27,7 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
     outputSchema: MatchInsightOutputSchema,
     estimatedLatencyMs: 1000,
 
-    async call(input: MatchInsightInput, ctx: AgentContext): Promise<MatchInsightOutput> {
+    async call(input: MatchInsightInput, _ctx: AgentContext): Promise<MatchInsightOutput> {
       const { forUserId, candidateId } = input
 
       // 1. Fetch both profiles
@@ -37,7 +43,7 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
       const candidateProfile = profiles.find(p => p.user_id === candidateId)!
 
       // 2. Fetch learning profiles (strengths/weaknesses)
-      const { data: learningProfiles, error: learningError } = await supabase
+      const { data: learningProfiles } = await supabase
         .from('learning_profile')
         .select('user_id, strengths, weaknesses')
         .in('user_id', [forUserId, candidateId])
@@ -71,19 +77,53 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
         complementary
       )
 
-      // 7. Check online presence (can study now?)
-      const { data: presenceData, error: presenceError } = await supabase
+      // 7. Fetch availability windows for both users
+      const { data: availabilities } = await supabase
+        .from('availability_block')
+        .select('user_id, dow, start_min, end_min, timezone')
+        .in('user_id', [forUserId, candidateId])
+
+      const userWindows: AvailabilityWindow[] = (availabilities || [])
+        .filter(a => a.user_id === forUserId)
+        .map(a => ({
+          dow: a.dow,
+          startMin: a.start_min,
+          endMin: a.end_min,
+          timezone: a.timezone,
+        }))
+
+      const candidateWindows: AvailabilityWindow[] = (availabilities || [])
+        .filter(a => a.user_id === candidateId)
+        .map(a => ({
+          dow: a.dow,
+          startMin: a.start_min,
+          endMin: a.end_min,
+          timezone: a.timezone,
+        }))
+
+      // 8. Compute shared availability windows
+      const sharedWindows = computeSharedWindows(userWindows, candidateWindows)
+
+      // 9. Check if they can study NOW (presence + current time in shared window)
+      const { data: presenceData } = await supabase
         .from('presence')
         .select('user_id, is_online, current_activity')
         .eq('user_id', candidateId)
         .single()
 
-      const canStudyNow = presenceData?.is_online &&
-                         (presenceData.current_activity === 'available' ||
-                          presenceData.current_activity === 'studying')
+      const isOnline = presenceData?.is_online &&
+                       (presenceData.current_activity === 'available' ||
+                        presenceData.current_activity === 'studying')
 
-      // 8. Find next best times if not available now
-      const nextBestTimes = await findNextBestTimes(supabase, forUserId, candidateId)
+      const inSharedWindow = checkCanStudyNow(sharedWindows)
+      const canStudyNow = isOnline && inSharedWindow
+
+      // 10. Find next best times from shared windows
+      const nextBestTimes = computeNextBestTimes(sharedWindows, {
+        weeksAhead: 2,
+        topK: 5,
+        minDurationMin: 30,
+      })
 
       return {
         compatibilityScore: compatibility.score,
@@ -254,59 +294,4 @@ function generateJointStudyPlan(
   plan.push('Set clear goals for each session')
 
   return plan
-}
-
-/**
- * Find next best times when both users are available
- */
-async function findNextBestTimes(
-  supabase: SupabaseClient,
-  user1Id: string,
-  user2Id: string
-): Promise<Array<{ whenISO: string; confidence: number }>> {
-  // Fetch availability windows for both users
-  const { data: availabilities, error } = await supabase
-    .from('availability_block')
-    .select('user_id, dow, start_min, end_min, timezone')
-    .in('user_id', [user1Id, user2Id])
-
-  if (error || !availabilities) {
-    return []
-  }
-
-  const user1Windows = availabilities.filter(a => a.user_id === user1Id)
-  const user2Windows = availabilities.filter(a => a.user_id === user2Id)
-
-  // Find overlapping windows
-  const overlaps: Array<{ whenISO: string; confidence: number }> = []
-
-  for (const w1 of user1Windows) {
-    for (const w2 of user2Windows) {
-      // Same day of week
-      if (w1.dow !== w2.dow) continue
-
-      // Find time overlap
-      const overlapStart = Math.max(w1.start_min, w2.start_min)
-      const overlapEnd = Math.min(w1.end_min, w2.end_min)
-
-      if (overlapEnd - overlapStart >= 30) { // At least 30 min overlap
-        // Calculate next occurrence of this day
-        const now = new Date()
-        const daysUntil = (w1.dow - now.getDay() + 7) % 7 || 7
-        const nextDate = new Date(now)
-        nextDate.setDate(now.getDate() + daysUntil)
-        nextDate.setHours(Math.floor(overlapStart / 60), overlapStart % 60, 0, 0)
-
-        overlaps.push({
-          whenISO: nextDate.toISOString(),
-          confidence: (overlapEnd - overlapStart) / 60 / 2, // Confidence based on duration
-        })
-      }
-    }
-  }
-
-  // Return top 3 next best times
-  return overlaps
-    .sort((a, b) => new Date(a.whenISO).getTime() - new Date(b.whenISO).getTime())
-    .slice(0, 3)
 }

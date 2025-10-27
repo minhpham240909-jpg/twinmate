@@ -31,6 +31,7 @@ class OpenAILLMProvider {
         messages: request.messages,
         temperature: request.temperature || 0.7,
         tools: request.tools,
+        stream: false, // Non-streaming for now (tool calls need full response)
       }),
     })
 
@@ -49,6 +50,56 @@ class OpenAILLMProvider {
         name: tc.function.name,
         arguments: tc.function.arguments, // Keep as JSON string for orchestrator
       })) || [],
+    }
+  }
+
+  async *stream(request: any): AsyncIterableIterator<string> {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4-turbo-preview',
+        messages: request.messages,
+        temperature: request.temperature || 0.7,
+        stream: true,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.statusText}`)
+    }
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+
+    if (!reader) throw new Error('No response body')
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const chunk = decoder.decode(value)
+      const lines = chunk.split('\n').filter(line => line.trim() !== '')
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+          if (data === '[DONE]') return
+
+          try {
+            const json = JSON.parse(data)
+            const content = json.choices[0]?.delta?.content
+            if (content) {
+              yield content
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+      }
     }
   }
 }
