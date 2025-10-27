@@ -22,7 +22,7 @@ class OpenAILLMProvider {
 
   async complete(request: any): Promise<any> {
     const requestBody = {
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4-turbo',
       messages: request.messages,
       temperature: request.temperature || 0.7,
       tools: request.tools,
