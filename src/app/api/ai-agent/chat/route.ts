@@ -162,10 +162,18 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('AI agent error:', error)
+
+    // Log detailed error for debugging
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack)
+      console.error('Error message:', error.message)
+    }
+
     return NextResponse.json(
       {
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined,
       },
       { status: 500 }
     )

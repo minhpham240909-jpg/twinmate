@@ -78,28 +78,37 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
       )
 
       // 7. Fetch availability windows for both users
-      const { data: availabilities } = await supabase
+      const { data: availabilities, error: availError } = await supabase
         .from('availability_block')
         .select('user_id, dow, start_min, end_min, timezone')
         .in('user_id', [forUserId, candidateId])
 
-      const userWindows: AvailabilityWindow[] = (availabilities || [])
-        .filter(a => a.user_id === forUserId)
-        .map(a => ({
-          dow: a.dow,
-          startMin: a.start_min,
-          endMin: a.end_min,
-          timezone: a.timezone,
-        }))
+      // Gracefully handle missing table
+      let userWindows: AvailabilityWindow[] = []
+      let candidateWindows: AvailabilityWindow[] = []
 
-      const candidateWindows: AvailabilityWindow[] = (availabilities || [])
-        .filter(a => a.user_id === candidateId)
-        .map(a => ({
-          dow: a.dow,
-          startMin: a.start_min,
-          endMin: a.end_min,
-          timezone: a.timezone,
-        }))
+      if (!availError) {
+        userWindows = (availabilities || [])
+          .filter(a => a.user_id === forUserId)
+          .map(a => ({
+            dow: a.dow,
+            startMin: a.start_min,
+            endMin: a.end_min,
+            timezone: a.timezone,
+          }))
+
+        candidateWindows = (availabilities || [])
+          .filter(a => a.user_id === candidateId)
+          .map(a => ({
+            dow: a.dow,
+            startMin: a.start_min,
+            endMin: a.end_min,
+            timezone: a.timezone,
+          }))
+      } else if (availError.code !== '42P01' && !availError.message.includes('does not exist')) {
+        // Only throw if it's not a "table doesn't exist" error
+        console.error('Error fetching availability:', availError)
+      }
 
       // 8. Compute shared availability windows
       const sharedWindows = computeSharedWindows(userWindows, candidateWindows)

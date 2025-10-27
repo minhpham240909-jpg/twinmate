@@ -70,10 +70,14 @@ export function usePresence(user: User | null, options: PresenceOptions = {}) {
       })
 
       if (error) {
-        console.error('Presence update error:', error)
+        // Log error but don't throw - presence is non-critical
+        console.warn('Presence update error (non-critical):', error.message || error.code)
       }
     } catch (err) {
-      console.error('Presence update failed:', err)
+      // Silently fail for presence - it's a nice-to-have feature
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Presence update failed:', err instanceof Error ? err.message : String(err))
+      }
     }
   }
 

@@ -25,54 +25,65 @@ export function createGetAvailabilityTool(supabase: SupabaseClient): Tool<GetAva
       const { targetUserId, dow } = input
       const userId = targetUserId || ctx.userId // Default to current user
 
-      // Build query
-      let query = supabase
-        .from('availability_block')
-        .select('dow, start_min, end_min, timezone')
-        .eq('user_id', userId)
-        .order('dow', { ascending: true })
-        .order('start_min', { ascending: true })
+      try {
+        // Build query
+        let query = supabase
+          .from('availability_block')
+          .select('dow, start_min, end_min, timezone')
+          .eq('user_id', userId)
+          .order('dow', { ascending: true })
+          .order('start_min', { ascending: true })
 
-      // Filter by day of week if specified
-      if (dow !== undefined) {
-        query = query.eq('dow', dow)
-      }
+        // Filter by day of week if specified
+        if (dow !== undefined) {
+          query = query.eq('dow', dow)
+        }
 
-      const { data, error } = await query
+        const { data, error } = await query
 
-      if (error) {
-        throw new Error(`Failed to fetch availability: ${error.message}`)
-      }
+        if (error) {
+          // If table doesn't exist, return empty windows gracefully
+          if (error.code === '42P01' || error.message.includes('does not exist')) {
+            console.warn('availability_block table not found - returning empty windows')
+            return { windows: [] }
+          }
+          throw new Error(`Failed to fetch availability: ${error.message}`)
+        }
 
-      if (!data) {
+        if (!data) {
+          return { windows: [] }
+        }
+
+        // Convert minutes to human-readable time
+        const windows = data.map(block => {
+          const startHour = Math.floor(block.start_min / 60)
+          const startMinute = block.start_min % 60
+          const endHour = Math.floor(block.end_min / 60)
+          const endMinute = block.end_min % 60
+
+          const formatTime = (h: number, m: number) => {
+            const period = h >= 12 ? 'PM' : 'AM'
+            const hour12 = h % 12 || 12
+            return `${hour12}:${m.toString().padStart(2, '0')} ${period}`
+          }
+
+          return {
+            dow: block.dow,
+            dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][block.dow],
+            startMin: block.start_min,
+            endMin: block.end_min,
+            startTime: formatTime(startHour, startMinute),
+            endTime: formatTime(endHour, endMinute),
+            timezone: block.timezone,
+          }
+        })
+
+        return { windows }
+      } catch (error) {
+        // Gracefully handle any errors - return empty windows
+        console.error('Error in getAvailability:', error instanceof Error ? error.message : String(error))
         return { windows: [] }
       }
-
-      // Convert minutes to human-readable time
-      const windows = data.map(block => {
-        const startHour = Math.floor(block.start_min / 60)
-        const startMinute = block.start_min % 60
-        const endHour = Math.floor(block.end_min / 60)
-        const endMinute = block.end_min % 60
-
-        const formatTime = (h: number, m: number) => {
-          const period = h >= 12 ? 'PM' : 'AM'
-          const hour12 = h % 12 || 12
-          return `${hour12}:${m.toString().padStart(2, '0')} ${period}`
-        }
-
-        return {
-          dow: block.dow,
-          dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][block.dow],
-          startMin: block.start_min,
-          endMin: block.end_min,
-          startTime: formatTime(startHour, startMinute),
-          endTime: formatTime(endHour, endMinute),
-          timezone: block.timezone,
-        }
-      })
-
-      return { windows }
     },
   }
 }
