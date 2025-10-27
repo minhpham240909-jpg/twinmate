@@ -7,10 +7,12 @@ import NotificationPanel from '@/components/NotificationPanel'
 import StudyPartnersModal from '@/components/StudyPartnersModal'
 import { useSessionCleanup } from '@/hooks/useSessionCleanup'
 import { useUserSync } from '@/hooks/useUserSync'
+import { useAIAgent } from '@/components/providers/AIAgentProvider'
 
 export default function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
+  const { openPanel } = useAIAgent()
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
 
@@ -291,6 +293,23 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div className="grid md:grid-cols-2 gap-4">
+              <button
+                onClick={openPanel}
+                className="p-4 border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg hover:border-blue-600 hover:shadow-md transition-all text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-blue-200 rounded-full blur-2xl opacity-50"></div>
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center mb-3 relative">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                  Clerva AI
+                  <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">NEW</span>
+                </h4>
+                <p className="text-sm text-gray-600">Ask AI to generate quizzes, study plans, find partners & more</p>
+              </button>
+
               <button
                 onClick={() => router.push('/search')}
                 className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition text-left"
