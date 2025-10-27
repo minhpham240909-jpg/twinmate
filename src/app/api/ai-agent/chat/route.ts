@@ -163,25 +163,30 @@ export async function POST(request: NextRequest) {
     // Process message with context
     const response = await orchestrator.handle(user.id, enhancedMessage)
 
-    // Save updated conversation history
-    const newConversation = [
-      ...conversationHistory,
-      {
-        role: 'user' as const,
-        content: message,
-        timestamp: new Date().toISOString(),
-      },
-      {
-        role: 'assistant' as const,
-        content: response.text || '',
-        timestamp: new Date().toISOString(),
-        cards: response.cards,
-      },
-    ]
+    // Save updated conversation history (non-blocking, failures are logged but don't break response)
+    try {
+      const newConversation = [
+        ...conversationHistory,
+        {
+          role: 'user' as const,
+          content: message,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          role: 'assistant' as const,
+          content: response.text || '',
+          timestamp: new Date().toISOString(),
+          cards: response.cards,
+        },
+      ]
 
-    // Keep only last 20 messages (10 exchanges) to prevent memory bloat
-    const trimmedConversation = newConversation.slice(-20)
-    await memoryManager.saveConversation(user.id, trimmedConversation)
+      // Keep only last 20 messages (10 exchanges) to prevent memory bloat
+      const trimmedConversation = newConversation.slice(-20)
+      await memoryManager.saveConversation(user.id, trimmedConversation)
+    } catch (memoryError) {
+      console.error('Non-critical: Failed to save conversation to memory:', memoryError)
+      // Continue - memory save is non-critical
+    }
 
     // Return response
     return NextResponse.json({

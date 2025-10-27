@@ -32,29 +32,41 @@ export class MemoryManager {
    * Store conversation history as short-term memory (expires in 7 days)
    */
   async saveConversation(userId: string, messages: ConversationMessage[]): Promise<void> {
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7) // 7 days retention
+    try {
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 7) // 7 days retention
 
-    const { error } = await this.supabase
-      .from('agent_memory')
-      .upsert({
-        user_id: userId,
-        scope: 'short',
-        key: 'conversation_history',
-        value: { messages, lastUpdate: new Date().toISOString() },
-        expires_at: expiresAt.toISOString(),
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,scope,key',
-      })
+      // Delete existing conversation history first
+      await this.supabase
+        .from('agent_memory')
+        .delete()
+        .eq('user_id', userId)
+        .eq('scope', 'short')
+        .eq('key', 'conversation_history')
 
-    if (error) {
-      // If table doesn't exist, fail silently (graceful degradation)
-      if (error.code === '42P01') {
-        console.warn('agent_memory table not found - skipping conversation save')
-        return
+      // Insert new conversation
+      const { error } = await this.supabase
+        .from('agent_memory')
+        .insert({
+          user_id: userId,
+          scope: 'short',
+          key: 'conversation_history',
+          value: { messages, lastUpdate: new Date().toISOString() },
+          expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error) {
+        // If table doesn't exist, fail silently (graceful degradation)
+        if (error.code === '42P01') {
+          console.warn('agent_memory table not found - skipping conversation save')
+          return
+        }
+        console.error('Failed to save conversation:', error)
       }
-      console.error('Failed to save conversation:', error)
+    } catch (error) {
+      console.error('Error saving conversation:', error)
+      // Don't throw - gracefully degrade
     }
   }
 
@@ -91,20 +103,32 @@ export class MemoryManager {
    * Save user preference (no expiration)
    */
   async savePreference(userId: string, key: string, value: any): Promise<void> {
-    const { error } = await this.supabase
-      .from('agent_memory')
-      .upsert({
-        user_id: userId,
-        scope: 'preference',
-        key,
-        value,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,scope,key',
-      })
+    try {
+      // Delete existing preference first
+      await this.supabase
+        .from('agent_memory')
+        .delete()
+        .eq('user_id', userId)
+        .eq('scope', 'preference')
+        .eq('key', key)
 
-    if (error && error.code !== '42P01') {
-      console.error(`Failed to save preference ${key}:`, error)
+      // Insert new preference
+      const { error } = await this.supabase
+        .from('agent_memory')
+        .insert({
+          user_id: userId,
+          scope: 'preference',
+          key,
+          value,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error && error.code !== '42P01') {
+        console.error(`Failed to save preference ${key}:`, error)
+      }
+    } catch (error) {
+      console.error(`Error saving preference ${key}:`, error)
+      // Don't throw - gracefully degrade
     }
   }
 
@@ -140,20 +164,32 @@ export class MemoryManager {
    * Store long-term fact about user (e.g., "majoring in Computer Science")
    */
   async storeFact(userId: string, key: string, value: any): Promise<void> {
-    const { error } = await this.supabase
-      .from('agent_memory')
-      .upsert({
-        user_id: userId,
-        scope: 'long',
-        key,
-        value,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,scope,key',
-      })
+    try {
+      // Delete existing fact first
+      await this.supabase
+        .from('agent_memory')
+        .delete()
+        .eq('user_id', userId)
+        .eq('scope', 'long')
+        .eq('key', key)
 
-    if (error && error.code !== '42P01') {
-      console.error(`Failed to store fact ${key}:`, error)
+      // Insert new fact
+      const { error } = await this.supabase
+        .from('agent_memory')
+        .insert({
+          user_id: userId,
+          scope: 'long',
+          key,
+          value,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error && error.code !== '42P01') {
+        console.error(`Failed to store fact ${key}:`, error)
+      }
+    } catch (error) {
+      console.error(`Error storing fact ${key}:`, error)
+      // Don't throw - gracefully degrade
     }
   }
 
