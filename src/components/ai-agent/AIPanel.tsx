@@ -21,6 +21,7 @@ interface AICard {
 interface AIPanelProps {
   onClose?: () => void
   initialMinimized?: boolean
+  initialMessage?: string
 }
 
 // Helper to extract page context for AI
@@ -45,7 +46,7 @@ function getPageContext(pathname: string): { page: string; description: string }
   return { page: 'unknown', description: 'User is on the platform' }
 }
 
-export default function AIPanel({ onClose, initialMinimized = false }: AIPanelProps) {
+export default function AIPanel({ onClose, initialMinimized = false, initialMessage }: AIPanelProps) {
   const pathname = usePathname()
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -55,12 +56,13 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
       timestamp: new Date(),
     },
   ])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(initialMessage || '')
   const [isLoading, setIsLoading] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [isMinimized, setIsMinimized] = useState(initialMinimized)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const hasAutoSentRef = useRef(false)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -69,6 +71,17 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Auto-send initial message if provided
+  useEffect(() => {
+    if (initialMessage && !hasAutoSentRef.current && !isLoading) {
+      hasAutoSentRef.current = true
+      // Small delay to let UI render
+      setTimeout(() => {
+        handleSend()
+      }, 500)
+    }
+  }, [initialMessage, isLoading])
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || isStreaming) return

@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth/context'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
+import { Sparkles } from 'lucide-react'
+import { useAIAgent } from '@/hooks/useAIAgent'
 
 interface Message {
   id: string
@@ -33,11 +35,11 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
   const [sending, setSending] = useState(false)
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesRef = useRef<Message[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const supabase = createClient()
+  const { openPanel, Panel } = useAIAgent()
 
   // Initialize notification sound
   useEffect(() => {
@@ -62,8 +64,6 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
   // Mark messages as read when chat becomes visible
   useEffect(() => {
     if (isVisible && messages.length > 0) {
-      const latestMessage = messages[messages.length - 1]
-      setLastReadMessageId(latestMessage.id)
       setUnreadCount(0)
     }
   }, [isVisible, messages])
@@ -465,6 +465,14 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
       {/* Input Area */}
       <div className="border-t border-gray-200 p-4 bg-white">
         <form onSubmit={handleSendMessage} className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => openPanel('Help me summarize this chat or suggest a response')}
+            className="px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition flex items-center gap-1"
+            title="AI: Summarize or suggest"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
           <input
             type="text"
             value={newMessage}
@@ -482,6 +490,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
           </button>
         </form>
       </div>
+      {Panel}
     </div>
   )
 }

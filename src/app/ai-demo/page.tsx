@@ -104,7 +104,7 @@ export default function AIDemoPage() {
                 <p>• "Search my notes for algebra equations"</p>
               </div>
               <button
-                onClick={openPanel}
+                onClick={() => openPanel()}
                 className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
               >
                 Open AI Chat Panel
