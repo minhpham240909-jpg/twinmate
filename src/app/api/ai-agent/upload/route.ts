@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       file,
       metadata: {
-        courseId,
-        topic,
+        courseId: courseId || undefined,
+        topic: topic || undefined,
       },
     })
 

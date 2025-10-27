@@ -202,7 +202,7 @@ export const BuildLearningProfileOutputSchema = z.object({
   strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),
   recommendedFocus: z.array(z.string()),
-  analytics: z.record(z.any()).optional(),
+  analytics: z.record(z.string(), z.any()).optional(),
 })
 
 export type BuildLearningProfileOutput = z.infer<typeof BuildLearningProfileOutputSchema>
@@ -255,18 +255,19 @@ export type GetAvailabilityOutput = z.infer<typeof GetAvailabilityOutputSchema>
 
 // --- Partner Matching ---
 export const MatchCandidatesInputSchema = z.object({
-  forUserId: z.string().uuid(),
-  topK: z.number().int().positive().default(10),
+  limit: z.number().int().positive().optional().default(10),
+  minScore: z.number().min(0).max(1).optional().default(0.4),
 })
 
 export type MatchCandidatesInput = z.infer<typeof MatchCandidatesInputSchema>
 
 export const MatchCandidatesOutputSchema = z.object({
-  candidates: z.array(z.object({
-    userId: z.string().uuid(),
+  matches: z.array(z.object({
+    userId: z.string(),
     score: z.number().min(0).max(1),
-    facets: z.array(z.string()),
+    facets: z.record(z.string(), z.any()).optional(),
   })),
+  total: z.number(),
 })
 
 export type MatchCandidatesOutput = z.infer<typeof MatchCandidatesOutputSchema>

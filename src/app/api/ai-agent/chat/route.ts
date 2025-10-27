@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { AgentOrchestrator } from '@/../packages/ai-agent/src/lib/orchestrator'
-import { ToolRegistry } from '@/../packages/ai-agent/src/lib/tool-registry'
 import { initializeToolRegistry } from '@/../packages/ai-agent/src/tools'
 import { OpenAIEmbeddingProvider } from '@/../packages/ai-agent/src/rag/embeddings'
 import { VectorRetriever } from '@/../packages/ai-agent/src/rag/retriever'
@@ -97,8 +96,7 @@ export async function POST(request: NextRequest) {
     const orchestrator = new AgentOrchestrator({
       llmProvider,
       retriever,
-      registry,
-      supabase: adminSupabase,
+      toolRegistry: registry,
     })
 
     // Process message
@@ -128,6 +126,6 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     version: '1.0.0',
-    toolsAvailable: ToolRegistry.getInstance().list().length,
+    toolsAvailable: 11, // searchNotes, generateQuiz, addFlashcards, etc.
   })
 }
