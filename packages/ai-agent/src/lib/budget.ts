@@ -4,7 +4,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js'
-import { setMemory, getMemory } from './memory'
+import { MemoryManager } from './memory'
 
 export interface BudgetConfig {
   dailyRequestLimit: number
@@ -59,7 +59,8 @@ export async function getBudgetUsage(
   supabase: SupabaseClient,
   userId: string
 ): Promise<BudgetUsage> {
-  const usage = await getMemory(supabase, userId, 'short', 'budget_usage')
+  const memory = new MemoryManager(supabase)
+  const usage = await memory.loadPreference<BudgetUsage>(userId, 'budget_usage')
 
   if (!usage) {
     // Initialize new usage
@@ -120,8 +121,9 @@ export async function updateBudgetUsage(
     lastReset: usage.lastReset,
   }
 
-  // Store in memory with 24-hour TTL
-  await setMemory(supabase, userId, 'short', 'budget_usage', newUsage, 86400)
+  // Store in memory (preference scope, no expiration)
+  const memory = new MemoryManager(supabase)
+  await memory.savePreference(userId, 'budget_usage', newUsage)
 }
 
 /**

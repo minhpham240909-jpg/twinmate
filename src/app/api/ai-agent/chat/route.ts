@@ -9,6 +9,7 @@ import { AgentOrchestrator } from '@/../packages/ai-agent/src/lib/orchestrator'
 import { initializeToolRegistry } from '@/../packages/ai-agent/src/tools'
 import { OpenAIEmbeddingProvider } from '@/../packages/ai-agent/src/rag/embeddings'
 import { VectorRetriever } from '@/../packages/ai-agent/src/rag/retriever'
+import { MemoryManager } from '@/../packages/ai-agent/src/lib/memory'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 // LLM Provider (OpenAI/Anthropic)
@@ -140,6 +141,10 @@ export async function POST(request: NextRequest) {
     const embeddingProvider = new OpenAIEmbeddingProvider(openaiApiKey)
     const retriever = new VectorRetriever(supabaseUrl, supabaseServiceKey, embeddingProvider)
     const llmProvider = new OpenAILLMProvider(openaiApiKey)
+    const memoryManager = new MemoryManager(adminSupabase)
+
+    // Load conversation history from memory
+    const conversationHistory = await memoryManager.loadConversation(user.id)
 
     // Initialize tool registry
     const registry = initializeToolRegistry({
@@ -158,12 +163,33 @@ export async function POST(request: NextRequest) {
     // Process message with context
     const response = await orchestrator.handle(user.id, enhancedMessage)
 
+    // Save updated conversation history
+    const newConversation = [
+      ...conversationHistory,
+      {
+        role: 'user' as const,
+        content: message,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        role: 'assistant' as const,
+        content: response.text || '',
+        timestamp: new Date().toISOString(),
+        cards: response.cards,
+      },
+    ]
+
+    // Keep only last 20 messages (10 exchanges) to prevent memory bloat
+    const trimmedConversation = newConversation.slice(-20)
+    await memoryManager.saveConversation(user.id, trimmedConversation)
+
     // Return response
     return NextResponse.json({
       text: response.text,
       cards: response.cards || [],
       toolsUsed: response.toolsUsed || [],
       traceId: response.traceId,
+      historyLoaded: conversationHistory.length > 0, // Let frontend know if history was available
     })
   } catch (error) {
     console.error('AI agent error:', error)
