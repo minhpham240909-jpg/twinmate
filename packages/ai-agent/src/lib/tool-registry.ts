@@ -54,14 +54,20 @@ export class ToolRegistry implements IToolRegistry {
       parameters: any
     }
   }> {
-    return this.list().map(tool => ({
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: this.zodToJsonSchema(tool.inputSchema),
-      },
-    }))
+    const definitions = this.list().map(tool => {
+      const params = this.zodToJsonSchema(tool.inputSchema)
+      console.log(`Tool ${tool.name} schema:`, JSON.stringify(params, null, 2))
+      return {
+        type: 'function' as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: params,
+        },
+      }
+    })
+    console.log(`Generated ${definitions.length} tool definitions`)
+    return definitions
   }
 
   /**
@@ -72,23 +78,53 @@ export class ToolRegistry implements IToolRegistry {
     // Simplified implementation - extract description from Zod schema
     // In production, use a proper converter library
     try {
+      const shape = schema._def?.shape
+      if (!shape) {
+        console.warn('Schema has no shape:', schema)
+        return {
+          type: 'object',
+          properties: {},
+        }
+      }
+
+      const properties: Record<string, any> = {}
+      const required: string[] = []
+
+      // Get shape keys
+      const shapeObj = typeof shape === 'function' ? shape() : shape
+
+      for (const [key, val] of Object.entries(shapeObj)) {
+        const fieldSchema: any = val
+
+        // Check if optional
+        const isOptional = fieldSchema._def?.typeName === 'ZodOptional' ||
+                          fieldSchema._def?.typeName === 'ZodDefault'
+
+        // Get inner type if optional/default
+        const innerType = isOptional ? fieldSchema._def.innerType : fieldSchema
+
+        properties[key] = {
+          type: this.inferType(innerType),
+          description: innerType._def?.description || fieldSchema._def?.description || '',
+        }
+
+        // Add to required if not optional
+        if (!isOptional) {
+          required.push(key)
+        }
+      }
+
       return {
         type: 'object',
-        properties: schema._def?.shape ?
-          Object.fromEntries(
-            Object.entries(schema._def.shape()).map(([key, val]: [string, any]) => [
-              key,
-              {
-                type: this.inferType(val),
-                description: val._def?.description || '',
-              }
-            ])
-          ) : {},
-        required: schema._def?.shape ? Object.keys(schema._def.shape()) : [],
+        properties,
+        ...(required.length > 0 && { required }),
       }
     } catch (error) {
-      console.warn('Failed to convert schema to JSON Schema:', error)
-      return { type: 'object' }
+      console.error('Failed to convert schema to JSON Schema:', error, schema)
+      return {
+        type: 'object',
+        properties: {},
+      }
     }
   }
 
