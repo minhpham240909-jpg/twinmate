@@ -21,23 +21,35 @@ class OpenAILLMProvider {
   }
 
   async complete(request: any): Promise<any> {
+    const requestBody = {
+      model: 'gpt-4-turbo-preview',
+      messages: request.messages,
+      temperature: request.temperature || 0.7,
+      tools: request.tools,
+      stream: false, // Non-streaming for now (tool calls need full response)
+    }
+
+    console.log('OpenAI request:', {
+      model: requestBody.model,
+      messagesCount: requestBody.messages?.length,
+      toolsCount: requestBody.tools?.length,
+      firstMessage: requestBody.messages?.[0],
+    })
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
-        messages: request.messages,
-        temperature: request.temperature || 0.7,
-        tools: request.tools,
-        stream: false, // Non-streaming for now (tool calls need full response)
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`)
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error?.message || errorData.message || response.statusText
+      console.error('OpenAI API error details:', errorData)
+      throw new Error(`OpenAI API error: ${errorMessage}`)
     }
 
     const data = await response.json()
