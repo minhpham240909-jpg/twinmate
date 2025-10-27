@@ -119,11 +119,16 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { message } = body
+    const { message, context } = body
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
+
+    // Enhance message with context if provided
+    const enhancedMessage = context
+      ? `[Context: ${context.description}]\n\n${message}`
+      : message
 
     // Initialize AI agent components
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -150,8 +155,8 @@ export async function POST(request: NextRequest) {
       toolRegistry: registry,
     })
 
-    // Process message
-    const response = await orchestrator.handle(user.id, message)
+    // Process message with context
+    const response = await orchestrator.handle(user.id, enhancedMessage)
 
     // Return response
     return NextResponse.json({

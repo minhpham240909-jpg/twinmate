@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Sparkles, X, Minimize2, Maximize2 } from 'lucide-react'
 
@@ -22,7 +23,30 @@ interface AIPanelProps {
   initialMinimized?: boolean
 }
 
+// Helper to extract page context for AI
+function getPageContext(pathname: string): { page: string; description: string } {
+  if (pathname.startsWith('/dashboard')) {
+    return { page: 'dashboard', description: 'User is on their main dashboard' }
+  } else if (pathname.startsWith('/study-sessions')) {
+    return { page: 'study-sessions', description: 'User is viewing or in a study session' }
+  } else if (pathname.startsWith('/groups')) {
+    return { page: 'groups', description: 'User is viewing study groups' }
+  } else if (pathname.startsWith('/community')) {
+    return { page: 'community', description: 'User is viewing the community feed' }
+  } else if (pathname.startsWith('/chat')) {
+    return { page: 'chat', description: 'User is in direct messages' }
+  } else if (pathname.startsWith('/connections')) {
+    return { page: 'connections', description: 'User is viewing their connections' }
+  } else if (pathname.startsWith('/profile')) {
+    return { page: 'profile', description: 'User is viewing a profile page' }
+  } else if (pathname.startsWith('/search')) {
+    return { page: 'search', description: 'User is searching the platform' }
+  }
+  return { page: 'unknown', description: 'User is on the platform' }
+}
+
 export default function AIPanel({ onClose, initialMinimized = false }: AIPanelProps) {
+  const pathname = usePathname()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -34,7 +58,6 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [isMinimized, setIsMinimized] = useState(initialMinimized)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -68,18 +91,24 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
     setMessages(prev => [...prev, userMessage, assistantMessage])
     setInput('')
     setIsStreaming(true)
-    setStreamingMessageId(assistantMessageId)
     setIsLoading(true)
 
     // Create abort controller for cancellation
     abortControllerRef.current = new AbortController()
 
     try {
+      // Get context based on current page
+      const context = getPageContext(pathname)
+
       // Call AI agent API with streaming
       const response = await fetch('/api/ai-agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, stream: true }),
+        body: JSON.stringify({
+          message: input,
+          stream: true,
+          context
+        }),
         signal: abortControllerRef.current.signal,
       })
 
@@ -157,7 +186,6 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
     } finally {
       setIsLoading(false)
       setIsStreaming(false)
-      setStreamingMessageId(null)
       abortControllerRef.current = null
     }
   }
