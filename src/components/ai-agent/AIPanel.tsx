@@ -33,8 +33,11 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [isMinimized, setIsMinimized] = useState(initialMinimized)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -45,7 +48,7 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
   }, [messages])
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return
+    if (!input.trim() || isLoading || isStreaming) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -54,44 +57,112 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
       timestamp: new Date(),
     }
 
-    setMessages(prev => [...prev, userMessage])
+    const assistantMessageId = (Date.now() + 1).toString()
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    }
+
+    setMessages(prev => [...prev, userMessage, assistantMessage])
     setInput('')
+    setIsStreaming(true)
+    setStreamingMessageId(assistantMessageId)
     setIsLoading(true)
 
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController()
+
     try {
-      // Call AI agent API
+      // Call AI agent API with streaming
       const response = await fetch('/api/ai-agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: input, stream: true }),
+        signal: abortControllerRef.current.signal,
       })
 
-      const data = await response.json()
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.text || 'I apologize, but I encountered an error. Please try again.',
-        cards: data.cards || [],
-        timestamp: new Date(),
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
       }
 
-      setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      let accumulatedText = ''
+      let cards: AICard[] = []
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
+
+            try {
+              const parsed = JSON.parse(data)
+
+              if (parsed.type === 'text') {
+                accumulatedText += parsed.content
+                // Update message in real-time
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: accumulatedText }
+                      : msg
+                  )
+                )
+              } else if (parsed.type === 'cards') {
+                cards = parsed.data
+              } else if (parsed.type === 'done') {
+                // Final update with cards
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: accumulatedText, cards }
+                      : msg
+                  )
+                )
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        // User cancelled - that's fine
+        return
+      }
+
       console.error('AI agent error:', error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again later.',
-        timestamp: new Date(),
-      }
-      setMessages(prev => [...prev, errorMessage])
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: 'Sorry, I encountered an error. Please try again later.' }
+            : msg
+        )
+      )
     } finally {
       setIsLoading(false)
+      setIsStreaming(false)
+      setStreamingMessageId(null)
+      abortControllerRef.current = null
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -181,7 +252,7 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
           </motion.div>
         ))}
 
-        {isLoading && (
+        {isLoading && !isStreaming && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -206,7 +277,9 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
                     className="w-2 h-2 bg-blue-600 rounded-full"
                   />
                 </div>
-                <span className="text-xs text-slate-500">Thinking...</span>
+                <span className="text-xs text-slate-500">
+                  {isStreaming ? 'Typing...' : 'Thinking...'}
+                </span>
               </div>
             </div>
           </motion.div>
@@ -222,14 +295,14 @@ export default function AIPanel({ onClose, initialMinimized = false }: AIPanelPr
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Ask me anything..."
-            disabled={isLoading}
+            disabled={isLoading || isStreaming}
             className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || isStreaming}
             className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="w-5 h-5" />
