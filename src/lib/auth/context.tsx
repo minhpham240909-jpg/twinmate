@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { usePresence } from '@/hooks/usePresence'
 
 export interface UserProfile {
   id: string
@@ -43,6 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+
+  // Enable presence heartbeat for authenticated users
+  usePresence(user, { enabled: !!user })
 
   const fetchProfile = async (userId: string) => {
     try {

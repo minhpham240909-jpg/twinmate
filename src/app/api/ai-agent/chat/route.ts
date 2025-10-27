@@ -47,7 +47,7 @@ class OpenAILLMProvider {
       toolCalls: message.tool_calls?.map((tc: any) => ({
         id: tc.id,
         name: tc.function.name,
-        arguments: JSON.parse(tc.function.arguments),
+        arguments: tc.function.arguments, // Keep as JSON string for orchestrator
       })) || [],
     }
   }
