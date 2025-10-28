@@ -30,20 +30,20 @@ export function createBuildLearningProfileTool(
 
       // Check if profile exists and was recently computed
       const { data: existingProfile } = await supabase
-        .from('LearningProfile')
-        .select('strengths, weaknesses, recommendedFocus, analytics, lastComputedAt')
-        .eq('userId', ctx.userId)
+        .from('learning_profile')
+        .select('strengths, weaknesses, recommended_focus, analytics, last_computed_at')
+        .eq('user_id', ctx.userId)
         .single()
 
       // If not forcing rebuild and profile is recent (< 7 days), return existing
-      if (!forceRebuild && existingProfile && existingProfile.lastComputedAt) {
-        const lastComputed = new Date(existingProfile.lastComputedAt)
+      if (!forceRebuild && existingProfile && existingProfile.last_computed_at) {
+        const lastComputed = new Date(existingProfile.last_computed_at)
         const daysSince = (Date.now() - lastComputed.getTime()) / (1000 * 60 * 60 * 24)
         if (daysSince < 7) {
           return {
             strengths: existingProfile.strengths || [],
             weaknesses: existingProfile.weaknesses || [],
-            recommendedFocus: existingProfile.recommendedFocus || [],
+            recommendedFocus: existingProfile.recommended_focus || [],
             analytics: existingProfile.analytics || {},
           }
         }
@@ -51,12 +51,12 @@ export function createBuildLearningProfileTool(
 
       // Fetch quiz attempts
       const { data: attempts, error: attemptsError } = await supabase
-        .from('QuizAttempt')
+        .from('quiz_attempt')
         .select(`
-          quizId,
+          quiz_id,
           answers,
           score,
-          createdAt,
+          created_at,
           quiz!inner (
             title,
             topic,
@@ -64,8 +64,8 @@ export function createBuildLearningProfileTool(
             items
           )
         `)
-        .eq('userId', ctx.userId)
-        .order('createdAt', { ascending: false })
+        .eq('user_id', ctx.userId)
+        .order('created_at', { ascending: false })
         .limit(50) // Analyze last 50 attempts
 
       if (attemptsError) {
@@ -178,14 +178,14 @@ Respond with only a JSON array: ["focus1", "focus2", "focus3"]
 
       // Save to database (upsert)
       const { error: upsertError } = await supabase
-        .from('LearningProfile')
+        .from('learning_profile')
         .upsert({
-          userId: ctx.userId,
+          user_id: ctx.userId,
           strengths,
           weaknesses,
-          recommendedFocus: recommendedFocus,
+          recommended_focus: recommendedFocus,
           analytics,
-          lastComputedAt: new Date().toISOString(),
+          last_computed_at: new Date().toISOString(),
         })
 
       if (upsertError) {

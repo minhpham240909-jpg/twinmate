@@ -72,6 +72,7 @@ model User {
 
   // Relations
   profile               Profile?
+  learningProfile       LearningProfile?
   sentMatches           Match[]              @relation("SentMatches")
   receivedMatches       Match[]              @relation("ReceivedMatches")
   sentMessages          Message[]            @relation("SentMessages")
@@ -159,6 +160,34 @@ model Profile {
   @@index([subjects])
   @@index([interests])
   @@index([onlineStatus])
+}
+
+model LearningProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Strengths and Weaknesses for Partner Matching
+  strengths        String[] @default([]) // Topics/skills user excels at: ["Calculus", "Essay Writing", "Programming"]
+  weaknesses       String[] @default([]) // Topics/skills user struggles with: ["Statistics", "Grammar", "Algorithms"]
+  recommendedFocus String[] @default([]) // AI-generated recommendations: ["Practice word problems", "Review theorems"]
+
+  // Analytics (from buildLearningProfile tool)
+  analytics      Json?     // Performance breakdown, topic averages, etc.
+  lastComputedAt DateTime? // When the profile was last analyzed
+
+  // Learning Metrics (for future analytics)
+  learningVelocity    Float?  @default(1.0) // How fast they learn (0.5 = slow, 2.0 = fast)
+  retentionRate       Float?  @default(0.7) // How well they retain info (0-1 scale)
+  preferredDifficulty String? // "easy", "medium", "hard", "adaptive"
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([strengths])
+  @@index([weaknesses])
 }
 
 // ==========================================

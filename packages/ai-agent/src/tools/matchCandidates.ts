@@ -26,9 +26,9 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
 
       // 1. Fetch current user's profile and learning profile
       const { data: userProfile, error: userError } = await supabase
-        .from('profile')
-        .select('user_id, subjects, learning_style, grade_level, goals, preferences')
-        .eq('user_id', ctx.userId)
+        .from('Profile')
+        .select('userId, subjects, studyStyle, skillLevel, goals, interests')
+        .eq('userId', ctx.userId)
         .single()
 
       if (userError || !userProfile) {
@@ -36,16 +36,16 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
       }
 
       const { data: userLearning } = await supabase
-        .from('learning_profile')
+        .from('LearningProfile')
         .select('strengths, weaknesses')
-        .eq('user_id', ctx.userId)
+        .eq('userId', ctx.userId)
         .single()
 
       // 2. Fetch all potential candidates (exclude self)
       const { data: candidates, error: candidatesError } = await supabase
-        .from('profile')
-        .select('user_id, subjects, learning_style, grade_level, goals, preferences')
-        .neq('user_id', ctx.userId)
+        .from('Profile')
+        .select('userId, subjects, studyStyle, skillLevel, goals, interests')
+        .neq('userId', ctx.userId)
         .limit(100) // Process top 100 candidates
 
       if (candidatesError) {
@@ -57,19 +57,19 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
       }
 
       // 3. Fetch learning profiles for candidates
-      const candidateIds = candidates.map(c => c.user_id)
+      const candidateIds = candidates.map(c => c.userId)
       const { data: candidateLearningProfiles } = await supabase
-        .from('learning_profile')
-        .select('user_id, strengths, weaknesses')
-        .in('user_id', candidateIds)
+        .from('LearningProfile')
+        .select('userId, strengths, weaknesses')
+        .in('userId', candidateIds)
 
       const learningMap = new Map(
-        candidateLearningProfiles?.map(lp => [lp.user_id, lp]) || []
+        candidateLearningProfiles?.map(lp => [lp.userId, lp]) || []
       )
 
       // 4. Compute match scores for each candidate
       const scoredMatches = candidates.map(candidate => {
-        const candidateLearning = learningMap.get(candidate.user_id)
+        const candidateLearning = learningMap.get(candidate.userId)
         const score = computeCompatibilityScore(
           userProfile,
           candidate,
@@ -81,7 +81,7 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         const facets = computeFacets(userProfile, candidate, userLearning, candidateLearning)
 
         return {
-          userId: candidate.user_id,
+          userId: candidate.userId,
           score: score.score,
           facets,
         }
@@ -93,26 +93,31 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
 
-      // 6. Optionally cache results in match_candidate table
-      if (filteredMatches.length > 0) {
-        const cacheRecords = filteredMatches.map(m => ({
-          user_id: ctx.userId,
-          candidate_id: m.userId,
-          score: m.score,
-          facets: m.facets,
-          computed_at: new Date().toISOString(),
-        }))
+      // 6. Optionally cache results in MatchCandidate table (if exists)
+      try {
+        if (filteredMatches.length > 0) {
+          const cacheRecords = filteredMatches.map(m => ({
+            userId: ctx.userId,
+            candidateId: m.userId,
+            score: m.score,
+            facets: m.facets,
+            computedAt: new Date().toISOString(),
+          }))
 
-        // Delete old cache entries for this user
-        await supabase
-          .from('match_candidate')
-          .delete()
-          .eq('user_id', ctx.userId)
+          // Delete old cache entries for this user
+          await supabase
+            .from('MatchCandidate')
+            .delete()
+            .eq('userId', ctx.userId)
 
-        // Insert new cache
-        await supabase
-          .from('match_candidate')
-          .insert(cacheRecords)
+          // Insert new cache
+          await supabase
+            .from('MatchCandidate')
+            .insert(cacheRecords)
+        }
+      } catch (error) {
+        // Gracefully handle if MatchCandidate table doesn't exist
+        console.warn('Failed to cache match results (table may not exist):', error)
       }
 
       return {
@@ -144,19 +149,17 @@ function computeCompatibilityScore(
   factors++
 
   // Learning style compatibility (20% weight)
-  if (user.learning_style && candidate.learning_style) {
-    const styleScore = user.learning_style === candidate.learning_style ? 0.8 : 0.7
+  if (user.studyStyle && candidate.studyStyle) {
+    const styleScore = user.studyStyle === candidate.studyStyle ? 0.8 : 0.7
     score += styleScore * 0.2
     factors++
   }
 
-  // Grade level proximity (15% weight)
-  if (user.grade_level && candidate.grade_level) {
-    const gradeDiff = Math.abs(
-      parseInt(user.grade_level) - parseInt(candidate.grade_level)
-    )
-    const gradeScore = Math.max(0, 1 - gradeDiff * 0.2)
-    score += gradeScore * 0.15
+  // Skill level proximity (15% weight)
+  if (user.skillLevel && candidate.skillLevel) {
+    // SkillLevel is an enum, so we'll compare as strings
+    const skillScore = user.skillLevel === candidate.skillLevel ? 1.0 : 0.6
+    score += skillScore * 0.15
     factors++
   }
 
@@ -194,10 +197,8 @@ function computeFacets(
   const facets: Record<string, any> = {
     commonSubjects,
     subjectCount: commonSubjects.length,
-    learningStyleMatch: user.learning_style === candidate.learning_style,
-    gradeLevelDiff: user.grade_level && candidate.grade_level
-      ? Math.abs(parseInt(user.grade_level) - parseInt(candidate.grade_level))
-      : null,
+    studyStyleMatch: user.studyStyle === candidate.studyStyle,
+    skillLevelMatch: user.skillLevel === candidate.skillLevel,
   }
 
   // Complementarity

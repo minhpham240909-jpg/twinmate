@@ -32,24 +32,24 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
 
       // 1. Fetch both profiles
       const { data: profiles, error: profileError } = await supabase
-        .from('profile')
-        .select('user_id, subjects, learning_style, grade_level, goals, preferences')
-        .in('user_id', [forUserId, candidateId])
+        .from('Profile')
+        .select('userId, subjects, studyStyle, skillLevel, goals, interests')
+        .in('userId', [forUserId, candidateId])
 
       if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`)
       if (!profiles || profiles.length < 2) throw new Error('One or both users not found')
 
-      const userProfile = profiles.find(p => p.user_id === forUserId)!
-      const candidateProfile = profiles.find(p => p.user_id === candidateId)!
+      const userProfile = profiles.find(p => p.userId === forUserId)!
+      const candidateProfile = profiles.find(p => p.userId === candidateId)!
 
       // 2. Fetch learning profiles (strengths/weaknesses)
       const { data: learningProfiles } = await supabase
-        .from('learning_profile')
-        .select('user_id, strengths, weaknesses')
-        .in('user_id', [forUserId, candidateId])
+        .from('LearningProfile')
+        .select('userId, strengths, weaknesses')
+        .in('userId', [forUserId, candidateId])
 
-      const userLearning = learningProfiles?.find(p => p.user_id === forUserId)
-      const candidateLearning = learningProfiles?.find(p => p.user_id === candidateId)
+      const userLearning = learningProfiles?.find(p => p.userId === forUserId)
+      const candidateLearning = learningProfiles?.find(p => p.userId === candidateId)
 
       // 3. Compute compatibility score
       const compatibility = computeCompatibilityScore(
@@ -79,9 +79,9 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
 
       // 7. Fetch availability windows for both users
       const { data: availabilities, error: availError } = await supabase
-        .from('availability_block')
-        .select('user_id, dow, start_min, end_min, timezone')
-        .in('user_id', [forUserId, candidateId])
+        .from('AvailabilityBlock')
+        .select('userId, dow, startMin, endMin, timezone')
+        .in('userId', [forUserId, candidateId])
 
       // Gracefully handle missing table
       let userWindows: AvailabilityWindow[] = []
@@ -89,20 +89,20 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
 
       if (!availError) {
         userWindows = (availabilities || [])
-          .filter(a => a.user_id === forUserId)
+          .filter(a => a.userId === forUserId)
           .map(a => ({
             dow: a.dow,
-            startMin: a.start_min,
-            endMin: a.end_min,
+            startMin: a.startMin,
+            endMin: a.endMin,
             timezone: a.timezone,
           }))
 
         candidateWindows = (availabilities || [])
-          .filter(a => a.user_id === candidateId)
+          .filter(a => a.userId === candidateId)
           .map(a => ({
             dow: a.dow,
-            startMin: a.start_min,
-            endMin: a.end_min,
+            startMin: a.startMin,
+            endMin: a.endMin,
             timezone: a.timezone,
           }))
       } else if (availError.code !== '42P01' && !availError.message.includes('does not exist')) {
@@ -115,14 +115,14 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
 
       // 9. Check if they can study NOW (presence + current time in shared window)
       const { data: presenceData } = await supabase
-        .from('presence')
-        .select('user_id, is_online, current_activity')
-        .eq('user_id', candidateId)
+        .from('Presence')
+        .select('userId, isOnline, currentActivity')
+        .eq('userId', candidateId)
         .single()
 
-      const isOnline = presenceData?.is_online &&
-                       (presenceData.current_activity === 'available' ||
-                        presenceData.current_activity === 'studying')
+      const isOnline = presenceData?.isOnline &&
+                       (presenceData.currentActivity === 'available' ||
+                        presenceData.currentActivity === 'studying')
 
       const inSharedWindow = checkCanStudyNow(sharedWindows)
       const canStudyNow = isOnline && inSharedWindow
@@ -167,20 +167,18 @@ function computeCompatibilityScore(
   factors++
 
   // Learning style compatibility (20% weight)
-  if (user.learning_style && candidate.learning_style) {
+  if (user.studyStyle && candidate.studyStyle) {
     // Same learning style = 0.8, complementary = 1.0, opposite = 0.5
-    const styleScore = user.learning_style === candidate.learning_style ? 0.8 : 0.7
+    const styleScore = user.studyStyle === candidate.studyStyle ? 0.8 : 0.7
     score += styleScore * 0.2
     factors++
   }
 
-  // Grade level proximity (15% weight)
-  if (user.grade_level && candidate.grade_level) {
-    const gradeDiff = Math.abs(
-      parseInt(user.grade_level) - parseInt(candidate.grade_level)
-    )
-    const gradeScore = Math.max(0, 1 - gradeDiff * 0.2)
-    score += gradeScore * 0.15
+  // Skill level proximity (15% weight)
+  if (user.skillLevel && candidate.skillLevel) {
+    // SkillLevel is an enum, so we'll compare as strings
+    const skillScore = user.skillLevel === candidate.skillLevel ? 1.0 : 0.6
+    score += skillScore * 0.15
     factors++
   }
 
@@ -253,20 +251,20 @@ function identifyRisks(user: any, candidate: any): string[] {
     risks.push('No overlapping subjects - may need to find common ground')
   }
 
-  // Very different grade levels
-  if (user.grade_level && candidate.grade_level) {
-    const gradeDiff = Math.abs(
-      parseInt(user.grade_level) - parseInt(candidate.grade_level)
-    )
-    if (gradeDiff >= 3) {
-      risks.push('Significant grade level difference - adjust expectations')
+  // Very different skill levels
+  if (user.skillLevel && candidate.skillLevel) {
+    const skillLevels = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
+    const userIdx = skillLevels.indexOf(user.skillLevel)
+    const candidateIdx = skillLevels.indexOf(candidate.skillLevel)
+    if (userIdx >= 0 && candidateIdx >= 0 && Math.abs(userIdx - candidateIdx) >= 2) {
+      risks.push('Significant skill level difference - may need to adjust pace')
     }
   }
 
-  // Different learning paces (from preferences)
-  if (user.preferences?.pace && candidate.preferences?.pace) {
-    if (user.preferences.pace !== candidate.preferences.pace) {
-      risks.push('Different learning paces - may need to compromise')
+  // Different study styles (from studyStyle)
+  if (user.studyStyle && candidate.studyStyle) {
+    if (user.studyStyle !== candidate.studyStyle) {
+      risks.push('Different study styles - find common ground for collaboration')
     }
   }
 
