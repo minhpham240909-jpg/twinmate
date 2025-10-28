@@ -36,34 +36,79 @@ class OpenAILLMProvider {
       firstMessage: requestBody.messages?.[0],
     })
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-    })
+    // Retry with exponential backoff for transient errors
+    const maxRetries = 3
+    let lastError: any
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = errorData.error?.message || errorData.message || response.statusText
-      console.error('OpenAI API error details:', errorData)
-      throw new Error(`OpenAI API error: ${errorMessage}`)
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.error?.message || errorData.message || response.statusText
+
+          console.error(`OpenAI API error (attempt ${attempt}/${maxRetries}):`, errorData)
+
+          // Don't retry on client errors (400-499) except rate limits (429)
+          if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            throw new Error(`OpenAI API error: ${errorMessage}`)
+          }
+
+          lastError = new Error(`OpenAI API error: ${errorMessage}`)
+
+          // Retry on server errors (500+) or rate limits (429)
+          if (attempt < maxRetries) {
+            const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000) // Max 10s backoff
+            console.log(`Retrying in ${backoffMs}ms...`)
+            await new Promise(resolve => setTimeout(resolve, backoffMs))
+            continue
+          }
+          throw lastError
+        }
+
+        const data = await response.json()
+        const message = data.choices[0].message
+
+        return {
+          content: message.content || '',
+          finishReason: message.tool_calls ? 'tool_calls' : 'stop',
+          toolCalls: message.tool_calls?.map((tc: any) => ({
+            id: tc.id,
+            name: tc.function.name,
+            arguments: tc.function.arguments, // Keep as JSON string for orchestrator
+          })) || [],
+        }
+      } catch (error: any) {
+        lastError = error
+        if (attempt < maxRetries && this.isRetryableError(error)) {
+          const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+          console.log(`Network error, retrying in ${backoffMs}ms...`, error.message)
+          await new Promise(resolve => setTimeout(resolve, backoffMs))
+          continue
+        }
+        throw error
+      }
     }
 
-    const data = await response.json()
-    const message = data.choices[0].message
+    throw lastError
+  }
 
-    return {
-      content: message.content || '',
-      finishReason: message.tool_calls ? 'tool_calls' : 'stop',
-      toolCalls: message.tool_calls?.map((tc: any) => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: tc.function.arguments, // Keep as JSON string for orchestrator
-      })) || [],
-    }
+  private isRetryableError(error: any): boolean {
+    // Retry on network errors, timeouts, etc.
+    return (
+      error.name === 'TypeError' ||
+      error.message?.includes('fetch') ||
+      error.message?.includes('network') ||
+      error.message?.includes('timeout')
+    )
   }
 
   async *stream(request: any): AsyncIterableIterator<string> {
@@ -117,6 +162,38 @@ class OpenAILLMProvider {
   }
 }
 
+// Simple in-memory rate limiting (per-user)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now()
+  const limit = rateLimitMap.get(userId)
+
+  // Reset if expired
+  if (limit && now > limit.resetAt) {
+    rateLimitMap.delete(userId)
+  }
+
+  const current = rateLimitMap.get(userId)
+
+  // Allow 20 requests per minute per user
+  const maxRequests = 20
+  const windowMs = 60000 // 1 minute
+
+  if (!current) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + windowMs })
+    return { allowed: true }
+  }
+
+  if (current.count >= maxRequests) {
+    const retryAfter = Math.ceil((current.resetAt - now) / 1000)
+    return { allowed: false, retryAfter }
+  }
+
+  current.count++
+  return { allowed: true }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user
@@ -128,6 +205,15 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(user.id)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Try again in ${rateLimit.retryAfter} seconds.` },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+      )
     }
 
     // Parse request body
