@@ -259,8 +259,10 @@ export async function POST(request: NextRequest) {
       supabase: adminSupabase, // Pass Supabase client for profile/memory loading
     })
 
-    // Process message with context
-    const response = await orchestrator.handle(user.id, enhancedMessage)
+    // Process message with context and conversation history
+    const response = await orchestrator.handle(user.id, enhancedMessage, {
+      conversationHistory,
+    })
 
     // Save updated conversation history (non-blocking, failures are logged but don't break response)
     try {

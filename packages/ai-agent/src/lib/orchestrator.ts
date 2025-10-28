@@ -94,8 +94,8 @@ export class AgentOrchestrator {
         context.retrievedChunks = retrieved.chunks
       }
 
-      // Generate response with tools
-      const response = await this.generateResponse(message, context)
+      // Generate response with tools (pass conversation history)
+      const response = await this.generateResponse(message, context, options?.conversationHistory || [])
 
       // Track telemetry
       await this.config.telemetry.trackEvent({
@@ -222,15 +222,28 @@ export class AgentOrchestrator {
    */
   private async generateResponse(
     message: string,
-    context: AgentContext
+    context: AgentContext,
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
   ): Promise<AgentResponse> {
     const systemPrompt = this.buildSystemPrompt(context)
     const userPrompt = this.buildUserPrompt(message, context)
 
+    // Build messages array with conversation history
     const messages: LLMMessage[] = [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
     ]
+
+    // Add conversation history (last 10 messages max to avoid token limits)
+    const recentHistory = conversationHistory.slice(-10)
+    for (const msg of recentHistory) {
+      messages.push({
+        role: msg.role,
+        content: msg.content,
+      })
+    }
+
+    // Add current user message
+    messages.push({ role: 'user', content: userPrompt })
 
     const toolDefinitions = this.config.toolRegistry.getToolDefinitions()
 
@@ -541,4 +554,9 @@ Remember: Help with ANY topic they ask about, whether it's in their profile or n
 export interface HandleOptions {
   conversationId?: string
   userProfile?: any
+  conversationHistory?: Array<{
+    role: 'user' | 'assistant'
+    content: string
+    timestamp?: string
+  }>
 }
