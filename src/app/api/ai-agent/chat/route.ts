@@ -22,7 +22,7 @@ class OpenAILLMProvider {
 
   async complete(request: any): Promise<any> {
     const requestBody = {
-      model: 'gpt-4-turbo',
+      model: 'gpt-4o', // PERFORMANCE: Switched from gpt-4-turbo to gpt-4o (50% faster, 50% cheaper)
       messages: request.messages,
       temperature: request.temperature || 0.7,
       tools: request.tools,
@@ -241,15 +241,16 @@ export async function POST(request: NextRequest) {
     const llmProvider = new OpenAILLMProvider(openaiApiKey)
     const memoryManager = new MemoryManager(adminSupabase)
 
-    // Load conversation history from memory
-    const conversationHistory = await memoryManager.loadConversation(user.id)
-
-    // Initialize tool registry
-    const registry = initializeToolRegistry({
-      supabase: adminSupabase,
-      llmProvider,
-      retriever,
-    })
+    // PERFORMANCE: Load conversation history in parallel with registry setup
+    const [conversationHistory, registry] = await Promise.all([
+      memoryManager.loadConversation(user.id),
+      // Initialize tool registry (synchronous but wrapped in Promise.resolve for consistency)
+      Promise.resolve(initializeToolRegistry({
+        supabase: adminSupabase,
+        llmProvider,
+        retriever,
+      })),
+    ])
 
     // Create orchestrator
     const orchestrator = new AgentOrchestrator({

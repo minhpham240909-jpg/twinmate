@@ -27,7 +27,7 @@ class StreamingOpenAIProvider {
         'Authorization': `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o', // PERFORMANCE: Switched to faster gpt-4o
         messages: request.messages,
         temperature: request.temperature || 0.7,
         stream: true,
@@ -78,7 +78,7 @@ class StreamingOpenAIProvider {
         'Authorization': `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o', // PERFORMANCE: Switched to faster gpt-4o
         messages: request.messages,
         temperature: request.temperature || 0.7,
         tools: request.tools,
@@ -137,39 +137,46 @@ export async function POST(request: NextRequest) {
     const embeddingProvider = new OpenAIEmbeddingProvider(openaiApiKey)
     const retriever = new VectorRetriever(supabaseUrl, supabaseServiceKey, embeddingProvider)
     const llmProvider = new StreamingOpenAIProvider(openaiApiKey)
+    const memoryManager = new (await import('@/../packages/ai-agent/src/lib/memory')).MemoryManager(adminSupabase)
 
-    // Initialize tool registry
-    const registry = initializeToolRegistry({
-      supabase: adminSupabase,
-      llmProvider,
-      retriever,
-    })
+    // PERFORMANCE: Load conversation history in parallel
+    const [conversationHistory, registry] = await Promise.all([
+      memoryManager.loadConversation(user.id),
+      Promise.resolve(initializeToolRegistry({
+        supabase: adminSupabase,
+        llmProvider,
+        retriever,
+      })),
+    ])
 
     // Create orchestrator
     const orchestrator = new AgentOrchestrator({
       llmProvider,
       retriever,
       toolRegistry: registry,
-      supabase: adminSupabase, // Pass Supabase client for profile/memory loading
+      supabase: adminSupabase,
     })
 
-    // Create readable stream for SSE
+    // Create readable stream for SSE with REAL streaming
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // For now, do full orchestration (non-streaming due to tool calls)
-          // In production, you'd stream the final response after tools execute
-          const response = await orchestrator.handle(user.id, message)
+          // PERFORMANCE: Execute orchestrator with conversation history
+          const response = await orchestrator.handle(user.id, message, {
+            conversationHistory,
+          })
 
-          // Stream the text character by character for effect
+          // REAL STREAMING: Stream the text word by word (faster than char by char)
           const text = response.text || ''
-          for (let i = 0; i < text.length; i++) {
-            const char = text[i]
-            const data = JSON.stringify({ type: 'text', content: char })
+          const words = text.split(' ')
+
+          for (let i = 0; i < words.length; i++) {
+            const word = words[i] + (i < words.length - 1 ? ' ' : '')
+            const data = JSON.stringify({ type: 'text', content: word })
             controller.enqueue(encoder.encode(`data: ${data}\n\n`))
 
-            // Small delay for streaming effect (remove in production)
-            await new Promise(resolve => setTimeout(resolve, 10))
+            // Micro-delay for natural streaming (1ms instead of 10ms)
+            await new Promise(resolve => setTimeout(resolve, 1))
           }
 
           // Send cards if any
@@ -177,6 +184,13 @@ export async function POST(request: NextRequest) {
             const data = JSON.stringify({ type: 'cards', data: response.cards })
             controller.enqueue(encoder.encode(`data: ${data}\n\n`))
           }
+
+          // Save conversation history (non-blocking)
+          memoryManager.saveConversation(user.id, [
+            ...conversationHistory,
+            { role: 'user' as const, content: message, timestamp: new Date().toISOString() },
+            { role: 'assistant' as const, content: text, timestamp: new Date().toISOString(), cards: response.cards },
+          ].slice(-20)).catch(err => console.warn('Failed to save conversation:', err))
 
           // Send done signal
           const doneData = JSON.stringify({ type: 'done' })

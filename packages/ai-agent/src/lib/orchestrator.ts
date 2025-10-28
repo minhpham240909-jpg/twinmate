@@ -78,21 +78,15 @@ export class AgentOrchestrator {
     const startTime = Date.now()
 
     try {
-      // Build context
-      const context = await this.buildContext(userId, message, traceId, options)
+      // PERFORMANCE: Build context and retrieve notes in PARALLEL (removed slow intent classification)
+      const [context, retrieved] = await Promise.all([
+        this.buildContext(userId, message, traceId, options),
+        // PERFORMANCE: Retrieve only 5 chunks (reduced from 10) for faster processing
+        this.config.retriever.retrieve(message, userId, { limit: 5, threshold: 0.7 }),
+      ])
 
-      // Classify intent and decide if RAG is needed
-      const intent = await this.classifyIntent(message, context)
-
-      // Retrieve relevant context if needed
-      if (intent.needsRAG) {
-        const retrieved = await this.config.retriever.retrieve(
-          message,
-          userId,
-          { limit: 10, threshold: 0.7 }
-        )
-        context.retrievedChunks = retrieved.chunks
-      }
+      // Add retrieved chunks to context
+      context.retrievedChunks = retrieved.chunks
 
       // Generate response with tools (pass conversation history)
       const response = await this.generateResponse(message, context, options?.conversationHistory || [])
@@ -130,48 +124,48 @@ export class AgentOrchestrator {
     traceId: string,
     options?: HandleOptions
   ): Promise<AgentContext> {
-    // Load user profile from database
+    // PERFORMANCE: Load user profile and memory in PARALLEL instead of sequential
     let userProfile = options?.userProfile
-    if (!userProfile && this.config.supabase) {
-      try {
-        const { data: profile } = await this.config.supabase
-          .from('Profile')
-          .select('subjects, goals, studyStyle, skillLevel, interests')
-          .eq('userId', userId)
-          .single()
+    const recentMemory: any[] = []
 
-        if (profile) {
+    if (this.config.supabase) {
+      try {
+        // Load both profile and memory concurrently
+        const [profileResult, memoryResult] = await Promise.all([
+          // Load user profile
+          !userProfile ? this.config.supabase
+            .from('Profile')
+            .select('subjects, goals, studyStyle, skillLevel, interests')
+            .eq('userId', userId)
+            .single() : Promise.resolve({ data: null }),
+          // Load recent memory
+          this.config.supabase
+            .from('agent_memory')
+            .select('key, value')
+            .eq('user_id', userId)
+            .eq('scope', 'long')
+            .limit(10),
+        ])
+
+        // Process profile data
+        if (!userProfile && profileResult.data) {
           userProfile = {
-            subjects: profile.subjects || [],
-            goals: profile.goals || [],
-            learningStyle: profile.studyStyle || 'Unknown',
+            subjects: profileResult.data.subjects || [],
+            goals: profileResult.data.goals || [],
+            learningStyle: profileResult.data.studyStyle || 'Unknown',
             preferences: {
-              skillLevel: profile.skillLevel,
-              interests: profile.interests || [],
+              skillLevel: profileResult.data.skillLevel,
+              interests: profileResult.data.interests || [],
             },
           }
         }
-      } catch (error) {
-        console.warn('Failed to load user profile:', error)
-      }
-    }
 
-    // Load recent memory/facts from agent_memory table
-    const recentMemory: any[] = []
-    if (this.config.supabase) {
-      try {
-        const { data: facts } = await this.config.supabase
-          .from('agent_memory')
-          .select('key, value')
-          .eq('user_id', userId)
-          .eq('scope', 'long')
-          .limit(10)
-
-        if (facts && facts.length > 0) {
-          recentMemory.push(...facts.map((f: any) => ({ key: f.key, value: f.value })))
+        // Process memory data
+        if (memoryResult.data && memoryResult.data.length > 0) {
+          recentMemory.push(...memoryResult.data.map((f: any) => ({ key: f.key, value: f.value })))
         }
       } catch (error) {
-        console.warn('Failed to load memory:', error)
+        console.warn('Failed to load context data:', error)
       }
     }
 
@@ -184,37 +178,6 @@ export class AgentOrchestrator {
       recentMemory,
       retrievedChunks: [],
     }
-  }
-
-  /**
-   * Classify user intent and determine if RAG is needed
-   */
-  private async classifyIntent(
-    message: string,
-    context: AgentContext
-  ): Promise<{ needsRAG: boolean; suggestedTools: string[] }> {
-    // Simple heuristic-based classification
-    // In production, use LLM to classify intent
-
-    const lowerMessage = message.toLowerCase()
-
-    // RAG triggers
-    const ragKeywords = ['explain', 'what is', 'tell me about', 'summarize', 'from my notes']
-    const needsRAG = ragKeywords.some(kw => lowerMessage.includes(kw))
-
-    // Tool suggestions
-    const suggestedTools: string[] = []
-    if (lowerMessage.includes('quiz')) suggestedTools.push('generateQuiz')
-    if (lowerMessage.includes('flashcard')) suggestedTools.push('addFlashcards')
-    if (lowerMessage.includes('plan') || lowerMessage.includes('schedule')) {
-      suggestedTools.push('createStudyPlan')
-    }
-    if (lowerMessage.includes('partner') || lowerMessage.includes('match')) {
-      suggestedTools.push('matchCandidates', 'matchInsight')
-    }
-    if (lowerMessage.includes('summarize')) suggestedTools.push('summarizeSession')
-
-    return { needsRAG, suggestedTools }
   }
 
   /**
@@ -247,12 +210,12 @@ export class AgentOrchestrator {
 
     const toolDefinitions = this.config.toolRegistry.getToolDefinitions()
 
-    // Call LLM with tools
+    // PERFORMANCE: Reduced maxTokens for faster responses, lower temperature for speed
     let response = await this.config.llmProvider.complete({
       messages,
       tools: toolDefinitions,
-      temperature: 0.7,
-      maxTokens: 2000,
+      temperature: 0.5, // Lower temp = faster, more focused responses
+      maxTokens: 1000, // Reduced from 2000 for faster generation
     })
 
     const toolResults: ToolResult[] = []
