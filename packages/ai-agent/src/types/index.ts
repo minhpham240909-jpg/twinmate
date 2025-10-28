@@ -399,9 +399,18 @@ export interface LLMRequest {
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string
+  content: string | null // Allow null for assistant messages with only tool_calls
   name?: string
-  toolCallId?: string
+  toolCallId?: string // For tool role messages
+  tool_calls?: Array<{
+    id: string
+    type: 'function'
+    function: {
+      name: string
+      arguments: string
+    }
+  }> // For assistant role messages that call tools
+  tool_call_id?: string // OpenAI uses snake_case for tool responses
 }
 
 export interface LLMTool {

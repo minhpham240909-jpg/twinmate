@@ -253,7 +253,22 @@ export class AgentOrchestrator {
     ) {
       iterationCount++
 
-      // Execute all tool calls
+      // CRITICAL FIX: Add assistant's message with tool_calls BEFORE adding tool results
+      // OpenAI API requires: [user] -> [assistant with tool_calls] -> [tool results] -> [assistant]
+      messages.push({
+        role: 'assistant' as const,
+        content: response.content || null,
+        tool_calls: response.toolCalls.map(tc => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: {
+            name: tc.name,
+            arguments: tc.arguments,
+          },
+        })),
+      })
+
+      // Execute all tool calls and add their results
       for (const toolCall of response.toolCalls) {
         const result = await this.executeTool(toolCall.name, toolCall.arguments, context)
         toolResults.push(result)
@@ -262,12 +277,11 @@ export class AgentOrchestrator {
         messages.push({
           role: 'tool' as const,
           content: JSON.stringify(result.output),
-          name: toolCall.name,
-          toolCallId: toolCall.id,
+          tool_call_id: toolCall.id, // OpenAI uses tool_call_id (not toolCallId)
         })
       }
 
-      // Continue conversation
+      // Continue conversation with updated messages
       response = await this.config.llmProvider.complete({
         messages,
         tools: toolDefinitions,

@@ -14,6 +14,9 @@ ALTER TABLE "Group" ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view public groups" ON "Group";
 DROP POLICY IF EXISTS "Users can view groups they're members of" ON "Group";
 DROP POLICY IF EXISTS "Group owners can manage their groups" ON "Group";
+DROP POLICY IF EXISTS "Users can create groups" ON "Group";
+DROP POLICY IF EXISTS "Group owners can update their groups" ON "Group";
+DROP POLICY IF EXISTS "Group owners can delete their groups" ON "Group";
 
 -- View: Public groups or groups user is a member of
 CREATE POLICY "Users can view public groups"
@@ -22,9 +25,9 @@ FOR SELECT
 USING (
   privacy = 'PUBLIC'
   OR
-  auth.uid()::text = "ownerId"
+  (select auth.uid())::text = "ownerId"
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "GroupMember"
     WHERE "groupId" = "Group"."id"
@@ -36,7 +39,7 @@ CREATE POLICY "Users can create groups"
 ON "Group"
 FOR INSERT
 WITH CHECK (
-  auth.uid()::text = "ownerId"
+  (select auth.uid())::text = "ownerId"
 );
 
 -- Update: Only owners can update
@@ -44,10 +47,10 @@ CREATE POLICY "Group owners can update their groups"
 ON "Group"
 FOR UPDATE
 USING (
-  auth.uid()::text = "ownerId"
+  (select auth.uid())::text = "ownerId"
 )
 WITH CHECK (
-  auth.uid()::text = "ownerId"
+  (select auth.uid())::text = "ownerId"
 );
 
 -- Delete: Only owners can delete
@@ -55,7 +58,7 @@ CREATE POLICY "Group owners can delete their groups"
 ON "Group"
 FOR DELETE
 USING (
-  auth.uid()::text = "ownerId"
+  (select auth.uid())::text = "ownerId"
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON "Group" TO authenticated;
@@ -75,15 +78,15 @@ CREATE POLICY "Users can view group members"
 ON "GroupMember"
 FOR SELECT
 USING (
-  auth.uid()::text = "userId"
+  (select auth.uid())::text = "userId"
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "GroupMember" AS gm
     WHERE gm."groupId" = "GroupMember"."groupId"
   )
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "ownerId"
     FROM "Group"
     WHERE "id" = "GroupMember"."groupId"
@@ -95,13 +98,13 @@ CREATE POLICY "Group owners and admins can manage members"
 ON "GroupMember"
 FOR ALL
 USING (
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "ownerId"
     FROM "Group"
     WHERE "id" = "GroupMember"."groupId"
   )
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "GroupMember"
     WHERE "groupId" = "GroupMember"."groupId"
@@ -109,13 +112,13 @@ USING (
   )
 )
 WITH CHECK (
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "ownerId"
     FROM "Group"
     WHERE "id" = "GroupMember"."groupId"
   )
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "GroupMember"
     WHERE "groupId" = "GroupMember"."groupId"
@@ -150,6 +153,7 @@ ALTER TABLE "UserBadge" ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view their own badges" ON "UserBadge";
 DROP POLICY IF EXISTS "Users can view others' badges" ON "UserBadge";
+DROP POLICY IF EXISTS "Users can view all user badges" ON "UserBadge";
 
 -- Users can view their own badges and others' badges
 CREATE POLICY "Users can view all user badges"
@@ -174,17 +178,17 @@ CREATE POLICY "Users can view their own sessions"
 ON "Session"
 FOR SELECT
 USING (
-  auth.uid()::text = "userId"
+  (select auth.uid())::text = "userId"
 );
 
 CREATE POLICY "Users can manage their own sessions"
 ON "Session"
 FOR ALL
 USING (
-  auth.uid()::text = "userId"
+  (select auth.uid())::text = "userId"
 )
 WITH CHECK (
-  auth.uid()::text = "userId"
+  (select auth.uid())::text = "userId"
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON "Session" TO authenticated;
@@ -202,10 +206,10 @@ CREATE POLICY "Users can manage their own archives"
 ON "ConversationArchive"
 FOR ALL
 USING (
-  auth.uid()::text = "userId"
+  (select auth.uid())::text = "userId"
 )
 WITH CHECK (
-  auth.uid()::text = "userId"
+  (select auth.uid())::text = "userId"
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON "ConversationArchive" TO authenticated;
@@ -224,13 +228,13 @@ CREATE POLICY "Users can view goals in their sessions"
 ON "SessionGoal"
 FOR SELECT
 USING (
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "SessionParticipant"
     WHERE "sessionId" = "SessionGoal"."sessionId"
   )
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "createdBy"
     FROM "StudySession"
     WHERE "id" = "SessionGoal"."sessionId"
@@ -242,26 +246,26 @@ CREATE POLICY "Session participants can manage goals"
 ON "SessionGoal"
 FOR ALL
 USING (
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "SessionParticipant"
     WHERE "sessionId" = "SessionGoal"."sessionId"
   )
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "createdBy"
     FROM "StudySession"
     WHERE "id" = "SessionGoal"."sessionId"
   )
 )
 WITH CHECK (
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "userId"
     FROM "SessionParticipant"
     WHERE "sessionId" = "SessionGoal"."sessionId"
   )
   OR
-  auth.uid()::text IN (
+  (select auth.uid())::text IN (
     SELECT "createdBy"
     FROM "StudySession"
     WHERE "id" = "SessionGoal"."sessionId"
