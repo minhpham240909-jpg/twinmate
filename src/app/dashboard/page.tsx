@@ -394,56 +394,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-
-          {/* AI Suggestions - Proactive */}
-          <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-sm p-6 border-2 border-purple-200">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">AI Suggestions for You</h3>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={() => openPanel('Create a study plan for this week')}
-                className="w-full p-4 bg-white rounded-lg hover:shadow-md transition text-left border border-purple-100 hover:border-purple-300"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">📅</span>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 mb-1">Plan your week</h4>
-                    <p className="text-sm text-gray-600">Let AI create a personalized study schedule</p>
-                  </div>
-                </div>
-              </button>
-              <button
-                onClick={() => openPanel('Find me a study partner for my courses')}
-                className="w-full p-4 bg-white rounded-lg hover:shadow-md transition text-left border border-purple-100 hover:border-purple-300"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">🤝</span>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 mb-1">Find study partners</h4>
-                    <p className="text-sm text-gray-600">AI will match you with compatible partners</p>
-                  </div>
-                </div>
-              </button>
-              <button
-                onClick={() => openPanel('Generate a quiz to test my knowledge')}
-                className="w-full p-4 bg-white rounded-lg hover:shadow-md transition text-left border border-purple-100 hover:border-purple-300"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">📝</span>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 mb-1">Test your knowledge</h4>
-                    <p className="text-sm text-gray-600">Generate quizzes from your study materials</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
         </div>
       </main>
 
