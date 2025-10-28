@@ -22,6 +22,7 @@ export interface OrchestratorConfig {
   llmProvider: LLMProvider
   retriever: Retriever
   toolRegistry: ToolRegistry
+  supabase: any // Supabase client for DB access
   telemetry?: TelemetryClient
   maxToolCalls?: number
   timeout?: number
@@ -129,17 +130,58 @@ export class AgentOrchestrator {
     traceId: string,
     options?: HandleOptions
   ): Promise<AgentContext> {
-    // TODO: Load user profile from database
-    // TODO: Load recent memory from agent_memory table
-    // For now, minimal context
+    // Load user profile from database
+    let userProfile = options?.userProfile
+    if (!userProfile && this.config.supabase) {
+      try {
+        const { data: profile } = await this.config.supabase
+          .from('Profile')
+          .select('subjects, goals, studyStyle, skillLevel, interests')
+          .eq('userId', userId)
+          .single()
+
+        if (profile) {
+          userProfile = {
+            subjects: profile.subjects || [],
+            goals: profile.goals || [],
+            learningStyle: profile.studyStyle || 'Unknown',
+            preferences: {
+              skillLevel: profile.skillLevel,
+              interests: profile.interests || [],
+            },
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load user profile:', error)
+      }
+    }
+
+    // Load recent memory/facts from agent_memory table
+    const recentMemory: any[] = []
+    if (this.config.supabase) {
+      try {
+        const { data: facts } = await this.config.supabase
+          .from('agent_memory')
+          .select('key, value')
+          .eq('user_id', userId)
+          .eq('scope', 'long')
+          .limit(10)
+
+        if (facts && facts.length > 0) {
+          recentMemory.push(...facts.map((f: any) => ({ key: f.key, value: f.value })))
+        }
+      } catch (error) {
+        console.warn('Failed to load memory:', error)
+      }
+    }
 
     return {
       userId,
       traceId,
       timestamp: new Date(),
       conversationId: options?.conversationId,
-      userProfile: options?.userProfile,
-      recentMemory: [],
+      userProfile,
+      recentMemory,
       retrievedChunks: [],
     }
   }
@@ -331,7 +373,16 @@ export class AgentOrchestrator {
    * Build system prompt with agent identity and rules
    */
   private buildSystemPrompt(context: AgentContext): string {
-    return `You are Clerva AI, a single study copilot for students.
+    // Build memory context if available
+    let memoryContext = ''
+    if (context.recentMemory && context.recentMemory.length > 0) {
+      const memoryItems = context.recentMemory
+        .map((mem: any) => `- ${mem.key}: ${typeof mem.value === 'object' ? JSON.stringify(mem.value) : mem.value}`)
+        .join('\n')
+      memoryContext = `\n\nWhat I remember about you:\n${memoryItems}`
+    }
+
+    return `You are Clerva AI, a smart study copilot for students.
 
 Your capabilities:
 - Search and explain content from student's notes and documents
@@ -353,6 +404,8 @@ Student Context:
 - Grade Level: ${context.userProfile?.gradeLevel || 'Unknown'}
 - Subjects: ${context.userProfile?.subjects.join(', ') || 'None specified'}
 - Learning Style: ${context.userProfile?.learningStyle || 'Unknown'}
+- Interests: ${context.userProfile?.preferences?.interests?.join(', ') || 'None specified'}
+- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${memoryContext}
 
 Available sources: ${context.retrievedChunks?.length || 0} relevant document chunks retrieved.`
   }

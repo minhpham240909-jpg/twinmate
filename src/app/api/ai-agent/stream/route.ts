@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
       llmProvider,
       retriever,
       toolRegistry: registry,
+      supabase: adminSupabase, // Pass Supabase client for profile/memory loading
     })
 
     // Create readable stream for SSE
