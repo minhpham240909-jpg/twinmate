@@ -20,6 +20,8 @@ import { createSendNudgeTool } from './sendNudge'
 import { createCreateStudyPlanTool } from './createStudyPlan'
 import { createBuildLearningProfileTool } from './buildLearningProfile'
 import { createMatchCandidatesTool } from './matchCandidates'
+import { createSearchUsersTool } from './searchUsers'
+import { createGetUserActivityTool } from './getUserActivity'
 
 export interface ToolFactoryDependencies {
   supabase: SupabaseClient
@@ -54,6 +56,10 @@ export function createAndRegisterTools(
 
   // Productivity Tools
   registry.register(createCreateStudyPlanTool(llmProvider, supabase))
+
+  // User Intelligence Tools (NEW!)
+  registry.register(createSearchUsersTool(supabase))
+  registry.register(createGetUserActivityTool(supabase))
 }
 
 /**
@@ -78,4 +84,6 @@ export {
   createCreateStudyPlanTool,
   createBuildLearningProfileTool,
   createMatchCandidatesTool,
+  createSearchUsersTool,
+  createGetUserActivityTool,
 }
