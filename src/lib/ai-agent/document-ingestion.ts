@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { DocumentChunker } from '@/../packages/ai-agent/src/rag/chunker'
 import { OpenAIEmbeddingProvider } from '@/../packages/ai-agent/src/rag/embeddings'
 import { VectorRetriever } from '@/../packages/ai-agent/src/rag/retriever'
+import mammoth from 'mammoth'
 
 export interface IngestDocumentOptions {
   userId: string
@@ -131,10 +132,17 @@ async function extractTextFromFile(file: File): Promise<string> {
 
   // PDF
   if (fileType === 'application/pdf') {
-    // For now, return placeholder - would need pdf-parse library
-    // In production, use pdf-parse or similar
-    console.warn('PDF parsing not yet implemented - using filename as placeholder')
-    return `Document: ${file.name}\n\nPDF content extraction requires pdf-parse library. Please add: npm install pdf-parse`
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      // Dynamic import for ESM module
+      const pdfParse = await import('pdf-parse')
+      const data = await (pdfParse as any)(buffer)
+      return data.text
+    } catch (error) {
+      console.error('PDF parsing error:', error)
+      throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   // Word documents
@@ -142,8 +150,15 @@ async function extractTextFromFile(file: File): Promise<string> {
     fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     fileType === 'application/msword'
   ) {
-    console.warn('Word document parsing not yet implemented')
-    return `Document: ${file.name}\n\nWord document extraction requires mammoth library. Please add: npm install mammoth`
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      const result = await mammoth.extractRawText({ buffer })
+      return result.value
+    } catch (error) {
+      console.error('Word document parsing error:', error)
+      throw new Error(`Failed to extract text from Word document: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   // JSON

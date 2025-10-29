@@ -8,7 +8,9 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 import { usePresence } from '@/hooks/usePresence'
 import { User } from '@supabase/supabase-js'
+import { useRouter } from 'next/navigation'
 import AIPanel from '@/components/ai-agent/AIPanel'
+import CommandPalette from '@/components/ai-agent/CommandPalette'
 
 interface AIAgentContextType {
   isPanelOpen: boolean
@@ -35,6 +37,7 @@ interface AIAgentProviderProps {
 export function AIAgentProvider({ children, user }: AIAgentProviderProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [initialMessage, setInitialMessage] = useState<string | undefined>()
+  const router = useRouter()
 
   // Initialize presence heartbeat
   usePresence(user, {
@@ -54,10 +57,20 @@ export function AIAgentProvider({ children, user }: AIAgentProviderProps) {
 
   const togglePanel = () => setIsPanelOpen(!isPanelOpen)
 
+  // Handle command palette actions
+  const handleCommandAction = (action: string, data?: any) => {
+    if (action === 'ask' && data?.prompt) {
+      openPanel(data.prompt)
+    } else if (action === 'navigate' && data?.path) {
+      router.push(data.path)
+    }
+  }
+
   return (
     <AIAgentContext.Provider value={{ isPanelOpen, openPanel, closePanel, togglePanel }}>
       {children}
       {isPanelOpen && <AIPanel onClose={closePanel} initialMessage={initialMessage} />}
+      <CommandPalette onSelectAction={handleCommandAction} />
     </AIAgentContext.Provider>
   )
 }

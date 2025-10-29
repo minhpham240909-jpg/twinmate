@@ -78,6 +78,17 @@ export class AgentOrchestrator {
     const startTime = Date.now()
 
     try {
+      // Track start of context building
+      await this.config.telemetry.trackEvent({
+        traceId,
+        userId,
+        eventType: 'step_start',
+        step: 'context_building',
+        timestamp: Date.now(),
+      })
+
+      const contextBuildStart = Date.now()
+
       // PERFORMANCE: Build context and retrieve notes in PARALLEL (removed slow intent classification)
       const [context, retrieved] = await Promise.all([
         this.buildContext(userId, message, traceId, options),
@@ -85,19 +96,76 @@ export class AgentOrchestrator {
         this.config.retriever.retrieve(message, userId, { limit: 5, threshold: 0.7 }),
       ])
 
+      // Track context building completion
+      await this.config.telemetry.trackEvent({
+        traceId,
+        userId,
+        eventType: 'step_complete',
+        step: 'context_building',
+        latencyMs: Date.now() - contextBuildStart,
+        metadata: {
+          profileLoaded: !!context.userProfile,
+          memoryCount: context.recentMemory?.length || 0,
+        },
+      })
+
+      // Track RAG retrieval completion
+      await this.config.telemetry.trackEvent({
+        traceId,
+        userId,
+        eventType: 'step_complete',
+        step: 'rag_retrieval',
+        latencyMs: Date.now() - contextBuildStart,
+        metadata: {
+          chunksRetrieved: retrieved.chunks.length,
+          totalFound: retrieved.totalFound,
+        },
+      })
+
       // Add retrieved chunks to context
       context.retrievedChunks = retrieved.chunks
+
+      // Track start of response generation
+      await this.config.telemetry.trackEvent({
+        traceId,
+        userId,
+        eventType: 'step_start',
+        step: 'response_generation',
+        timestamp: Date.now(),
+      })
+
+      const responseGenStart = Date.now()
 
       // Generate response with tools (pass conversation history)
       const response = await this.generateResponse(message, context, options?.conversationHistory || [])
 
-      // Track telemetry
+      // Track response generation completion
+      await this.config.telemetry.trackEvent({
+        traceId,
+        userId,
+        eventType: 'step_complete',
+        step: 'response_generation',
+        latencyMs: Date.now() - responseGenStart,
+        metadata: {
+          toolsUsed: response.toolsUsed,
+          toolCallCount: response.toolResults?.length || 0,
+          iterationCount: response.metadata?.iterationCount || 0,
+          hasCards: (response.cards?.length || 0) > 0,
+          hasCitations: (response.citations?.length || 0) > 0,
+        },
+      })
+
+      // Track overall completion
       await this.config.telemetry.trackEvent({
         traceId,
         userId,
         eventType: 'agent_completion',
         latencyMs: Date.now() - startTime,
         toolCalls: response.toolResults?.length || 0,
+        metadata: {
+          totalLatencyMs: Date.now() - startTime,
+          success: true,
+        },
       })
 
       return response
@@ -210,12 +278,40 @@ export class AgentOrchestrator {
 
     const toolDefinitions = this.config.toolRegistry.getToolDefinitions()
 
+    // Track LLM call start
+    const llmCallStart = Date.now()
+    await this.config.telemetry.trackEvent({
+      traceId: context.traceId,
+      userId: context.userId,
+      eventType: 'step_start',
+      step: 'llm_call',
+      timestamp: Date.now(),
+      metadata: {
+        messageCount: messages.length,
+        hasTools: toolDefinitions.length > 0,
+      },
+    })
+
     // PERFORMANCE: Reduced maxTokens for faster responses, lower temperature for speed
     let response = await this.config.llmProvider.complete({
       messages,
       tools: toolDefinitions,
       temperature: 0.5, // Lower temp = faster, more focused responses
       maxTokens: 1000, // Reduced from 2000 for faster generation
+    })
+
+    // Track LLM call completion
+    await this.config.telemetry.trackEvent({
+      traceId: context.traceId,
+      userId: context.userId,
+      eventType: 'step_complete',
+      step: 'llm_call',
+      latencyMs: Date.now() - llmCallStart,
+      metadata: {
+        finishReason: response.finishReason,
+        hasToolCalls: !!response.toolCalls,
+        toolCallCount: response.toolCalls?.length || 0,
+      },
     })
 
     const toolResults: ToolResult[] = []

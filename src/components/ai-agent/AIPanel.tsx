@@ -2,15 +2,23 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Sparkles, X, Minimize2, Maximize2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Send, Sparkles, X, Minimize2, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   cards?: AICard[]
+  citations?: Citation[]
   timestamp: Date
+}
+
+interface Citation {
+  text: string
+  docId: string
+  ord: number
+  source?: string
 }
 
 interface AICard {
@@ -113,8 +121,8 @@ export default function AIPanel({ onClose, initialMinimized = false, initialMess
       // Get context based on current page
       const context = getPageContext(pathname)
 
-      // Call AI agent API (non-streaming for now - streaming has auth issues)
-      const response = await fetch('/api/ai-agent/chat', {
+      // Call AI agent API with streaming
+      const response = await fetch('/api/ai-agent/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,21 +143,84 @@ export default function AIPanel({ onClose, initialMinimized = false, initialMess
         throw new Error(errorMessage)
       }
 
-      // Parse JSON response
-      const data = await response.json()
+      // Handle streaming response
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let accumulatedText = ''
+      let accumulatedCards: AICard[] = []
+      let accumulatedCitations: Citation[] = []
 
-      // Update assistant message with response
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === assistantMessageId
-            ? {
-                ...msg,
-                content: data.text || 'No response from AI',
-                cards: data.cards || []
+      if (!reader) {
+        throw new Error('Response body is not readable')
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          break
+        }
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.type === 'text') {
+                accumulatedText += data.content
+                // Update message in real-time
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: accumulatedText }
+                      : msg
+                  )
+                )
+              } else if (data.type === 'card') {
+                accumulatedCards.push(data.card)
+                // Update cards in real-time
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, cards: [...accumulatedCards] }
+                      : msg
+                  )
+                )
+              } else if (data.type === 'citations') {
+                accumulatedCitations = data.citations || []
+                // Update citations
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, citations: accumulatedCitations }
+                      : msg
+                  )
+                )
+              } else if (data.type === 'done') {
+                // Final update with complete data
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantMessageId
+                      ? {
+                          ...msg,
+                          content: accumulatedText || 'No response from AI',
+                          cards: accumulatedCards,
+                          citations: accumulatedCitations
+                        }
+                      : msg
+                  )
+                )
               }
-            : msg
-        )
-      )
+            } catch (e) {
+              // Skip malformed JSON
+              console.warn('Failed to parse SSE data:', e)
+            }
+          }
+        }
+      }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         // User cancelled - that's fine
@@ -241,31 +312,7 @@ export default function AIPanel({ onClose, initialMinimized = false, initialMess
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
         {messages.map(message => (
-          <motion.div
-            key={message.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-800'
-              }`}
-            >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-
-              {/* AI Cards */}
-              {message.cards && message.cards.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {message.cards.map((card, idx) => (
-                    <AICardRenderer key={idx} card={card} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
+          <MessageRenderer key={message.id} message={message} />
         ))}
 
         {isLoading && !isStreaming && (
@@ -330,9 +377,118 @@ export default function AIPanel({ onClose, initialMinimized = false, initialMess
 }
 
 /**
+ * Render individual message with collapsible sources
+ */
+function MessageRenderer({ message }: { message: Message }) {
+  const [sourcesExpanded, setSourcesExpanded] = useState(false)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+    >
+      <div
+        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+          message.role === 'user'
+            ? 'bg-blue-600 text-white'
+            : 'bg-white border border-slate-200 text-slate-800'
+        }`}
+      >
+        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+
+        {/* Collapsible Sources/Citations */}
+        {message.role === 'assistant' && message.citations && message.citations.length > 0 && (
+          <div className="mt-3 border-t border-slate-200 pt-3">
+            <button
+              onClick={() => setSourcesExpanded(!sourcesExpanded)}
+              className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 transition-colors w-full"
+            >
+              {sourcesExpanded ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <FileText className="w-4 h-4" />
+              <span className="font-medium">
+                Sources ({message.citations.length})
+              </span>
+            </button>
+
+            {sourcesExpanded && (
+              <div className="mt-2 space-y-2">
+                {message.citations.map((citation, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2 bg-slate-50 rounded-lg border border-slate-200"
+                  >
+                    <p className="text-xs text-slate-700 line-clamp-2">
+                      {citation.text}
+                    </p>
+                    {citation.source && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        From: {citation.source}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI Cards */}
+        {message.cards && message.cards.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {message.cards.map((card, idx) => (
+              <AICardRenderer key={idx} card={card} />
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+/**
  * Render different card types
  */
 function AICardRenderer({ card }: { card: AICard }) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = async (type: string, data: any) => {
+    setSaving(true)
+    try {
+      // Save logic based on card type
+      if (type === 'quiz' && data.quizId) {
+        // Quiz is already saved via generateQuiz tool
+        // Just mark as saved and optionally navigate
+        setSaved(true)
+        setTimeout(() => {
+          window.location.href = `/quiz/${data.quizId}`
+        }, 500)
+      } else if (type === 'flashcard' && data.saved) {
+        // Flashcards already saved via addFlashcards tool
+        setSaved(true)
+        setTimeout(() => {
+          window.location.href = '/flashcards'
+        }, 500)
+      } else if (type === 'study_plan' && data.planId) {
+        // Study plan already saved via createStudyPlan tool
+        setSaved(true)
+        setTimeout(() => {
+          window.location.href = `/study-plans/${data.planId}`
+        }, 500)
+      }
+    } catch (error) {
+      console.error('Save error:', error)
+      setSaved(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   switch (card.type) {
     case 'info':
       return (
@@ -345,9 +501,31 @@ function AICardRenderer({ card }: { card: AICard }) {
         <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs">
           <p className="font-semibold text-green-900">Quiz Created!</p>
           <p className="text-green-700 mt-1">{card.data.title}</p>
-          <button className="mt-2 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs">
-            Take Quiz
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => handleSave('quiz', card.data)}
+              disabled={saving || saved}
+              className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {saved ? '✓ Saved' : saving ? 'Saving...' : 'Take Quiz'}
+            </button>
+          </div>
+        </div>
+      )
+    case 'flashcard':
+      return (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+          <p className="font-semibold text-blue-900">Flashcards Created!</p>
+          <p className="text-blue-700 mt-1">{card.data.saved || 0} cards saved</p>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => handleSave('flashcard', card.data)}
+              disabled={saving || saved}
+              className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {saved ? '✓ Opening...' : 'Review Cards'}
+            </button>
+          </div>
         </div>
       )
     case 'study_plan':
@@ -355,9 +533,15 @@ function AICardRenderer({ card }: { card: AICard }) {
         <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs">
           <p className="font-semibold text-purple-900">Study Plan Created!</p>
           <p className="text-purple-700 mt-1">{card.data.title}</p>
-          <button className="mt-2 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs">
-            View Plan
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => handleSave('study_plan', card.data)}
+              disabled={saving || saved}
+              className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {saved ? '✓ Opening...' : 'View Plan'}
+            </button>
+          </div>
         </div>
       )
     case 'match_insight':
@@ -368,9 +552,27 @@ function AICardRenderer({ card }: { card: AICard }) {
             Compatibility: {Math.round(card.data.compatibilityScore * 100)}%
           </p>
           <div className="flex gap-2 mt-2">
-            <button className="px-3 py-1 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-xs">
-              View Details
-            </button>
+            {card.data.canStudyNow ? (
+              <button
+                onClick={() => {
+                  // Navigate to create study session with this partner
+                  window.location.href = `/study-sessions/create?partnerId=${card.data.candidateId}`
+                }}
+                className="px-3 py-1 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-xs"
+              >
+                Start Now
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  // Show schedule modal or navigate to calendar
+                  alert(`Next best times:\n${card.data.nextBestTimes?.join('\n') || 'See full availability'}`)
+                }}
+                className="px-3 py-1 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-xs"
+              >
+                Schedule Later
+              </button>
+            )}
           </div>
         </div>
       )
