@@ -34,11 +34,11 @@ export function createGetUserActivityTool(supabase: SupabaseClient): Tool {
 
       const { data: profile } = await supabase
         .from('Profile')
-        .select('firstName, lastName, email')
-        .eq('userId', userId)
+        .select('first_name, last_name, email')
+        .eq('user_id', userId)
         .single()
 
-      const userName = `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || profile?.email || 'User'
+      const userName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || profile?.email || 'User'
 
       return {
         userId,

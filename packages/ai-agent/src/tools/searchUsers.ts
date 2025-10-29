@@ -66,25 +66,25 @@ Returns complete user info including:
         let profileQuery = supabase
           .from('Profile')
           .select(`
-            userId,
-            firstName,
-            lastName,
+            user_id,
+            first_name,
+            last_name,
             email,
             subjects,
             interests,
             goals,
-            studyStyle,
-            skillLevel,
-            gradeLevel,
+            study_style,
+            skill_level,
+            grade_level,
             strengths,
             weaknesses
           `)
-          .neq('userId', ctx.userId) // Don't include current user
+          .neq('user_id', ctx.userId) // Don't include current user
           .limit(limit)
 
         // Search by name (first name, last name, or email)
         const nameLower = query.toLowerCase()
-        profileQuery = profileQuery.or(`firstName.ilike.%${query}%,lastName.ilike.%${query}%,email.ilike.%${query}%`)
+        profileQuery = profileQuery.or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`)
 
         const { data: profiles, error: profileError } = await profileQuery
 
@@ -102,7 +102,7 @@ Returns complete user info including:
         }
 
         // Get user IDs
-        const userIds = profiles.map(p => p.userId)
+        const userIds = profiles.map(p => p.user_id)
 
         // Get online presence for all users
         const { data: presenceData } = await supabase
@@ -168,8 +168,8 @@ Returns complete user info including:
         // Calculate compatibility scores based on subjects overlap
         const myProfile = await supabase
           .from('Profile')
-          .select('subjects, interests, studyStyle')
-          .eq('userId', ctx.userId)
+          .select('subjects, interests, study_style')
+          .eq('user_id', ctx.userId)
           .single()
 
         const mySubjects = new Set(myProfile.data?.subjects || [])
@@ -177,7 +177,7 @@ Returns complete user info including:
 
         // Build result
         const users = profiles.map(profile => {
-          const presence = presenceMap.get(profile.userId)
+          const presence = presenceMap.get(profile.user_id)
           const theirSubjects = new Set(profile.subjects || [])
           const theirInterests = new Set(profile.interests || [])
 
@@ -189,19 +189,19 @@ Returns complete user info including:
           const compatibilityScore = maxPossible > 0 ? totalOverlap / maxPossible : 0
 
           return {
-            userId: profile.userId,
-            name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email,
+            userId: profile.user_id,
+            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
             email: profile.email,
             subjects: profile.subjects || [],
             interests: profile.interests || [],
             goals: profile.goals || [],
-            learningStyle: profile.studyStyle || undefined,
-            skillLevel: profile.skillLevel || undefined,
-            gradeLevel: profile.gradeLevel || undefined,
+            learningStyle: profile.study_style || undefined,
+            skillLevel: profile.skill_level || undefined,
+            gradeLevel: profile.grade_level || undefined,
             isOnline: presence?.is_online || false,
             lastSeen: presence?.last_seen || undefined,
-            studiedTogetherCount: sharedSessionCounts.get(profile.userId) || 0,
-            sharedGroups: sharedGroupCounts.get(profile.userId) || 0,
+            studiedTogetherCount: sharedSessionCounts.get(profile.user_id) || 0,
+            sharedGroups: sharedGroupCounts.get(profile.user_id) || 0,
             compatibilityScore: Math.round(compatibilityScore * 100) / 100,
           }
         })
