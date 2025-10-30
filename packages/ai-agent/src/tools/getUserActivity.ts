@@ -32,13 +32,14 @@ export function createGetUserActivityTool(supabase: SupabaseClient): Tool {
     async call(input: z.infer<typeof inputSchema>, ctx: AgentContext) {
       const userId = input.targetUserId || ctx.userId
 
-      const { data: profile } = await supabase
-        .from('Profile')
-        .select('first_name, last_name, email')
-        .eq('user_id', userId)
+      // Get user info (name is in User table, not Profile)
+      const { data: user } = await supabase
+        .from('User')
+        .select('name, email')
+        .eq('id', userId)
         .single()
 
-      const userName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || profile?.email || 'User'
+      const userName = user?.name || user?.email || 'User'
 
       return {
         userId,

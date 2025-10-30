@@ -62,38 +62,41 @@ Returns complete user info including:
       const { query, searchBy, limit } = input
 
       try {
-        // Build dynamic query based on searchBy
-        let profileQuery = supabase
-          .from('Profile')
+        // Query User table and JOIN with Profile
+        // User has: id, name, email
+        // Profile has: userId, subjects, interests, goals, studyStyle, skillLevel
+        let userQuery = supabase
+          .from('User')
           .select(`
-            user_id,
-            first_name,
-            last_name,
+            id,
+            name,
             email,
-            subjects,
-            interests,
-            goals,
-            study_style,
-            skill_level,
-            grade_level,
-            strengths,
-            weaknesses
+            profile:Profile!userId(
+              userId,
+              subjects,
+              interests,
+              goals,
+              studyStyle,
+              skillLevel,
+              onlineStatus
+            )
           `)
-          .neq('user_id', ctx.userId) // Don't include current user
+          .neq('id', ctx.userId) // Don't include current user
           .limit(limit)
 
-        // Search by name (first name, last name, or email)
-        const nameLower = query.toLowerCase()
-        profileQuery = profileQuery.or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`)
-
-        const { data: profiles, error: profileError } = await profileQuery
-
-        if (profileError) {
-          console.error('Profile search error:', profileError)
-          throw new Error(`Failed to search users: ${profileError.message}`)
+        // Search by name or email
+        if (searchBy === 'all' || searchBy === 'name') {
+          userQuery = userQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
         }
 
-        if (!profiles || profiles.length === 0) {
+        const { data: users, error: userError } = await userQuery
+
+        if (userError) {
+          console.error('User search error:', userError)
+          throw new Error(`Failed to search users: ${userError.message}`)
+        }
+
+        if (!users || users.length === 0) {
           return {
             users: [],
             totalFound: 0,
@@ -102,7 +105,7 @@ Returns complete user info including:
         }
 
         // Get user IDs
-        const userIds = profiles.map(p => p.user_id)
+        const userIds = users.map(u => u.id)
 
         // Get online presence for all users
         const { data: presenceData } = await supabase
@@ -116,9 +119,9 @@ Returns complete user info including:
 
         // Get study together count (sessions where both users participated)
         const { data: sessionParticipants } = await supabase
-          .from('session_participant')
-          .select('session_id, user_id')
-          .or(`user_id.eq.${ctx.userId},user_id.in.(${userIds.join(',')})`)
+          .from('SessionParticipant')
+          .select('sessionId, userId')
+          .or(`userId.eq.${ctx.userId},userId.in.(${userIds.join(',')})`)
 
         // Count shared sessions per user
         const sharedSessionCounts = new Map<string, number>()
@@ -127,10 +130,10 @@ Returns complete user info including:
 
           // Group sessions by user
           for (const sp of sessionParticipants) {
-            if (!sessionsByUser.has(sp.user_id)) {
-              sessionsByUser.set(sp.user_id, new Set())
+            if (!sessionsByUser.has(sp.userId)) {
+              sessionsByUser.set(sp.userId, new Set())
             }
-            sessionsByUser.get(sp.user_id)!.add(sp.session_id)
+            sessionsByUser.get(sp.userId)!.add(sp.sessionId)
           }
 
           const mySessions = sessionsByUser.get(ctx.userId) || new Set()
@@ -145,22 +148,22 @@ Returns complete user info including:
 
         // Get shared groups count
         const { data: myGroups } = await supabase
-          .from('group_member')
-          .select('group_id')
-          .eq('user_id', ctx.userId)
+          .from('GroupMember')
+          .select('groupId')
+          .eq('userId', ctx.userId)
 
-        const myGroupIds = new Set(myGroups?.map(g => g.group_id) || [])
+        const myGroupIds = new Set(myGroups?.map(g => g.groupId) || [])
 
         const { data: theirGroups } = await supabase
-          .from('group_member')
-          .select('group_id, user_id')
-          .in('user_id', userIds)
+          .from('GroupMember')
+          .select('groupId, userId')
+          .in('userId', userIds)
 
         const sharedGroupCounts = new Map<string, number>()
         if (theirGroups) {
           for (const tg of theirGroups) {
-            if (myGroupIds.has(tg.group_id)) {
-              sharedGroupCounts.set(tg.user_id, (sharedGroupCounts.get(tg.user_id) || 0) + 1)
+            if (myGroupIds.has(tg.groupId)) {
+              sharedGroupCounts.set(tg.userId, (sharedGroupCounts.get(tg.userId) || 0) + 1)
             }
           }
         }
@@ -168,18 +171,21 @@ Returns complete user info including:
         // Calculate compatibility scores based on subjects overlap
         const myProfile = await supabase
           .from('Profile')
-          .select('subjects, interests, study_style')
-          .eq('user_id', ctx.userId)
+          .select('subjects, interests, studyStyle')
+          .eq('userId', ctx.userId)
           .single()
 
         const mySubjects = new Set(myProfile.data?.subjects || [])
         const myInterests = new Set(myProfile.data?.interests || [])
 
-        // Build result
-        const users = profiles.map(profile => {
-          const presence = presenceMap.get(profile.user_id)
-          const theirSubjects = new Set(profile.subjects || [])
-          const theirInterests = new Set(profile.interests || [])
+        // Build result - map users with their profiles
+        const resultUsers = users.map(user => {
+          // Profile is an array from the join, get first element
+          const profile = Array.isArray(user.profile) ? user.profile[0] : user.profile
+          const presence = presenceMap.get(user.id)
+
+          const theirSubjects = new Set(profile?.subjects || [])
+          const theirInterests = new Set(profile?.interests || [])
 
           // Calculate compatibility
           const subjectOverlap = [...mySubjects].filter(s => theirSubjects.has(s)).length
@@ -189,33 +195,33 @@ Returns complete user info including:
           const compatibilityScore = maxPossible > 0 ? totalOverlap / maxPossible : 0
 
           return {
-            userId: profile.user_id,
-            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
-            email: profile.email,
-            subjects: profile.subjects || [],
-            interests: profile.interests || [],
-            goals: profile.goals || [],
-            learningStyle: profile.study_style || undefined,
-            skillLevel: profile.skill_level || undefined,
-            gradeLevel: profile.grade_level || undefined,
-            isOnline: presence?.is_online || false,
+            userId: user.id,
+            name: user.name || user.email,
+            email: user.email,
+            subjects: profile?.subjects || [],
+            interests: profile?.interests || [],
+            goals: profile?.goals || [],
+            learningStyle: profile?.studyStyle || undefined,
+            skillLevel: profile?.skillLevel || undefined,
+            gradeLevel: undefined, // Not in schema
+            isOnline: presence?.is_online || profile?.onlineStatus === 'ONLINE' || false,
             lastSeen: presence?.last_seen || undefined,
-            studiedTogetherCount: sharedSessionCounts.get(profile.user_id) || 0,
-            sharedGroups: sharedGroupCounts.get(profile.user_id) || 0,
+            studiedTogetherCount: sharedSessionCounts.get(user.id) || 0,
+            sharedGroups: sharedGroupCounts.get(user.id) || 0,
             compatibilityScore: Math.round(compatibilityScore * 100) / 100,
           }
         })
 
         // Sort by relevance (compatibility + studied together)
-        users.sort((a, b) => {
+        resultUsers.sort((a, b) => {
           const scoreA = (a.compatibilityScore || 0) + (a.studiedTogetherCount || 0) * 0.1
           const scoreB = (b.compatibilityScore || 0) + (b.studiedTogetherCount || 0) * 0.1
           return scoreB - scoreA
         })
 
         return {
-          users,
-          totalFound: users.length,
+          users: resultUsers,
+          totalFound: resultUsers.length,
           searchedBy: searchBy,
         }
       } catch (error) {
