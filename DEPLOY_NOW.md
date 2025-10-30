@@ -1,256 +1,333 @@
-# 🚀 Deploy Clerva NOW - Quick Start
+# 🚀 Deploy Your App Now - Complete Guide
 
-**Goal**: Get your app online for testing in ~15 minutes
+## ✅ Status: Ready to Deploy
+
+**What's committed:**
+- ✅ Improved search logic (`searchUsers.ts`) 
+- ✅ Updated test endpoint (`test-search-users/route.ts`)
+- ✅ Documentation files
+- ✅ All changes ready in git
+
+**What's already done in database:**
+- ✅ RLS policies configured
+- ✅ Test users created
+- ✅ Database fully functional
 
 ---
 
-## ⚡ Fastest Path: Railway.app
+## 🚀 Deployment Steps
 
-### Step 1: Create GitHub Repository (5 minutes)
+### Step 1: Push to GitHub (Triggers Auto-Deploy)
+
+Open Terminal and run these commands:
 
 ```bash
-# Navigate to your project
 cd "/Users/minhpham/Documents/minh project.html/clerva-app"
 
-# Commit your current work
-git add .
-git commit -m "Initial Clerva app - ready for deployment"
+# Push your changes to GitHub
+git push origin main
 ```
 
-**Now go to GitHub**:
-1. Visit: https://github.com/new
-2. Repository name: `clerva-app`
-3. Keep it **Private** (your code stays secret)
-4. **Don't** initialize with README (you already have files)
-5. Click "Create repository"
-
-**Connect your local code to GitHub**:
-```bash
-# Copy the commands GitHub shows you, will look like:
-git remote add origin https://github.com/YOUR_USERNAME/clerva-app.git
-git branch -M main
-git push -u origin main
-```
-
-### Step 2: Deploy to Railway (5 minutes)
-
-1. **Go to**: https://railway.app
-2. Click **"Start a New Project"**
-3. Choose **"Deploy from GitHub repo"**
-4. Sign in with GitHub
-5. Grant Railway access to your repositories
-6. Select **`clerva-app`**
-7. Railway auto-detects Next.js ✅
-
-### Step 3: Add Environment Variables (3 minutes)
-
-In Railway dashboard:
-1. Click on your project
-2. Go to **"Variables"** tab
-3. Add these (click "+ New Variable" for each):
-
-```bash
-DATABASE_URL
-postgresql://postgres.zuukijevgtcfsgylbsqj:Eminh2342009!!@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=10&pool_timeout=10
-
-DIRECT_URL
-postgresql://postgres.zuukijevgtcfsgylbsqj:Eminh2342009!!@aws-1-us-east-2.pooler.supabase.com:6543/postgres
-
-NEXT_PUBLIC_SUPABASE_URL
-https://zuukijevgtcfsgylbsqj.supabase.co
-
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1dWtpamV2Z3RjZnNneWxic3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMDE3MDgsImV4cCI6MjA3NDc3NzcwOH0.AZDiolkpmLvQFPxYBjdfA0E6QNsQeuoNw471uUVVXGU
-
-SUPABASE_SERVICE_ROLE_KEY
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1dWtpamV2Z3RjZnNneWxic3FqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTIwMTcwOCwiZXhwIjoyMDc0Nzc3NzA4fQ.VNXNMCBCAJ8Oae6_-O6W85FyhjWPm9aSR4HgoOMWoP4
-
-NEXTAUTH_SECRET
-dev-secret-change-in-production-to-something-random
-
-NEXTAUTH_URL
-https://your-app-name.railway.app
-```
-
-⚠️ **Important**: For `NEXTAUTH_URL`, Railway will give you a URL like `clerva-app-production-xxxx.railway.app`. Copy that and paste it here. You can add this variable after deployment.
-
-### Step 4: Deploy! (2 minutes)
-
-Railway will automatically:
-- Install dependencies
-- Build your app
-- Deploy it
-- Give you a URL
-
-**Watch the deployment**:
-- Click on "Deployments" tab
-- See build logs in real-time
-- Wait for ✅ "Deployed successfully"
-
-### Step 5: Access Your App
-
-1. Click on your deployed app URL (e.g., `https://clerva-app-production.railway.app`)
-2. Your app should load! 🎉
+**If you need to authenticate:**
+- Enter your GitHub username
+- Enter your GitHub Personal Access Token (not password)
+- If you don't have a token, create one at: https://github.com/settings/tokens
 
 ---
 
-## ✅ Post-Deployment Testing
+### Step 2: Wait for Deployment
 
-Test these features:
+Your app should auto-deploy to Google Cloud. Check:
 
-### Basic Tests
-1. ✅ Homepage loads
-2. ✅ Sign up works
-3. ✅ Sign in works
-4. ✅ Dashboard loads
-5. ✅ Profile page works
+**Google Cloud Console:**
+1. Go to https://console.cloud.google.com
+2. Navigate to your project
+3. Check:
+   - **Cloud Run** → Services → Check deployment status
+   - OR **App Engine** → Versions → Check new version deploying
+4. Wait for status: ✅ **Serving** or **Deployed**
 
-### If Something Doesn't Work
-1. Check Railway logs (click "View Logs")
-2. Look for red error messages
-3. Common issues:
-   - **"Module not found"**: Missing dependency
-   - **"Database connection failed"**: Check DATABASE_URL
-   - **"Unauthorized"**: Check Supabase keys
-   - **"Redirect error"**: Update NEXTAUTH_URL
+**Typical deployment time:** 2-5 minutes
 
 ---
 
-## 🔧 Update Google OAuth (If Using)
+### Step 3: Verify Deployment
 
-Your deployed app has a new URL, so update Google OAuth:
+Once deployed, test your endpoints:
 
-1. Go to: https://console.cloud.google.com/apis/credentials
-2. Select your OAuth 2.0 Client ID
-3. Add to "Authorized redirect URIs":
+#### Test 1: List All Users
+```bash
+curl https://YOUR-DOMAIN.com/api/list-all-users
+```
+
+**Expected:**
+```json
+{
+  "success": true,
+  "totalUsers": 3,
+  "users": [...]
+}
+```
+
+#### Test 2: Search for User
+```bash
+curl "https://YOUR-DOMAIN.com/api/test-search-users?query=Gia%20Khang"
+```
+
+**Expected:**
+```json
+{
+  "success": true,
+  "found": 1,
+  "results": [{
+    "name": "Gia Khang Pham",
+    ...
+  }]
+}
+```
+
+#### Test 3: AI Search
+Open your app → AI chat:
+```
+Find Gia Khang Pham
+```
+
+Should successfully find and display the user! ✅
+
+---
+
+## 🔄 Alternative: Manual Deployment (If Auto-Deploy Doesn't Work)
+
+### For Cloud Run:
+
+```bash
+cd "/Users/minhpham/Documents/minh project.html/clerva-app"
+
+# Build and deploy
+gcloud run deploy clerva-app \
+  --source . \
+  --region YOUR-REGION \
+  --allow-unauthenticated
+
+# Replace YOUR-REGION with your region (e.g., us-central1)
+```
+
+### For App Engine:
+
+```bash
+cd "/Users/minhpham/Documents/minh project.html/clerva-app"
+
+# Deploy to App Engine
+gcloud app deploy
+
+# Follow prompts to confirm
+```
+
+---
+
+## ✅ Deployment Checklist
+
+Before deploying:
+- [x] Code changes committed
+- [x] Database configured (RLS policies)
+- [x] Test users created
+- [x] Environment variables set in Google Cloud
+
+After deploying:
+- [ ] Push to GitHub successful
+- [ ] Deployment completes (check Cloud Console)
+- [ ] API endpoints return users
+- [ ] AI search works
+- [ ] No errors in logs
+
+---
+
+## 🐛 Troubleshooting
+
+### Issue: Git push fails
+
+**Solution:**
+```bash
+# Check if you're logged in
+git config user.name
+git config user.email
+
+# If needed, set them
+git config user.name "Your Name"
+git config user.email "your-email@example.com"
+
+# Try push again with credentials
+git push origin main
+```
+
+### Issue: Deployment fails
+
+**Check:**
+1. **Build logs** in Google Cloud Console
+2. **Environment variables** are set correctly
+3. **DATABASE_URL** points to correct Supabase database
+4. **Node version** matches your local version
+
+**Common fix:**
+```bash
+# Clear build cache and redeploy
+gcloud run deploy clerva-app --source . --clear-build-cache
+```
+
+### Issue: Deployed but still returns 0 users
+
+**Cause:** Wrong DATABASE_URL in production
+
+**Fix:**
+1. Go to Google Cloud Console
+2. Find your service (Cloud Run or App Engine)
+3. Click "Edit & Deploy New Revision"
+4. Check environment variables:
    ```
-   https://your-app.railway.app/auth/callback
-   https://your-app.railway.app/api/auth/callback/google
+   DATABASE_URL=postgresql://...@db.xxx.supabase.co:5432/postgres
    ```
+5. Make sure it points to the SAME database where you:
+   - Created test users
+   - Added RLS policies
 
 ---
 
-## 🎯 What You Have Now
+## 📊 What's Being Deployed
 
-✅ **Staging Environment**: Your app running online for testing
-✅ **Real Database**: Connected to your Supabase
-✅ **HTTPS**: Automatic secure connection
-✅ **URL**: Share with testers
+### Code Changes:
+```
+packages/ai-agent/src/tools/searchUsers.ts
+  - Multi-term search logic
+  - Splits "Gia Khang Pham" → ["Gia", "Khang", "Pham"]
+  - Searches each term independently
+  - Case-insensitive matching
 
----
+src/app/api/test-search-users/route.ts
+  - Same improved search logic
+  - Test endpoint for debugging
+```
 
-## 🔄 Making Changes After Deployment
-
-Super easy with Railway:
-
-```bash
-# Make changes to your code locally
-# Test locally: npm run dev
-
-# When ready to deploy:
-git add .
-git commit -m "Describe what you changed"
-git push
-
-# Railway automatically deploys! ✨
-# Check Railway dashboard to watch it deploy
+### Database Changes (Already Applied):
+```
+✅ RLS policies allowing read access
+✅ Test users: Gia Khang Pham, John Smith, Maria Garcia
+✅ Profiles for all users
 ```
 
 ---
 
-## 📊 Monitor Your App
+## 🎯 Expected Results After Deployment
 
-### Railway Dashboard
-- **Logs**: See what's happening in real-time
-- **Metrics**: CPU, Memory, Network usage
-- **Deployments**: History of all deployments
-- **Settings**: Change environment variables
+### Search Queries That Work:
+```
+"Find Gia Khang Pham"     ✅
+"Search for Gia Khang"    ✅
+"Who is Gia?"             ✅
+"Find John Smith"         ✅
+"Search for Maria"        ✅
+"Find users studying Math" ✅
+```
 
-### Supabase Dashboard
-- **Database**: Check if data is being stored
-- **Authentication**: See who's signing up
-- **Storage**: Monitor file uploads
-- **API**: Track API requests
-
----
-
-## 💰 Cost (Railway)
-
-- **Free Trial**: $5 credit (lasts ~1-2 months for testing)
-- **After trial**: ~$5-10/month for small app
-- **Can pause**: Stop deployment when not testing
-
-Compare to local development: $0/month but only you can access it.
+### All Name Variations Work:
+```
+"Gia Khang Pham"  → Finds user ✅
+"Gia Khang"       → Finds user ✅
+"Gia"             → Finds user ✅
+"Khang"           → Finds user ✅
+"gia khang"       → Finds user ✅ (case-insensitive)
+"GIA KHANG"       → Finds user ✅ (case-insensitive)
+```
 
 ---
 
-## ❓ Troubleshooting
+## 🔍 Verify Deployment Success
 
-### Build Fails
-**Check**: Railway build logs → look for error
-**Common**: Missing environment variable
+Run these checks:
 
-### App Crashes on Start
-**Check**: "View Logs" in Railway
-**Common**: Wrong NEXTAUTH_URL or DATABASE_URL
+### 1. Check Deployment Status
+```bash
+# For Cloud Run
+gcloud run services list
 
-### Can't Sign In
-**Check**: Supabase dashboard → Auth settings
-**Fix**: Make sure URLs match in environment variables
+# For App Engine
+gcloud app versions list
+```
 
-### Database Errors
-**Check**: Railway logs for "connection" errors
-**Fix**: Verify DATABASE_URL is correct
+### 2. Check Service Logs
+```bash
+# For Cloud Run
+gcloud run services logs read clerva-app
 
----
+# Look for: [searchUsers] entries
+```
 
-## 🎉 Success!
+### 3. Test API Directly
+```bash
+# Should return users
+curl https://YOUR-DOMAIN.com/api/list-all-users
 
-If you can:
-- ✅ Load the homepage
-- ✅ Sign up/sign in
-- ✅ See your dashboard
+# Should find specific user
+curl "https://YOUR-DOMAIN.com/api/test-search-users?query=Gia"
+```
 
-**Congratulations!** Your app is deployed and working. Now you can:
-1. Share the URL with friends to test
-2. Continue developing locally
-3. Push changes → auto-deploy
-4. Test new features in the deployed version
-
----
-
-## 📝 Next Steps
-
-### Continue Development
-1. Make changes locally
-2. Test with `npm run dev`
-3. Commit and push to GitHub
-4. Railway auto-deploys
-5. Test on deployed site
-6. Repeat!
-
-### When Ready for Production
-1. Create separate Railway project
-2. Call it "Clerva Production"
-3. Use same process
-4. Keep stricter control over what gets deployed
-5. This becomes your "real" app for users
+### 4. Test AI Search
+Open your app and test in AI chat:
+```
+Find Gia Khang Pham
+```
 
 ---
 
-## 🆘 Stuck? Need Help?
+## 📝 Quick Command Reference
 
-**Check these in order**:
-1. Railway deployment logs
-2. Browser console (F12 → Console tab)
-3. Supabase dashboard status
-4. Environment variables (all set correctly?)
-5. NEXTAUTH_URL matches your Railway URL?
+```bash
+# Navigate to project
+cd "/Users/minhpham/Documents/minh project.html/clerva-app"
 
-**Most common issue**: Wrong NEXTAUTH_URL
-**Quick fix**: Update it in Railway variables to match your Railway app URL
+# Check status
+git status
+
+# Push changes (triggers deployment)
+git push origin main
+
+# Watch deployment (Cloud Run)
+gcloud run services describe clerva-app --region YOUR-REGION
+
+# View logs
+gcloud run services logs tail clerva-app
+
+# Test API
+curl https://YOUR-DOMAIN.com/api/test-search-users?query=Gia
+```
 
 ---
 
-**Ready? Let's deploy!** Follow Step 1 above. 🚀
+## 🎉 Success Indicators
 
+You'll know deployment succeeded when:
+
+✅ `git push` completes successfully  
+✅ Google Cloud shows service status: "Serving"  
+✅ `/api/list-all-users` returns your test users  
+✅ `/api/test-search-users?query=Gia` finds users  
+✅ AI chat successfully finds "Gia Khang Pham"  
+✅ Logs show `[searchUsers]` entries  
+✅ No errors in Cloud Console logs  
+
+---
+
+## 🚀 Ready to Deploy!
+
+**Everything is prepared and ready to go!**
+
+Just run:
+```bash
+cd "/Users/minhpham/Documents/minh project.html/clerva-app"
+git push origin main
+```
+
+Then wait 2-5 minutes and test your app! 🎊
+
+---
+
+**Need help?** Let me know which step you're on and any errors you see!
