@@ -196,6 +196,33 @@ function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate required environment variables before proceeding
+    const missingEnvVars: string[] = []
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      missingEnvVars.push('NEXT_PUBLIC_SUPABASE_URL')
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      missingEnvVars.push('SUPABASE_SERVICE_ROLE_KEY')
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      missingEnvVars.push('OPENAI_API_KEY')
+    }
+
+    if (missingEnvVars.length > 0) {
+      // Log missing vars server-side for debugging
+      console.error('[AI Agent] Missing required environment variables:', missingEnvVars)
+
+      return NextResponse.json(
+        {
+          error: 'Service unavailable',
+          message: 'AI agent is not properly configured',
+          missing: missingEnvVars,
+        },
+        { status: 503 }
+      )
+    }
+
     // Get authenticated user
     const supabase = await createClient()
     const {
