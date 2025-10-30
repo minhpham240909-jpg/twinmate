@@ -198,12 +198,16 @@ export class AgentOrchestrator {
 
     if (this.config.supabase) {
       try {
-        // Load both profile and memory concurrently
+        // Load both profile and memory concurrently (including ALL custom descriptions)
         const [profileResult, memoryResult] = await Promise.all([
-          // Load user profile
+          // Load user profile with ALL fields
           !userProfile ? this.config.supabase
             .from('Profile')
-            .select('subjects, goals, studyStyle, skillLevel, interests')
+            .select(`
+              subjects, goals, studyStyle, skillLevel, interests,
+              bio, skillLevelCustomDescription, studyStyleCustomDescription,
+              availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
+            `)
             .eq('userId', userId)
             .single() : Promise.resolve({ data: null }),
           // Load recent memory
@@ -215,12 +219,18 @@ export class AgentOrchestrator {
             .limit(10),
         ])
 
-        // Process profile data
+        // Process profile data (including ALL custom descriptions and bio)
         if (!userProfile && profileResult.data) {
           userProfile = {
             subjects: profileResult.data.subjects || [],
             goals: profileResult.data.goals || [],
             learningStyle: profileResult.data.studyStyle || 'Unknown',
+            bio: profileResult.data.bio || null,
+            skillLevelCustomDescription: profileResult.data.skillLevelCustomDescription || null,
+            studyStyleCustomDescription: profileResult.data.studyStyleCustomDescription || null,
+            availabilityCustomDescription: profileResult.data.availabilityCustomDescription || null,
+            subjectCustomDescription: profileResult.data.subjectCustomDescription || null,
+            interestsCustomDescription: profileResult.data.interestsCustomDescription || null,
             preferences: {
               skillLevel: profileResult.data.skillLevel,
               interests: profileResult.data.interests || [],
@@ -514,10 +524,10 @@ IMPORTANT: If a user asks for multiple things (e.g., "explain this and create a 
 
 User Context (helpful background info - NOT restrictions on what you can help with):
 - Grade Level: ${context.userProfile?.gradeLevel || 'Unknown'}
-- Current Focus Areas: ${context.userProfile?.subjects.join(', ') || 'None specified'}
-- Preferred Learning Style: ${context.userProfile?.learningStyle || 'Unknown'}
-- Interests: ${context.userProfile?.preferences?.interests?.join(', ') || 'None specified'}
-- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${memoryContext}
+- Current Focus Areas: ${context.userProfile?.subjects.join(', ') || 'None specified'}${context.userProfile?.subjectCustomDescription ? `\n  → Details: ${context.userProfile.subjectCustomDescription}` : ''}
+- Preferred Learning Style: ${context.userProfile?.learningStyle || 'Unknown'}${context.userProfile?.studyStyleCustomDescription ? `\n  → Details: ${context.userProfile.studyStyleCustomDescription}` : ''}
+- Interests: ${context.userProfile?.preferences?.interests?.join(', ') || 'None specified'}${context.userProfile?.interestsCustomDescription ? `\n  → Details: ${context.userProfile.interestsCustomDescription}` : ''}
+- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${context.userProfile?.skillLevelCustomDescription ? `\n  → Details: ${context.userProfile.skillLevelCustomDescription}` : ''}${context.userProfile?.availabilityCustomDescription ? `\n- Availability Notes: ${context.userProfile.availabilityCustomDescription}` : ''}${context.userProfile?.bio ? `\n- Bio: ${context.userProfile.bio}` : ''}${memoryContext}
 
 Available sources: ${context.retrievedChunks?.length || 0} relevant document chunks retrieved.
 

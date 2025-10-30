@@ -27,6 +27,12 @@ const outputSchema = z.object({
     learningStyle: z.string().optional(),
     skillLevel: z.string().optional(),
     gradeLevel: z.string().optional(),
+    bio: z.string().optional().describe('User bio/personal description'),
+    skillLevelCustomDescription: z.string().optional().describe('Custom description of skill level'),
+    studyStyleCustomDescription: z.string().optional().describe('Custom description of study style'),
+    availabilityCustomDescription: z.string().optional().describe('Custom description of availability'),
+    subjectCustomDescription: z.string().optional().describe('Custom description of subjects'),
+    interestsCustomDescription: z.string().optional().describe('Custom description of interests'),
     isOnline: z.boolean().optional(),
     lastSeen: z.string().optional(),
     studiedTogetherCount: z.number().optional().describe('How many times you studied together'),
@@ -128,10 +134,14 @@ Returns complete user info including:
         console.log('[searchUsers] Found user IDs:', userIds)
         console.log('[searchUsers] User names:', users.map(u => u.name).join(', '))
 
-        // STEP 2: Get Profile data for these users
+        // STEP 2: Get Profile data for these users (including ALL custom descriptions)
         const { data: profiles, error: profileError } = await supabase
           .from('Profile')
-          .select('userId, subjects, interests, goals, studyStyle, skillLevel, onlineStatus')
+          .select(`
+            userId, subjects, interests, goals, studyStyle, skillLevel, onlineStatus,
+            bio, skillLevelCustomDescription, studyStyleCustomDescription,
+            availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
+          `)
           .in('userId', userIds)
 
         console.log('[searchUsers] Profile query result:', {
@@ -244,6 +254,12 @@ Returns complete user info including:
             learningStyle: profile?.studyStyle || undefined,
             skillLevel: profile?.skillLevel || undefined,
             gradeLevel: undefined, // Not in schema
+            bio: profile?.bio || undefined,
+            skillLevelCustomDescription: profile?.skillLevelCustomDescription || undefined,
+            studyStyleCustomDescription: profile?.studyStyleCustomDescription || undefined,
+            availabilityCustomDescription: profile?.availabilityCustomDescription || undefined,
+            subjectCustomDescription: profile?.subjectCustomDescription || undefined,
+            interestsCustomDescription: profile?.interestsCustomDescription || undefined,
             isOnline: presence?.is_online || profile?.onlineStatus === 'ONLINE' || false,
             lastSeen: presence?.last_seen || undefined,
             studiedTogetherCount: sharedSessionCounts.get(userId) || 0,

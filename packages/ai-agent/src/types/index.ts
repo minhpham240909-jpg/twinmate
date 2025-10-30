@@ -26,6 +26,12 @@ export interface UserProfile {
   goals: any[]
   preferences: Record<string, any>
   learningStyle?: string
+  bio?: string | null
+  skillLevelCustomDescription?: string | null
+  studyStyleCustomDescription?: string | null
+  availabilityCustomDescription?: string | null
+  subjectCustomDescription?: string | null
+  interestsCustomDescription?: string | null
 }
 
 export interface MemoryItem {

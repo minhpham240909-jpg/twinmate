@@ -30,10 +30,14 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
     async call(input: MatchInsightInput, _ctx: AgentContext): Promise<MatchInsightOutput> {
       const { forUserId, candidateId } = input
 
-      // 1. Fetch both profiles
+      // 1. Fetch both profiles (including ALL custom descriptions and bio)
       const { data: profiles, error: profileError } = await supabase
         .from('Profile')
-        .select('userId, subjects, studyStyle, skillLevel, goals, interests')
+        .select(`
+          userId, subjects, studyStyle, skillLevel, goals, interests,
+          bio, skillLevelCustomDescription, studyStyleCustomDescription,
+          availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
+        `)
         .in('userId', [forUserId, candidateId])
 
       if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`)

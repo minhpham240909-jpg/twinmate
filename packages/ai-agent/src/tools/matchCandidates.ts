@@ -24,10 +24,14 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
     async call(input: MatchCandidatesInput, ctx: AgentContext): Promise<MatchCandidatesOutput> {
       const { limit = 10, minScore = 0.4 } = input
 
-      // 1. Fetch current user's profile and learning profile
+      // 1. Fetch current user's profile and learning profile (including ALL custom descriptions)
       const { data: userProfile, error: userError } = await supabase
         .from('Profile')
-        .select('userId, subjects, studyStyle, skillLevel, goals, interests')
+        .select(`
+          userId, subjects, studyStyle, skillLevel, goals, interests,
+          bio, skillLevelCustomDescription, studyStyleCustomDescription,
+          availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
+        `)
         .eq('userId', ctx.userId)
         .single()
 
@@ -41,10 +45,14 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         .eq('userId', ctx.userId)
         .single()
 
-      // 2. Fetch all potential candidates (exclude self)
+      // 2. Fetch all potential candidates (exclude self, including ALL custom descriptions)
       const { data: candidates, error: candidatesError } = await supabase
         .from('Profile')
-        .select('userId, subjects, studyStyle, skillLevel, goals, interests')
+        .select(`
+          userId, subjects, studyStyle, skillLevel, goals, interests,
+          bio, skillLevelCustomDescription, studyStyleCustomDescription,
+          availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
+        `)
         .neq('userId', ctx.userId)
         .limit(100) // Process top 100 candidates
 
