@@ -62,25 +62,12 @@ Returns complete user info including:
       const { query, searchBy, limit } = input
 
       try {
-        // Query User table and JOIN with Profile
-        // User has: id, name, email
-        // Profile has: userId, subjects, interests, goals, studyStyle, skillLevel
+        console.log('[searchUsers] Searching for:', query, 'searchBy:', searchBy)
+
+        // STEP 1: Search User table for name/email matches
         let userQuery = supabase
           .from('User')
-          .select(`
-            id,
-            name,
-            email,
-            profile:Profile!userId(
-              userId,
-              subjects,
-              interests,
-              goals,
-              studyStyle,
-              skillLevel,
-              onlineStatus
-            )
-          `)
+          .select('id, name, email, createdAt')
           .neq('id', ctx.userId) // Don't include current user
           .limit(limit)
 
@@ -91,12 +78,18 @@ Returns complete user info including:
 
         const { data: users, error: userError } = await userQuery
 
+        console.log('[searchUsers] User query result:', {
+          found: users?.length || 0,
+          error: userError?.message
+        })
+
         if (userError) {
-          console.error('User search error:', userError)
+          console.error('[searchUsers] User search error:', userError)
           throw new Error(`Failed to search users: ${userError.message}`)
         }
 
         if (!users || users.length === 0) {
+          console.log('[searchUsers] No users found matching:', query)
           return {
             users: [],
             totalFound: 0,
@@ -106,6 +99,23 @@ Returns complete user info including:
 
         // Get user IDs
         const userIds = users.map(u => u.id)
+        console.log('[searchUsers] Found user IDs:', userIds)
+
+        // STEP 2: Get Profile data for these users
+        const { data: profiles, error: profileError } = await supabase
+          .from('Profile')
+          .select('userId, subjects, interests, goals, studyStyle, skillLevel, onlineStatus')
+          .in('userId', userIds)
+
+        console.log('[searchUsers] Profile query result:', {
+          found: profiles?.length || 0,
+          error: profileError?.message
+        })
+
+        // Map profiles by userId for easy lookup
+        const profileMap = new Map(
+          profiles?.map(p => [p.userId, p]) || []
+        )
 
         // Get online presence for all users
         const { data: presenceData } = await supabase
@@ -180,9 +190,11 @@ Returns complete user info including:
 
         // Build result - map users with their profiles
         const resultUsers = users.map(user => {
-          // Profile is an array from the join, get first element
-          const profile = Array.isArray(user.profile) ? user.profile[0] : user.profile
+          // Get profile from profileMap (we queried separately)
+          const profile = profileMap.get(user.id)
           const presence = presenceMap.get(user.id)
+
+          console.log('[searchUsers] Mapping user:', user.name, 'has profile:', !!profile)
 
           const theirSubjects = new Set(profile?.subjects || [])
           const theirInterests = new Set(profile?.interests || [])
@@ -211,6 +223,8 @@ Returns complete user info including:
             compatibilityScore: Math.round(compatibilityScore * 100) / 100,
           }
         })
+
+        console.log('[searchUsers] Returning', resultUsers.length, 'users')
 
         // Sort by relevance (compatibility + studied together)
         resultUsers.sort((a, b) => {
