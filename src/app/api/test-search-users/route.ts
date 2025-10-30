@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextParams
     const query = request.nextUrl.searchParams.get('query') || 'Gia'
 
     console.log('[TEST] Searching for:', query)
