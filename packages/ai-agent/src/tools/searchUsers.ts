@@ -65,16 +65,19 @@ Returns complete user info including:
         console.log('[searchUsers] Searching for:', query, 'searchBy:', searchBy)
 
         // STEP 1: Search User table for name/email matches
+        // Note: We ALWAYS search by name first, then filter by Profile data if needed
         let userQuery = supabase
           .from('User')
           .select('id, name, email, createdAt')
           .neq('id', ctx.userId) // Don't include current user
-          .limit(limit)
+          .limit(100) // Get more, we'll filter by Profile data later
 
-        // Search by name or email
+        // For name/all search, filter by name in the query
+        // For subjects/interests/etc, we'll filter after getting Profile data
         if (searchBy === 'all' || searchBy === 'name') {
           userQuery = userQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
         }
+        // If searching by subjects/interests/etc, get all users and filter by Profile later
 
         const { data: users, error: userError } = await userQuery
 
@@ -224,8 +227,6 @@ Returns complete user info including:
           }
         })
 
-        console.log('[searchUsers] Returning', resultUsers.length, 'users')
-
         // Sort by relevance (compatibility + studied together)
         resultUsers.sort((a, b) => {
           const scoreA = (a.compatibilityScore || 0) + (a.studiedTogetherCount || 0) * 0.1
@@ -233,8 +234,14 @@ Returns complete user info including:
           return scoreB - scoreA
         })
 
+        // Limit final results
+        const limitedResults = resultUsers.slice(0, limit)
+
+        console.log('[searchUsers] Returning', limitedResults.length, 'users out of', resultUsers.length, 'found')
+        console.log('[searchUsers] User names:', limitedResults.map(u => u.name).join(', '))
+
         return {
-          users: resultUsers,
+          users: limitedResults,
           totalFound: resultUsers.length,
           searchedBy: searchBy,
         }
