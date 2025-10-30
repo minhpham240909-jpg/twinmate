@@ -64,24 +64,43 @@ Returns complete user info including:
       try {
         console.log('[searchUsers] Searching for:', query, 'searchBy:', searchBy)
 
-        // STEP 1: Search User table for name/email matches
-        // Note: We ALWAYS search by name first, then filter by Profile data if needed
+        // STEP 1: Search for users by name/email in User table
+        // Note: Profile table doesn't have firstName/lastName - only User.name exists
+        let userIds: string[] = []
+        let userMap = new Map<string, { name: string; email: string }>()
+
+        // Build search query for User table
         let userQuery = supabase
           .from('User')
           .select('id, name, email, createdAt')
           .neq('id', ctx.userId) // Don't include current user
-          .limit(100) // Get more, we'll filter by Profile data later
+          .limit(100)
 
-        // For name/all search, filter by name in the query
-        // For subjects/interests/etc, we'll filter after getting Profile data
+        // For name/all search: Search by name and email
+        // Split multi-word queries to match partial names (e.g., "Gia Khang Pham")
         if (searchBy === 'all' || searchBy === 'name') {
-          userQuery = userQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+          const searchTerms = query.trim().split(/\s+/) // Split by whitespace
+          
+          // Build OR conditions for each search term against name and email
+          const conditions: string[] = []
+          for (const term of searchTerms) {
+            if (term.length > 0) {
+              conditions.push(`name.ilike.%${term}%`)
+              conditions.push(`email.ilike.%${term}%`)
+            }
+          }
+          
+          if (conditions.length > 0) {
+            userQuery = userQuery.or(conditions.join(','))
+          }
+
+          console.log('[searchUsers] Searching User table with terms:', searchTerms)
         }
-        // If searching by subjects/interests/etc, get all users and filter by Profile later
 
         const { data: users, error: userError } = await userQuery
 
-        console.log('[searchUsers] User query result:', {
+        console.log('[searchUsers] User table search result:', {
+          query: query,
           found: users?.length || 0,
           error: userError?.message
         })
@@ -100,9 +119,14 @@ Returns complete user info including:
           }
         }
 
-        // Get user IDs
-        const userIds = users.map(u => u.id)
+        // Store user data
+        for (const user of users) {
+          userIds.push(user.id)
+          userMap.set(user.id, { name: user.name, email: user.email })
+        }
+
         console.log('[searchUsers] Found user IDs:', userIds)
+        console.log('[searchUsers] User names:', users.map(u => u.name).join(', '))
 
         // STEP 2: Get Profile data for these users
         const { data: profiles, error: profileError } = await supabase
@@ -192,12 +216,13 @@ Returns complete user info including:
         const myInterests = new Set(myProfile.data?.interests || [])
 
         // Build result - map users with their profiles
-        const resultUsers = users.map(user => {
+        let resultUsers = userIds.map(userId => {
+          const userInfo = userMap.get(userId)!
           // Get profile from profileMap (we queried separately)
-          const profile = profileMap.get(user.id)
-          const presence = presenceMap.get(user.id)
+          const profile = profileMap.get(userId)
+          const presence = presenceMap.get(userId)
 
-          console.log('[searchUsers] Mapping user:', user.name, 'has profile:', !!profile)
+          console.log('[searchUsers] Mapping user:', userInfo.name, 'has profile:', !!profile)
 
           const theirSubjects = new Set(profile?.subjects || [])
           const theirInterests = new Set(profile?.interests || [])
@@ -210,9 +235,9 @@ Returns complete user info including:
           const compatibilityScore = maxPossible > 0 ? totalOverlap / maxPossible : 0
 
           return {
-            userId: user.id,
-            name: user.name || user.email,
-            email: user.email,
+            userId: userId,
+            name: userInfo.name || userInfo.email,
+            email: userInfo.email,
             subjects: profile?.subjects || [],
             interests: profile?.interests || [],
             goals: profile?.goals || [],
@@ -221,11 +246,33 @@ Returns complete user info including:
             gradeLevel: undefined, // Not in schema
             isOnline: presence?.is_online || profile?.onlineStatus === 'ONLINE' || false,
             lastSeen: presence?.last_seen || undefined,
-            studiedTogetherCount: sharedSessionCounts.get(user.id) || 0,
-            sharedGroups: sharedGroupCounts.get(user.id) || 0,
+            studiedTogetherCount: sharedSessionCounts.get(userId) || 0,
+            sharedGroups: sharedGroupCounts.get(userId) || 0,
             compatibilityScore: Math.round(compatibilityScore * 100) / 100,
           }
         })
+
+        // Filter by specific criteria if searchBy is not 'all' or 'name'
+        if (searchBy && searchBy !== 'all' && searchBy !== 'name') {
+          const queryLower = query.toLowerCase()
+          
+          resultUsers = resultUsers.filter(user => {
+            switch (searchBy) {
+              case 'subjects':
+                return user.subjects.some((s: string) => s.toLowerCase().includes(queryLower))
+              case 'interests':
+                return user.interests.some((i: string) => i.toLowerCase().includes(queryLower))
+              case 'goals':
+                return user.goals.some((g: string) => g.toLowerCase().includes(queryLower))
+              case 'learningStyle':
+                return user.learningStyle?.toLowerCase().includes(queryLower)
+              default:
+                return true // Include all if unknown searchBy
+            }
+          })
+          
+          console.log('[searchUsers] Filtered by', searchBy, '- remaining:', resultUsers.length)
+        }
 
         // Sort by relevance (compatibility + studied together)
         resultUsers.sort((a, b) => {

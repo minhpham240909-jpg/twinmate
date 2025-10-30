@@ -29,8 +29,22 @@ export async function GET(request: NextRequest) {
       userQuery = userQuery.neq('id', currentUserId)
     }
 
-    // Search by name or email
-    userQuery = userQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+    // Search by name or email - split query into terms for better matching
+    // This handles multi-word names like "Gia Khang Pham"
+    const searchTerms = query.trim().split(/\s+/)
+    const conditions: string[] = []
+    for (const term of searchTerms) {
+      if (term.length > 0) {
+        conditions.push(`name.ilike.%${term}%`)
+        conditions.push(`email.ilike.%${term}%`)
+      }
+    }
+    
+    if (conditions.length > 0) {
+      userQuery = userQuery.or(conditions.join(','))
+    }
+    
+    console.log('[TEST] Search terms:', searchTerms)
 
     const { data: users, error: userError } = await userQuery
 
