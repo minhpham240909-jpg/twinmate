@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       },
       toolResults: {
         totalFound: toolResult.totalFound,
-        users: toolResult.users.map(u => ({
+        users: toolResult.users.map((u: any) => ({
           name: u.name,
           email: u.email,
           subjects: u.subjects,
