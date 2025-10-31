@@ -46,33 +46,34 @@ const outputSchema = z.object({
 export function createSearchUsersTool(supabase: SupabaseClient): Tool {
   return {
     name: 'searchUsers',
-    description: `**PRIMARY TOOL FOR FINDING PEOPLE** - Search for users by name, subjects, interests, goals, learning style, etc.
+    description: `🔴 CRITICAL TOOL - ALWAYS USE FOR PEOPLE SEARCHES 🔴
 
-🔍 USE THIS TOOL IMMEDIATELY when user:
-- Types a name: "John", "Sarah Chen", "Mike"
-- Asks about someone: "find Alex", "show me partners named Emma"
-- Wants to match with specific person: "match me with David"
+⚠️ MANDATORY: Call this tool IMMEDIATELY if the user message contains:
+1. Any capitalized word that looks like a name (John, Sarah, Alex, Mike, etc.)
+2. Words like "find", "search", "show me", "who is", "look for" + a name
+3. ANY proper noun that could be a person's name
+4. Requests about partners, users, students, or people
 
-Search capabilities:
-- Name search (MOST IMPORTANT): Finds users by full/partial name
-- Subject search: Finds users studying specific topics
-- Interest search: Finds users with specific hobbies
-- Learning style: Finds users by study preferences
+This tool searches the REAL database for users by:
+✅ Name (partial or full): "John", "Sarah Chen", "Gia Khang"
+✅ Email: "user@example.com"
+✅ Subjects: "Python", "Math", "Business"
+✅ Interests: "Gaming", "Music", "Sports"
 
-Examples:
-- "John" → searches by name, returns John's complete profile
-- "Gia Khang Pham" → finds user with that name
-- "Python" → finds users studying Python
-- "Gaming" → finds users interested in gaming
+EXAMPLES REQUIRING THIS TOOL:
+- User types: "John" → CALL searchUsers with query="John", searchBy="name"
+- User types: "find Sarah" → CALL searchUsers with query="Sarah", searchBy="name"
+- User types: "Minh Pham" → CALL searchUsers with query="Minh Pham", searchBy="name"
+- User types: "who studies Python" → CALL searchUsers with query="Python", searchBy="subjects"
 
-Returns COMPLETE user info:
+NEVER say "I can't find" without calling this tool first!
+NEVER guess or assume - ALWAYS query the database!
+
+Returns complete user data:
 - Name, email, bio
-- Profile (subjects, interests, goals, learning style, skill level)
-- ALL custom descriptions (subject details, interest details, etc.)
-- Online status and last seen
-- Study history together (how many sessions)
-- Shared groups
-- Compatibility score`,
+- Subjects, interests, goals, learning style, skill level
+- ALL custom descriptions (detailed info about their profile)
+- Online status, study history, shared groups, compatibility score`,
 
     inputSchema,
     outputSchema,
