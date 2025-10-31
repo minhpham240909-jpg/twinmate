@@ -27,6 +27,10 @@ export interface UserProfile {
   preferences: Record<string, any>
   learningStyle?: string
   bio?: string | null
+  school?: string | null
+  languages?: string | null
+  aboutYourself?: string | null
+  aboutYourselfItems?: string[]
   skillLevelCustomDescription?: string | null
   studyStyleCustomDescription?: string | null
   availabilityCustomDescription?: string | null
