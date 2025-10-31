@@ -37,7 +37,15 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         .eq('userId', ctx.userId)
         .single()
 
+      console.log('[matchCandidates] Profile:', {
+        found: !!userProfile,
+        subjects: userProfile?.subjects || [],
+        interests: userProfile?.interests || [],
+        error: userError?.message
+      })
+
       if (userError || !userProfile) {
+        console.error('[matchCandidates] ERROR: User profile not found for', ctx.userId)
         throw new Error('User profile not found')
       }
 
@@ -63,7 +71,10 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         throw new Error(`Failed to fetch candidates: ${candidatesError.message}`)
       }
 
+      console.log('[matchCandidates] Candidates found:', candidates?.length || 0)
+
       if (!candidates || candidates.length === 0) {
+        console.log('[matchCandidates] RETURN: No candidates in database')
         return { matches: [], total: 0 }
       }
 
@@ -104,14 +115,19 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
 
+      console.log('[matchCandidates] Scored:', scoredMatches.length, 'Filtered:', filteredMatches.length)
+      console.log('[matchCandidates] Top 3 scores:', scoredMatches.slice(0, 3).map(m => m.score.toFixed(2)))
+
       // FIXED: If no matches meet minScore threshold, return top candidates anyway
       // This prevents "no partners found" when users have incomplete profiles
       if (filteredMatches.length === 0 && scoredMatches.length > 0) {
-        console.log('[matchCandidates] No matches above minScore, returning top candidates')
+        console.log('[matchCandidates] FALLBACK: No matches above minScore, returning top candidates')
         filteredMatches = scoredMatches
           .sort((a, b) => b.score - a.score)
           .slice(0, limit)
       }
+
+      console.log('[matchCandidates] RETURN:', filteredMatches.length, 'matches')
 
       // 6. Optionally cache results in MatchCandidate table (if exists)
       try {
