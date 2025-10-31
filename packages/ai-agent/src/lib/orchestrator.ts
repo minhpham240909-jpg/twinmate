@@ -549,13 +549,11 @@ IMPORTANT: If a user asks for multiple things (e.g., "explain this and create a 
 
 User Context (helpful background info - NOT restrictions on what you can help with):
 - Grade Level: ${context.userProfile?.gradeLevel || 'Unknown'}
-- School: ${context.userProfile?.school || 'Not specified'}
-- Languages: ${context.userProfile?.languages || 'Not specified'}
 - Current Focus Areas: ${context.userProfile?.subjects.join(', ') || 'None specified'}${context.userProfile?.subjectCustomDescription ? `\n  → Details: ${context.userProfile.subjectCustomDescription}` : ''}
 - Goals: ${context.userProfile?.goals?.join(', ') || 'None specified'}
 - Preferred Learning Style: ${context.userProfile?.learningStyle || 'Unknown'}${context.userProfile?.studyStyleCustomDescription ? `\n  → Details: ${context.userProfile.studyStyleCustomDescription}` : ''}
 - Interests: ${context.userProfile?.preferences?.interests?.join(', ') || 'None specified'}${context.userProfile?.interestsCustomDescription ? `\n  → Details: ${context.userProfile.interestsCustomDescription}` : ''}
-- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${context.userProfile?.skillLevelCustomDescription ? `\n  → Details: ${context.userProfile.skillLevelCustomDescription}` : ''}${context.userProfile?.availabilityCustomDescription ? `\n- Availability Notes: ${context.userProfile.availabilityCustomDescription}` : ''}${context.userProfile?.bio ? `\n- Bio: ${context.userProfile.bio}` : ''}${context.userProfile?.aboutYourself ? `\n- About Yourself: ${context.userProfile.aboutYourself}` : ''}${context.userProfile?.aboutYourselfItems && context.userProfile.aboutYourselfItems.length > 0 ? `\n- Tags: ${context.userProfile.aboutYourselfItems.join(', ')}` : ''}${memoryContext}
+- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${context.userProfile?.skillLevelCustomDescription ? `\n  → Details: ${context.userProfile.skillLevelCustomDescription}` : ''}${context.userProfile?.availabilityCustomDescription ? `\n- Availability Notes: ${context.userProfile.availabilityCustomDescription}` : ''}${context.userProfile?.bio ? `\n- Bio: ${context.userProfile.bio}` : ''}${memoryContext}
 
 Available sources: ${context.retrievedChunks?.length || 0} relevant document chunks retrieved.
 
