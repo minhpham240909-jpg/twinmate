@@ -60,7 +60,11 @@ export async function GET(request: NextRequest) {
 
     const toolResult = await searchUsersTool.call(
       { query, searchBy, limit: 10 },
-      { userId: mockUserId, conversationHistory: [] }
+      {
+        userId: mockUserId,
+        traceId: `test-${Date.now()}`,
+        timestamp: new Date()
+      }
     )
 
     console.log('[test-search-tool] Tool result:', {
