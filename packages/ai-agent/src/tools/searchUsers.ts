@@ -46,18 +46,31 @@ const outputSchema = z.object({
 export function createSearchUsersTool(supabase: SupabaseClient): Tool {
   return {
     name: 'searchUsers',
-    description: `Search for users by ANYTHING - name, subjects, interests, goals, learning style, etc.
+    description: `**PRIMARY TOOL FOR FINDING PEOPLE** - Search for users by name, subjects, interests, goals, learning style, etc.
+
+🔍 USE THIS TOOL IMMEDIATELY when user:
+- Types a name: "John", "Sarah Chen", "Mike"
+- Asks about someone: "find Alex", "show me partners named Emma"
+- Wants to match with specific person: "match me with David"
+
+Search capabilities:
+- Name search (MOST IMPORTANT): Finds users by full/partial name
+- Subject search: Finds users studying specific topics
+- Interest search: Finds users with specific hobbies
+- Learning style: Finds users by study preferences
 
 Examples:
-- "Gia Khang" → finds users with that name
+- "John" → searches by name, returns John's complete profile
+- "Gia Khang Pham" → finds user with that name
 - "Python" → finds users studying Python
 - "Gaming" → finds users interested in gaming
-- "Visual learner" → finds visual learners
 
-Returns complete user info including:
-- Profile (name, subjects, interests, goals, style)
-- Online status
-- How many times you studied together
+Returns COMPLETE user info:
+- Name, email, bio
+- Profile (subjects, interests, goals, learning style, skill level)
+- ALL custom descriptions (subject details, interest details, etc.)
+- Online status and last seen
+- Study history together (how many sessions)
 - Shared groups
 - Compatibility score`,
 
