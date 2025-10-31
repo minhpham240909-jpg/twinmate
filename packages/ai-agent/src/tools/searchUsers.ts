@@ -207,7 +207,7 @@ Returns complete user data:
           // Count intersections
           for (const userId of userIds) {
             const theirSessions = sessionsByUser.get(userId) || new Set()
-            const sharedCount = [...mySessions].filter(s => theirSessions.has(s)).length
+            const sharedCount = Array.from(mySessions).filter(s => theirSessions.has(s)).length
             sharedSessionCounts.set(userId, sharedCount)
           }
         }
@@ -257,8 +257,8 @@ Returns complete user data:
           const theirInterests = new Set(profile?.interests || [])
 
           // Calculate compatibility
-          const subjectOverlap = [...mySubjects].filter(s => theirSubjects.has(s)).length
-          const interestOverlap = [...myInterests].filter(i => theirInterests.has(i)).length
+          const subjectOverlap = Array.from(mySubjects).filter(s => theirSubjects.has(s)).length
+          const interestOverlap = Array.from(myInterests).filter(i => theirInterests.has(i)).length
           const totalOverlap = subjectOverlap + interestOverlap
           const maxPossible = Math.max(mySubjects.size + myInterests.size, theirSubjects.size + theirInterests.size)
           const compatibilityScore = maxPossible > 0 ? totalOverlap / maxPossible : 0

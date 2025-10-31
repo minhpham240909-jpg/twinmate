@@ -390,7 +390,7 @@ export class AgentOrchestrator {
 
     return {
       text: response.content,
-      toolsUsed: [...new Set(toolResults.map(tr => tr.toolName))],
+      toolsUsed: Array.from(new Set(toolResults.map(tr => tr.toolName))),
       toolResults,
       cards,
       citations,

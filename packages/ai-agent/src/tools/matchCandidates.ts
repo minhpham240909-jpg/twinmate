@@ -153,7 +153,7 @@ function computeCompatibilityScore(
   // Subject overlap (40% weight)
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const overlap = [...userSubjects].filter(s => candidateSubjects.has(s)).length
+  const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s)).length
   const subjectScore = Math.min(overlap / 3, 1) // Cap at 3 subjects
   score += subjectScore * 0.4
   factors++
@@ -180,8 +180,8 @@ function computeCompatibilityScore(
     const candidateStrengths = new Set(candidateLearning.strengths || [])
     const candidateWeaknesses = new Set(candidateLearning.weaknesses || [])
 
-    const userHelpsCandidate = [...userStrengths].filter(s => candidateWeaknesses.has(s)).length
-    const candidateHelpsUser = [...candidateStrengths].filter(s => userWeaknesses.has(s)).length
+    const userHelpsCandidate = Array.from(userStrengths).filter(s => candidateWeaknesses.has(s)).length
+    const candidateHelpsUser = Array.from(candidateStrengths).filter(s => userWeaknesses.has(s)).length
 
     const complementScore = Math.min((userHelpsCandidate + candidateHelpsUser) / 4, 1)
     score += complementScore * 0.25
@@ -202,7 +202,7 @@ function computeFacets(
 ): Record<string, any> {
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const commonSubjects = [...userSubjects].filter(s => candidateSubjects.has(s))
+  const commonSubjects = Array.from(userSubjects).filter(s => candidateSubjects.has(s))
 
   const facets: Record<string, any> = {
     commonSubjects,
@@ -218,8 +218,8 @@ function computeFacets(
     const candidateStrengths = new Set(candidateLearning.strengths || [])
     const candidateWeaknesses = new Set(candidateLearning.weaknesses || [])
 
-    const theyHelp = [...candidateStrengths].filter(s => userWeaknesses.has(s))
-    const youHelp = [...userStrengths].filter(s => candidateWeaknesses.has(s))
+    const theyHelp = Array.from(candidateStrengths).filter(s => userWeaknesses.has(s))
+    const youHelp = Array.from(userStrengths).filter(s => candidateWeaknesses.has(s))
 
     facets.complementarity = {
       theyHelpWith: theyHelp,

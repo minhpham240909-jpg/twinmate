@@ -166,7 +166,7 @@ function computeCompatibilityScore(
   // Subject overlap (40% weight)
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const overlap = [...userSubjects].filter(s => candidateSubjects.has(s)).length
+  const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s)).length
   const subjectScore = Math.min(overlap / 3, 1) // Cap at 3 subjects
   score += subjectScore * 0.4
   factors++
@@ -195,8 +195,8 @@ function computeCompatibilityScore(
     const candidateWeaknesses = new Set(candidateLearning.weaknesses || [])
 
     // Check if one's strength covers other's weakness
-    const userHelpsCandidate = [...userStrengths].filter(s => candidateWeaknesses.has(s)).length
-    const candidateHelpsUser = [...candidateStrengths].filter(s => userWeaknesses.has(s)).length
+    const userHelpsCandidate = Array.from(userStrengths).filter(s => candidateWeaknesses.has(s)).length
+    const candidateHelpsUser = Array.from(candidateStrengths).filter(s => userWeaknesses.has(s)).length
 
     const complementScore = Math.min((userHelpsCandidate + candidateHelpsUser) / 4, 1)
     score += complementScore * 0.25
@@ -251,7 +251,7 @@ function identifyRisks(user: any, candidate: any): string[] {
   // No subject overlap
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const overlap = [...userSubjects].filter(s => candidateSubjects.has(s))
+  const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s))
   if (overlap.length === 0) {
     risks.push('No overlapping subjects - may need to find common ground')
   }
@@ -289,7 +289,7 @@ function generateJointStudyPlan(
   // Find common subjects
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const common = [...userSubjects].filter(s => candidateSubjects.has(s))
+  const common = Array.from(userSubjects).filter(s => candidateSubjects.has(s))
 
   if (common.length > 0) {
     plan.push(`Focus on shared subjects: ${common.join(', ')}`)
