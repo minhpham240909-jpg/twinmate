@@ -198,14 +198,15 @@ export class AgentOrchestrator {
 
     if (this.config.supabase) {
       try {
-        // Load both profile and memory concurrently (including ALL custom descriptions)
+        // Load both profile and memory concurrently (including ALL fields)
         const [profileResult, memoryResult] = await Promise.all([
           // Load user profile with ALL fields
           !userProfile ? this.config.supabase
             .from('Profile')
             .select(`
               subjects, goals, studyStyle, skillLevel, interests,
-              bio, skillLevelCustomDescription, studyStyleCustomDescription,
+              bio, school, languages, aboutYourself, aboutYourselfItems,
+              skillLevelCustomDescription, studyStyleCustomDescription,
               availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
             `)
             .eq('userId', userId)
@@ -219,13 +220,17 @@ export class AgentOrchestrator {
             .limit(10),
         ])
 
-        // Process profile data (including ALL custom descriptions and bio)
+        // Process profile data (including ALL fields)
         if (!userProfile && profileResult.data) {
           userProfile = {
             subjects: profileResult.data.subjects || [],
             goals: profileResult.data.goals || [],
             learningStyle: profileResult.data.studyStyle || 'Unknown',
             bio: profileResult.data.bio || null,
+            school: profileResult.data.school || null,
+            languages: profileResult.data.languages || null,
+            aboutYourself: profileResult.data.aboutYourself || null,
+            aboutYourselfItems: profileResult.data.aboutYourselfItems || [],
             skillLevelCustomDescription: profileResult.data.skillLevelCustomDescription || null,
             studyStyleCustomDescription: profileResult.data.studyStyleCustomDescription || null,
             availabilityCustomDescription: profileResult.data.availabilityCustomDescription || null,
@@ -544,10 +549,13 @@ IMPORTANT: If a user asks for multiple things (e.g., "explain this and create a 
 
 User Context (helpful background info - NOT restrictions on what you can help with):
 - Grade Level: ${context.userProfile?.gradeLevel || 'Unknown'}
+- School: ${context.userProfile?.school || 'Not specified'}
+- Languages: ${context.userProfile?.languages || 'Not specified'}
 - Current Focus Areas: ${context.userProfile?.subjects.join(', ') || 'None specified'}${context.userProfile?.subjectCustomDescription ? `\n  → Details: ${context.userProfile.subjectCustomDescription}` : ''}
+- Goals: ${context.userProfile?.goals?.join(', ') || 'None specified'}
 - Preferred Learning Style: ${context.userProfile?.learningStyle || 'Unknown'}${context.userProfile?.studyStyleCustomDescription ? `\n  → Details: ${context.userProfile.studyStyleCustomDescription}` : ''}
 - Interests: ${context.userProfile?.preferences?.interests?.join(', ') || 'None specified'}${context.userProfile?.interestsCustomDescription ? `\n  → Details: ${context.userProfile.interestsCustomDescription}` : ''}
-- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${context.userProfile?.skillLevelCustomDescription ? `\n  → Details: ${context.userProfile.skillLevelCustomDescription}` : ''}${context.userProfile?.availabilityCustomDescription ? `\n- Availability Notes: ${context.userProfile.availabilityCustomDescription}` : ''}${context.userProfile?.bio ? `\n- Bio: ${context.userProfile.bio}` : ''}${memoryContext}
+- Skill Level: ${context.userProfile?.preferences?.skillLevel || 'Unknown'}${context.userProfile?.skillLevelCustomDescription ? `\n  → Details: ${context.userProfile.skillLevelCustomDescription}` : ''}${context.userProfile?.availabilityCustomDescription ? `\n- Availability Notes: ${context.userProfile.availabilityCustomDescription}` : ''}${context.userProfile?.bio ? `\n- Bio: ${context.userProfile.bio}` : ''}${context.userProfile?.aboutYourself ? `\n- About Yourself: ${context.userProfile.aboutYourself}` : ''}${context.userProfile?.aboutYourselfItems && context.userProfile.aboutYourselfItems.length > 0 ? `\n- Tags: ${context.userProfile.aboutYourselfItems.join(', ')}` : ''}${memoryContext}
 
 Available sources: ${context.retrievedChunks?.length || 0} relevant document chunks retrieved.
 

@@ -28,6 +28,10 @@ const outputSchema = z.object({
     skillLevel: z.string().optional(),
     gradeLevel: z.string().optional(),
     bio: z.string().optional().describe('User bio/personal description'),
+    school: z.string().optional().describe('School or institution name'),
+    languages: z.string().optional().describe('Languages spoken'),
+    aboutYourself: z.string().optional().describe('Additional info about yourself'),
+    aboutYourselfItems: z.array(z.string()).optional().describe('Custom tags about yourself'),
     skillLevelCustomDescription: z.string().optional().describe('Custom description of skill level'),
     studyStyleCustomDescription: z.string().optional().describe('Custom description of study style'),
     availabilityCustomDescription: z.string().optional().describe('Custom description of availability'),
@@ -148,12 +152,13 @@ Returns complete user data:
         console.log('[searchUsers] Found user IDs:', userIds)
         console.log('[searchUsers] User names:', users.map(u => u.name).join(', '))
 
-        // STEP 2: Get Profile data for these users (including ALL custom descriptions)
+        // STEP 2: Get Profile data for these users (including ALL fields)
         const { data: profiles, error: profileError } = await supabase
           .from('Profile')
           .select(`
             userId, subjects, interests, goals, studyStyle, skillLevel, onlineStatus,
-            bio, skillLevelCustomDescription, studyStyleCustomDescription,
+            bio, school, languages, aboutYourself, aboutYourselfItems,
+            skillLevelCustomDescription, studyStyleCustomDescription,
             availabilityCustomDescription, subjectCustomDescription, interestsCustomDescription
           `)
           .in('userId', userIds)
@@ -163,8 +168,8 @@ Returns complete user data:
           error: profileError?.message
         })
 
-        // Map profiles by userId for easy lookup
-        const profileMap = new Map(
+        // Map profiles by userId for easy lookup (with all fields)
+        const profileMap = new Map<string, any>(
           profiles?.map(p => [p.userId, p]) || []
         )
 
@@ -269,6 +274,10 @@ Returns complete user data:
             skillLevel: profile?.skillLevel || undefined,
             gradeLevel: undefined, // Not in schema
             bio: profile?.bio || undefined,
+            school: profile?.school || undefined,
+            languages: profile?.languages || undefined,
+            aboutYourself: profile?.aboutYourself || undefined,
+            aboutYourselfItems: profile?.aboutYourselfItems || [],
             skillLevelCustomDescription: profile?.skillLevelCustomDescription || undefined,
             studyStyleCustomDescription: profile?.studyStyleCustomDescription || undefined,
             availabilityCustomDescription: profile?.availabilityCustomDescription || undefined,
