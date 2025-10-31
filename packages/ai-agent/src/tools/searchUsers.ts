@@ -131,11 +131,24 @@ Returns complete user data:
 
         if (userError) {
           console.error('[searchUsers] User search error:', userError)
+          console.error('[searchUsers] Error details:', {
+            message: userError.message,
+            hint: userError.hint,
+            details: userError.details,
+            code: userError.code
+          })
           throw new Error(`Failed to search users: ${userError.message}`)
         }
 
         if (!users || users.length === 0) {
           console.log('[searchUsers] No users found matching:', query)
+          console.log('[searchUsers] DEBUG - Query details:', {
+            query,
+            searchBy,
+            searchTerms: query.trim().split(/\s+/),
+            currentUserId: ctx.userId,
+            supabaseConnected: !!supabase
+          })
           return {
             users: [],
             totalFound: 0,
