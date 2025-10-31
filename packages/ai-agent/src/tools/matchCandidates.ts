@@ -15,14 +15,15 @@ import { SupabaseClient } from '@supabase/supabase-js'
 export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchCandidatesInput, MatchCandidatesOutput> {
   return {
     name: 'matchCandidates',
-    description: 'Find and rank potential study partners based on compatibility (subjects, learning style, availability). Returns top matches.',
+    description: 'Find and rank potential study partners based on compatibility (subjects, learning style, availability). Returns top matches even with low compatibility scores.',
     category: 'collaboration',
     inputSchema: MatchCandidatesInputSchema,
     outputSchema: MatchCandidatesOutputSchema,
     estimatedLatencyMs: 1500,
 
     async call(input: MatchCandidatesInput, ctx: AgentContext): Promise<MatchCandidatesOutput> {
-      const { limit = 10, minScore = 0.4 } = input
+      // FIXED: Lower minScore from 0.4 to 0.1 to handle users with incomplete profiles
+      const { limit = 10, minScore = 0.1 } = input
 
       // 1. Fetch current user's profile and learning profile (including ALL fields)
       const { data: userProfile, error: userError } = await supabase
@@ -98,10 +99,19 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
       })
 
       // 5. Filter by minimum score and sort
-      const filteredMatches = scoredMatches
+      let filteredMatches = scoredMatches
         .filter(m => m.score >= minScore)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
+
+      // FIXED: If no matches meet minScore threshold, return top candidates anyway
+      // This prevents "no partners found" when users have incomplete profiles
+      if (filteredMatches.length === 0 && scoredMatches.length > 0) {
+        console.log('[matchCandidates] No matches above minScore, returning top candidates')
+        filteredMatches = scoredMatches
+          .sort((a, b) => b.score - a.score)
+          .slice(0, limit)
+      }
 
       // 6. Optionally cache results in MatchCandidate table (if exists)
       try {
@@ -140,6 +150,7 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
 
 /**
  * Compute overall compatibility score (same logic as matchInsight)
+ * FIXED: More lenient scoring for users with incomplete profiles
  */
 function computeCompatibilityScore(
   user: any,
@@ -148,29 +159,32 @@ function computeCompatibilityScore(
   candidateLearning: any
 ): { score: number } {
   let score = 0
-  let factors = 0
+  let maxPossibleScore = 0
 
   // Subject overlap (40% weight)
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s)).length
-  const subjectScore = Math.min(overlap / 3, 1) // Cap at 3 subjects
-  score += subjectScore * 0.4
-  factors++
+
+  // FIXED: If either user has subjects, count this factor
+  if (userSubjects.size > 0 || candidateSubjects.size > 0) {
+    const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s)).length
+    const subjectScore = Math.min(overlap / 3, 1) // Cap at 3 subjects
+    score += subjectScore * 0.4
+    maxPossibleScore += 0.4
+  }
 
   // Learning style compatibility (20% weight)
   if (user.studyStyle && candidate.studyStyle) {
     const styleScore = user.studyStyle === candidate.studyStyle ? 0.8 : 0.7
     score += styleScore * 0.2
-    factors++
+    maxPossibleScore += 0.2
   }
 
   // Skill level proximity (15% weight)
   if (user.skillLevel && candidate.skillLevel) {
-    // SkillLevel is an enum, so we'll compare as strings
     const skillScore = user.skillLevel === candidate.skillLevel ? 1.0 : 0.6
     score += skillScore * 0.15
-    factors++
+    maxPossibleScore += 0.15
   }
 
   // Strength/weakness complementarity (25% weight)
@@ -185,10 +199,20 @@ function computeCompatibilityScore(
 
     const complementScore = Math.min((userHelpsCandidate + candidateHelpsUser) / 4, 1)
     score += complementScore * 0.25
-    factors++
+    maxPossibleScore += 0.25
   }
 
-  return { score: Math.min(score, 1) }
+  // FIXED: If profiles are mostly empty, give a baseline score so users aren't completely filtered out
+  // This allows matching even when profiles are incomplete
+  if (maxPossibleScore === 0) {
+    // No data to compare - return small baseline score
+    return { score: 0.1 }
+  }
+
+  // Normalize score based on factors that were actually comparable
+  const normalizedScore = maxPossibleScore > 0 ? score / maxPossibleScore : 0
+
+  return { score: Math.min(normalizedScore, 1) }
 }
 
 /**

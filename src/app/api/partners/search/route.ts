@@ -27,12 +27,23 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
+    if (authError) {
+      console.error('[Partner Search] Auth error:', authError)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Authentication failed', details: authError.message },
         { status: 401 }
       )
     }
+
+    if (!user) {
+      console.error('[Partner Search] No user found in session')
+      return NextResponse.json(
+        { error: 'Please sign in to search for partners' },
+        { status: 401 }
+      )
+    }
+
+    console.log('[Partner Search] Request from user:', user.id)
 
     // Parse and validate request body
     const body = await request.json()
@@ -296,8 +307,16 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Partner search error:', error)
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      },
       { status: 500 }
     )
   }

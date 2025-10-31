@@ -153,6 +153,7 @@ export function createMatchInsightTool(supabase: SupabaseClient): Tool<MatchInsi
 
 /**
  * Compute overall compatibility score (0-1)
+ * FIXED: More lenient scoring for users with incomplete profiles
  */
 function computeCompatibilityScore(
   user: any,
@@ -161,30 +162,33 @@ function computeCompatibilityScore(
   candidateLearning: any
 ): { score: number } {
   let score = 0
-  let factors = 0
+  let maxPossibleScore = 0
 
   // Subject overlap (40% weight)
   const userSubjects = new Set(user.subjects || [])
   const candidateSubjects = new Set(candidate.subjects || [])
-  const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s)).length
-  const subjectScore = Math.min(overlap / 3, 1) // Cap at 3 subjects
-  score += subjectScore * 0.4
-  factors++
+
+  // FIXED: If either user has subjects, count this factor
+  if (userSubjects.size > 0 || candidateSubjects.size > 0) {
+    const overlap = Array.from(userSubjects).filter(s => candidateSubjects.has(s)).length
+    const subjectScore = Math.min(overlap / 3, 1) // Cap at 3 subjects
+    score += subjectScore * 0.4
+    maxPossibleScore += 0.4
+  }
 
   // Learning style compatibility (20% weight)
   if (user.studyStyle && candidate.studyStyle) {
     // Same learning style = 0.8, complementary = 1.0, opposite = 0.5
     const styleScore = user.studyStyle === candidate.studyStyle ? 0.8 : 0.7
     score += styleScore * 0.2
-    factors++
+    maxPossibleScore += 0.2
   }
 
   // Skill level proximity (15% weight)
   if (user.skillLevel && candidate.skillLevel) {
-    // SkillLevel is an enum, so we'll compare as strings
     const skillScore = user.skillLevel === candidate.skillLevel ? 1.0 : 0.6
     score += skillScore * 0.15
-    factors++
+    maxPossibleScore += 0.15
   }
 
   // Strength/weakness complementarity (25% weight)
@@ -200,10 +204,18 @@ function computeCompatibilityScore(
 
     const complementScore = Math.min((userHelpsCandidate + candidateHelpsUser) / 4, 1)
     score += complementScore * 0.25
-    factors++
+    maxPossibleScore += 0.25
   }
 
-  return { score: Math.min(score, 1) }
+  // FIXED: If profiles are mostly empty, give a baseline score
+  if (maxPossibleScore === 0) {
+    return { score: 0.1 }
+  }
+
+  // Normalize score based on factors that were actually comparable
+  const normalizedScore = maxPossibleScore > 0 ? score / maxPossibleScore : 0
+
+  return { score: Math.min(normalizedScore, 1) }
 }
 
 /**

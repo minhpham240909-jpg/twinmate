@@ -91,11 +91,13 @@ export default function SearchPage() {
         signal: abortController.signal,
       })
 
-      if (!response.ok) {
-        throw new Error('Search failed')
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        // Show the actual error message from the API
+        const errorMessage = data.details || data.error || 'Search failed'
+        throw new Error(errorMessage)
+      }
 
       // Only update if this request wasn't aborted
       if (!abortController.signal.aborted) {
@@ -107,7 +109,8 @@ export default function SearchPage() {
         return
       }
       console.error('Search error:', error)
-      setSearchError('Failed to search partners. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to search partners. Please try again.'
+      setSearchError(errorMessage)
     } finally {
       // Only clear loading state if this request wasn't aborted
       if (!abortController.signal.aborted) {
@@ -276,15 +279,19 @@ export default function SearchPage() {
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Search failed')
+        // Show the actual error message from the API
+        const errorMessage = data.details || data.error || 'Search failed'
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
       setPartners(data.profiles || [])
     } catch (error) {
       console.error('Search error:', error)
-      setSearchError('Failed to find partners. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to find partners. Please try again.'
+      setSearchError(errorMessage)
     } finally {
       setIsSearching(false)
     }
