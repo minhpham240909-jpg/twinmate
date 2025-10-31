@@ -45,6 +45,7 @@ const outputSchema = z.object({
   })),
   totalFound: z.number(),
   searchedBy: z.string(),
+  message: z.string().optional().describe('Optional helpful message to display to the user'),
 })
 
 export function createSearchUsersTool(supabase: SupabaseClient): Tool {
@@ -149,6 +150,43 @@ Returns complete user data:
             currentUserId: ctx.userId,
             supabaseConnected: !!supabase
           })
+
+          // HELPFUL MESSAGE: Check if user is searching for themselves
+          try {
+            const { data: currentUser } = await supabase
+              .from('User')
+              .select('name, email')
+              .eq('id', ctx.userId)
+              .single()
+
+            if (currentUser) {
+              const searchLower = query.toLowerCase()
+              const nameLower = (currentUser.name || '').toLowerCase()
+              const emailLower = (currentUser.email || '').toLowerCase()
+
+              // Check if search query matches current user's name or email
+              const nameWords = nameLower.split(/\s+/)
+              const searchWords = searchLower.split(/\s+/)
+
+              // If search contains any word from user's name, likely searching for self
+              const matchesName = searchWords.some((sw: string) => nameWords.some((nw: string) => nw.includes(sw) || sw.includes(nw)))
+              const matchesEmail = emailLower.includes(searchLower) || searchLower.includes(emailLower.split('@')[0])
+
+              if (matchesName || matchesEmail) {
+                console.log('[searchUsers] User appears to be searching for themselves')
+                return {
+                  users: [],
+                  totalFound: 0,
+                  searchedBy: searchBy,
+                  message: `I found that you're searching for yourself! You cannot match with yourself as a study partner. Try searching for other users instead, like "find study partners" or "who studies [subject]".`
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[searchUsers] Error checking if searching for self:', error)
+            // Continue with default response if check fails
+          }
+
           return {
             users: [],
             totalFound: 0,
