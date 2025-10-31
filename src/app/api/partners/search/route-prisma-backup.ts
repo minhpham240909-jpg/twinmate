@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 const searchSchema = z.object({
@@ -14,7 +15,9 @@ const searchSchema = z.object({
   studyStyleCustomDescription: z.string().optional(),
   interestsCustomDescription: z.string().optional(),
   availabilityCustomDescription: z.string().optional(),
+  // NEW: Search in aboutYourself field
   aboutYourselfSearch: z.string().optional(),
+  // NEW: School and Languages filters
   school: z.string().optional(),
   languages: z.string().optional(),
   page: z.number().optional().default(1),
@@ -64,7 +67,7 @@ export async function POST(request: NextRequest) {
       limit,
     } = validation.data
 
-    // Validate that at least one search criteria is provided
+    // Validate that at least one search criteria is provided (backend validation)
     const hasSearchCriteria =
       (searchQuery && searchQuery.trim().length > 0) ||
       (subjects && subjects.length > 0) ||
@@ -88,94 +91,97 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get existing matches to filter out
-    const { data: existingMatches } = await supabase
-      .from('Match')
-      .select('senderId, receiverId, status')
-      .or(`senderId.eq.${user.id},receiverId.eq.${user.id}`)
+    // Get all existing matches (sent or received) for this user
+    const existingMatches = await prisma.match.findMany({
+      where: {
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id }
+        ]
+      },
+      select: {
+        senderId: true,
+        receiverId: true,
+        status: true
+      }
+    })
 
+    // Separate ACCEPTED partners from pending/other connections
     const acceptedPartnerIds = new Set<string>()
     const pendingOrOtherUserIds = new Set<string>()
 
-    existingMatches?.forEach(match => {
+    existingMatches.forEach(match => {
       const otherUserId = match.senderId === user.id ? match.receiverId : match.senderId
+
       if (match.status === 'ACCEPTED') {
+        // These are confirmed partners - include them in results with special status
         acceptedPartnerIds.add(otherUserId)
       } else {
+        // PENDING, REJECTED, CANCELLED - exclude from results
         pendingOrOtherUserIds.add(otherUserId)
       }
     })
 
-    // Build Supabase query
-    let query = supabase
-      .from('Profile')
-      .select(`
-        userId,
-        subjects,
-        interests,
-        goals,
-        studyStyle,
-        skillLevel,
-        availableDays,
-        availableHours,
-        bio,
-        school,
-        languages,
-        aboutYourself,
-        aboutYourselfItems,
-        subjectCustomDescription,
-        skillLevelCustomDescription,
-        studyStyleCustomDescription,
-        interestsCustomDescription,
-        availabilityCustomDescription,
-        updatedAt,
-        user:User!inner(
-          id,
-          name,
-          email,
-          avatarUrl,
-          role,
-          createdAt
-        )
-      `)
-      .neq('userId', user.id)
-
-    // Exclude pending/rejected connections
-    if (pendingOrOtherUserIds.size > 0) {
-      query = query.not('userId', 'in', `(${Array.from(pendingOrOtherUserIds).join(',')})`)
+    // Build WHERE clause for filtering
+    const whereConditions: {
+      AND: Array<Record<string, unknown>>
+    } = {
+      AND: [
+        // Exclude current user
+        { userId: { not: user.id } },
+        // Exclude pending/rejected/cancelled connections (but include ACCEPTED partners)
+        { userId: { notIn: Array.from(pendingOrOtherUserIds) } }
+      ],
     }
 
-    // Filter by subjects - Supabase uses @> for array contains
+    // Filter by subjects
     if (subjects && subjects.length > 0) {
-      query = query.overlaps('subjects', subjects)
+      whereConditions.AND.push({
+        subjects: {
+          hasSome: subjects,
+        },
+      })
     }
 
     // Filter by skill level
     if (skillLevel && skillLevel !== '') {
-      query = query.eq('skillLevel', skillLevel)
+      whereConditions.AND.push({
+        skillLevel: skillLevel,
+      })
     }
 
     // Filter by study style
     if (studyStyle && studyStyle !== '') {
-      query = query.eq('studyStyle', studyStyle)
+      whereConditions.AND.push({
+        studyStyle: studyStyle,
+      })
     }
 
     // Filter by interests
     if (interests && interests.length > 0) {
-      query = query.overlaps('interests', interests)
+      whereConditions.AND.push({
+        interests: {
+          hasSome: interests,
+        },
+      })
     }
 
     // Filter by availability
     if (availability && availability.length > 0) {
-      query = query.overlaps('availableDays', availability)
+      whereConditions.AND.push({
+        availableDays: {
+          hasSome: availability,
+        },
+      })
     }
 
-    // Text search across multiple fields
+    // Custom description search - search in user's bio and fields
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
         studyStyleCustomDescription || interestsCustomDescription || availabilityCustomDescription ||
         aboutYourselfSearch || school || languages) {
 
       const searchTerms: string[] = []
+
       if (searchQuery) searchTerms.push(searchQuery)
       if (subjectCustomDescription) searchTerms.push(subjectCustomDescription)
       if (skillLevelCustomDescription) searchTerms.push(skillLevelCustomDescription)
@@ -186,40 +192,78 @@ export async function POST(request: NextRequest) {
       if (school) searchTerms.push(school)
       if (languages) searchTerms.push(languages)
 
-      // For Supabase, we'll do text search differently - fetch all and filter in memory
-      // This is less ideal but works with the pooler
+      // Create OR conditions for each search term across multiple fields
+      const searchConditions = searchTerms.flatMap(term => {
+        const keywords = term.toLowerCase().split(/\s+/).filter(word => word.length > 2)
+
+        // Flatten all keyword conditions into a single OR array
+        return keywords.flatMap(keyword => {
+          // For text fields, use case-insensitive contains
+          // For array fields, we can only search in custom description fields (which are text)
+          // Note: PostgreSQL arrays don't support case-insensitive partial matching with Prisma
+          // So we rely on exact matches from filter checkboxes and text search in description fields
+
+          return [
+            { user: { name: { contains: keyword, mode: 'insensitive' as const } } },
+            { bio: { contains: keyword, mode: 'insensitive' as const } },
+            { subjectCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+            { skillLevelCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+            { studyStyleCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+            { interestsCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+            { availabilityCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+            { aboutYourself: { contains: keyword, mode: 'insensitive' as const } },
+            { school: { contains: keyword, mode: 'insensitive' as const } },
+            { languages: { contains: keyword, mode: 'insensitive' as const } },
+          ]
+        })
+      })
+
+      if (searchConditions.length > 0) {
+        whereConditions.AND.push({
+          OR: searchConditions,
+        })
+      }
     }
 
-    // Apply pagination
+    // Calculate pagination
     const skip = (page - 1) * limit
-    query = query.range(skip, skip + limit - 1).order('updatedAt', { ascending: false })
 
-    const { data: profiles, error: profileError } = await query
+    // Fetch matching profiles with user data
+    const profiles = await prisma.profile.findMany({
+      where: whereConditions,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      skip: skip,
+      take: limit,
+    })
 
-    if (profileError) {
-      console.error('Supabase profile search error:', profileError)
-      throw new Error(`Search failed: ${profileError.message}`)
-    }
+    // Get total count for pagination
+    const totalCount = await prisma.profile.count({
+      where: whereConditions,
+    })
 
-    // Get current user's profile for compatibility scoring
-    const { data: myProfile } = await supabase
-      .from('Profile')
-      .select('subjects, interests, studyStyle, skillLevel')
-      .eq('userId', user.id)
-      .single()
-
-    // Calculate match scores
-    const profilesWithScores = (profiles || []).map(profile => {
+    // Calculate match scores for each profile
+    const profilesWithScores = profiles.map(profile => {
       let matchScore = 0
       const matchReasons: string[] = []
 
-      const mySubjects = new Set(myProfile?.subjects || [])
-      const myInterests = new Set(myProfile?.interests || [])
-
       // Score based on subject overlap
-      if (profile.subjects && profile.subjects.length > 0) {
-        const subjectOverlap = profile.subjects.filter((s: string) =>
-          mySubjects.has(s)
+      if (subjects && subjects.length > 0) {
+        const subjectOverlap = profile.subjects.filter(s =>
+          subjects.some(userSubject => userSubject.toLowerCase() === s.toLowerCase())
         ).length
         if (subjectOverlap > 0) {
           matchScore += subjectOverlap * 20
@@ -228,9 +272,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Score based on interest overlap
-      if (profile.interests && profile.interests.length > 0) {
-        const interestOverlap = profile.interests.filter((i: string) =>
-          myInterests.has(i)
+      if (interests && interests.length > 0) {
+        const interestOverlap = profile.interests.filter(i =>
+          interests.some(userInterest => userInterest.toLowerCase() === i.toLowerCase())
         ).length
         if (interestOverlap > 0) {
           matchScore += interestOverlap * 15
@@ -239,15 +283,26 @@ export async function POST(request: NextRequest) {
       }
 
       // Score based on skill level match
-      if (myProfile?.skillLevel && profile.skillLevel === myProfile.skillLevel) {
+      if (skillLevel && profile.skillLevel === skillLevel) {
         matchScore += 10
         matchReasons.push('Same skill level')
       }
 
       // Score based on study style match
-      if (myProfile?.studyStyle && profile.studyStyle === myProfile.studyStyle) {
+      if (studyStyle && profile.studyStyle === studyStyle) {
         matchScore += 10
         matchReasons.push('Same study style')
+      }
+
+      // Score based on availability overlap
+      if (availability && availability.length > 0) {
+        const availabilityOverlap = profile.availableDays.filter(day =>
+          availability.includes(day)
+        ).length
+        if (availabilityOverlap > 0) {
+          matchScore += availabilityOverlap * 5
+          matchReasons.push(`${availabilityOverlap} matching day(s)`)
+        }
       }
 
       // Cap score at 100
@@ -260,33 +315,22 @@ export async function POST(request: NextRequest) {
         ...profile,
         matchScore,
         matchReasons,
-        isAlreadyPartner,
+        isAlreadyPartner, // Flag to show "Already Partners" in frontend
       }
     })
 
-    // Sort by match score
+    // Sort by match score (highest first)
     profilesWithScores.sort((a, b) => b.matchScore - a.matchScore)
 
-    // Get total count for pagination
-    let countQuery = supabase
-      .from('Profile')
-      .select('userId', { count: 'exact', head: true })
-      .neq('userId', user.id)
-
-    if (pendingOrOtherUserIds.size > 0) {
-      countQuery = countQuery.not('userId', 'in', `(${Array.from(pendingOrOtherUserIds).join(',')})`)
-    }
-
-    const { count: totalCount } = await countQuery
-
+    // Add caching headers for search results
     return NextResponse.json({
       success: true,
       profiles: profilesWithScores,
       pagination: {
         page,
         limit,
-        total: totalCount || 0,
-        totalPages: Math.ceil((totalCount || 0) / limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
       },
     }, {
       headers: {

@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "test:rls": "tsx scripts/test-rls.ts",
+    "diagnose:search": "tsx scripts/test-search-comprehensive.ts",
     "test:vitest": "vitest",
     "test:vitest:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
