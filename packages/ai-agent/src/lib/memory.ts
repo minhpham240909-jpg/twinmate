@@ -237,4 +237,31 @@ export class MemoryManager {
       console.error('Failed to cleanup expired memories:', error)
     }
   }
+
+  /**
+   * NUCLEAR OPTION: Clear all conversation history for a user
+   * Use this to reset conversation and remove bad responses
+   */
+  async clearConversationHistory(userId: string): Promise<void> {
+    try {
+      console.log(`[MemoryManager] Clearing conversation history for user: ${userId}`)
+
+      const { error } = await this.supabase
+        .from('agent_memory')
+        .delete()
+        .eq('user_id', userId)
+        .eq('scope', 'short')
+        .eq('key', 'conversation_history')
+
+      if (error && error.code !== '42P01' && error.code !== 'PGRST116') {
+        console.error('Failed to clear conversation history:', error)
+        throw error
+      }
+
+      console.log(`[MemoryManager] Successfully cleared conversation history for user: ${userId}`)
+    } catch (error) {
+      console.error('Error clearing conversation history:', error)
+      throw error
+    }
+  }
 }

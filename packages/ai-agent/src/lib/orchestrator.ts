@@ -264,6 +264,47 @@ export class AgentOrchestrator {
   }
 
   /**
+   * NUCLEAR OPTION: Detect if message requires specific tool and force it
+   * This bypasses AI decision-making for critical patterns
+   */
+  private detectForcedToolCall(message: string): { tool: string; reason: string } | null {
+    const lowerMessage = message.toLowerCase()
+
+    // Partner matching patterns - FORCE matchCandidates
+    const partnerPatterns = [
+      'find me a partner', 'find a partner', 'find partner',
+      'study buddy', 'study partner', 'looking for partner',
+      'need a partner', 'find someone to study',
+      'who can help me study', 'match me with',
+      'show me partners', 'find study partners',
+      'looking for someone', 'find people to study',
+      'recommend partners', 'who can i study with',
+      'pair me', 'connect me with',
+      'find matches', 'show matches',
+    ]
+
+    for (const pattern of partnerPatterns) {
+      if (lowerMessage.includes(pattern)) {
+        return { tool: 'matchCandidates', reason: `Pattern detected: "${pattern}"` }
+      }
+    }
+
+    // User search patterns - FORCE searchUsers
+    const searchPatterns = ['find ', 'search for ', 'who is ', 'show me ']
+    const hasCapitalizedWord = /\b[A-Z][a-z]+ [A-Z][a-z]+\b/.test(message) // "John Smith" pattern
+
+    if (hasCapitalizedWord) {
+      for (const pattern of searchPatterns) {
+        if (lowerMessage.includes(pattern)) {
+          return { tool: 'searchUsers', reason: 'Name search pattern detected' }
+        }
+      }
+    }
+
+    return null
+  }
+
+  /**
    * Generate response using LLM with tool calling
    */
   private async generateResponse(
@@ -292,6 +333,12 @@ export class AgentOrchestrator {
     messages.push({ role: 'user', content: userPrompt })
 
     const toolDefinitions = this.config.toolRegistry.getToolDefinitions()
+
+    // NUCLEAR OPTION: Detect and force specific tool calls
+    const forcedTool = this.detectForcedToolCall(message)
+    if (forcedTool) {
+      console.log(`🔴 FORCED TOOL CALL: ${forcedTool.tool} (${forcedTool.reason})`)
+    }
 
     // Track LLM call start
     const llmCallStart = Date.now()
@@ -375,6 +422,57 @@ export class AgentOrchestrator {
         temperature: 0.7,
         maxTokens: 2000,
       })
+    }
+
+    // NUCLEAR OPTION: Force tool call if AI failed to call required tool
+    if (forcedTool) {
+      const toolWasCalled = toolResults.some(tr => tr.toolName === forcedTool.tool)
+
+      if (!toolWasCalled) {
+        console.error(`🔴 AI FAILED TO CALL REQUIRED TOOL: ${forcedTool.tool}`)
+        console.error(`🔴 FORCING TOOL CALL NOW: ${forcedTool.tool}`)
+
+        // Force the tool call ourselves
+        const forcedInput = forcedTool.tool === 'matchCandidates'
+          ? JSON.stringify({ limit: 10, minScore: 0.1 })
+          : forcedTool.tool === 'searchUsers'
+          ? JSON.stringify({ query: message, searchBy: 'name', limit: 10 })
+          : '{}'
+
+        const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context)
+        toolResults.push(forcedResult)
+
+        // Update response text to include forced results
+        if (forcedTool.tool === 'matchCandidates' && forcedResult.success) {
+          const matches = (forcedResult.output as any).matches || []
+          if (matches.length > 0) {
+            response.content = `I found ${matches.length} potential study partner(s) for you:\n\n` +
+              matches.map((m: any, i: number) =>
+                `${i + 1}. Match with ${Math.round(m.score * 100)}% compatibility`
+              ).join('\n') +
+              '\n\nWould you like to know more about any of these partners?'
+          } else {
+            response.content = `I searched for study partners but couldn't find any matches at the moment. This might be because:\n` +
+              `- There are currently no other users with matching study interests\n` +
+              `- Try completing more of your profile to improve matching\n` +
+              `- Check back later as more users join the platform`
+          }
+        } else if (forcedTool.tool === 'searchUsers' && forcedResult.success) {
+          const users = (forcedResult.output as any).users || []
+          if (users.length > 0) {
+            response.content = `I found ${users.length} user(s):\n\n` +
+              users.map((u: any, i: number) =>
+                `${i + 1}. ${u.name || 'User'}`
+              ).join('\n')
+          } else {
+            response.content = `I couldn't find any users matching that name. Please check the spelling or try a different name.`
+          }
+        }
+
+        console.log(`✅ FORCED TOOL CALL COMPLETED: ${forcedTool.tool}`)
+      } else {
+        console.log(`✅ AI correctly called required tool: ${forcedTool.tool}`)
+      }
     }
 
     // Extract cards from tool results
