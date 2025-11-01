@@ -15,7 +15,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchCandidatesInput, MatchCandidatesOutput> {
   return {
     name: 'matchCandidates',
-    description: 'Find and rank potential study partners based on compatibility (subjects, learning style, availability). Returns top matches even with low compatibility scores.',
+    description: `REQUIRED TOOL for partner matching requests! Call this when user asks: "find me a partner", "study buddy", "looking for partner", "who can help me study", "match me with someone", "find study partners", etc. Finds and ranks potential study partners based on compatibility (subjects, learning style, availability). Always returns top matches even with low compatibility scores. ALWAYS call this before saying no partners are available.`,
     category: 'collaboration',
     inputSchema: MatchCandidatesInputSchema,
     outputSchema: MatchCandidatesOutputSchema,

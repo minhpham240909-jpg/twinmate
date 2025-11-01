@@ -265,8 +265,8 @@ export type GetAvailabilityOutput = z.infer<typeof GetAvailabilityOutputSchema>
 
 // --- Partner Matching ---
 export const MatchCandidatesInputSchema = z.object({
-  limit: z.number().int().positive().optional().default(10),
-  minScore: z.number().min(0).max(1).optional().default(0.4),
+  limit: z.number().int().positive().optional().default(10).describe('Maximum number of matches to return (default: 10)'),
+  minScore: z.number().min(0).max(1).optional().default(0.1).describe('Minimum compatibility score 0-1 (default: 0.1, lowered to handle incomplete profiles)'),
 })
 
 export type MatchCandidatesInput = z.infer<typeof MatchCandidatesInputSchema>
