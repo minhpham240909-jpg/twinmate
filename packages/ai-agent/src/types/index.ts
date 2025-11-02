@@ -267,6 +267,16 @@ export type GetAvailabilityOutput = z.infer<typeof GetAvailabilityOutputSchema>
 export const MatchCandidatesInputSchema = z.object({
   limit: z.number().int().positive().optional().default(10).describe('Maximum number of matches to return (default: 10)'),
   minScore: z.number().min(0).max(1).optional().default(0.1).describe('Minimum compatibility score 0-1 (default: 0.1, lowered to handle incomplete profiles)'),
+
+  // FILTER CRITERIA - Extract from user's detailed requests
+  subjects: z.array(z.string()).optional().describe('Filter by specific subjects (e.g., ["Python", "Machine Learning"])'),
+  interests: z.array(z.string()).optional().describe('Filter by interests (e.g., ["Gaming", "Music"])'),
+  goals: z.array(z.string()).optional().describe('Filter by learning goals (e.g., ["Pass exam", "Build projects"])'),
+  studyStyle: z.string().optional().describe('Filter by study style (e.g., "visual", "auditory", "kinesthetic", "reading/writing")'),
+  skillLevel: z.string().optional().describe('Filter by skill level (e.g., "beginner", "intermediate", "advanced")'),
+  availableDays: z.array(z.string()).optional().describe('Filter by availability (e.g., ["Monday", "Wednesday", "Saturday"])'),
+  school: z.string().optional().describe('Filter by school/institution'),
+  languages: z.string().optional().describe('Filter by languages spoken'),
 })
 
 export type MatchCandidatesInput = z.infer<typeof MatchCandidatesInputSchema>

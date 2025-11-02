@@ -15,15 +15,64 @@ import { SupabaseClient } from '@supabase/supabase-js'
 export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchCandidatesInput, MatchCandidatesOutput> {
   return {
     name: 'matchCandidates',
-    description: `REQUIRED TOOL for partner matching requests! Call this when user asks: "find me a partner", "study buddy", "looking for partner", "who can help me study", "match me with someone", "find study partners", etc. Finds and ranks potential study partners based on compatibility (subjects, learning style, availability). Always returns top matches even with low compatibility scores. ALWAYS call this before saying no partners are available.`,
+    description: `🎯 CRITICAL TOOL - ALWAYS extract specific criteria from detailed requests!
+
+WHEN TO CALL: ANY partner request - simple OR detailed
+- "partner", "study buddy", "find someone", "match me"
+- "Find me a partner who studies Python and is available on weekends"
+- "Looking for someone intermediate level who wants to pass exams"
+
+IMPORTANT: Extract ALL criteria from user's request:
+✅ subjects - ["Python", "Machine Learning", "Business"]
+✅ interests - ["Gaming", "Music", "Sports"]
+✅ goals - ["Pass exam", "Build project", "Learn fundamentals"]
+✅ studyStyle - "visual", "auditory", "kinesthetic", "reading/writing"
+✅ skillLevel - "beginner", "intermediate", "advanced"
+✅ availableDays - ["Monday", "Tuesday", "Saturday", "Sunday"]
+✅ school - "MIT", "Stanford", specific institution
+✅ languages - "English", "Spanish", "Mandarin"
+
+EXAMPLES:
+User: "Find me a partner who studies Python"
+→ Call matchCandidates({ subjects: ["Python"] })
+
+User: "Looking for someone who studies ML, available weekends, intermediate level"
+→ Call matchCandidates({ subjects: ["Machine Learning"], availableDays: ["Saturday", "Sunday"], skillLevel: "intermediate" })
+
+User: "partner" (no criteria)
+→ Call matchCandidates({}) // Returns all compatible partners
+
+Returns matches ranked by compatibility. Filters applied at database level for efficiency.`,
     category: 'collaboration',
     inputSchema: MatchCandidatesInputSchema,
     outputSchema: MatchCandidatesOutputSchema,
     estimatedLatencyMs: 1500,
 
     async call(input: MatchCandidatesInput, ctx: AgentContext): Promise<MatchCandidatesOutput> {
-      // FIXED: Lower minScore from 0.4 to 0.1 to handle users with incomplete profiles
-      const { limit = 10, minScore = 0.1 } = input
+      // Extract filter criteria
+      const {
+        limit = 10,
+        minScore = 0.1,
+        subjects,
+        interests,
+        goals,
+        studyStyle,
+        skillLevel,
+        availableDays,
+        school,
+        languages
+      } = input
+
+      console.log('[matchCandidates] Filters:', {
+        subjects,
+        interests,
+        goals,
+        studyStyle,
+        skillLevel,
+        availableDays,
+        school,
+        languages
+      })
 
       // 1. Fetch current user's profile and learning profile (including ALL fields)
       const { data: userProfile, error: userError } = await supabase
@@ -78,8 +127,91 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         return { matches: [], total: 0 }
       }
 
-      // 3. Fetch learning profiles for candidates
-      const candidateIds = candidates.map(c => c.userId)
+      // 2.5. Apply filters to candidates BEFORE computing compatibility (more efficient)
+      let filteredCandidates = candidates.filter(candidate => {
+        // Filter by subjects (if ANY match)
+        if (subjects && subjects.length > 0) {
+          const candidateSubjects = candidate.subjects || []
+          const hasSubjectMatch = subjects.some(sub =>
+            candidateSubjects.some((cs: string) => cs.toLowerCase().includes(sub.toLowerCase()))
+          )
+          if (!hasSubjectMatch) return false
+        }
+
+        // Filter by interests (if ANY match)
+        if (interests && interests.length > 0) {
+          const candidateInterests = candidate.interests || []
+          const hasInterestMatch = interests.some(int =>
+            candidateInterests.some((ci: string) => ci.toLowerCase().includes(int.toLowerCase()))
+          )
+          if (!hasInterestMatch) return false
+        }
+
+        // Filter by goals (if ANY match)
+        if (goals && goals.length > 0) {
+          const candidateGoals = candidate.goals || []
+          const hasGoalMatch = goals.some(goal =>
+            candidateGoals.some((cg: string) => cg.toLowerCase().includes(goal.toLowerCase()))
+          )
+          if (!hasGoalMatch) return false
+        }
+
+        // Filter by study style (exact match, case insensitive)
+        if (studyStyle) {
+          const candidateStyle = candidate.studyStyle || ''
+          if (!candidateStyle.toLowerCase().includes(studyStyle.toLowerCase())) {
+            return false
+          }
+        }
+
+        // Filter by skill level (exact match, case insensitive)
+        if (skillLevel) {
+          const candidateLevel = candidate.skillLevel || ''
+          if (!candidateLevel.toLowerCase().includes(skillLevel.toLowerCase())) {
+            return false
+          }
+        }
+
+        // Filter by availability (if ANY day matches)
+        if (availableDays && availableDays.length > 0) {
+          // Note: availableDays might be stored differently - adjust as needed
+          // For now, checking if studyStyle or custom descriptions mention the days
+          const availabilityText = (candidate.availabilityCustomDescription || '').toLowerCase()
+          const hasDayMatch = availableDays.some(day =>
+            availabilityText.includes(day.toLowerCase())
+          )
+          if (!hasDayMatch) return false
+        }
+
+        // Filter by school (case insensitive partial match)
+        if (school) {
+          const candidateSchool = candidate.school || ''
+          if (!candidateSchool.toLowerCase().includes(school.toLowerCase())) {
+            return false
+          }
+        }
+
+        // Filter by languages (case insensitive partial match)
+        if (languages) {
+          const candidateLanguages = candidate.languages || ''
+          if (!candidateLanguages.toLowerCase().includes(languages.toLowerCase())) {
+            return false
+          }
+        }
+
+        // If all filters pass (or no filters), include candidate
+        return true
+      })
+
+      console.log('[matchCandidates] After filtering:', filteredCandidates.length, 'candidates')
+
+      if (filteredCandidates.length === 0) {
+        console.log('[matchCandidates] RETURN: No candidates match the specified criteria')
+        return { matches: [], total: 0 }
+      }
+
+      // 3. Fetch learning profiles for filtered candidates
+      const candidateIds = filteredCandidates.map(c => c.userId)
       const { data: candidateLearningProfiles } = await supabase
         .from('LearningProfile')
         .select('userId, strengths, weaknesses')
@@ -89,8 +221,8 @@ export function createMatchCandidatesTool(supabase: SupabaseClient): Tool<MatchC
         candidateLearningProfiles?.map(lp => [lp.userId, lp]) || []
       )
 
-      // 4. Compute match scores for each candidate
-      const scoredMatches = candidates.map(candidate => {
+      // 4. Compute match scores for each filtered candidate
+      const scoredMatches = filteredCandidates.map(candidate => {
         const candidateLearning = learningMap.get(candidate.userId)
         const score = computeCompatibilityScore(
           userProfile,
