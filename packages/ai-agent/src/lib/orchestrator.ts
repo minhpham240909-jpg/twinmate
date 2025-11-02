@@ -512,7 +512,7 @@ export class AgentOrchestrator {
 
       // Execute all tool calls and add their results
       for (const toolCall of response.toolCalls) {
-        const result = await this.executeTool(toolCall.name, toolCall.arguments, context)
+        const result = await this.executeTool(toolCall.name, toolCall.arguments, context, message)
         toolResults.push(result)
 
         // Add tool result to conversation
@@ -568,7 +568,7 @@ export class AgentOrchestrator {
           forcedInput = JSON.stringify({ query: extractedName, searchBy: 'name', limit: 10 })
         }
 
-        const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context)
+        const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context, message)
         toolResults.push(forcedResult)
 
         // Update response text to include forced results
@@ -646,11 +646,13 @@ export class AgentOrchestrator {
 
   /**
    * Execute a tool call
+   * INTERCEPTS matchCandidates to enhance with extracted filters
    */
   private async executeTool(
     toolName: string,
     argsJson: string,
-    context: AgentContext
+    context: AgentContext,
+    originalMessage?: string
   ): Promise<ToolResult> {
     const startTime = Date.now()
 
@@ -661,7 +663,28 @@ export class AgentOrchestrator {
       }
 
       // Parse and validate input
-      const input = JSON.parse(argsJson)
+      let input = JSON.parse(argsJson)
+
+      // 🔴 CRITICAL INTERCEPT: Enhance matchCandidates with extracted filters
+      if (toolName === 'matchCandidates' && originalMessage) {
+        const extractedFilters = this.extractMatchFilters(originalMessage)
+
+        // If we extracted subjects but the input has none, add them
+        if (extractedFilters.subjects && (!input.subjects || input.subjects.length === 0)) {
+          input.subjects = extractedFilters.subjects
+          console.log(`🔴 INTERCEPTED matchCandidates: Added subjects:`, extractedFilters.subjects)
+        }
+
+        // Add other extracted filters if missing
+        if (extractedFilters.skillLevel && !input.skillLevel) {
+          input.skillLevel = extractedFilters.skillLevel
+          console.log(`🔴 INTERCEPTED matchCandidates: Added skillLevel:`, extractedFilters.skillLevel)
+        }
+        if (extractedFilters.availableDays && (!input.availableDays || input.availableDays.length === 0)) {
+          input.availableDays = extractedFilters.availableDays
+          console.log(`🔴 INTERCEPTED matchCandidates: Added availableDays:`, extractedFilters.availableDays)
+        }
+      }
       const validatedInput = tool.inputSchema.parse(input)
 
       // Call tool
