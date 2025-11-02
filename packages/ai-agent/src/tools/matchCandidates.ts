@@ -221,6 +221,20 @@ Returns matches ranked by compatibility. Filters applied at database level for e
         candidateLearningProfiles?.map(lp => [lp.userId, lp]) || []
       )
 
+      // 3.5. Fetch user names and emails for filtered candidates
+      const { data: userNames, error: userNamesError } = await supabase
+        .from('User')
+        .select('id, name, email')
+        .in('id', candidateIds)
+
+      if (userNamesError) {
+        console.error('[matchCandidates] Failed to fetch user names:', userNamesError)
+      }
+
+      const userNameMap = new Map(
+        userNames?.map(u => [u.id, { name: u.name, email: u.email }]) || []
+      )
+
       // 4. Compute match scores for each filtered candidate
       const scoredMatches = filteredCandidates.map(candidate => {
         const candidateLearning = learningMap.get(candidate.userId)
@@ -234,9 +248,23 @@ Returns matches ranked by compatibility. Filters applied at database level for e
         // Compute facets breakdown
         const facets = computeFacets(userProfile, candidate, userLearning, candidateLearning)
 
+        // Generate match reasons based on what matched
+        const matchReasons = generateMatchReasons(userProfile, candidate, facets)
+
+        // Get user info
+        const userInfo = userNameMap.get(candidate.userId)
+
         return {
           userId: candidate.userId,
+          name: userInfo?.name || 'Unknown User',
+          email: userInfo?.email,
           score: score.score,
+          subjects: candidate.subjects || [],
+          interests: candidate.interests || [],
+          studyStyle: candidate.studyStyle,
+          skillLevel: candidate.skillLevel,
+          school: candidate.school,
+          matchReasons,
           facets,
         }
       })
@@ -400,4 +428,55 @@ function computeFacets(
   }
 
   return facets
+}
+
+/**
+ * Generate human-readable match reasons based on compatibility
+ */
+function generateMatchReasons(
+  user: any,
+  candidate: any,
+  facets: Record<string, any>
+): string[] {
+  const reasons: string[] = []
+
+  // Common subjects
+  if (facets.commonSubjects && facets.commonSubjects.length > 0) {
+    reasons.push(`Both study: ${facets.commonSubjects.join(', ')}`)
+  }
+
+  // Study style match
+  if (facets.studyStyleMatch && user.studyStyle) {
+    reasons.push(`Same ${user.studyStyle} learning style`)
+  }
+
+  // Skill level match
+  if (facets.skillLevelMatch && user.skillLevel) {
+    reasons.push(`Both at ${user.skillLevel} level`)
+  }
+
+  // Complementarity
+  if (facets.complementarity) {
+    if (facets.complementarity.theyHelpWith && facets.complementarity.theyHelpWith.length > 0) {
+      reasons.push(`They can help with: ${facets.complementarity.theyHelpWith.join(', ')}`)
+    }
+    if (facets.complementarity.youHelpWith && facets.complementarity.youHelpWith.length > 0) {
+      reasons.push(`You can help with: ${facets.complementarity.youHelpWith.join(', ')}`)
+    }
+  }
+
+  // Same school
+  if (user.school && candidate.school && user.school === candidate.school) {
+    reasons.push(`Both attend ${user.school}`)
+  }
+
+  // Common interests (not in facets, compute here)
+  const userInterests = new Set(user.interests || [])
+  const candidateInterests = new Set(candidate.interests || [])
+  const commonInterests = Array.from(userInterests).filter(i => candidateInterests.has(i))
+  if (commonInterests.length > 0) {
+    reasons.push(`Shared interests: ${commonInterests.join(', ')}`)
+  }
+
+  return reasons
 }

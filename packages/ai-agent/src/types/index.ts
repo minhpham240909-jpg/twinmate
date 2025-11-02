@@ -284,7 +284,15 @@ export type MatchCandidatesInput = z.infer<typeof MatchCandidatesInputSchema>
 export const MatchCandidatesOutputSchema = z.object({
   matches: z.array(z.object({
     userId: z.string(),
+    name: z.string().describe('User name'),
+    email: z.string().optional().describe('User email'),
     score: z.number().min(0).max(1),
+    subjects: z.array(z.string()).optional().describe('What subjects they study'),
+    interests: z.array(z.string()).optional().describe('Their interests'),
+    studyStyle: z.string().optional().describe('Their study style'),
+    skillLevel: z.string().optional().describe('Their skill level'),
+    school: z.string().optional().describe('Their school/institution'),
+    matchReasons: z.array(z.string()).optional().describe('Why they matched - specific reasons'),
     facets: z.record(z.string(), z.any()).optional(),
   })),
   total: z.number(),

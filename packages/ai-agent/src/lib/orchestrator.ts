@@ -270,6 +270,16 @@ export class AgentOrchestrator {
   private detectForcedToolCall(message: string): { tool: string; reason: string } | null {
     const lowerMessage = message.toLowerCase()
 
+    // PRIORITY 1: Check for name keyword FIRST (before partner patterns)
+    // "find a partner name [Name]" should search by name, not match partners
+    const hasNameKeyword = lowerMessage.includes(' name ') || lowerMessage.includes(' named ')
+    const hasCapitalizedName = /\b[A-Z][a-z]+(\s+[A-Z][a-z]+)*\b/.test(message)
+
+    if (hasNameKeyword && hasCapitalizedName) {
+      console.log('🔴 NAME KEYWORD + CAPITALIZED NAME DETECTED - Forcing searchUsers')
+      return { tool: 'searchUsers', reason: '"name" keyword + capitalized name detected' }
+    }
+
     // Partner matching patterns - FORCE matchCandidates
     // ULTRA-COMPREHENSIVE PATTERNS - Catch ANY partner request
     const partnerPatterns = [
@@ -310,10 +320,6 @@ export class AgentOrchestrator {
 
     // User search patterns - FORCE searchUsers
     const searchPatterns = ['find ', 'search for ', 'who is ', 'show me ', 'look for ', 'looking for ']
-
-    // Pattern 1: Capitalized name (e.g., "John Smith", "Gia Khang", "Sarah")
-    // Matches: Single word starting with capital OR multiple words with capitals
-    const hasCapitalizedName = /\b[A-Z][a-z]+(\s+[A-Z][a-z]+)*\b/.test(message)
 
     // Pattern 2: Check if it's JUST a name (no verbs or commands)
     const isJustName = hasCapitalizedName && !lowerMessage.match(/\b(help|how|what|why|when|where|can|could|would|should|tell|explain|show|list)\b/)
@@ -493,9 +499,24 @@ export class AgentOrchestrator {
           const matches = (forcedResult.output as any).matches || []
           if (matches.length > 0) {
             response.content = `I found ${matches.length} potential study partner(s) for you:\n\n` +
-              matches.map((m: any, i: number) =>
-                `${i + 1}. Match with ${Math.round(m.score * 100)}% compatibility`
-              ).join('\n') +
+              matches.map((m: any, i: number) => {
+                const parts = [
+                  `${i + 1}. **${m.name}** (${Math.round(m.score * 100)}% match)`
+                ]
+                if (m.subjects && m.subjects.length > 0) {
+                  parts.push(`   📚 Studies: ${m.subjects.join(', ')}`)
+                }
+                if (m.interests && m.interests.length > 0) {
+                  parts.push(`   ❤️ Interests: ${m.interests.join(', ')}`)
+                }
+                if (m.school) {
+                  parts.push(`   🏛️ School: ${m.school}`)
+                }
+                if (m.matchReasons && m.matchReasons.length > 0) {
+                  parts.push(`   ✨ Why: ${m.matchReasons[0]}`)
+                }
+                return parts.join('\n')
+              }).join('\n\n') +
               '\n\nWould you like to know more about any of these partners?'
           } else {
             response.content = `I searched for study partners but couldn't find any matches at the moment. This might be because:\n` +
