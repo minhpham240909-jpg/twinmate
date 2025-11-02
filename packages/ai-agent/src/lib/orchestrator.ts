@@ -264,6 +264,76 @@ export class AgentOrchestrator {
   }
 
   /**
+   * Extract subjects/interests/filters from natural language message
+   * Uses pattern matching to extract ANY subjects user mentions, not just from a predefined list
+   */
+  private extractMatchFilters(message: string): Record<string, any> {
+    const filters: Record<string, any> = {}
+    const lowerMessage = message.toLowerCase()
+
+    // Pattern 1: "who likes X", "who studies X", "interested in X", "who wants X"
+    const subjectPatterns = [
+      /who (?:likes?|studies?|enjoys?|wants?|needs?) ([a-zA-Z0-9\s,&+-]+?)(?:\s+and\s+|\s*,\s*|\s+or\s+|$)/gi,
+      /(?:likes?|studies?|enjoys?|interested in|focuses on) ([a-zA-Z0-9\s,&+-]+?)(?:\s+and\s+|\s*,\s*|\s+or\s+|$)/gi,
+      /partner (?:for|in|who (?:does|knows)) ([a-zA-Z0-9\s,&+-]+?)(?:\s+and\s+|\s*,\s*|$)/gi,
+    ]
+
+    const foundSubjects: string[] = []
+
+    for (const pattern of subjectPatterns) {
+      let match
+      while ((match = pattern.exec(message)) !== null) {
+        const extracted = match[1].trim()
+        // Split by "and", "or", commas
+        const parts = extracted.split(/\s+and\s+|\s+or\s+|\s*,\s+/)
+        for (let part of parts) {
+          part = part.trim()
+          // Remove trailing words like "who", "that", etc.
+          part = part.replace(/\s+(who|that|which|available|on|at|in).*$/i, '')
+          part = part.trim()
+
+          if (part.length > 0 && !foundSubjects.some(s => s.toLowerCase() === part.toLowerCase())) {
+            // Capitalize each word
+            const capitalized = part.split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ')
+            foundSubjects.push(capitalized)
+          }
+        }
+      }
+    }
+
+    if (foundSubjects.length > 0) {
+      filters.subjects = foundSubjects
+    }
+
+    // Extract skill level
+    if (lowerMessage.includes('beginner')) filters.skillLevel = 'beginner'
+    if (lowerMessage.includes('intermediate')) filters.skillLevel = 'intermediate'
+    if (lowerMessage.includes('advanced')) filters.skillLevel = 'advanced'
+
+    // Extract days of week
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    const foundDays: string[] = []
+    for (const day of days) {
+      if (lowerMessage.includes(day)) {
+        foundDays.push(day.charAt(0).toUpperCase() + day.slice(1))
+      }
+    }
+    if (lowerMessage.includes('weekend')) {
+      foundDays.push('Saturday', 'Sunday')
+    }
+    if (lowerMessage.includes('weekday')) {
+      foundDays.push('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+    }
+    if (foundDays.length > 0) {
+      filters.availableDays = [...new Set(foundDays)]
+    }
+
+    return filters
+  }
+
+  /**
    * NUCLEAR OPTION: Detect if message requires specific tool and force it
    * This bypasses AI decision-making for critical patterns
    */
@@ -474,7 +544,14 @@ export class AgentOrchestrator {
         let forcedInput = '{}'
 
         if (forcedTool.tool === 'matchCandidates') {
-          forcedInput = JSON.stringify({ limit: 10, minScore: 0.1 })
+          // Extract subjects/interests from the message
+          const extractedFilters = this.extractMatchFilters(message)
+          forcedInput = JSON.stringify({
+            limit: 10,
+            minScore: 0.1,
+            ...extractedFilters
+          })
+          console.log(`🔍 Extracted filters for matchCandidates:`, extractedFilters)
         } else if (forcedTool.tool === 'searchUsers') {
           // Extract the actual name from the message
           // Remove common search prefixes to get the pure name
