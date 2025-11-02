@@ -271,16 +271,35 @@ export class AgentOrchestrator {
     const lowerMessage = message.toLowerCase()
 
     // Partner matching patterns - FORCE matchCandidates
+    // ULTRA-COMPREHENSIVE PATTERNS - Catch ANY partner request
     const partnerPatterns = [
-      'find me a partner', 'find a partner', 'find partner',
-      'study buddy', 'study partner', 'looking for partner',
-      'need a partner', 'find someone to study',
-      'who can help me study', 'match me with',
-      'show me partners', 'find study partners',
-      'looking for someone', 'find people to study',
-      'recommend partners', 'who can i study with',
-      'pair me', 'connect me with',
-      'find matches', 'show matches',
+      // Core partner requests
+      'find me a partner', 'find a partner', 'find partner', 'get partner',
+      'find me someone', 'find someone', 'get me a partner', 'get me someone',
+      'i need a partner', 'need a partner', 'need partner',
+
+      // Study-specific
+      'study buddy', 'study partner', 'study mate', 'study friend',
+      'looking for partner', 'looking for someone to study',
+      'find someone to study', 'who can help me study',
+      'find people to study', 'who can i study with',
+
+      // Matching/connecting
+      'match me', 'match me with', 'pair me', 'pair me with',
+      'connect me', 'connect me with', 'connect with',
+
+      // Show/recommend
+      'show me partners', 'show partners', 'show me matches', 'show matches',
+      'find study partners', 'find matches', 'get matches',
+      'recommend partners', 'recommend someone', 'suggest partners',
+      'give me partners', 'give me matches',
+
+      // Just "partner" or "partners" alone
+      'partner', 'partners', 'matches', 'buddy', 'buddies',
+
+      // Question forms
+      'who can study', 'who wants to study', 'anyone to study',
+      'who is available', 'who can help',
     ]
 
     for (const pattern of partnerPatterns) {
