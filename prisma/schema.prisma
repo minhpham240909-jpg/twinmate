@@ -101,6 +101,8 @@ model Profile {
 
   // Core profile
   bio       String? @db.Text
+  age       Int? // User's age
+  role      String? // User's role/position (e.g., "Student", "Graduate Student", "Software Engineer")
   timezone  String?
   location  String?
   latitude  Float?

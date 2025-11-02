@@ -9,6 +9,8 @@ const profileSchema = z.object({
   name: z.string().min(1),
   bio: z.string().optional().nullable(),
   avatarUrl: z.string().optional().nullable(),
+  age: z.number().int().min(1).max(150).optional().nullable(), // NEW: Age field
+  role: z.string().optional().nullable(), // NEW: Role/position field
   subjects: z.array(z.string()).default([]),
   interests: z.array(z.string()).default([]),
   goals: z.array(z.string()).default([]),
@@ -88,6 +90,8 @@ export async function POST(request: NextRequest) {
 
     const profileDataFields = {
       bio: cleanString(data.bio),
+      age: data.age || null, // NEW: Age field
+      role: cleanString(data.role), // NEW: Role field
       subjects: data.subjects || [],
       interests: data.interests || [],
       goals: data.goals || [],

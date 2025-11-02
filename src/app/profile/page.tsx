@@ -38,6 +38,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: '',
     bio: '',
+    age: undefined as number | undefined, // NEW: Age field
+    role: '', // NEW: Role field
     avatarUrl: '',
     subjects: [] as string[],
     interests: [] as string[],
@@ -91,6 +93,8 @@ export default function ProfilePage() {
       setFormData({
         name: profile.name || '',
         bio: profile.bio || '',
+        age: (profile as { age?: number }).age || undefined, // NEW: Load age
+        role: (profile as { role?: string }).role || '', // NEW: Load role
         avatarUrl: profile.avatarUrl || '',
         subjects: profile.subjects || [],
         interests: profile.interests || [],
@@ -367,6 +371,8 @@ export default function ProfilePage() {
         userId: user.id,
         name: formData.name,
         bio: formData.bio || undefined,
+        age: formData.age || undefined, // NEW: Include age
+        role: formData.role || undefined, // NEW: Include role
         avatarUrl: formData.avatarUrl || undefined,
         subjects: formData.subjects,
         interests: formData.interests,
@@ -512,6 +518,39 @@ export default function ProfilePage() {
                 rows={4}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            {/* Age and Role Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Age */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Age (Optional)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="150"
+                  value={formData.age || ''}
+                  onChange={(e) => setFormData({ ...formData, age: e.target.value ? parseInt(e.target.value) : undefined })}
+                  placeholder="Enter your age"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role / Position (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  placeholder="e.g., Student, Software Engineer, Graduate Student"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
 
             {/* Subjects */}

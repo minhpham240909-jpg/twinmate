@@ -3,7 +3,6 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 
 type UserProfile = {
   user: {
@@ -14,14 +13,18 @@ type UserProfile = {
   }
   profile: {
     bio: string
+    age: number | null
+    role: string | null
     subjects: string[]
     interests: string[]
     goals: string[]
     skillLevel: string
     studyStyle: string
     availableDays: string[]
-    school: string
-    languages: string
+    school: string | null
+    languages: string | null
+    aboutYourself: string | null
+    aboutYourselfItems: string[]
     postPrivacy: string
   } | null
   posts: {
@@ -55,6 +58,7 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sendingConnection, setSendingConnection] = useState(false)
+  const [activeTab, setActiveTab] = useState<'about' | 'posts'>('about')
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -100,7 +104,6 @@ export default function UserProfilePage() {
       })
 
       if (response.ok) {
-        // Refresh profile to update connection status
         await fetchUserProfile()
         alert('Connection request sent!')
       } else {
@@ -170,233 +173,266 @@ export default function UserProfilePage() {
     )
   }
 
-  const { user: viewedUser, profile, posts, connectionStatus, matchScore, matchDetails } = profileData
-
-  // Check if viewing own profile
+  const { user: viewedUser, profile, posts } = profileData
   const isOwnProfile = currentUser?.id === userId
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.back()}
-              className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back
-            </button>
-            {isOwnProfile && (
-              <Link
-                href="/profile"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
-              >
-                Edit Profile
-              </Link>
-            )}
-          </div>
+      {/* Header with Back Button */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-gray-600 hover:text-gray-900 transition"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Profile Header Card */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mb-6">
-          <div className="flex items-start gap-6">
-            {/* Avatar */}
+      <main className="max-w-2xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {/* Profile Header */}
+          <div className="text-center pt-12 pb-6 px-6">
+            {/* Profile Photo */}
             {viewedUser.avatarUrl ? (
               <img
                 src={viewedUser.avatarUrl}
                 alt={viewedUser.name}
-                className="w-24 h-24 rounded-full"
+                className="w-32 h-32 rounded-full mx-auto mb-6 object-cover border-4 border-white shadow-lg"
               />
             ) : (
-              <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                {viewedUser.name[0]}
+              <div className="w-32 h-32 rounded-full mx-auto mb-6 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
+                {viewedUser.name[0]?.toUpperCase()}
               </div>
             )}
 
-            {/* User Info */}
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{viewedUser.name}</h1>
-              {profile?.bio && (
-                <p className="text-gray-600 mb-4">{profile.bio}</p>
-              )}
+            {/* Name */}
+            <h1 className="text-3xl font-bold text-gray-900 mb-6">{viewedUser.name}</h1>
 
-              {/* Match Score (only for other users) */}
-              {!isOwnProfile && matchScore > 0 && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
-                      <div
-                        className={`h-3 rounded-full ${
-                          matchScore >= 70 ? 'bg-green-500' :
-                          matchScore >= 40 ? 'bg-yellow-500' :
-                          'bg-gray-400'
-                        }`}
-                        style={{ width: `${matchScore}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">{matchScore}%</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <span>✓ {matchDetails.subjects} common subjects</span>
-                    <span>✓ {matchDetails.interests} common interests</span>
-                    {matchDetails.studyStyle && <span>✓ Similar study style</span>}
-                  </div>
-                </div>
-              )}
-
-              {/* Connection Actions (only for other users) */}
-              {!isOwnProfile && (
-                <div className="flex items-center gap-3">
-                  {connectionStatus === 'connected' && (
-                    <>
-                      <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold">
-                        ✓ Connected
-                      </span>
-                      <button
-                        onClick={handleMessage}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-                      >
-                        Message
-                      </button>
-                    </>
-                  )}
-
-                  {connectionStatus === 'pending' && (
-                    <>
-                      <span className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg font-semibold">
-                        Connection Pending
-                      </span>
-                      <button
-                        onClick={handleCancelConnection}
-                        disabled={sendingConnection}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold disabled:opacity-50"
-                      >
-                        Cancel Request
-                      </button>
-                    </>
-                  )}
-
-                  {connectionStatus === 'none' && (
+            {/* Edit Profile / Connect Button */}
+            {isOwnProfile ? (
+              <button
+                onClick={() => router.push('/profile')}
+                className="px-8 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition shadow-md"
+              >
+                Edit profile
+              </button>
+            ) : (
+              <div className="flex items-center justify-center gap-3">
+                {profileData.connectionStatus === 'connected' ? (
+                  <>
+                    <span className="px-6 py-3 bg-green-100 text-green-700 rounded-full font-semibold">
+                      ✓ Connected
+                    </span>
                     <button
-                      onClick={handleSendConnection}
-                      disabled={sendingConnection}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
+                      onClick={handleMessage}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
                     >
-                      {sendingConnection ? 'Sending...' : 'Connect'}
+                      Message
                     </button>
-                  )}
-                </div>
-              )}
+                  </>
+                ) : profileData.connectionStatus === 'pending' ? (
+                  <>
+                    <span className="px-6 py-3 bg-yellow-100 text-yellow-700 rounded-full font-semibold">
+                      Connection Pending
+                    </span>
+                    <button
+                      onClick={handleCancelConnection}
+                      disabled={sendingConnection}
+                      className="px-6 py-3 bg-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-300 transition disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleSendConnection}
+                    disabled={sendingConnection}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition disabled:opacity-50 shadow-md"
+                  >
+                    {sendingConnection ? 'Sending...' : 'Connect'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Info Cards with Icons */}
+          <div className="px-6 pb-6 space-y-4">
+            {/* Age */}
+            {profile?.age && (
+              <div className="flex items-center text-gray-700">
+                <span className="text-2xl mr-4">🎂</span>
+                <span className="text-lg">{profile.age}</span>
+              </div>
+            )}
+
+            {/* Role */}
+            {profile?.role && (
+              <div className="flex items-center text-gray-700">
+                <span className="text-2xl mr-4">💼</span>
+                <span className="text-lg">{profile.role}</span>
+              </div>
+            )}
+
+            {/* School/Location */}
+            {profile?.school && (
+              <div className="flex items-center text-gray-700">
+                <span className="text-2xl mr-4">🏛️</span>
+                <span className="text-lg">{profile.school}</span>
+              </div>
+            )}
+
+            {/* Email */}
+            <div className="flex items-center text-gray-700">
+              <span className="text-2xl mr-4">✉️</span>
+              <span className="text-lg">{viewedUser.email}</span>
             </div>
           </div>
-        </div>
 
-        {/* Profile Details Grid */}
-        {profile && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Subjects */}
-            {profile.subjects && profile.subjects.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Subjects</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profile.subjects.map((subject, index) => (
-                    <span key={index} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                      {subject}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Interests */}
-            {profile.interests && profile.interests.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Interests</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profile.interests.map((interest, index) => (
-                    <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                      {interest}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Study Info */}
-            {(profile.skillLevel || profile.studyStyle) && (
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Study Preferences</h3>
-                <div className="space-y-2 text-sm text-gray-700">
-                  {profile.skillLevel && (
-                    <p><strong>Skill Level:</strong> {profile.skillLevel}</p>
-                  )}
-                  {profile.studyStyle && (
-                    <p><strong>Study Style:</strong> {profile.studyStyle}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Additional Info */}
-            {(profile.school || profile.languages) && (
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Additional Info</h3>
-                <div className="space-y-2 text-sm text-gray-700">
-                  {profile.school && (
-                    <p><strong>School:</strong> {profile.school}</p>
-                  )}
-                  {profile.languages && (
-                    <p><strong>Languages:</strong> {profile.languages}</p>
-                  )}
-                </div>
-              </div>
-            )}
+          {/* Tabs */}
+          <div className="border-t border-gray-200">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('about')}
+                className={`flex-1 py-4 text-center font-semibold transition ${
+                  activeTab === 'about'
+                    ? 'text-gray-900 border-b-2 border-gray-900'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                About
+              </button>
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`flex-1 py-4 text-center font-semibold transition ${
+                  activeTab === 'posts'
+                    ? 'text-gray-900 border-b-2 border-gray-900'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Posts
+              </button>
+            </div>
           </div>
-        )}
 
-        {/* User's Posts */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Posts</h3>
-          {posts && posts.length > 0 ? (
-            <div className="space-y-4">
-              {posts.map((post) => (
-                <div key={post.id} className="border border-gray-200 rounded-lg p-4">
-                  <p className="text-gray-800 mb-3 whitespace-pre-wrap">{post.content}</p>
+          {/* Tab Content */}
+          <div className="px-6 py-6">
+            {activeTab === 'about' ? (
+              <div className="space-y-6">
+                {/* Bio */}
+                {profile?.bio && (
+                  <div>
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+                  </div>
+                )}
 
-                  {/* Post Images */}
-                  {post.imageUrls && post.imageUrls.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      {post.imageUrls.map((url, index) => (
-                        <img
-                          key={index}
-                          src={url}
-                          alt={`Post image ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
+                {/* About Yourself */}
+                {profile?.aboutYourself && (
+                  <div>
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{profile.aboutYourself}</p>
+                  </div>
+                )}
+
+                {/* About Yourself Items/Tags */}
+                {profile?.aboutYourselfItems && profile.aboutYourselfItems.length > 0 && (
+                  <div>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {profile.aboutYourselfItems.map((item, index) => (
+                        <span key={index} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                          {item}
+                        </span>
                       ))}
                     </div>
-                  )}
-
-                  {/* Post Stats */}
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>❤️ {post._count.likes}</span>
-                    <span>💬 {post._count.comments}</span>
-                    <span>🔁 {post._count.reposts}</span>
-                    <span className="ml-auto">{new Date(post.createdAt).toLocaleDateString()}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-8">No posts yet</p>
-          )}
+                )}
+
+                {/* Additional Info */}
+                {profile && (profile.subjects.length > 0 || profile.interests.length > 0 || profile.languages) && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
+                    {/* Subjects */}
+                    {profile.subjects.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Subjects</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.subjects.map((subject, index) => (
+                            <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                              {subject}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interests */}
+                    {profile.interests.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Interests</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.interests.map((interest, index) => (
+                            <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Languages */}
+                    {profile.languages && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Languages</h3>
+                        <p className="text-gray-700">{profile.languages}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Show message if no about info */}
+                {!profile?.bio && !profile?.aboutYourself && (!profile?.aboutYourselfItems || profile.aboutYourselfItems.length === 0) && (
+                  <p className="text-gray-500 text-center py-8">No about information available</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {posts && posts.length > 0 ? (
+                  posts.map((post) => (
+                    <div key={post.id} className="border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-800 mb-3 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+
+                      {/* Post Images */}
+                      {post.imageUrls && post.imageUrls.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          {post.imageUrls.map((url, index) => (
+                            <img
+                              key={index}
+                              src={url}
+                              alt={`Post image ${index + 1}`}
+                              className="w-full h-48 object-cover rounded-lg"
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Post Stats */}
+                      <div className="flex items-center gap-4 text-sm text-gray-500 pt-3 border-t border-gray-100">
+                        <span>❤️ {post._count.likes}</span>
+                        <span>💬 {post._count.comments}</span>
+                        <span>🔁 {post._count.reposts}</span>
+                        <span className="ml-auto text-xs">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-8">No posts yet</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
