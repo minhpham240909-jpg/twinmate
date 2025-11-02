@@ -290,10 +290,23 @@ export class AgentOrchestrator {
     }
 
     // User search patterns - FORCE searchUsers
-    const searchPatterns = ['find ', 'search for ', 'who is ', 'show me ']
-    const hasCapitalizedWord = /\b[A-Z][a-z]+ [A-Z][a-z]+\b/.test(message) // "John Smith" pattern
+    const searchPatterns = ['find ', 'search for ', 'who is ', 'show me ', 'look for ', 'looking for ']
 
-    if (hasCapitalizedWord) {
+    // Pattern 1: Capitalized name (e.g., "John Smith", "Gia Khang", "Sarah")
+    // Matches: Single word starting with capital OR multiple words with capitals
+    const hasCapitalizedName = /\b[A-Z][a-z]+(\s+[A-Z][a-z]+)*\b/.test(message)
+
+    // Pattern 2: Check if it's JUST a name (no verbs or commands)
+    const isJustName = hasCapitalizedName && !lowerMessage.match(/\b(help|how|what|why|when|where|can|could|would|should|tell|explain|show|list)\b/)
+
+    // FORCE searchUsers if:
+    // 1. Just a capitalized name alone (e.g., "Gia Khang", "Sarah")
+    // 2. OR search keyword + capitalized name (e.g., "find Gia Khang")
+    if (isJustName) {
+      return { tool: 'searchUsers', reason: 'Direct name input detected' }
+    }
+
+    if (hasCapitalizedName) {
       for (const pattern of searchPatterns) {
         if (lowerMessage.includes(pattern)) {
           return { tool: 'searchUsers', reason: 'Name search pattern detected' }
@@ -433,11 +446,25 @@ export class AgentOrchestrator {
         console.error(`🔴 FORCING TOOL CALL NOW: ${forcedTool.tool}`)
 
         // Force the tool call ourselves
-        const forcedInput = forcedTool.tool === 'matchCandidates'
-          ? JSON.stringify({ limit: 10, minScore: 0.1 })
-          : forcedTool.tool === 'searchUsers'
-          ? JSON.stringify({ query: message, searchBy: 'name', limit: 10 })
-          : '{}'
+        let forcedInput = '{}'
+
+        if (forcedTool.tool === 'matchCandidates') {
+          forcedInput = JSON.stringify({ limit: 10, minScore: 0.1 })
+        } else if (forcedTool.tool === 'searchUsers') {
+          // Extract the actual name from the message
+          // Remove common search prefixes to get the pure name
+          let extractedName = message
+            .replace(/^(find|search for|who is|show me|look for|looking for)\s+/i, '')
+            .trim()
+
+          // If no name was extracted, use the full message
+          if (!extractedName) {
+            extractedName = message
+          }
+
+          console.log(`🔍 Extracted name: "${extractedName}" from message: "${message}"`)
+          forcedInput = JSON.stringify({ query: extractedName, searchBy: 'name', limit: 10 })
+        }
 
         const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context)
         toolResults.push(forcedResult)

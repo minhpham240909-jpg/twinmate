@@ -95,10 +95,10 @@ Returns complete user data:
         let userMap = new Map<string, { name: string; email: string }>()
 
         // Build search query for User table
+        // NOTE: We DO include current user in search, but flag it separately
         let userQuery = supabase
           .from('User')
           .select('id, name, email, createdAt')
-          .neq('id', ctx.userId) // Don't include current user
           .limit(100)
 
         // For name/all search: Search by name and email
@@ -151,46 +151,11 @@ Returns complete user data:
             supabaseConnected: !!supabase
           })
 
-          // HELPFUL MESSAGE: Check if user is searching for themselves
-          try {
-            const { data: currentUser } = await supabase
-              .from('User')
-              .select('name, email')
-              .eq('id', ctx.userId)
-              .single()
-
-            if (currentUser) {
-              const searchLower = query.toLowerCase()
-              const nameLower = (currentUser.name || '').toLowerCase()
-              const emailLower = (currentUser.email || '').toLowerCase()
-
-              // Check if search query matches current user's name or email
-              const nameWords = nameLower.split(/\s+/)
-              const searchWords = searchLower.split(/\s+/)
-
-              // If search contains any word from user's name, likely searching for self
-              const matchesName = searchWords.some((sw: string) => nameWords.some((nw: string) => nw.includes(sw) || sw.includes(nw)))
-              const matchesEmail = emailLower.includes(searchLower) || searchLower.includes(emailLower.split('@')[0])
-
-              if (matchesName || matchesEmail) {
-                console.log('[searchUsers] User appears to be searching for themselves')
-                return {
-                  users: [],
-                  totalFound: 0,
-                  searchedBy: searchBy,
-                  message: `I found that you're searching for yourself! You cannot match with yourself as a study partner. Try searching for other users instead, like "find study partners" or "who studies [subject]".`
-                }
-              }
-            }
-          } catch (error) {
-            console.error('[searchUsers] Error checking if searching for self:', error)
-            // Continue with default response if check fails
-          }
-
           return {
             users: [],
             totalFound: 0,
             searchedBy: searchBy,
+            message: `I couldn't find any users matching "${query}". Please check the spelling or try a different name.`
           }
         }
 
@@ -371,15 +336,37 @@ Returns complete user data:
           return scoreB - scoreA
         })
 
-        // Limit final results
-        const limitedResults = resultUsers.slice(0, limit)
+        // Check if current user is in results
+        const currentUserInResults = resultUsers.find(u => u.userId === ctx.userId)
+        const isOnlyResult = resultUsers.length === 1 && currentUserInResults
 
-        console.log('[searchUsers] Returning', limitedResults.length, 'users out of', resultUsers.length, 'found')
+        // If user is searching for themselves and they're the only result
+        if (isOnlyResult) {
+          console.log('[searchUsers] User found themselves as the only result')
+          return {
+            users: [],
+            totalFound: 0,
+            searchedBy: searchBy,
+            message: `I found your profile! However, you cannot connect with yourself as a study partner. Try searching for other users, or type "find study partners" to see potential matches.`
+          }
+        }
+
+        // If current user is in results but not the only one, filter them out
+        let finalResults = resultUsers
+        if (currentUserInResults && resultUsers.length > 1) {
+          console.log('[searchUsers] Filtering out current user from multi-user results')
+          finalResults = resultUsers.filter(u => u.userId !== ctx.userId)
+        }
+
+        // Limit final results
+        const limitedResults = finalResults.slice(0, limit)
+
+        console.log('[searchUsers] Returning', limitedResults.length, 'users out of', finalResults.length, 'found')
         console.log('[searchUsers] User names:', limitedResults.map(u => u.name).join(', '))
 
         return {
           users: limitedResults,
-          totalFound: resultUsers.length,
+          totalFound: finalResults.length,
           searchedBy: searchBy,
         }
       } catch (error) {
