@@ -59,6 +59,7 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [sendingConnection, setSendingConnection] = useState(false)
   const [activeTab, setActiveTab] = useState<'about' | 'posts'>('about')
+  const [showFullProfile, setShowFullProfile] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -216,7 +217,7 @@ export default function UserProfilePage() {
             {/* Edit Profile / Connect Button */}
             {isOwnProfile ? (
               <button
-                onClick={() => router.push('/profile')}
+                onClick={() => router.push('/profile/edit')}
                 className="px-8 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition shadow-md"
               >
                 Edit profile
@@ -387,6 +388,91 @@ export default function UserProfilePage() {
                       <div>
                         <h3 className="font-semibold text-gray-900 mb-2">Languages</h3>
                         <p className="text-gray-700">{profile.languages}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* View More Button */}
+                {!isOwnProfile && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => setShowFullProfile(!showFullProfile)}
+                      className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                    >
+                      {showFullProfile ? (
+                        <>
+                          <span>Show Less</span>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </>
+                      ) : (
+                        <>
+                          <span>View Full Profile</span>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Full Profile Details (shown when View More is clicked) */}
+                {showFullProfile && !isOwnProfile && profile && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 space-y-6">
+                    {/* Goals */}
+                    {profile.goals && profile.goals.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Learning Goals</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.goals.map((goal, index) => (
+                            <span key={index} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                              {goal}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Skill Level */}
+                    {profile.skillLevel && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Skill Level</h3>
+                        <p className="text-gray-700">{profile.skillLevel}</p>
+                      </div>
+                    )}
+
+                    {/* Study Style */}
+                    {profile.studyStyle && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Study Style</h3>
+                        <p className="text-gray-700">{profile.studyStyle}</p>
+                      </div>
+                    )}
+
+                    {/* Available Days */}
+                    {profile.availableDays && profile.availableDays.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Available Days</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.availableDays.map((day, index) => (
+                            <span key={index} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
+                              {day}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Post Privacy */}
+                    {profile.postPrivacy && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Post Privacy</h3>
+                        <p className="text-gray-700">
+                          {profile.postPrivacy === 'PUBLIC' ? 'Posts are public' : 'Posts visible to partners only'}
+                        </p>
                       </div>
                     )}
                   </div>
