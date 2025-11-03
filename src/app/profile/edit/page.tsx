@@ -4,20 +4,6 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 
-type UserPost = {
-  id: string
-  content: string
-  createdAt: string
-  imageUrls?: string[]
-  likes?: { userId: string; user: { id: string; name: string; avatarUrl: string | null } }[]
-  comments?: { id: string; content: string; createdAt: string; user: { id: string; name: string; avatarUrl: string | null } }[]
-  _count?: {
-    likes: number
-    comments: number
-    reposts: number
-  }
-}
-
 type DeletedPost = {
   id: string
   content: string
@@ -60,12 +46,6 @@ export default function ProfilePage() {
     // NEW: Post Privacy
     postPrivacy: 'PUBLIC' as 'PUBLIC' | 'PARTNERS_ONLY',
   })
-
-  // State for user's posts
-  const [userPosts, setUserPosts] = useState<UserPost[]>([])
-  const [showPosts, setShowPosts] = useState(false)
-  const [editingPostId, setEditingPostId] = useState<string | null>(null)
-  const [editPostContent, setEditPostContent] = useState('')
 
   // State for deleted posts (Post History)
   const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
@@ -124,25 +104,12 @@ export default function ProfilePage() {
     }
   }, [user, profile, loading, router])
 
-  // Fetch user's posts
+  // Fetch deleted posts
   useEffect(() => {
     if (user) {
-      fetchUserPosts()
       fetchDeletedPosts()
     }
   }, [user])
-
-  const fetchUserPosts = async () => {
-    try {
-      const response = await fetch(`/api/posts/user/${user?.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setUserPosts(data.posts)
-      }
-    } catch (error) {
-      console.error('Error fetching user posts:', error)
-    }
-  }
 
   const fetchDeletedPosts = async () => {
     try {
@@ -156,61 +123,6 @@ export default function ProfilePage() {
     }
   }
 
-  const handleEditProfilePost = async (postId: string) => {
-    if (!editPostContent.trim()) return
-
-    try {
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editPostContent }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUserPosts(prev =>
-          prev.map(post =>
-            post.id === postId ? { ...post, content: data.post.content } : post
-          )
-        )
-        setEditingPostId(null)
-        setEditPostContent('')
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to edit post')
-      }
-    } catch (error) {
-      console.error('Error editing post:', error)
-      alert('Failed to edit post')
-    }
-  }
-
-  const handleDeleteProfilePost = async (postId: string) => {
-    if (!confirm('This post will be deleted for 30 days. You can restore it anytime before permanent deletion.')) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUserPosts(prev => prev.filter(post => post.id !== postId))
-        // Refresh deleted posts to show newly deleted post
-        await fetchDeletedPosts()
-        alert(data.message || 'Post moved to history. You can restore it within 30 days.')
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to delete post')
-      }
-    } catch (error) {
-      console.error('Error deleting post:', error)
-      alert('Failed to delete post')
-    }
-  }
-
   const handleRestorePost = async (postId: string) => {
     try {
       const response = await fetch(`/api/posts/${postId}/restore`, {
@@ -219,9 +131,8 @@ export default function ProfilePage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Remove from deleted posts and refresh active posts
+        // Remove from deleted posts
         setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        await fetchUserPosts()
         alert(data.message || 'Post restored successfully')
       } else {
         const error = await response.json()
@@ -254,16 +165,6 @@ export default function ProfilePage() {
       console.error('Error permanently deleting post:', error)
       alert('Failed to delete post')
     }
-  }
-
-  const startEditProfilePost = (post: UserPost) => {
-    setEditingPostId(post.id)
-    setEditPostContent(post.content)
-  }
-
-  const cancelEditProfilePost = () => {
-    setEditingPostId(null)
-    setEditPostContent('')
   }
 
   if (loading) {
@@ -941,152 +842,6 @@ export default function ProfilePage() {
                   </label>
                 </div>
               </div>
-            </div>
-
-            {/* My Posts Section */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">My Posts</h3>
-                <button
-                  onClick={() => setShowPosts(!showPosts)}
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                >
-                  {showPosts ? 'Hide Posts' : 'Show Posts'}
-                </button>
-              </div>
-
-              {showPosts && (
-                <div className="space-y-4">
-                  {userPosts.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">You haven&apos;t created any posts yet.</p>
-                  ) : (
-                    userPosts.map((post) => (
-                      <div key={post.id} className="border border-gray-200 rounded-lg p-4">
-                        {/* Post Header with Edit/Delete buttons */}
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <p className="text-xs text-gray-500">
-                              {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => startEditProfilePost(post)}
-                              className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-                              title="Edit post"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProfilePost(post.id)}
-                              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition"
-                              title="Delete post"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Post Content - Show edit mode or regular content */}
-                        {editingPostId === post.id ? (
-                          <div className="mb-3">
-                            <textarea
-                              value={editPostContent}
-                              onChange={(e) => setEditPostContent(e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              rows={4}
-                              maxLength={5000}
-                            />
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-sm text-gray-500">
-                                {editPostContent.length}/5000
-                              </span>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={cancelEditProfilePost}
-                                  className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded transition"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => handleEditProfilePost(post.id)}
-                                  disabled={!editPostContent.trim()}
-                                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mb-3">
-                            <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
-                          </div>
-                        )}
-
-                        {/* Post Stats */}
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
-                          <span>❤️ {post.likes?.length || 0} likes</span>
-                          <span>💬 {post.comments?.length || 0} comments</span>
-                          <span>🔁 {post._count?.reposts || 0} reposts</span>
-                        </div>
-
-                        {/* Who Liked */}
-                        {post.likes && post.likes.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-sm font-medium text-gray-700 mb-2">Liked by:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {post.likes.map((like) => (
-                                <div key={like.userId} className="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1">
-                                  {like.user.avatarUrl && (
-                                    <img
-                                      src={like.user.avatarUrl}
-                                      alt={like.user.name}
-                                      className="w-5 h-5 rounded-full"
-                                    />
-                                  )}
-                                  <span className="text-sm text-gray-700">{like.user.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Comments */}
-                        {post.comments && post.comments.length > 0 && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-700 mb-2">Comments:</p>
-                            <div className="space-y-2">
-                              {post.comments.map((comment) => (
-                                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    {comment.user.avatarUrl && (
-                                      <img
-                                        src={comment.user.avatarUrl}
-                                        alt={comment.user.name}
-                                        className="w-6 h-6 rounded-full"
-                                      />
-                                    )}
-                                    <span className="font-medium text-sm text-gray-900">{comment.user.name}</span>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date(comment.createdAt).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-gray-700 ml-8">{comment.content}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Post History Section (Deleted Posts) */}

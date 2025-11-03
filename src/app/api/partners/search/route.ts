@@ -219,8 +219,38 @@ export async function POST(request: NextRequest) {
       .eq('userId', user.id)
       .single()
 
+    // Filter profiles by searchQuery if provided (text search in memory)
+    let filteredProfiles = profiles || []
+
+    if (searchQuery && searchQuery.trim().length > 0) {
+      const searchLower = searchQuery.toLowerCase().trim()
+      filteredProfiles = filteredProfiles.filter(profile => {
+        // Search in user name (handle both array and object cases)
+        const user = Array.isArray(profile.user) ? profile.user[0] : profile.user
+        const userName = user?.name?.toLowerCase() || ''
+        if (userName.includes(searchLower)) return true
+
+        // Search in subjects
+        if (profile.subjects?.some((s: string) => s.toLowerCase().includes(searchLower))) return true
+
+        // Search in interests
+        if (profile.interests?.some((i: string) => i.toLowerCase().includes(searchLower))) return true
+
+        // Search in bio
+        if (profile.bio?.toLowerCase().includes(searchLower)) return true
+
+        // Search in school
+        if (profile.school?.toLowerCase().includes(searchLower)) return true
+
+        // Search in languages
+        if (profile.languages?.toLowerCase().includes(searchLower)) return true
+
+        return false
+      })
+    }
+
     // Calculate match scores
-    const profilesWithScores = (profiles || []).map(profile => {
+    const profilesWithScores = filteredProfiles.map(profile => {
       let matchScore = 0
       const matchReasons: string[] = []
 
