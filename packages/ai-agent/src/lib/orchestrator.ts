@@ -271,6 +271,8 @@ export class AgentOrchestrator {
     const filters: Record<string, any> = {}
     const lowerMessage = message.toLowerCase()
 
+    console.log('🔍 EXTRACTING FILTERS FROM:', message)
+
     // Pattern 1: "who likes X", "who studies X", "interested in X", "who wants X"
     const subjectPatterns = [
       /who (?:likes?|studies?|enjoys?|wants?|needs?) ([a-zA-Z0-9\s,&+-]+?)(?:\s+and\s+|\s*,\s*|\s+or\s+|$)/gi,
@@ -280,17 +282,29 @@ export class AgentOrchestrator {
 
     const foundSubjects: string[] = []
 
-    for (const pattern of subjectPatterns) {
+    for (let i = 0; i < subjectPatterns.length; i++) {
+      const pattern = subjectPatterns[i]
       let match
+      let matchCount = 0
       while ((match = pattern.exec(message)) !== null) {
+        matchCount++
         const extracted = match[1].trim()
+        console.log(`  Pattern ${i} Match ${matchCount}: "${extracted}"`)
+
         // Split by "and", "or", commas
         const parts = extracted.split(/\s+and\s+|\s+or\s+|\s*,\s+/)
+        console.log(`  Split into parts:`, parts)
+
         for (let part of parts) {
           part = part.trim()
           // Remove trailing words like "who", "that", etc.
+          const original = part
           part = part.replace(/\s+(who|that|which|available|on|at|in).*$/i, '')
           part = part.trim()
+
+          if (original !== part) {
+            console.log(`  Cleaned "${original}" -> "${part}"`)
+          }
 
           if (part.length > 0 && !foundSubjects.some(s => s.toLowerCase() === part.toLowerCase())) {
             // Capitalize each word
@@ -298,6 +312,7 @@ export class AgentOrchestrator {
               .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
               .join(' ')
             foundSubjects.push(capitalized)
+            console.log(`  ✅ Added subject: "${capitalized}"`)
           }
         }
       }
@@ -305,6 +320,9 @@ export class AgentOrchestrator {
 
     if (foundSubjects.length > 0) {
       filters.subjects = foundSubjects
+      console.log('✅ EXTRACTED SUBJECTS:', foundSubjects)
+    } else {
+      console.log('❌ NO SUBJECTS EXTRACTED')
     }
 
     // Extract skill level
@@ -666,23 +684,39 @@ export class AgentOrchestrator {
       let input = JSON.parse(argsJson)
 
       // 🔴 CRITICAL INTERCEPT: Enhance matchCandidates with extracted filters
-      if (toolName === 'matchCandidates' && originalMessage) {
-        const extractedFilters = this.extractMatchFilters(originalMessage)
+      if (toolName === 'matchCandidates') {
+        console.log('🔴 INTERCEPT POINT: matchCandidates called')
+        console.log('  Original input:', JSON.stringify(input, null, 2))
+        console.log('  Has originalMessage?', !!originalMessage)
 
-        // If we extracted subjects but the input has none, add them
-        if (extractedFilters.subjects && (!input.subjects || input.subjects.length === 0)) {
-          input.subjects = extractedFilters.subjects
-          console.log(`🔴 INTERCEPTED matchCandidates: Added subjects:`, extractedFilters.subjects)
-        }
+        if (originalMessage) {
+          console.log('  Original message:', originalMessage)
+          const extractedFilters = this.extractMatchFilters(originalMessage)
+          console.log('  Extracted filters:', JSON.stringify(extractedFilters, null, 2))
 
-        // Add other extracted filters if missing
-        if (extractedFilters.skillLevel && !input.skillLevel) {
-          input.skillLevel = extractedFilters.skillLevel
-          console.log(`🔴 INTERCEPTED matchCandidates: Added skillLevel:`, extractedFilters.skillLevel)
-        }
-        if (extractedFilters.availableDays && (!input.availableDays || input.availableDays.length === 0)) {
-          input.availableDays = extractedFilters.availableDays
-          console.log(`🔴 INTERCEPTED matchCandidates: Added availableDays:`, extractedFilters.availableDays)
+          // If we extracted subjects but the input has none, add them
+          if (extractedFilters.subjects && (!input.subjects || input.subjects.length === 0)) {
+            input.subjects = extractedFilters.subjects
+            console.log(`  ✅ ADDED subjects:`, extractedFilters.subjects)
+          } else if (extractedFilters.subjects) {
+            console.log(`  ⚠️ Input already has subjects:`, input.subjects)
+          } else {
+            console.log(`  ⚠️ No subjects extracted`)
+          }
+
+          // Add other extracted filters if missing
+          if (extractedFilters.skillLevel && !input.skillLevel) {
+            input.skillLevel = extractedFilters.skillLevel
+            console.log(`  ✅ ADDED skillLevel:`, extractedFilters.skillLevel)
+          }
+          if (extractedFilters.availableDays && (!input.availableDays || input.availableDays.length === 0)) {
+            input.availableDays = extractedFilters.availableDays
+            console.log(`  ✅ ADDED availableDays:`, extractedFilters.availableDays)
+          }
+
+          console.log('  Final input after intercept:', JSON.stringify(input, null, 2))
+        } else {
+          console.log('  ⚠️ No originalMessage - cannot extract filters')
         }
       }
       const validatedInput = tool.inputSchema.parse(input)
