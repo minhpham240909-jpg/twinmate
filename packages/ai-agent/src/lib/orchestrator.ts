@@ -510,9 +510,78 @@ export class AgentOrchestrator {
       const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context, message)
       toolResults.push(forcedResult)
       console.log(`✅ FORCED TOOL EXECUTED:`, forcedTool.tool, 'Success:', forcedResult.success)
+
+      // 🚨 FORMAT RESULTS OURSELVES - Don't rely on AI!
+      // Return immediately with formatted response - skip AI completely
+      if (forcedResult.success) {
+        let formattedResponse = ''
+
+        if (forcedTool.tool === 'matchCandidates') {
+          const matches = (forcedResult.output as any).matches || []
+          console.log(`📊 Got ${matches.length} matches from tool`)
+
+          if (matches.length > 0) {
+            formattedResponse = `I found ${matches.length} potential study partner${matches.length > 1 ? 's' : ''} for you:\n\n` +
+              matches.map((m: any, i: number) => {
+                const parts = [`**${i + 1}. ${m.name}** (${Math.round(m.score * 100)}% match)`]
+
+                if (m.subjects && m.subjects.length > 0) {
+                  parts.push(`   📚 Studies: ${m.subjects.join(', ')}`)
+                }
+                if (m.interests && m.interests.length > 0) {
+                  parts.push(`   ❤️  Interests: ${m.interests.join(', ')}`)
+                }
+                if (m.school) {
+                  parts.push(`   🏛️  School: ${m.school}`)
+                }
+                if (m.matchReasons && m.matchReasons.length > 0) {
+                  parts.push(`   ✨ Why: ${m.matchReasons[0]}`)
+                }
+
+                return parts.join('\n')
+              }).join('\n\n') +
+              '\n\nWould you like to connect with any of them?'
+
+            console.log(`✅ Formatted ${matches.length} matches into response`)
+          } else {
+            formattedResponse = `I searched for study partners but couldn't find any matches at the moment. This might be because:\n\n` +
+              `• There are currently no other users with matching criteria\n` +
+              `• Try completing more of your profile to improve matching\n` +
+              `• Check back later as more users join the platform`
+
+            console.log(`⚠️ No matches found - showing helpful message`)
+          }
+        } else if (forcedTool.tool === 'searchUsers') {
+          const users = (forcedResult.output as any).users || []
+          console.log(`📊 Got ${users.length} users from search`)
+
+          if (users.length > 0) {
+            formattedResponse = `I found ${users.length} user${users.length > 1 ? 's' : ''}:\n\n` +
+              users.map((u: any, i: number) => `${i + 1}. **${u.name || 'User'}**`).join('\n')
+          } else {
+            const errorMessage = (forcedResult.output as any).message
+            formattedResponse = errorMessage || `I couldn't find any users matching that name. Please check the spelling or try a different name.`
+          }
+        }
+
+        // Return immediately with our formatted response
+        return {
+          text: formattedResponse,
+          toolsUsed: [forcedTool.tool],
+          toolResults,
+          cards: this.extractCards(toolResults),
+          citations: [],
+          metadata: {
+            traceId: context.traceId,
+            toolCallCount: 1,
+            iterationCount: 0,
+            forcedTool: true,
+          },
+        }
+      }
     }
 
-    // Track LLM call start
+    // Track LLM call start (only if we didn't already return)
     const llmCallStart = Date.now()
     await this.config.telemetry.trackEvent({
       traceId: context.traceId,
@@ -525,15 +594,6 @@ export class AgentOrchestrator {
         hasTools: toolDefinitions.length > 0,
       },
     })
-
-    // If we already have forced tool results, add them to the conversation BEFORE asking AI
-    if (forcedTool && toolResults.length > 0) {
-      const toolResult = toolResults[0]
-      messages.push({
-        role: 'system' as const,
-        content: `Tool ${forcedTool.tool} was called and returned: ${JSON.stringify(toolResult.output)}\n\nPlease format these results in a friendly, helpful way for the user.`,
-      })
-    }
 
     // PERFORMANCE: Reduced maxTokens for faster responses, lower temperature for speed
     let response = await this.config.llmProvider.complete({
