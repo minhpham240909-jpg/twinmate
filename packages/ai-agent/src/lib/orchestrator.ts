@@ -357,6 +357,7 @@ export class AgentOrchestrator {
    */
   private detectForcedToolCall(message: string): { tool: string; reason: string } | null {
     const lowerMessage = message.toLowerCase()
+    console.log('🔍 PATTERN DETECTION for message:', message)
 
     // PRIORITY 1: Check for name keyword FIRST (before partner patterns)
     // "find a partner name [Name]" should search by name, not match partners
@@ -364,7 +365,7 @@ export class AgentOrchestrator {
     const hasCapitalizedName = /\b[A-Z][a-z]+(\s+[A-Z][a-z]+)*\b/.test(message)
 
     if (hasNameKeyword && hasCapitalizedName) {
-      console.log('🔴 NAME KEYWORD + CAPITALIZED NAME DETECTED - Forcing searchUsers')
+      console.log('✅ NAME KEYWORD + CAPITALIZED NAME DETECTED - Forcing searchUsers')
       return { tool: 'searchUsers', reason: '"name" keyword + capitalized name detected' }
     }
 
@@ -392,6 +393,11 @@ export class AgentOrchestrator {
       'recommend partners', 'recommend someone', 'suggest partners',
       'give me partners', 'give me matches',
 
+      // Subject-based requests (NEW - HIGH PRIORITY)
+      'who like', 'who likes', 'who studies', 'who study',
+      'who is interested in', 'interested in studying',
+      'someone who', 'anyone who',
+
       // Just "partner" or "partners" alone
       'partner', 'partners', 'matches', 'buddy', 'buddies',
 
@@ -402,9 +408,12 @@ export class AgentOrchestrator {
 
     for (const pattern of partnerPatterns) {
       if (lowerMessage.includes(pattern)) {
+        console.log(`✅ PARTNER PATTERN MATCHED: "${pattern}" - Forcing matchCandidates`)
         return { tool: 'matchCandidates', reason: `Pattern detected: "${pattern}"` }
       }
     }
+
+    console.log('⚠️ NO PARTNER PATTERN MATCHED')
 
     // User search patterns - FORCE searchUsers
     const searchPatterns = ['find ', 'search for ', 'who is ', 'show me ', 'look for ', 'looking for ']
@@ -416,17 +425,20 @@ export class AgentOrchestrator {
     // 1. Just a capitalized name alone (e.g., "Gia Khang", "Sarah")
     // 2. OR search keyword + capitalized name (e.g., "find Gia Khang")
     if (isJustName) {
+      console.log('✅ DIRECT NAME INPUT - Forcing searchUsers')
       return { tool: 'searchUsers', reason: 'Direct name input detected' }
     }
 
     if (hasCapitalizedName) {
       for (const pattern of searchPatterns) {
         if (lowerMessage.includes(pattern)) {
+          console.log(`✅ NAME SEARCH PATTERN MATCHED: "${pattern}" - Forcing searchUsers`)
           return { tool: 'searchUsers', reason: 'Name search pattern detected' }
         }
       }
     }
 
+    console.log('❌ NO FORCED TOOL DETECTED')
     return null
   }
 
@@ -459,11 +471,45 @@ export class AgentOrchestrator {
     messages.push({ role: 'user', content: userPrompt })
 
     const toolDefinitions = this.config.toolRegistry.getToolDefinitions()
+    const toolResults: ToolResult[] = []
 
-    // NUCLEAR OPTION: Detect and force specific tool calls
+    // 🚨 NUCLEAR OPTION: Detect and IMMEDIATELY call forced tools (BEFORE AI)
+    // This ensures 100% reliability - the tool is ALWAYS called when pattern matches
     const forcedTool = this.detectForcedToolCall(message)
     if (forcedTool) {
-      console.log(`🔴 FORCED TOOL CALL: ${forcedTool.tool} (${forcedTool.reason})`)
+      console.log(`🔴 FORCED TOOL CALL DETECTED: ${forcedTool.tool} (${forcedTool.reason})`)
+      console.log(`🔴 CALLING TOOL IMMEDIATELY (BYPASSING AI)`)
+
+      // Prepare tool input
+      let forcedInput = '{}'
+
+      if (forcedTool.tool === 'matchCandidates') {
+        // Extract subjects/interests from the message
+        const extractedFilters = this.extractMatchFilters(message)
+        forcedInput = JSON.stringify({
+          limit: 10,
+          minScore: 0.1,
+          ...extractedFilters
+        })
+        console.log(`🔍 Extracted filters for matchCandidates:`, extractedFilters)
+      } else if (forcedTool.tool === 'searchUsers') {
+        // Extract the actual name from the message
+        let extractedName = message
+          .replace(/^(find|search for|who is|show me|look for|looking for)\s+/i, '')
+          .trim()
+
+        if (!extractedName) {
+          extractedName = message
+        }
+
+        console.log(`🔍 Extracted name: "${extractedName}" from message: "${message}"`)
+        forcedInput = JSON.stringify({ query: extractedName, searchBy: 'name', limit: 10 })
+      }
+
+      // CALL THE TOOL IMMEDIATELY
+      const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context, message)
+      toolResults.push(forcedResult)
+      console.log(`✅ FORCED TOOL EXECUTED:`, forcedTool.tool, 'Success:', forcedResult.success)
     }
 
     // Track LLM call start
@@ -479,6 +525,15 @@ export class AgentOrchestrator {
         hasTools: toolDefinitions.length > 0,
       },
     })
+
+    // If we already have forced tool results, add them to the conversation BEFORE asking AI
+    if (forcedTool && toolResults.length > 0) {
+      const toolResult = toolResults[0]
+      messages.push({
+        role: 'system' as const,
+        content: `Tool ${forcedTool.tool} was called and returned: ${JSON.stringify(toolResult.output)}\n\nPlease format these results in a friendly, helpful way for the user.`,
+      })
+    }
 
     // PERFORMANCE: Reduced maxTokens for faster responses, lower temperature for speed
     let response = await this.config.llmProvider.complete({
@@ -502,7 +557,6 @@ export class AgentOrchestrator {
       },
     })
 
-    const toolResults: ToolResult[] = []
     let iterationCount = 0
 
     // Tool calling loop
@@ -550,91 +604,11 @@ export class AgentOrchestrator {
       })
     }
 
-    // NUCLEAR OPTION: Force tool call if AI failed to call required tool
+    // Log final status
     if (forcedTool) {
-      const toolWasCalled = toolResults.some(tr => tr.toolName === forcedTool.tool)
-
-      if (!toolWasCalled) {
-        console.error(`🔴 AI FAILED TO CALL REQUIRED TOOL: ${forcedTool.tool}`)
-        console.error(`🔴 FORCING TOOL CALL NOW: ${forcedTool.tool}`)
-
-        // Force the tool call ourselves
-        let forcedInput = '{}'
-
-        if (forcedTool.tool === 'matchCandidates') {
-          // Extract subjects/interests from the message
-          const extractedFilters = this.extractMatchFilters(message)
-          forcedInput = JSON.stringify({
-            limit: 10,
-            minScore: 0.1,
-            ...extractedFilters
-          })
-          console.log(`🔍 Extracted filters for matchCandidates:`, extractedFilters)
-        } else if (forcedTool.tool === 'searchUsers') {
-          // Extract the actual name from the message
-          // Remove common search prefixes to get the pure name
-          let extractedName = message
-            .replace(/^(find|search for|who is|show me|look for|looking for)\s+/i, '')
-            .trim()
-
-          // If no name was extracted, use the full message
-          if (!extractedName) {
-            extractedName = message
-          }
-
-          console.log(`🔍 Extracted name: "${extractedName}" from message: "${message}"`)
-          forcedInput = JSON.stringify({ query: extractedName, searchBy: 'name', limit: 10 })
-        }
-
-        const forcedResult = await this.executeTool(forcedTool.tool, forcedInput, context, message)
-        toolResults.push(forcedResult)
-
-        // Update response text to include forced results
-        if (forcedTool.tool === 'matchCandidates' && forcedResult.success) {
-          const matches = (forcedResult.output as any).matches || []
-          if (matches.length > 0) {
-            response.content = `I found ${matches.length} potential study partner(s) for you:\n\n` +
-              matches.map((m: any, i: number) => {
-                const parts = [
-                  `${i + 1}. **${m.name}** (${Math.round(m.score * 100)}% match)`
-                ]
-                if (m.subjects && m.subjects.length > 0) {
-                  parts.push(`   📚 Studies: ${m.subjects.join(', ')}`)
-                }
-                if (m.interests && m.interests.length > 0) {
-                  parts.push(`   ❤️ Interests: ${m.interests.join(', ')}`)
-                }
-                if (m.school) {
-                  parts.push(`   🏛️ School: ${m.school}`)
-                }
-                if (m.matchReasons && m.matchReasons.length > 0) {
-                  parts.push(`   ✨ Why: ${m.matchReasons[0]}`)
-                }
-                return parts.join('\n')
-              }).join('\n\n') +
-              '\n\nWould you like to know more about any of these partners?'
-          } else {
-            response.content = `I searched for study partners but couldn't find any matches at the moment. This might be because:\n` +
-              `- There are currently no other users with matching study interests\n` +
-              `- Try completing more of your profile to improve matching\n` +
-              `- Check back later as more users join the platform`
-          }
-        } else if (forcedTool.tool === 'searchUsers' && forcedResult.success) {
-          const users = (forcedResult.output as any).users || []
-          if (users.length > 0) {
-            response.content = `I found ${users.length} user(s):\n\n` +
-              users.map((u: any, i: number) =>
-                `${i + 1}. ${u.name || 'User'}`
-              ).join('\n')
-          } else {
-            response.content = `I couldn't find any users matching that name. Please check the spelling or try a different name.`
-          }
-        }
-
-        console.log(`✅ FORCED TOOL CALL COMPLETED: ${forcedTool.tool}`)
-      } else {
-        console.log(`✅ AI correctly called required tool: ${forcedTool.tool}`)
-      }
+      console.log(`✅ FORCED TOOL FLOW COMPLETED: ${forcedTool.tool}`)
+      console.log(`   Tool results count: ${toolResults.length}`)
+      console.log(`   AI response length: ${response.content.length} chars`)
     }
 
     // Extract cards from tool results
