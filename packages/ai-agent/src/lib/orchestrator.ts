@@ -493,14 +493,10 @@ export class AgentOrchestrator {
         })
         console.log(`🔍 Extracted filters for matchCandidates:`, extractedFilters)
       } else if (forcedTool.tool === 'searchUsers') {
-        // Extract the actual name from the message
-        let extractedName = message
-          .replace(/^(find|search for|who is|show me|look for|looking for)\s+/i, '')
-          .trim()
-
-        if (!extractedName) {
-          extractedName = message
-        }
+        // Extract the CAPITALIZED NAME from the message (e.g., "Gia Khang Pham")
+        // Don't just remove prefixes - actually find the capitalized name
+        const nameMatch = message.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/)
+        let extractedName = nameMatch ? nameMatch[0] : message
 
         console.log(`🔍 Extracted name: "${extractedName}" from message: "${message}"`)
         forcedInput = JSON.stringify({ query: extractedName, searchBy: 'name', limit: 10 })
