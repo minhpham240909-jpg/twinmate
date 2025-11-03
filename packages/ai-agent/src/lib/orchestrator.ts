@@ -549,9 +549,11 @@ export class AgentOrchestrator {
             console.log(`⚠️ No matches found - showing helpful message`)
           }
         } else {
-          // Tool failed
-          formattedResponse = `I encountered an error while searching for partners. Please try again later.`
-          console.log(`❌ matchCandidates tool failed`)
+          // Tool failed - show actual error
+          const errorMsg = (forcedResult.output as any)?.error || (forcedResult as any).error || 'Unknown error'
+          formattedResponse = `I encountered an error while searching for partners: ${errorMsg}`
+          console.log(`❌ matchCandidates tool failed:`, errorMsg)
+          console.log(`❌ Full error:`, JSON.stringify(forcedResult, null, 2))
         }
       } else if (forcedTool.tool === 'searchUsers') {
         if (forcedResult.success) {
