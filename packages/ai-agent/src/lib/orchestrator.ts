@@ -509,10 +509,11 @@ export class AgentOrchestrator {
 
       // 🚨 FORMAT RESULTS OURSELVES - Don't rely on AI!
       // Return immediately with formatted response - skip AI completely
-      if (forcedResult.success) {
-        let formattedResponse = ''
+      // IMPORTANT: Handle BOTH success AND failure - never let AI respond!
+      let formattedResponse = ''
 
-        if (forcedTool.tool === 'matchCandidates') {
+      if (forcedTool.tool === 'matchCandidates') {
+        if (forcedResult.success) {
           const matches = (forcedResult.output as any).matches || []
           console.log(`📊 Got ${matches.length} matches from tool`)
 
@@ -547,7 +548,13 @@ export class AgentOrchestrator {
 
             console.log(`⚠️ No matches found - showing helpful message`)
           }
-        } else if (forcedTool.tool === 'searchUsers') {
+        } else {
+          // Tool failed
+          formattedResponse = `I encountered an error while searching for partners. Please try again later.`
+          console.log(`❌ matchCandidates tool failed`)
+        }
+      } else if (forcedTool.tool === 'searchUsers') {
+        if (forcedResult.success) {
           const users = (forcedResult.output as any).users || []
           console.log(`📊 Got ${users.length} users from search`)
 
@@ -558,22 +565,26 @@ export class AgentOrchestrator {
             const errorMessage = (forcedResult.output as any).message
             formattedResponse = errorMessage || `I couldn't find any users matching that name. Please check the spelling or try a different name.`
           }
+        } else {
+          // Tool failed
+          formattedResponse = `I encountered an error while searching for users. Please try again later.`
+          console.log(`❌ searchUsers tool failed`)
         }
+      }
 
-        // Return immediately with our formatted response
-        return {
-          text: formattedResponse,
-          toolsUsed: [forcedTool.tool],
-          toolResults,
-          cards: this.extractCards(toolResults),
-          citations: [],
-          metadata: {
-            traceId: context.traceId,
-            toolCallCount: 1,
-            iterationCount: 0,
-            forcedTool: true,
-          },
-        }
+      // Return immediately with our formatted response - NEVER let AI respond!
+      return {
+        text: formattedResponse,
+        toolsUsed: [forcedTool.tool],
+        toolResults,
+        cards: this.extractCards(toolResults),
+        citations: [],
+        metadata: {
+          traceId: context.traceId,
+          toolCallCount: 1,
+          iterationCount: 0,
+          forcedTool: true,
+        },
       }
     }
 
@@ -658,13 +669,6 @@ export class AgentOrchestrator {
         temperature: 0.7,
         maxTokens: 2000,
       })
-    }
-
-    // Log final status
-    if (forcedTool) {
-      console.log(`✅ FORCED TOOL FLOW COMPLETED: ${forcedTool.tool}`)
-      console.log(`   Tool results count: ${toolResults.length}`)
-      console.log(`   AI response length: ${response.content.length} chars`)
     }
 
     // Extract cards from tool results
