@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
+import { useTranslations } from 'next-intl'
 
 interface Session {
   id: string
@@ -58,6 +59,8 @@ interface GroupMember {
 export default function StudySessionsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('studySessions')
+  const tCommon = useTranslations('common')
 
   // Load sessions from localStorage immediately
   const [sessions, setSessions] = useState<Session[]>(() => {
@@ -218,7 +221,7 @@ export default function StudySessionsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -240,13 +243,13 @@ export default function StudySessionsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-blue-600">Study Sessions</h1>
+            <h1 className="text-2xl font-bold text-blue-600">{t('title')}</h1>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            + New Session
+            {t('newSession')}
           </button>
         </div>
       </header>
@@ -258,7 +261,7 @@ export default function StudySessionsPage() {
           {pendingInvites.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Pending Invitations ({pendingInvites.length})
+                {t('pendingInvitations')} ({pendingInvites.length})
               </h2>
               <div className="space-y-3">
                 {pendingInvites.map((invite) => (
@@ -284,7 +287,7 @@ export default function StudySessionsPage() {
                             <span className="font-semibold text-gray-900">
                               {invite.inviter?.name || 'Someone'}
                             </span>{' '}
-                            invited you to
+                            {t('invitedYouTo')}
                           </p>
                           <h3 className="font-semibold text-gray-900">{invite.title}</h3>
                         </div>
@@ -309,14 +312,14 @@ export default function StudySessionsPage() {
                         disabled={processingInvite === invite.sessionId}
                         className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                       >
-                        {processingInvite === invite.sessionId ? 'Accepting...' : 'Accept'}
+                        {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
                       </button>
                       <button
                         onClick={() => handleDeclineInvite(invite.sessionId)}
                         disabled={processingInvite === invite.sessionId}
                         className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                       >
-                        {processingInvite === invite.sessionId ? 'Declining...' : 'Decline'}
+                        {processingInvite === invite.sessionId ? t('declining') : t('decline')}
                       </button>
                     </div>
                   </div>
@@ -327,8 +330,8 @@ export default function StudySessionsPage() {
 
           {/* Header for History */}
           <div className="bg-white rounded-xl shadow-sm mb-6 p-6">
-            <h2 className="text-xl font-bold text-gray-900">Study Session History</h2>
-            <p className="text-sm text-gray-600 mt-1">View your completed and cancelled study sessions</p>
+            <h2 className="text-xl font-bold text-gray-900">{t('sessionHistory')}</h2>
+            <p className="text-sm text-gray-600 mt-1">{t('sessionHistoryDesc')}</p>
           </div>
 
           {/* Sessions List */}
@@ -341,16 +344,16 @@ export default function StudySessionsPage() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No Study History Yet
+                  {t('noHistoryYet')}
                 </h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Complete your first study session to see your history here!
+                  {t('noHistoryDesc')}
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
                 >
-                  Start a Study Session
+                  {t('startSession')}
                 </button>
               </div>
             ) : (
@@ -390,14 +393,14 @@ export default function StudySessionsPage() {
                       onClick={() => setViewingSessionId(session.id)}
                       className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition"
                     >
-                      View Details
+                      {t('viewDetails')}
                     </button>
                     <button
                       onClick={() => handleDeleteSession(session.id)}
                       disabled={deletingSession === session.id}
                       className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {deletingSession === session.id ? 'Removing...' : 'Remove'}
+                      {deletingSession === session.id ? t('removing') : t('remove')}
                     </button>
                   </div>
                 </div>
@@ -433,6 +436,8 @@ export default function StudySessionsPage() {
 
 // Simple Create Session Modal
 function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: (sessionId: string) => void }) {
+  const t = useTranslations('studySessions')
+  const tCommon = useTranslations('common')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<'SOLO' | 'ONE_ON_ONE' | 'GROUP'>('ONE_ON_ONE')
@@ -527,7 +532,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl max-w-md w-full p-6 my-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Create Study Session</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t('createStudySession')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -537,7 +542,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('titleRequired')}</label>
             <input
               id="session-title-field"
               type="text"
@@ -549,13 +554,13 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   document.getElementById('session-desc-field')?.focus()
                 }
               }}
-              placeholder="e.g., Math Study Group"
+              placeholder={t('titlePlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('description')}</label>
             <textarea
               id="session-desc-field"
               value={description}
@@ -566,28 +571,28 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   document.getElementById('session-type-field')?.focus()
                 }
               }}
-              placeholder="What will you study?"
+              placeholder={t('descPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={3}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('type')}</label>
             <select
               id="session-type-field"
               value={type}
               onChange={(e) => setType(e.target.value as 'SOLO' | 'ONE_ON_ONE' | 'GROUP')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="SOLO">Solo</option>
-              <option value="ONE_ON_ONE">1-on-1</option>
-              <option value="GROUP">Group</option>
+              <option value="SOLO">{t('solo')}</option>
+              <option value="ONE_ON_ONE">{t('oneOnOne')}</option>
+              <option value="GROUP">{t('group')}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Subject (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('subjectOptional')}</label>
             <input
               id="session-subject-field"
               type="text"
@@ -599,7 +604,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   document.getElementById('session-search-field')?.focus()
                 }
               }}
-              placeholder="e.g., Mathematics"
+              placeholder={t('subjectPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -607,7 +612,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           {/* Invite Partners */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Invite Partners (optional) - Press Enter to Create
+              {t('inviteOptional')}
             </label>
 
             {/* Search */}
@@ -624,28 +629,28 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   }
                 }
               }}
-              placeholder="Search partners... (Press Enter to create session)"
+              placeholder={t('searchPartners')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
             />
 
             {/* Selected count */}
             {selectedInvites.length > 0 && (
               <p className="text-sm text-blue-600 mb-2">
-                {selectedInvites.length} partner{selectedInvites.length > 1 ? 's' : ''} selected
+                {selectedInvites.length} {selectedInvites.length > 1 ? t('partners') : t('partner')} {t('selected')}
               </p>
             )}
 
             {/* Partners and Group Members List */}
             <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
               {loadingInvites ? (
-                <p className="p-4 text-sm text-gray-500 text-center">Loading...</p>
+                <p className="p-4 text-sm text-gray-500 text-center">{tCommon('loading')}</p>
               ) : (
                 <>
                   {/* Study Partners Section */}
                   {filteredPartners.length > 0 && (
                     <div>
                       <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
-                        STUDY PARTNERS
+                        {t('studyPartners')}
                       </p>
                       {filteredPartners.map((partner) => (
                         <label
@@ -682,7 +687,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   {filteredGroupMembers.length > 0 && (
                     <div>
                       <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
-                        GROUP MEMBERS
+                        {t('groupMembers')}
                       </p>
                       {filteredGroupMembers.map((member) => (
                         <label
@@ -718,7 +723,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   {/* No results */}
                   {filteredPartners.length === 0 && filteredGroupMembers.length === 0 && (
                     <p className="p-4 text-sm text-gray-500 text-center">
-                      {searchTerm ? 'No matches found' : 'No partners or group members available'}
+                      {searchTerm ? t('noMatches') : t('noPartnersAvailable')}
                     </p>
                   )}
                 </>
@@ -732,14 +737,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
             onClick={onClose}
             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
           >
-            Cancel
+            {tCommon('cancel')}
           </button>
           <button
             onClick={handleCreate}
             disabled={creating}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {creating ? 'Creating...' : 'Create'}
+            {creating ? t('creating') : t('create')}
           </button>
         </div>
       </div>
