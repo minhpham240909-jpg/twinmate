@@ -739,15 +739,11 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
       >
         <SelectSetting
           label="Language"
-          description="Choose your preferred language"
+          description="Choose your preferred language | Elige tu idioma preferido"
           value={settings.language || 'en'}
           options={[
             { value: 'en', label: 'English' },
-            { value: 'es', label: 'Español' },
-            { value: 'fr', label: 'Français' },
-            { value: 'de', label: 'Deutsch' },
-            { value: 'zh', label: '中文' },
-            { value: 'ja', label: '日本語' },
+            { value: 'es', label: 'Español (Spanish)' },
           ]}
           onChange={(value) => updateSetting('language', value)}
         />
