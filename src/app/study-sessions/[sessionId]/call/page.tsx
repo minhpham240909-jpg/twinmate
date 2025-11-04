@@ -11,6 +11,7 @@ import SessionGoals from '@/components/SessionGoals'
 import SessionTimer from '@/components/study-sessions/SessionTimer'
 import InviteModal from '@/components/study-sessions/InviteModal'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 
 interface Participant {
   id: string
@@ -49,6 +50,7 @@ export default function StudyCallPage() {
   const params = useParams()
   const sessionId = params.sessionId as string
   const supabase = createClient()
+  const t = useTranslations('studySessions')
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
@@ -182,7 +184,7 @@ export default function StudyCallPage() {
   }, [session, isConnected, isConnecting, joinCall])
 
   const handleEndCall = async () => {
-    if (!confirm('Are you sure you want to leave the study call?')) return
+    if (!confirm(t('confirmLeaveCall'))) return
 
     await leaveCall()
     router.push('/study-sessions')
@@ -193,7 +195,7 @@ export default function StudyCallPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">Loading study call...</p>
+          <p className="text-white">{t('loadingStudyCall')}</p>
         </div>
       </div>
     )
@@ -209,8 +211,8 @@ export default function StudyCallPage() {
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center gap-3">
           <h1 className="text-white font-semibold text-lg">{session.title}</h1>
-          <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">LIVE</span>
-          <span className="text-gray-400 text-sm">{remoteUsers.size + 1} participant{remoteUsers.size !== 0 ? 's' : ''}</span>
+          <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">{t('live')}</span>
+          <span className="text-gray-400 text-sm">{remoteUsers.size + 1} {remoteUsers.size !== 0 ? t('participantsPlural') : t('participant')}</span>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -220,10 +222,10 @@ export default function StudyCallPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
-            Invite
+            {t('invite')}
           </button>
           <button onClick={handleEndCall} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">
-            Leave Call
+            {t('leaveCall')}
           </button>
         </div>
       </div>
@@ -236,7 +238,7 @@ export default function StudyCallPage() {
             <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                <p className="text-white text-sm">Connecting...</p>
+                <p className="text-white text-sm">{t('connecting')}</p>
               </div>
             </div>
           )}
@@ -249,10 +251,10 @@ export default function StudyCallPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-white text-xl font-semibold mb-2">Connection Failed</h3>
+                <h3 className="text-white text-xl font-semibold mb-2">{t('connectionFailed')}</h3>
                 <p className="text-white/70 mb-6">{connectionError}</p>
                 <button onClick={joinCall} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                  Retry
+                  {t('retry')}
                 </button>
               </div>
             </div>
@@ -262,11 +264,11 @@ export default function StudyCallPage() {
           {isConnected && (
             <div className="h-full p-2 grid gap-2" style={{ gridTemplateColumns: remoteUsers.size === 0 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               {/* Local Video */}
-              <VideoTile videoTrack={localTracks.videoTrack} hasVideo={localVideoEnabled} hasAudio={localAudioEnabled} name={`${profile.name} (You)`} />
+              <VideoTile videoTrack={localTracks.videoTrack} hasVideo={localVideoEnabled} hasAudio={localAudioEnabled} name={`${profile.name} (${t('you')})`} />
 
               {/* Remote Videos */}
               {Array.from(remoteUsers.values()).map((remoteUser) => (
-                <VideoTile key={remoteUser.uid} videoTrack={remoteUser.videoTrack} hasVideo={remoteUser.hasVideo} hasAudio={remoteUser.hasAudio} name={`User ${remoteUser.uid}`} />
+                <VideoTile key={remoteUser.uid} videoTrack={remoteUser.videoTrack} hasVideo={remoteUser.hasVideo} hasAudio={remoteUser.hasAudio} name={`${t('user')} ${remoteUser.uid}`} />
               ))}
             </div>
           )}
@@ -278,7 +280,7 @@ export default function StudyCallPage() {
                 <button
                   onClick={toggleAudio}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition ${localAudioEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-                  title={localAudioEnabled ? 'Mute' : 'Unmute'}
+                  title={localAudioEnabled ? t('mute') : t('unmute')}
                 >
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     {localAudioEnabled ? (
@@ -292,7 +294,7 @@ export default function StudyCallPage() {
                 <button
                   onClick={toggleVideo}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition ${localVideoEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-                  title={localVideoEnabled ? 'Stop Video' : 'Start Video'}
+                  title={localVideoEnabled ? t('stopVideo') : t('startVideo')}
                 >
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -302,7 +304,7 @@ export default function StudyCallPage() {
                 <button
                   onClick={isScreenSharing ? stopScreenShare : startScreenShare}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition ${isScreenSharing ? 'bg-blue-600 hover:bg-blue-700 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  title={isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+                  title={isScreenSharing ? t('stopSharing') : t('shareScreen')}
                 >
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -319,13 +321,13 @@ export default function StudyCallPage() {
             {/* Feature Tabs */}
             <div className="bg-gray-50 border-b flex">
               <button onClick={() => setActiveFeature('timer')} className={`flex-1 px-4 py-3 text-sm font-medium ${activeFeature === 'timer' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
-                ⏱️ Timer
+                ⏱️ {t('timer')}
               </button>
               <button onClick={() => setActiveFeature('goals')} className={`flex-1 px-4 py-3 text-sm font-medium ${activeFeature === 'goals' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
-                ✅ Goals ({session.goals.filter((g) => g.isCompleted).length}/{session.goals.length})
+                ✅ {t('goals')} ({session.goals.filter((g) => g.isCompleted).length}/{session.goals.length})
               </button>
               <button onClick={() => setActiveFeature('chat')} className={`flex-1 px-4 py-3 text-sm font-medium ${activeFeature === 'chat' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
-                💬 Chat
+                💬 {t('chat')}
               </button>
               <button onClick={() => setActiveFeature(null)} className="px-4 py-3 text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,13 +353,13 @@ export default function StudyCallPage() {
         {!activeFeature && (
           <div className="absolute top-20 right-4 z-10">
             <div className="bg-white rounded-lg shadow-lg p-2 space-y-2">
-              <button onClick={() => setActiveFeature('timer')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center" title="Timer">
+              <button onClick={() => setActiveFeature('timer')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center" title={t('timer')}>
                 <span className="text-xl">⏱️</span>
               </button>
-              <button onClick={() => setActiveFeature('goals')} className="w-12 h-12 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center" title="Goals">
+              <button onClick={() => setActiveFeature('goals')} className="w-12 h-12 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center" title={t('goals')}>
                 <span className="text-xl">✅</span>
               </button>
-              <button onClick={() => setActiveFeature('chat')} className="w-12 h-12 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center" title="Chat">
+              <button onClick={() => setActiveFeature('chat')} className="w-12 h-12 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center" title={t('chat')}>
                 <span className="text-xl">💬</span>
               </button>
             </div>

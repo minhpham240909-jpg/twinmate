@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import InviteModal from '@/components/study-sessions/InviteModal'
+import { useTranslations } from 'next-intl'
 
 interface Participant {
   id: string
@@ -53,6 +54,8 @@ export default function WaitingLobbyPage() {
   const params = useParams()
   const sessionId = params.sessionId as string
   const supabase = createClient()
+  const t = useTranslations('studySessions')
+  const tCommon = useTranslations('common')
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
@@ -465,7 +468,7 @@ export default function WaitingLobbyPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading waiting lobby...</p>
+          <p className="text-gray-600">{t('loadingWaitingLobby')}</p>
         </div>
       </div>
     )
@@ -491,14 +494,14 @@ export default function WaitingLobbyPage() {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-blue-600">{session.title}</h1>
-                <p className="text-sm text-gray-600">Waiting Lobby</p>
+                <p className="text-sm text-gray-600">{t('waitingLobby')}</p>
               </div>
             </div>
 
             {/* Countdown Timer */}
             <div className="flex items-center gap-4">
               <div className="px-4 py-2 bg-orange-100 rounded-lg">
-                <p className="text-xs text-orange-600 font-medium mb-1">Session expires in</p>
+                <p className="text-xs text-orange-600 font-medium mb-1">{t('sessionExpiresIn')}</p>
                 <p className="text-2xl font-bold text-orange-700">
                   {minutes}:{seconds.toString().padStart(2, '0')}
                 </p>
@@ -516,33 +519,33 @@ export default function WaitingLobbyPage() {
             <div className="col-span-2 space-y-6">
               {/* Session Details Card */}
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Session Details</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">{t('sessionDetails')}</h2>
                 <div className="space-y-3">
                   {session.description && (
                     <div>
-                      <p className="text-sm text-gray-500">Description</p>
+                      <p className="text-sm text-gray-500">{t('description')}</p>
                       <p className="text-gray-900">{session.description}</p>
                     </div>
                   )}
                   {session.subject && (
                     <div>
-                      <p className="text-sm text-gray-500">Subject</p>
+                      <p className="text-sm text-gray-500">{t('subject')}</p>
                       <p className="font-medium text-gray-900">{session.subject}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-500">Type</p>
+                    <p className="text-sm text-gray-500">{t('type')}</p>
                     <p className="font-medium text-gray-900">{session.type.replace('_', ' ')}</p>
                   </div>
                   {session.durationMinutes && (
                     <div>
-                      <p className="text-sm text-gray-500">Planned Duration</p>
-                      <p className="font-medium text-gray-900">{session.durationMinutes} minutes</p>
+                      <p className="text-sm text-gray-500">{t('plannedDuration')}</p>
+                      <p className="font-medium text-gray-900">{session.durationMinutes} {t('minutes')}</p>
                     </div>
                   )}
                   {session.goals.length > 0 && (
                     <div>
-                      <p className="text-sm text-gray-500 mb-2">Goals</p>
+                      <p className="text-sm text-gray-500 mb-2">{t('goals')}</p>
                       <ul className="space-y-1">
                         {session.goals.map((goal) => (
                           <li key={goal.id} className="flex items-center gap-2 text-gray-900">
@@ -561,11 +564,11 @@ export default function WaitingLobbyPage() {
               {/* Chat */}
               <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col h-[400px]">
                 <div className="bg-blue-600 px-6 py-3">
-                  <h3 className="text-white font-semibold">Waiting Room Chat</h3>
+                  <h3 className="text-white font-semibold">{t('waitingRoomChat')}</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {messages.length === 0 && (
-                    <p className="text-center text-gray-400 text-sm py-8">No messages yet. Start chatting while you wait!</p>
+                    <p className="text-center text-gray-400 text-sm py-8">{t('noMessagesYet')}</p>
                   )}
                   {messages.map((msg) => (
                     <div key={msg.id} className="flex items-start gap-3">
@@ -591,7 +594,7 @@ export default function WaitingLobbyPage() {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
-                      placeholder="Type a message..."
+                      placeholder={t('typeMessage')}
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <button
@@ -599,7 +602,7 @@ export default function WaitingLobbyPage() {
                       disabled={!newMessage.trim() || sending}
                       className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                     >
-                      Send
+                      {t('send')}
                     </button>
                   </div>
                 </div>
@@ -617,21 +620,21 @@ export default function WaitingLobbyPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
-                  Invite Partners or Members
+                  {t('invitePartnersOrMembers')}
                 </button>
               </div>
 
               {/* Start Button (only for creator) */}
               {isCreator && (
                 <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-                  <h3 className="text-lg font-bold mb-2">Ready to start?</h3>
-                  <p className="text-sm opacity-90 mb-4">Once you start, all participants will be notified and can join the call.</p>
+                  <h3 className="text-lg font-bold mb-2">{t('readyToStart')}</h3>
+                  <p className="text-sm opacity-90 mb-4">{t('startNotification')}</p>
                   <button
                     onClick={handleStartSession}
                     disabled={starting}
                     className="w-full px-6 py-3 bg-white text-green-600 rounded-lg font-bold hover:bg-gray-100 transition disabled:opacity-50"
                   >
-                    {starting ? 'Starting...' : 'Start Studying'}
+                    {starting ? t('starting') : t('startStudying')}
                   </button>
                 </div>
               )}
@@ -639,7 +642,7 @@ export default function WaitingLobbyPage() {
               {/* Participants */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold mb-4">
-                  Participants ({session.participants.length}/{session.maxParticipants})
+                  {t('participants')} ({session.participants.length}/{session.maxParticipants})
                 </h3>
                 <div className="space-y-3">
                   {session.participants.map((participant) => (
@@ -656,11 +659,11 @@ export default function WaitingLobbyPage() {
                         <p className="text-xs text-gray-500">{participant.role}</p>
                       </div>
                       {onlineUsers.has(participant.userId) ? (
-                        <span className="w-2 h-2 bg-green-500 rounded-full" title="Online"></span>
+                        <span className="w-2 h-2 bg-green-500 rounded-full" title={t('online')}></span>
                       ) : participant.status === 'JOINED' ? (
-                        <span className="w-2 h-2 bg-yellow-500 rounded-full" title="Joined"></span>
+                        <span className="w-2 h-2 bg-yellow-500 rounded-full" title={t('joined')}></span>
                       ) : (
-                        <span className="w-2 h-2 bg-gray-300 rounded-full" title="Invited"></span>
+                        <span className="w-2 h-2 bg-gray-300 rounded-full" title={t('invited')}></span>
                       )}
                     </div>
                   ))}
@@ -671,8 +674,8 @@ export default function WaitingLobbyPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
                   {isCreator
-                    ? 'You are the host. Click "Start Studying" when everyone is ready!'
-                    : `Waiting for ${session.createdBy.name} to start the session...`}
+                    ? t('hostMessage')
+                    : t('waitingForHost', { host: session.createdBy.name })}
                 </p>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { useTranslations } from 'next-intl'
 import SessionChat from '@/components/SessionChat'
 import SessionGoals from '@/components/SessionGoals'
 import SessionTimer from '@/components/study-sessions/SessionTimer'
@@ -74,6 +75,8 @@ export default function SessionRoomPage() {
   const params = useParams()
   const sessionId = params.sessionId as string
   const { setActiveSessionId } = useBackgroundSession()
+  const t = useTranslations('studySessions')
+  const tCommon = useTranslations('common')
 
   const [session, setSession] = useState<Session | null>(() => {
     // Try to load cached session from localStorage for instant display
@@ -238,7 +241,7 @@ export default function SessionRoomPage() {
 
     // If host is alone, show different message
     if (isHost && participantCount === 1) {
-      if (confirm('You are the last participant. Leaving will end this session. Continue?')) {
+      if (confirm(t('confirmLeaveLastParticipant'))) {
         handleLeaveSession()
       }
     } else {
@@ -248,7 +251,7 @@ export default function SessionRoomPage() {
   }
 
   const handleEndSession = async () => {
-    if (!confirm('Are you sure you want to end this session?')) return
+    if (!confirm(t('confirmEndSession'))) return
 
     try {
       const res = await fetch(`/api/study-sessions/${sessionId}/end`, {
@@ -278,7 +281,7 @@ export default function SessionRoomPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading session...</p>
+          <p className="text-gray-600">{t('loadingSession')}</p>
         </div>
       </div>
     )
@@ -348,14 +351,14 @@ export default function SessionRoomPage() {
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
                 >
-                  Go to Dashboard
+                  {t('goToDashboard')}
                 </button>
                 {isHost && session.status !== 'COMPLETED' && (
                   <button
                     onClick={handleEndSession}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
                   >
-                    End Session
+                    {t('endSession')}
                   </button>
                 )}
               </div>
@@ -381,7 +384,7 @@ export default function SessionRoomPage() {
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    ⏱️ Timer
+                    ⏱️ {t('timer')}
                   </button>
                   <button
                     onClick={() => setActiveTab('chat')}
@@ -391,7 +394,7 @@ export default function SessionRoomPage() {
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    💬 Chat
+                    💬 {t('chat')}
                     {unreadMessageCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
                         {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
@@ -406,7 +409,7 @@ export default function SessionRoomPage() {
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Goals ({session.goals.filter(g => g.isCompleted).length}/{session.goals.length})
+                    {t('goals')} ({session.goals.filter(g => g.isCompleted).length}/{session.goals.length})
                   </button>
                   <button
                     onClick={() => setActiveTab('participants')}
@@ -416,7 +419,7 @@ export default function SessionRoomPage() {
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Participants ({session.participants.length})
+                    {t('participants')} ({session.participants.length})
                   </button>
                 </nav>
 
@@ -446,7 +449,7 @@ export default function SessionRoomPage() {
 
                   {activeTab === 'participants' && (
                     <div>
-                      <h3 className="text-lg font-semibold mb-4">Participants</h3>
+                      <h3 className="text-lg font-semibold mb-4">{t('participants')}</h3>
                       <div className="space-y-3">
                         {session.participants.map(participant => (
                           <div
@@ -485,23 +488,23 @@ export default function SessionRoomPage() {
             {/* Sidebar */}
             <div className="col-span-1">
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">Session Info</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('sessionInfo')}</h3>
 
                 <div className="space-y-4">
                   {session.subject && (
                     <div>
-                      <p className="text-sm text-gray-500">Subject</p>
+                      <p className="text-sm text-gray-500">{t('subject')}</p>
                       <p className="font-medium text-gray-900">{session.subject}</p>
                     </div>
                   )}
 
                   <div>
-                    <p className="text-sm text-gray-500">Type</p>
+                    <p className="text-sm text-gray-500">{t('type')}</p>
                     <p className="font-medium text-gray-900">{session.type.replace('_', ' ')}</p>
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-500">Host</p>
+                    <p className="text-sm text-gray-500">{t('host')}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {session.createdBy.avatarUrl ? (
                         <img
@@ -520,7 +523,7 @@ export default function SessionRoomPage() {
 
                   {session.tags.length > 0 && (
                     <div>
-                      <p className="text-sm text-gray-500 mb-2">Tags</p>
+                      <p className="text-sm text-gray-500 mb-2">{t('tags')}</p>
                       <div className="flex flex-wrap gap-2">
                         {session.tags.map((tag, index) => (
                           <span
@@ -535,7 +538,7 @@ export default function SessionRoomPage() {
                   )}
 
                   <div>
-                    <p className="text-sm text-gray-500">Started</p>
+                    <p className="text-sm text-gray-500">{t('started')}</p>
                     <p className="font-medium text-gray-900">
                       {new Date(session.startedAt).toLocaleString()}
                     </p>
@@ -545,7 +548,7 @@ export default function SessionRoomPage() {
 
               {/* Session Timer - Small Display (Read-only) */}
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">Timer</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('timer')}</h3>
                 <SessionTimer
                   sessionId={sessionId}
                   isHost={isHost}
@@ -556,21 +559,21 @@ export default function SessionRoomPage() {
 
               {/* Quick Actions */}
               <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('quickActions')}</h3>
                 <div className="space-y-2">
                   {isHost && (
                     <button
                       onClick={() => setShowInviteModal(true)}
                       className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
                     >
-                      👥 Invite Partners
+                      👥 {t('invitePartnersAction')}
                     </button>
                   )}
                   <button
                     onClick={() => setShowVideoCall(true)}
                     className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
                   >
-                    📹 {showVideoCall ? 'Return to Call' : 'Start Video Call'}
+                    📹 {showVideoCall ? t('returnToCall') : t('startVideoCall')}
                   </button>
                   <button
                     onClick={() => {
@@ -582,13 +585,13 @@ export default function SessionRoomPage() {
                     }}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
                   >
-                    🖥️ Share Screen
+                    🖥️ {t('shareScreen')}
                   </button>
                   <button
                     onClick={() => setActiveTab('goals')}
                     className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
                   >
-                    ✅ View Goals
+                    ✅ {t('viewGoals')}
                   </button>
                 </div>
               </div>
@@ -613,9 +616,9 @@ export default function SessionRoomPage() {
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Leave Study Session?</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('leaveSessionTitle')}</h2>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to leave the study room? You can rejoin if someone invites you back.
+              {t('leaveSessionMessage')}
             </p>
             <div className="flex gap-3">
               <button
@@ -623,14 +626,14 @@ export default function SessionRoomPage() {
                 disabled={isLeaving}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
               >
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 onClick={handleLeaveSession}
                 disabled={isLeaving}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
               >
-                {isLeaving ? 'Leaving...' : 'Yes, Leave'}
+                {isLeaving ? t('leaving') : t('yesLeave')}
               </button>
             </div>
           </div>
@@ -671,6 +674,8 @@ function InvitePartnersModal({
   const [searchTerm, setSearchTerm] = useState('')
   const [loadingInvites, setLoadingInvites] = useState(false)
   const [inviting, setInviting] = useState(false)
+  const t = useTranslations('studySessions')
+  const tCommon = useTranslations('common')
 
   // Fetch available partners and group members
   useEffect(() => {
@@ -749,7 +754,7 @@ function InvitePartnersModal({
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl max-w-md w-full p-6 my-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Invite Partners</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t('invitePartnersModal')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -763,28 +768,28 @@ function InvitePartnersModal({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search partners..."
+            placeholder={t('searchPartnersModal')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
           {/* Selected count */}
           {selectedInvites.length > 0 && (
             <p className="text-sm text-blue-600">
-              {selectedInvites.length} partner{selectedInvites.length > 1 ? 's' : ''} selected
+              {selectedInvites.length} {selectedInvites.length > 1 ? t('partnersSelected') : t('partnerSelected')}
             </p>
           )}
 
           {/* Partners and Group Members List */}
           <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
             {loadingInvites ? (
-              <p className="p-4 text-sm text-gray-500 text-center">Loading...</p>
+              <p className="p-4 text-sm text-gray-500 text-center">{tCommon('loading')}</p>
             ) : (
               <>
                 {/* Study Partners Section */}
                 {filteredPartners.length > 0 && (
                   <div>
                     <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
-                      STUDY PARTNERS
+                      {t('studyPartners')}
                     </p>
                     {filteredPartners.map((partner) => (
                       <label
@@ -821,7 +826,7 @@ function InvitePartnersModal({
                 {filteredGroupMembers.length > 0 && (
                   <div>
                     <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
-                      GROUP MEMBERS
+                      {t('groupMembers')}
                     </p>
                     {filteredGroupMembers.map((member) => (
                       <label
@@ -857,7 +862,7 @@ function InvitePartnersModal({
                 {/* No results */}
                 {filteredPartners.length === 0 && filteredGroupMembers.length === 0 && (
                   <p className="p-4 text-sm text-gray-500 text-center">
-                    {searchTerm ? 'No matches found' : 'No partners or group members available'}
+                    {searchTerm ? t('noMatches') : t('noPartnersAvailable')}
                   </p>
                 )}
               </>
@@ -870,14 +875,14 @@ function InvitePartnersModal({
             onClick={onClose}
             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
           >
-            Cancel
+            {tCommon('cancel')}
           </button>
           <button
             onClick={handleInvite}
             disabled={inviting || selectedInvites.length === 0}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {inviting ? 'Inviting...' : 'Invite'}
+            {inviting ? t('inviting') : t('invite')}
           </button>
         </div>
       </div>
