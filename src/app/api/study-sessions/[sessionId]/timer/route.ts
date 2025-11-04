@@ -86,15 +86,6 @@ export async function POST(
 
     const { sessionId } = await params
     const body = await request.json()
-    const { studyDuration, breakDuration } = body
-
-    // Validate input
-    if (!studyDuration || !breakDuration) {
-      return NextResponse.json(
-        { error: 'Study and break duration are required' },
-        { status: 400 }
-      )
-    }
 
     // Check if user is host
     const session = await prisma.studySession.findUnique({
@@ -111,6 +102,15 @@ export async function POST(
         { status: 403 }
       )
     }
+
+    // Get user's settings for defaults
+    const userSettings = await prisma.userSettings.findUnique({
+      where: { userId: user.id },
+    })
+
+    // Use provided values or fall back to user settings, then to app defaults
+    const studyDuration = body.studyDuration || userSettings?.defaultStudyDuration || 25
+    const breakDuration = body.breakDuration || userSettings?.defaultBreakDuration || 5
 
     // Create or update timer
     const timer = await prisma.sessionTimer.upsert({
