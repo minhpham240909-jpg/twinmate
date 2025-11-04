@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 type UserProfile = {
   user: {
@@ -53,6 +54,8 @@ export default function UserProfilePage() {
   const router = useRouter()
   const params = useParams()
   const userId = params.userId as string
+  const t = useTranslations('profile')
+  const tCommon = useTranslations('common')
 
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -227,7 +230,7 @@ export default function UserProfilePage() {
                 {profileData.connectionStatus === 'connected' ? (
                   <>
                     <span className="px-6 py-3 bg-green-100 text-green-700 rounded-full font-semibold">
-                      ✓ Connected
+                      {t('connected')}
                     </span>
                     <button
                       onClick={handleMessage}
@@ -239,7 +242,7 @@ export default function UserProfilePage() {
                 ) : profileData.connectionStatus === 'pending' ? (
                   <>
                     <span className="px-6 py-3 bg-yellow-100 text-yellow-700 rounded-full font-semibold">
-                      Connection Pending
+                      {t('connectionPending')}
                     </span>
                     <button
                       onClick={handleCancelConnection}
@@ -255,7 +258,7 @@ export default function UserProfilePage() {
                     disabled={sendingConnection}
                     className="px-8 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition disabled:opacity-50 shadow-md"
                   >
-                    {sendingConnection ? 'Sending...' : 'Connect'}
+                    {sendingConnection ? `${tCommon('connect')}...` : tCommon('connect')}
                   </button>
                 )}
               </div>
@@ -306,7 +309,7 @@ export default function UserProfilePage() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                About
+                {t('about')}
               </button>
               <button
                 onClick={() => setActiveTab('posts')}
@@ -316,7 +319,7 @@ export default function UserProfilePage() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Posts
+                {t('posts')}
               </button>
             </div>
           </div>
@@ -358,7 +361,7 @@ export default function UserProfilePage() {
                     {/* Subjects */}
                     {profile.subjects.length > 0 && (
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Subjects</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">{t('subjects')}</h3>
                         <div className="flex flex-wrap gap-2">
                           {profile.subjects.map((subject, index) => (
                             <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
@@ -372,7 +375,7 @@ export default function UserProfilePage() {
                     {/* Interests */}
                     {profile.interests.length > 0 && (
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Interests</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">{t('interests')}</h3>
                         <div className="flex flex-wrap gap-2">
                           {profile.interests.map((interest, index) => (
                             <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
@@ -386,7 +389,7 @@ export default function UserProfilePage() {
                     {/* Languages */}
                     {profile.languages && (
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Languages</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">{t('languages')}</h3>
                         <p className="text-gray-700">{profile.languages}</p>
                       </div>
                     )}
@@ -514,7 +517,7 @@ export default function UserProfilePage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-center py-8">No posts yet</p>
+                  <p className="text-gray-500 text-center py-8">{t('noPosts')}</p>
                 )}
               </div>
             )}

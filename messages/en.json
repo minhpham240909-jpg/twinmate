@@ -191,7 +191,9 @@
     "noAboutInfo": "No about information yet",
     "addInfoToProfile": "Add information to your profile",
     "noPosts": "No posts yet",
-    "createFirstPost": "Create your first post"
+    "createFirstPost": "Create your first post",
+    "connected": "✓ Connected",
+    "connectionPending": "Connection Pending"
   },
   "messages": {
     "noMessages": "No messages yet",

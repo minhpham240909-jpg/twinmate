@@ -191,7 +191,9 @@
     "noAboutInfo": "Aún no hay información sobre ti",
     "addInfoToProfile": "Agregar información a tu perfil",
     "noPosts": "Aún no hay publicaciones",
-    "createFirstPost": "Crea tu primera publicación"
+    "createFirstPost": "Crea tu primera publicación",
+    "connected": "✓ Conectado",
+    "connectionPending": "Conexión Pendiente"
   },
   "messages": {
     "noMessages": "No hay mensajes aún",
