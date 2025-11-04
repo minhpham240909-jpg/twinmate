@@ -6,8 +6,8 @@ import { z } from 'zod'
 // Validation schema for settings update
 const updateSettingsSchema = z.object({
   // Account & Profile
-  language: z.string().optional(),
-  timezone: z.string().optional(),
+  language: z.string().nullable().optional(),
+  timezone: z.string().nullable().optional(),
 
   // Privacy & Visibility
   profileVisibility: z.enum(['EVERYONE', 'CONNECTIONS_ONLY', 'PRIVATE']).optional(),
@@ -45,7 +45,7 @@ const updateSettingsSchema = z.object({
   defaultBreakDuration: z.number().min(1).max(60).optional(),
   preferredSessionLength: z.number().min(15).max(480).optional(),
   autoGenerateQuizzes: z.boolean().optional(),
-  flashcardReviewFrequency: z.enum(['DAILY', 'WEEKLY', 'CUSTOM']).optional(),
+  flashcardReviewFrequency: z.enum(['DAILY', 'WEEKLY', 'CUSTOM']).nullable().optional(),
 
   // Communication Settings
   messageReadReceipts: z.boolean().optional(),
@@ -57,7 +57,7 @@ const updateSettingsSchema = z.object({
 
   // Call Settings
   autoAnswerFromPartners: z.boolean().optional(),
-  callRingtone: z.string().optional(),
+  callRingtone: z.string().nullable().optional(),
 
   // Study Session Settings
   autoStartTimer: z.boolean().optional(),
@@ -100,7 +100,7 @@ const updateSettingsSchema = z.object({
   betaFeatures: z.boolean().optional(),
   performanceMode: z.enum(['LOW_POWER', 'BALANCED', 'PERFORMANCE']).optional(),
   analyticsEnabled: z.boolean().optional(),
-})
+}).strip() // Strip unknown fields instead of rejecting them
 
 export async function POST(request: NextRequest) {
   try {

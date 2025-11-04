@@ -15,40 +15,59 @@ export async function GET() {
       )
     }
 
-    // Fetch all user data from various tables
+    console.log(`[Export Data] Exporting data for user ${user.id}`)
+
+    // Fetch all user data from different tables
     const [
-      { data: userData },
-      { data: profileData },
-      { data: postsData },
-      { data: settingsData },
-      { data: connectionsData },
-      { data: messagesData },
-      { data: notificationsData },
+      { data: profile },
+      { data: settings },
+      { data: posts },
+      { data: matches },
+      { data: messages },
+      { data: sessions },
+      { data: notifications },
     ] = await Promise.all([
-      supabase.from('User').select('*').eq('id', user.id).single(),
       supabase.from('Profile').select('*').eq('userId', user.id).single(),
-      supabase.from('Post').select('*').eq('authorId', user.id),
       supabase.from('UserSettings').select('*').eq('userId', user.id).single(),
-      supabase.from('Connection').select('*').or(`user1Id.eq.${user.id},user2Id.eq.${user.id}`),
+      supabase.from('Post').select('*').eq('userId', user.id),
+      supabase
+        .from('Match')
+        .select('*')
+        .or(`senderId.eq.${user.id},receiverId.eq.${user.id}`),
       supabase.from('Message').select('*').eq('senderId', user.id),
+      supabase.from('StudySession').select('*').eq('userId', user.id),
       supabase.from('Notification').select('*').eq('userId', user.id),
     ])
 
-    // Compile all data into a single object
+    // Create export object
     const exportData = {
-      exportDate: new Date().toISOString(),
-      userId: user.id,
-      user: userData,
-      profile: profileData,
-      posts: postsData || [],
-      settings: settingsData,
-      connections: connectionsData || [],
-      messages: messagesData || [],
-      notifications: notificationsData || [],
+      exportedAt: new Date().toISOString(),
+      user: {
+        id: user.id,
+        email: user.email,
+        createdAt: user.created_at,
+      },
+      profile: profile || null,
+      settings: settings || null,
+      posts: posts || [],
+      matches: matches || [],
+      messages: messages || [],
+      studySessions: sessions || [],
+      notifications: notifications || [],
+      metadata: {
+        totalPosts: posts?.length || 0,
+        totalMatches: matches?.length || 0,
+        totalMessages: messages?.length || 0,
+        totalSessions: sessions?.length || 0,
+        totalNotifications: notifications?.length || 0,
+      },
     }
 
-    // Return as JSON download
-    return new NextResponse(JSON.stringify(exportData, null, 2), {
+    // Convert to JSON and return as downloadable file
+    const jsonData = JSON.stringify(exportData, null, 2)
+    const blob = new Blob([jsonData], { type: 'application/json' })
+
+    return new NextResponse(blob, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -58,7 +77,7 @@ export async function GET() {
   } catch (error) {
     console.error('[Export Data] Error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to export data' },
       { status: 500 }
     )
   }
