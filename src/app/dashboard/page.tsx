@@ -8,10 +8,14 @@ import StudyPartnersModal from '@/components/StudyPartnersModal'
 import { useSessionCleanup } from '@/hooks/useSessionCleanup'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useAIAgent } from '@/components/providers/AIAgentProvider'
+import { useTranslations } from 'next-intl'
 
 export default function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
+  const t = useTranslations('dashboard')
+  const tCommon = useTranslations('common')
+  const tNav = useTranslations('navigation')
   const { openPanel } = useAIAgent()
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -127,7 +131,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -213,7 +217,7 @@ export default function DashboardPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    View Profile
+                    {tNav('profile')}
                   </button>
 
                   <button
@@ -227,7 +231,7 @@ export default function DashboardPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    Settings
+                    {tCommon('settings')}
                   </button>
 
                   <button
@@ -240,7 +244,7 @@ export default function DashboardPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
-                    Sign Out
+                    {tCommon('logout')}
                   </button>
                 </div>
               )}
@@ -254,22 +258,22 @@ export default function DashboardPage() {
         <div className="max-w-4xl mx-auto">
           {/* Welcome Banner */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white mb-8">
-            <h2 className="text-3xl font-bold mb-2">Welcome to Clerva! 👋</h2>
+            <h2 className="text-3xl font-bold mb-2">{t('welcomeTitle')} 👋</h2>
             <p className="text-blue-100 mb-4">
-              You&apos;ve successfully signed in. Your learning journey starts here.
+              {t('welcomeMessage')}
             </p>
             <div className="flex gap-4">
               <button
                 onClick={() => router.push('/profile')}
                 className="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
               >
-                Complete Your Profile
+                {t('completeProfile')}
               </button>
               <button
                 onClick={() => router.push('/search')}
                 className="px-6 py-2 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800 transition"
               >
-                Find Study Partners
+                {t('findPartners')}
               </button>
             </div>
           </div>
@@ -278,25 +282,25 @@ export default function DashboardPage() {
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-gray-600">Study Streak</h3>
+                <h3 className="text-sm font-medium text-gray-600">{t('studyStreak')}</h3>
                 <span className="text-2xl">🔥</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">0 days</p>
+              <p className="text-3xl font-bold text-gray-900">0 {t('days')}</p>
             </div>
             <button
               onClick={() => setShowPartnersModal(true)}
               className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all hover:scale-105 cursor-pointer text-left w-full"
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-gray-600">Study Partners</h3>
+                <h3 className="text-sm font-medium text-gray-600">{t('studyPartners')}</h3>
                 <span className="text-2xl">👥</span>
               </div>
               <p className="text-3xl font-bold text-gray-900">{partnersCount}</p>
-              <p className="text-xs text-blue-600 mt-2">Click to view →</p>
+              <p className="text-xs text-blue-600 mt-2">{t('clickToView')} →</p>
             </button>
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-gray-600">Study Hours</h3>
+                <h3 className="text-sm font-medium text-gray-600">{t('studyHours')}</h3>
                 <span className="text-2xl">⏱️</span>
               </div>
               <p className="text-3xl font-bold text-gray-900">0h</p>
@@ -305,7 +309,7 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('quickActions')}</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <button
                 onClick={() => openPanel()}
@@ -318,10 +322,10 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                  Clerva AI
+                  {t('clervaAI')}
                   <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">NEW</span>
                 </h4>
-                <p className="text-sm text-gray-600">Ask AI to generate quizzes, study plans, find partners & more</p>
+                <p className="text-sm text-gray-600">{t('clervaAIDesc')}</p>
               </button>
 
               <button
@@ -333,8 +337,8 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Find Partners</h4>
-                <p className="text-sm text-gray-600">Search for study partners by subject or interest</p>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('findPartners')}</h4>
+                <p className="text-sm text-gray-600">{t('findPartnersDesc')}</p>
               </button>
 
               <button
@@ -346,8 +350,8 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Connection Requests</h4>
-                <p className="text-sm text-gray-600">View and manage your connection requests</p>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('connectionRequests')}</h4>
+                <p className="text-sm text-gray-600">{t('connectionRequestsDesc')}</p>
               </button>
 
               <button
@@ -359,8 +363,8 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Create Study Group</h4>
-                <p className="text-sm text-gray-600">Start a new study group for your subject</p>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('createGroup')}</h4>
+                <p className="text-sm text-gray-600">{t('createGroupDesc')}</p>
               </button>
 
               <button
@@ -372,8 +376,8 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Messages</h4>
-                <p className="text-sm text-gray-600">Check your conversations and notifications</p>
+                <h4 className="font-semibold text-gray-900 mb-1">{tNav('chat')}</h4>
+                <p className="text-sm text-gray-600">{t('messagesDesc')}</p>
               </button>
 
               <button
@@ -385,8 +389,8 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Community</h4>
-                <p className="text-sm text-gray-600">Share and discover posts from study partners</p>
+                <h4 className="font-semibold text-gray-900 mb-1">{tNav('community')}</h4>
+                <p className="text-sm text-gray-600">{t('communityDesc')}</p>
               </button>
 
               <button
@@ -397,14 +401,14 @@ export default function DashboardPage() {
                   <span className="text-2xl">📚</span>
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                  Study with Partner
+                  {t('studyWithPartner')}
                   {pendingInvitesCount > 0 && (
                     <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
                       {pendingInvitesCount}
                     </span>
                   )}
                 </h4>
-                <p className="text-sm text-gray-600">Create a study session with your partners</p>
+                <p className="text-sm text-gray-600">{t('studyWithPartnerDesc')}</p>
               </button>
             </div>
           </div>

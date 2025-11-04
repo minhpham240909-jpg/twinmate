@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 
 type Post = {
   id: string
@@ -40,6 +41,8 @@ type Comment = {
 export default function CommunityPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('community')
+  const tCommon = useTranslations('common')
   const [posts, setPosts] = useState<Post[]>([])
   const [newPostContent, setNewPostContent] = useState('')
   const [isPostingLoading, setIsPostingLoading] = useState(false)
@@ -589,7 +592,10 @@ export default function CommunityPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">{tCommon('loading')}</p>
+        </div>
       </div>
     )
   }
@@ -617,7 +623,7 @@ export default function CommunityPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-blue-600">Community</h1>
+              <h1 className="text-2xl font-bold text-blue-600">{t('title')}</h1>
               {newPostsCount > 0 && (
                 <button
                   onClick={fetchPosts}
@@ -626,7 +632,7 @@ export default function CommunityPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  {newPostsCount} new {newPostsCount === 1 ? 'post' : 'posts'}
+                  {newPostsCount} {t('newPostsNotification')} {newPostsCount === 1 ? t('post') : t('posts')}
                 </button>
               )}
             </div>
@@ -638,7 +644,7 @@ export default function CommunityPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search posts, #hashtags, @usernames..."
+                  placeholder={t('searchPlaceholder')}
                   className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <svg
@@ -664,7 +670,7 @@ export default function CommunityPage() {
           <textarea
             value={newPostContent}
             onChange={handleContentChange}
-            placeholder="What's on your mind? Use @ to mention users, # for hashtags"
+            placeholder={t('newPost')}
             className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows={3}
             maxLength={5000}
@@ -731,7 +737,7 @@ export default function CommunityPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span className="text-sm font-medium">
-                  {selectedImages.length > 0 ? `${selectedImages.length}/4` : 'Add Images'}
+                  {selectedImages.length > 0 ? `${selectedImages.length}/4` : t('addImages')}
                 </span>
                 <input
                   type="file"
@@ -744,7 +750,7 @@ export default function CommunityPage() {
               </label>
 
               {isUploadingImages && (
-                <span className="text-sm text-blue-600">Uploading images...</span>
+                <span className="text-sm text-blue-600">{t('uploadingImages')}</span>
               )}
 
               {/* Allow Sharing Checkbox */}
@@ -755,7 +761,7 @@ export default function CommunityPage() {
                   onChange={(e) => setAllowSharing(e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span>Allow sharing</span>
+                <span>{t('allowSharing')}</span>
               </label>
             </div>
 
@@ -764,7 +770,7 @@ export default function CommunityPage() {
               disabled={(!newPostContent.trim() && selectedImages.length === 0) || isPostingLoading}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
             >
-              {isPostingLoading ? 'Posting...' : 'Post'}
+              {isPostingLoading ? t('posting') : t('postButton')}
             </button>
           </div>
         </div>
@@ -780,7 +786,7 @@ export default function CommunityPage() {
                   : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              Recent Posts
+              {t('recent')}
             </button>
             <button
               onClick={() => {
@@ -795,7 +801,7 @@ export default function CommunityPage() {
                   : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              🔥 Popular (7 days)
+              🔥 {t('popular')}
             </button>
           </div>
         </div>
@@ -845,11 +851,11 @@ export default function CommunityPage() {
                         <span className="text-sm text-gray-400">•</span>
                         {post.connectionStatus === 'connected' ? (
                           <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-medium">
-                            ✓ Connected
+                            ✓ {t('connected')}
                           </span>
                         ) : post.connectionStatus === 'pending' ? (
                           <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded font-medium">
-                            Pending
+                            {t('pending')}
                           </span>
                         ) : (
                           <button
@@ -857,7 +863,7 @@ export default function CommunityPage() {
                             disabled={connectingPostIds.has(post.id)}
                             className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {connectingPostIds.has(post.id) ? 'Sending...' : 'Connect'}
+                            {connectingPostIds.has(post.id) ? t('sending') : t('connect')}
                           </button>
                         )}
                       </>
@@ -892,7 +898,7 @@ export default function CommunityPage() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                           </svg>
-                          Share post
+                          {t('sharePost')}
                         </button>
 
                         {/* Edit and Delete - only for post owner */}
@@ -908,7 +914,7 @@ export default function CommunityPage() {
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
-                              Edit post
+                              {t('editPost')}
                             </button>
                             <button
                               onClick={() => {
@@ -920,7 +926,7 @@ export default function CommunityPage() {
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
-                              Delete post
+                              {t('deletePost')}
                             </button>
                           </>
                         )}
@@ -949,14 +955,14 @@ export default function CommunityPage() {
                         onClick={cancelEdit}
                         className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                       >
-                        Cancel
+                        {t('cancel')}
                       </button>
                       <button
                         onClick={() => handleEditPost(post.id)}
                         disabled={!editContent.trim()}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
                       >
-                        Save
+                        {t('save')}
                       </button>
                     </div>
                   </div>
@@ -1079,9 +1085,9 @@ export default function CommunityPage() {
                       type="text"
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a comment..."
+                      placeholder={t('writeComment')}
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onKeyPress={(e) => {
+                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           handleComment(post.id)
                         }
@@ -1092,7 +1098,7 @@ export default function CommunityPage() {
                       disabled={!newComment.trim()}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 transition"
                     >
-                      Send
+                      {tCommon('send')}
                     </button>
                   </div>
                 </div>
@@ -1103,7 +1109,7 @@ export default function CommunityPage() {
           {displayPosts.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">
-                {isSearching ? 'No posts found' : 'No posts yet. Be the first to post!'}
+                {isSearching ? t('noPostsFound') : t('noPostsYet')}
               </p>
             </div>
           )}
@@ -1115,7 +1121,7 @@ export default function CommunityPage() {
           <div className="lg:col-span-1">
             {/* Trending Hashtags */}
             <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">🔥 Trending Hashtags</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">🔥 {t('trendingHashtags')}</h3>
               {trendingHashtags.length > 0 ? (
                 <div className="space-y-3">
                   {trendingHashtags.map((item, index) => (
@@ -1136,13 +1142,13 @@ export default function CommunityPage() {
                             {item.hashtag}
                           </span>
                         </div>
-                        <span className="text-sm text-gray-500">{item.count} posts</span>
+                        <span className="text-sm text-gray-500">{item.count} {t('posts')}</span>
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No trending hashtags yet. Start using hashtags in your posts!</p>
+                <p className="text-gray-500 text-sm">{t('noTrendingHashtags')}</p>
               )}
             </div>
           </div>
