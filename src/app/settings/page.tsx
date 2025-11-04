@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useSettings } from '@/contexts/SettingsContext'
 
 // Types
 type DeletedPost = {
@@ -120,12 +121,12 @@ export default function SettingsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
+  const { settings: globalSettings, loading: loadingSettings, updateSettings: updateGlobalSettings } = useSettings()
   const [activeTab, setActiveTab] = useState<TabId>('account')
-  const [settings, setSettings] = useState<UserSettings>({})
-  const [loadingSettings, setLoadingSettings] = useState(true)
+  const [settings, setSettings] = useState<UserSettings>(globalSettings)
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
-  const [initialSettings, setInitialSettings] = useState<UserSettings>({})
+  const [initialSettings, setInitialSettings] = useState<UserSettings>(globalSettings)
 
   // Post History state
   const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
@@ -139,40 +140,11 @@ export default function SettingsPage() {
     }
   }, [user, loading, router])
 
-  // Fetch settings
+  // Sync with global settings from context
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const response = await fetch('/api/settings')
-        if (response.ok) {
-          const data = await response.json()
-          setSettings(data.settings || {})
-          setInitialSettings(data.settings || {})
-        } else {
-          const error = await response.json()
-          console.error('Settings load error:', error)
-
-          // Check if table doesn't exist
-          if (error.error === 'Settings table not initialized') {
-            toast.error('Settings database not initialized. Please run the migration.', {
-              duration: 8000,
-            })
-          } else {
-            toast.error(error.message || 'Failed to load settings')
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching settings:', error)
-        toast.error('Failed to load settings')
-      } finally {
-        setLoadingSettings(false)
-      }
-    }
-
-    if (user && !loading) {
-      fetchSettings()
-    }
-  }, [user, loading])
+    setSettings(globalSettings)
+    setInitialSettings(globalSettings)
+  }, [globalSettings])
 
   // Fetch deleted posts for Post History
   useEffect(() => {
@@ -416,9 +388,15 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json()
+
+        // Update local state
         setSettings(data.settings)
         setInitialSettings(data.settings)
         setHasChanges(false)
+
+        // Update global context to propagate changes throughout the app
+        await updateGlobalSettings(cleanedSettings)
+
         toast.success('Settings saved successfully!')
       } else {
         const error = await response.json()
