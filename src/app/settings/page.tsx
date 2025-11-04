@@ -121,7 +121,7 @@ export default function SettingsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
-  const { settings: globalSettings, loading: loadingSettings, updateSettings: updateGlobalSettings } = useSettings()
+  const { settings: globalSettings, loading: loadingSettings, refreshSettings } = useSettings()
   const [activeTab, setActiveTab] = useState<TabId>('account')
   const [settings, setSettings] = useState<UserSettings>(globalSettings)
   const [saving, setSaving] = useState(false)
@@ -394,8 +394,8 @@ export default function SettingsPage() {
         setInitialSettings(data.settings)
         setHasChanges(false)
 
-        // Update global context to propagate changes throughout the app
-        await updateGlobalSettings(cleanedSettings)
+        // Refresh global context to propagate changes throughout the app
+        await refreshSettings()
 
         toast.success('Settings saved successfully!')
       } else {
