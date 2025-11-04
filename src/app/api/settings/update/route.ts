@@ -117,11 +117,19 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
+
+    console.log('[Settings Update] Received body:', JSON.stringify(body, null, 2))
+
     const validation = updateSettingsSchema.safeParse(body)
 
     if (!validation.success) {
+      console.error('[Settings Update] Validation failed:', validation.error.issues)
       return NextResponse.json(
-        { error: 'Invalid data', details: validation.error.issues },
+        {
+          error: 'Invalid data',
+          details: validation.error.issues,
+          message: 'Settings validation failed. Check console for details.'
+        },
         { status: 400 }
       )
     }

@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { useTheme } from '@/contexts/ThemeContext'
 
 // Types
 type DeletedPost = {
@@ -118,6 +119,7 @@ type TabId =
 export default function SettingsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<TabId>('account')
   const [settings, setSettings] = useState<UserSettings>({})
   const [loadingSettings, setLoadingSettings] = useState(true)
@@ -147,7 +149,17 @@ export default function SettingsPage() {
           setSettings(data.settings || {})
           setInitialSettings(data.settings || {})
         } else {
-          toast.error('Failed to load settings')
+          const error = await response.json()
+          console.error('Settings load error:', error)
+
+          // Check if table doesn't exist
+          if (error.error === 'Settings table not initialized') {
+            toast.error('Settings database not initialized. Please run the migration.', {
+              duration: 8000,
+            })
+          } else {
+            toast.error(error.message || 'Failed to load settings')
+          }
         }
       } catch (error) {
         console.error('Error fetching settings:', error)
@@ -229,6 +241,120 @@ export default function SettingsPage() {
     }
   }
 
+  // Handle clear cache
+  const handleClearCache = async () => {
+    if (!confirm('This will clear all cached data and you may need to reload the app. Continue?')) {
+      return
+    }
+
+    try {
+      // Clear localStorage (except auth tokens)
+      const keysToKeep = ['sb-access-token', 'sb-refresh-token', 'theme']
+      const storage: Record<string, string> = {}
+      keysToKeep.forEach(key => {
+        const value = localStorage.getItem(key)
+        if (value) storage[key] = value
+      })
+
+      localStorage.clear()
+      keysToKeep.forEach(key => {
+        if (storage[key]) localStorage.setItem(key, storage[key])
+      })
+
+      // Clear sessionStorage
+      sessionStorage.clear()
+
+      // Call API to clear server-side cache
+      await fetch('/api/settings/clear-cache', { method: 'POST' })
+
+      toast.success('Cache cleared successfully!')
+    } catch (error) {
+      console.error('Error clearing cache:', error)
+      toast.error('Failed to clear cache')
+    }
+  }
+
+  // Handle export data
+  const handleExportData = async () => {
+    try {
+      toast.loading('Preparing your data export...')
+
+      const response = await fetch('/api/settings/export-data')
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `clerva-data-export-${Date.now()}.json`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+
+        toast.dismiss()
+        toast.success('Data exported successfully!')
+      } else {
+        toast.dismiss()
+        toast.error('Failed to export data')
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error)
+      toast.dismiss()
+      toast.error('Failed to export data')
+    }
+  }
+
+  // Handle delete account
+  const handleDeleteAccount = async () => {
+    const confirmation = prompt(
+      'Are you absolutely sure you want to delete your account?\n\n' +
+      'This will permanently delete:\n' +
+      '- Your profile and all personal data\n' +
+      '- All your posts and comments\n' +
+      '- All your connections\n' +
+      '- All your messages\n' +
+      '- All your study sessions\n\n' +
+      'This action CANNOT be undone!\n\n' +
+      'Type DELETE (in capital letters) to confirm:'
+    )
+
+    if (confirmation !== 'DELETE') {
+      if (confirmation !== null) {
+        toast.error('Account deletion cancelled. You must type DELETE exactly.')
+      }
+      return
+    }
+
+    try {
+      toast.loading('Deleting your account...')
+
+      const response = await fetch('/api/settings/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE' }),
+      })
+
+      if (response.ok) {
+        toast.dismiss()
+        toast.success('Account deleted successfully. Redirecting...')
+
+        // Sign out and redirect to home page
+        setTimeout(() => {
+          window.location.href = '/auth/signin'
+        }, 2000)
+      } else {
+        const error = await response.json()
+        toast.dismiss()
+        toast.error(error.error || 'Failed to delete account')
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      toast.dismiss()
+      toast.error('Failed to delete account')
+    }
+  }
+
   // Track changes
   useEffect(() => {
     const changed = JSON.stringify(settings) !== JSON.stringify(initialSettings)
@@ -237,15 +363,32 @@ export default function SettingsPage() {
 
   const updateSetting = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
+
+    // Sync theme with global theme provider immediately
+    if (key === 'theme' && (value === 'LIGHT' || value === 'DARK' || value === 'SYSTEM')) {
+      setGlobalTheme(value)
+    }
   }
+
+  // Sync settings theme with global theme on load
+  useEffect(() => {
+    if (settings.theme && (settings.theme === 'LIGHT' || settings.theme === 'DARK' || settings.theme === 'SYSTEM')) {
+      if (settings.theme !== currentTheme) {
+        setGlobalTheme(settings.theme)
+      }
+    }
+  }, [settings.theme])
 
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Filter out metadata fields that shouldn't be sent to the API
+      const { id, userId, createdAt, updatedAt, ...settingsToSave } = settings as any
+
       const response = await fetch('/api/settings/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(settingsToSave),
       })
 
       if (response.ok) {
@@ -256,7 +399,13 @@ export default function SettingsPage() {
         toast.success('Settings saved successfully!')
       } else {
         const error = await response.json()
+        console.error('Settings save error:', error)
         toast.error(error.error || 'Failed to save settings')
+
+        // Show detailed validation errors if available
+        if (error.details) {
+          console.error('Validation errors:', error.details)
+        }
       }
     } catch (error) {
       console.error('Error saving settings:', error)
@@ -408,6 +557,9 @@ export default function SettingsPage() {
                   loadingPosts={loadingPosts}
                   handleRestorePost={handleRestorePost}
                   handlePermanentlyDeletePost={handlePermanentlyDeletePost}
+                  handleClearCache={handleClearCache}
+                  handleExportData={handleExportData}
+                  handleDeleteAccount={handleDeleteAccount}
                 />
               )}
               {activeTab === 'integrations' && (
@@ -1129,7 +1281,10 @@ function DataSettings({
   setShowDeletedPosts,
   loadingPosts,
   handleRestorePost,
-  handlePermanentlyDeletePost
+  handlePermanentlyDeletePost,
+  handleClearCache,
+  handleExportData,
+  handleDeleteAccount
 }: {
   settings: UserSettings
   updateSetting: any
@@ -1139,6 +1294,9 @@ function DataSettings({
   loadingPosts: boolean
   handleRestorePost: (postId: string) => void
   handlePermanentlyDeletePost: (postId: string) => void
+  handleClearCache: () => void
+  handleExportData: () => void
+  handleDeleteAccount: () => void
 }) {
   return (
     <>
@@ -1257,17 +1415,26 @@ function DataSettings({
 
       <SettingSection title="Data Management">
         <div className="space-y-3">
-          <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+          <button
+            onClick={handleClearCache}
+            className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+          >
             <div className="font-medium text-gray-900">Clear Cache</div>
             <div className="text-sm text-gray-500">Free up space by clearing cached data</div>
           </button>
-          <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+          <button
+            onClick={handleExportData}
+            className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+          >
             <div className="font-medium text-gray-900">Export Data</div>
-            <div className="text-sm text-gray-500">Download your data as JSON</div>
+            <div className="text-sm text-gray-500">Download your data as JSON (GDPR compliant)</div>
           </button>
-          <button className="w-full px-4 py-3 text-left border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition">
+          <button
+            onClick={handleDeleteAccount}
+            className="w-full px-4 py-3 text-left border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
+          >
             <div className="font-medium">Delete Account</div>
-            <div className="text-sm opacity-75">Permanently delete your account and data</div>
+            <div className="text-sm opacity-75">Permanently delete your account and all data</div>
           </button>
         </div>
       </SettingSection>

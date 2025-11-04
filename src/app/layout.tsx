@@ -9,6 +9,7 @@ import SessionSyncWrapper from "@/components/SessionSyncWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import IncomingCallModal from "@/components/IncomingCallModal";
 import { AIAgentWrapper } from "@/components/providers/AIAgentWrapper";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,39 +35,41 @@ export default function RootLayout({
       <body className="antialiased">
         <ErrorBoundary>
           <SessionSyncWrapper />
-          <AuthProvider>
-            <BackgroundSessionProvider>
-              <AIAgentWrapper>
-                {children}
-                <FloatingSessionButton />
-                <IncomingCallModal />
-              </AIAgentWrapper>
-                <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: '#363636',
-                    color: '#fff',
-                  },
-                  success: {
-                    duration: 3000,
-                    iconTheme: {
-                      primary: '#10b981',
-                      secondary: '#fff',
-                    },
-                  },
-                  error: {
+          <ThemeProvider>
+            <AuthProvider>
+              <BackgroundSessionProvider>
+                <AIAgentWrapper>
+                  {children}
+                  <FloatingSessionButton />
+                  <IncomingCallModal />
+                </AIAgentWrapper>
+                  <Toaster
+                  position="top-right"
+                  toastOptions={{
                     duration: 4000,
-                    iconTheme: {
-                      primary: '#ef4444',
-                      secondary: '#fff',
+                    style: {
+                      background: '#363636',
+                      color: '#fff',
                     },
-                  },
-                }}
-                />
-            </BackgroundSessionProvider>
-          </AuthProvider>
+                    success: {
+                      duration: 3000,
+                      iconTheme: {
+                        primary: '#10b981',
+                        secondary: '#fff',
+                      },
+                    },
+                    error: {
+                      duration: 4000,
+                      iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#fff',
+                      },
+                    },
+                  }}
+                  />
+              </BackgroundSessionProvider>
+            </AuthProvider>
+          </ThemeProvider>
         </ErrorBoundary>
       </body>
     </html>
