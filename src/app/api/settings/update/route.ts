@@ -76,7 +76,7 @@ const updateSettingsSchema = z.object({
   showTrendingTopics: z.boolean().optional(),
   commentPrivacy: z.enum(['EVERYONE', 'CONNECTIONS', 'NOBODY']).optional(),
   tagPrivacy: z.enum(['EVERYONE', 'CONNECTIONS', 'NOBODY']).optional(),
-  contentFiltering: z.array(z.string()).optional(),
+  contentFiltering: z.array(z.string()).nullable().optional().transform(val => val ?? []),
 
   // Accessibility
   theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),
