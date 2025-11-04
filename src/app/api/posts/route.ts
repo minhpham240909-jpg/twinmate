@@ -16,14 +16,22 @@ export async function GET(req: NextRequest) {
     const cursor = searchParams.get('cursor') // For pagination
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    // Get user's profile to check their connections
-    const profile = await prisma.profile.findUnique({
-      where: { userId: user.id },
-    })
+    // Get user's profile and settings
+    const [profile, settings] = await Promise.all([
+      prisma.profile.findUnique({
+        where: { userId: user.id },
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+      }),
+    ])
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
     }
+
+    // Get feed algorithm preference (default: RECOMMENDED)
+    const feedAlgorithm = settings?.feedAlgorithm || 'RECOMMENDED'
 
     // Get user's partner IDs (accepted matches)
     const partnerMatches = await prisma.match.findMany({
@@ -109,11 +117,64 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: limit,
+      orderBy: feedAlgorithm === 'CHRONOLOGICAL'
+        ? { createdAt: 'desc' }
+        : feedAlgorithm === 'TRENDING'
+        ? [
+            // For trending, prioritize recent posts with high engagement
+            // Note: This is a simplified version, you might want to use raw SQL for better scoring
+            { createdAt: 'desc' }, // Still favor recency
+          ]
+        : { createdAt: 'desc' }, // RECOMMENDED - for now, use chronological (can be enhanced later)
+      take: limit * 2, // Fetch more for sorting
     })
+
+    // Post-process for TRENDING and RECOMMENDED algorithms
+    let finalPosts = posts
+
+    if (feedAlgorithm === 'TRENDING') {
+      // Calculate engagement score for each post
+      const scoredPosts = posts.map(post => {
+        const hoursSinceCreated = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60)
+        const engagementScore = (
+          post._count.likes * 3 +
+          post._count.comments * 5 +
+          post._count.reposts * 7
+        ) / Math.max(hoursSinceCreated, 1) // Decay over time
+
+        return { post, score: engagementScore }
+      })
+
+      // Sort by score and take limit
+      finalPosts = scoredPosts
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ post }) => post)
+    } else if (feedAlgorithm === 'RECOMMENDED') {
+      // Simple recommendation: prioritize posts from connections, then by engagement
+      const scoredPosts = posts.map(post => {
+        const isFromPartner = partnerIds.includes(post.userId)
+        const hoursSinceCreated = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60)
+        const engagementScore = (
+          post._count.likes * 2 +
+          post._count.comments * 3 +
+          post._count.reposts * 4
+        ) / Math.max(hoursSinceCreated * 0.5, 1)
+
+        const partnerBoost = isFromPartner ? 10 : 1
+        const totalScore = engagementScore * partnerBoost
+
+        return { post, score: totalScore }
+      })
+
+      finalPosts = scoredPosts
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ post }) => post)
+    } else {
+      // CHRONOLOGICAL - already sorted, just take limit
+      finalPosts = posts.slice(0, limit)
+    }
 
     // Get all connections for the current user
     const userConnections = await prisma.match.findMany({
@@ -143,7 +204,7 @@ export async function GET(req: NextRequest) {
     })
 
     // Check if user has liked each post and add connection status
-    const postsWithUserData = posts.map(post => ({
+    const postsWithUserData = finalPosts.map(post => ({
       ...post,
       isLikedByUser: post.likes.some(like => like.userId === user.id),
       isRepostedByUser: post.reposts.some(repost => repost.userId === user.id),
@@ -152,7 +213,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       posts: postsWithUserData,
-      nextCursor: posts.length === limit ? posts[posts.length - 1].id : null,
+      nextCursor: finalPosts.length === limit ? finalPosts[finalPosts.length - 1].id : null,
+      feedAlgorithm, // Include in response so frontend knows which algorithm was used
     })
   } catch (error) {
     console.error('Error fetching posts:', error)
