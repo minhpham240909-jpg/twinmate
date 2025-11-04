@@ -3,10 +3,13 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 
 export default function ProfilePage() {
   const { user, profile, loading, refreshUser } = useAuth()
   const router = useRouter()
+  const t = useTranslations('profile')
+  const tCommon = useTranslations('common')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
@@ -93,7 +96,7 @@ export default function ProfilePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -257,13 +260,13 @@ export default function ProfilePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-blue-600">Edit Profile</h1>
+            <h1 className="text-2xl font-bold text-blue-600">{t('editProfile')}</h1>
           </div>
           <button
             onClick={() => router.push('/dashboard')}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
           >
-            Cancel
+            {tCommon('cancel')}
           </button>
         </div>
       </header>
@@ -772,7 +775,7 @@ export default function ProfilePage() {
                 disabled={isSaving || isUploading}
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSaving ? 'Saving...' : 'Save Profile'}
+                {isSaving ? `${tCommon('save')}...` : tCommon('save')}
               </button>
               <button
                 onClick={() => router.push('/dashboard')}
