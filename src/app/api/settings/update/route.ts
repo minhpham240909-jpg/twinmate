@@ -1,0 +1,189 @@
+// API Route: Update User Settings
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { z } from 'zod'
+
+// Validation schema for settings update
+const updateSettingsSchema = z.object({
+  // Account & Profile
+  language: z.string().optional(),
+  timezone: z.string().optional(),
+
+  // Privacy & Visibility
+  profileVisibility: z.enum(['EVERYONE', 'CONNECTIONS_ONLY', 'PRIVATE']).optional(),
+  searchVisibility: z.boolean().optional(),
+  showOnlineStatus: z.boolean().optional(),
+  showLastSeen: z.boolean().optional(),
+  dataSharing: z.enum(['MINIMAL', 'STANDARD', 'FULL']).optional(),
+
+  // Notification Preferences
+  notifyConnectionRequests: z.boolean().optional(),
+  notifyConnectionAccepted: z.boolean().optional(),
+  notifySessionInvites: z.boolean().optional(),
+  notifyGroupInvites: z.boolean().optional(),
+  notifyMessages: z.boolean().optional(),
+  notifyMissedCalls: z.boolean().optional(),
+  notifyCommunityActivity: z.boolean().optional(),
+  notifySessionReminders: z.boolean().optional(),
+
+  // Email Notifications
+  emailConnectionRequests: z.boolean().optional(),
+  emailSessionInvites: z.boolean().optional(),
+  emailMessages: z.boolean().optional(),
+  emailWeeklySummary: z.boolean().optional(),
+
+  // Notification Frequency
+  notificationFrequency: z.enum(['REALTIME', 'DIGEST_DAILY', 'DIGEST_WEEKLY', 'OFF']).optional(),
+
+  // Do Not Disturb
+  doNotDisturbEnabled: z.boolean().optional(),
+  doNotDisturbStart: z.string().nullable().optional(),
+  doNotDisturbEnd: z.string().nullable().optional(),
+
+  // Study Preferences
+  defaultStudyDuration: z.number().min(1).max(120).optional(),
+  defaultBreakDuration: z.number().min(1).max(60).optional(),
+  preferredSessionLength: z.number().min(15).max(480).optional(),
+  autoGenerateQuizzes: z.boolean().optional(),
+  flashcardReviewFrequency: z.enum(['DAILY', 'WEEKLY', 'CUSTOM']).optional(),
+
+  // Communication Settings
+  messageReadReceipts: z.boolean().optional(),
+  typingIndicators: z.boolean().optional(),
+  autoDownloadMedia: z.boolean().optional(),
+  videoQuality: z.enum(['AUTO', 'LOW', 'MEDIUM', 'HIGH']).optional(),
+  audioQuality: z.enum(['AUTO', 'LOW', 'MEDIUM', 'HIGH']).optional(),
+  enableVirtualBackground: z.boolean().optional(),
+
+  // Call Settings
+  autoAnswerFromPartners: z.boolean().optional(),
+  callRingtone: z.string().optional(),
+
+  // Study Session Settings
+  autoStartTimer: z.boolean().optional(),
+  breakReminders: z.boolean().optional(),
+  sessionHistoryRetention: z.number().min(1).max(365).optional(),
+  sessionInvitePrivacy: z.enum(['EVERYONE', 'CONNECTIONS', 'NOBODY']).optional(),
+
+  // Group Settings
+  defaultGroupPrivacy: z.enum(['PUBLIC', 'PRIVATE', 'INVITE_ONLY']).optional(),
+  groupNotifications: z.boolean().optional(),
+  autoJoinMatchingGroups: z.boolean().optional(),
+  groupInvitePrivacy: z.enum(['EVERYONE', 'CONNECTIONS', 'NOBODY']).optional(),
+
+  // Content & Community
+  feedAlgorithm: z.enum(['RECOMMENDED', 'CHRONOLOGICAL', 'TRENDING']).optional(),
+  showTrendingTopics: z.boolean().optional(),
+  commentPrivacy: z.enum(['EVERYONE', 'CONNECTIONS', 'NOBODY']).optional(),
+  tagPrivacy: z.enum(['EVERYONE', 'CONNECTIONS', 'NOBODY']).optional(),
+  contentFiltering: z.array(z.string()).optional(),
+
+  // Accessibility
+  theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),
+  fontSize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'XLARGE']).optional(),
+  highContrast: z.boolean().optional(),
+  reducedMotion: z.boolean().optional(),
+  keyboardShortcuts: z.boolean().optional(),
+  colorBlindMode: z.enum(['NONE', 'PROTANOPIA', 'DEUTERANOPIA', 'TRITANOPIA']).optional(),
+
+  // Data & Storage
+  cacheEnabled: z.boolean().optional(),
+  autoBackup: z.boolean().optional(),
+  storageUsageLimit: z.number().min(100).max(10000).optional(),
+
+  // Integrations
+  googleCalendarSync: z.boolean().optional(),
+  googleCalendarId: z.string().nullable().optional(),
+
+  // Advanced
+  developerMode: z.boolean().optional(),
+  betaFeatures: z.boolean().optional(),
+  performanceMode: z.enum(['LOW_POWER', 'BALANCED', 'PERFORMANCE']).optional(),
+  analyticsEnabled: z.boolean().optional(),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    // Verify authentication with Supabase
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Parse and validate request body
+    const body = await request.json()
+    const validation = updateSettingsSchema.safeParse(body)
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid data', details: validation.error.issues },
+        { status: 400 }
+      )
+    }
+
+    const updates = validation.data
+
+    // Update settings using Supabase (RLS will ensure user can only update their own)
+    const { data: updatedSettings, error } = await supabase
+      .from('UserSettings')
+      .update({
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('userId', user.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      // If settings don't exist, create them with the updates
+      if (error.code === 'PGRST116') {
+        const { data: newSettings, error: createError } = await supabase
+          .from('UserSettings')
+          .insert({
+            userId: user.id,
+            ...updates,
+          })
+          .select('*')
+          .single()
+
+        if (createError) {
+          console.error('[Settings Update] Error creating settings:', createError)
+          return NextResponse.json(
+            { error: 'Failed to create settings' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({
+          success: true,
+          settings: newSettings,
+          message: 'Settings created successfully',
+        })
+      }
+
+      console.error('[Settings Update] Error updating settings:', error)
+      return NextResponse.json(
+        { error: 'Failed to update settings' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      settings: updatedSettings,
+      message: 'Settings updated successfully',
+    })
+  } catch (error) {
+    console.error('[Settings Update] Error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+

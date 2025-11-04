@@ -4,18 +4,6 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 
-type DeletedPost = {
-  id: string
-  content: string
-  deletedAt: string
-  daysRemaining: number
-  _count?: {
-    likes: number
-    comments: number
-    reposts: number
-  }
-}
-
 export default function ProfilePage() {
   const { user, profile, loading, refreshUser } = useAuth()
   const router = useRouter()
@@ -46,10 +34,6 @@ export default function ProfilePage() {
     // NEW: Post Privacy
     postPrivacy: 'PUBLIC' as 'PUBLIC' | 'PARTNERS_ONLY',
   })
-
-  // State for deleted posts (Post History)
-  const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
-  const [showDeletedPosts, setShowDeletedPosts] = useState(false)
 
   const [customInputs, setCustomInputs] = useState({
     subject: '',
@@ -103,69 +87,6 @@ export default function ProfilePage() {
       setPreviewImage(profile.avatarUrl || '')
     }
   }, [user, profile, loading, router])
-
-  // Fetch deleted posts
-  useEffect(() => {
-    if (user) {
-      fetchDeletedPosts()
-    }
-  }, [user])
-
-  const fetchDeletedPosts = async () => {
-    try {
-      const response = await fetch('/api/posts/deleted')
-      if (response.ok) {
-        const data = await response.json()
-        setDeletedPosts(data.posts)
-      }
-    } catch (error) {
-      console.error('Error fetching deleted posts:', error)
-    }
-  }
-
-  const handleRestorePost = async (postId: string) => {
-    try {
-      const response = await fetch(`/api/posts/${postId}/restore`, {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Remove from deleted posts
-        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        alert(data.message || 'Post restored successfully')
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to restore post')
-      }
-    } catch (error) {
-      console.error('Error restoring post:', error)
-      alert('Failed to restore post')
-    }
-  }
-
-  const handlePermanentlyDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this post? This action CANNOT be undone!')) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        alert('Post permanently deleted')
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to delete post')
-      }
-    } catch (error) {
-      console.error('Error permanently deleting post:', error)
-      alert('Failed to delete post')
-    }
-  }
 
   if (loading) {
     return (
@@ -842,79 +763,6 @@ export default function ProfilePage() {
                   </label>
                 </div>
               </div>
-            </div>
-
-            {/* Post History Section (Deleted Posts) */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Post History</h3>
-                  <p className="text-sm text-gray-600">Posts you deleted (restorable for 30 days)</p>
-                </div>
-                <button
-                  onClick={() => setShowDeletedPosts(!showDeletedPosts)}
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                >
-                  {showDeletedPosts ? 'Hide History' : 'Show History'}
-                </button>
-              </div>
-
-              {showDeletedPosts && (
-                <div className="space-y-4">
-                  {deletedPosts.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">No deleted posts in history.</p>
-                  ) : (
-                    deletedPosts.map((post) => (
-                      <div key={post.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                        {/* Deleted Post Header */}
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
-                                DELETED
-                              </span>
-                              <span className="text-xs text-red-600 font-medium">
-                                {post.daysRemaining} day{post.daysRemaining !== 1 ? 's' : ''} remaining to restore
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Deleted on {new Date(post.deletedAt).toLocaleDateString()} at {new Date(post.deletedAt).toLocaleTimeString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleRestorePost(post.id)}
-                              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
-                              title="Restore post"
-                            >
-                              Restore
-                            </button>
-                            <button
-                              onClick={() => handlePermanentlyDeletePost(post.id)}
-                              className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
-                              title="Permanently delete"
-                            >
-                              Delete Forever
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Post Content */}
-                        <div className="mb-3 opacity-75">
-                          <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
-                        </div>
-
-                        {/* Post Stats */}
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>❤️ {post._count?.likes || 0} likes</span>
-                          <span>💬 {post._count?.comments || 0} comments</span>
-                          <span>🔁 {post._count?.reposts || 0} reposts</span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Save Button */}

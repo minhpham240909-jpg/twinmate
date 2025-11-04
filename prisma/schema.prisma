@@ -73,6 +73,7 @@ model User {
   // Relations
   profile               Profile?
   learningProfile       LearningProfile?
+  settings              UserSettings?
   sentMatches           Match[]              @relation("SentMatches")
   receivedMatches       Match[]              @relation("ReceivedMatches")
   sentMessages          Message[]            @relation("SentMessages")
@@ -88,6 +89,8 @@ model User {
   postLikes             PostLike[]
   postComments          PostComment[]
   postReposts           PostRepost[]
+  blockedUsers          BlockedUser[]        @relation("UserBlocks")
+  blockedByUsers        BlockedUser[]        @relation("BlockedByUser")
 
   @@index([email])
   @@index([googleId])
@@ -774,4 +777,213 @@ model PostRepost {
   @@index([postId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ==========================================
+// USER SETTINGS
+// ==========================================
+
+enum ProfileVisibility {
+  EVERYONE
+  CONNECTIONS_ONLY
+  PRIVATE
+}
+
+enum DataSharing {
+  MINIMAL
+  STANDARD
+  FULL
+}
+
+enum NotificationFrequency {
+  REALTIME
+  DIGEST_DAILY
+  DIGEST_WEEKLY
+  OFF
+}
+
+enum FlashcardFrequency {
+  DAILY
+  WEEKLY
+  CUSTOM
+}
+
+enum VideoQuality {
+  AUTO
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SessionInvitePrivacy {
+  EVERYONE
+  CONNECTIONS
+  NOBODY
+}
+
+enum GroupPrivacyDefault {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+enum FeedAlgorithm {
+  RECOMMENDED
+  CHRONOLOGICAL
+  TRENDING
+}
+
+enum CommentPrivacy {
+  EVERYONE
+  CONNECTIONS
+  NOBODY
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum FontSize {
+  SMALL
+  MEDIUM
+  LARGE
+  XLARGE
+}
+
+enum ColorBlindMode {
+  NONE
+  PROTANOPIA
+  DEUTERANOPIA
+  TRITANOPIA
+}
+
+enum PerformanceMode {
+  LOW_POWER
+  BALANCED
+  PERFORMANCE
+}
+
+model UserSettings {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Account & Profile
+  language String? @default("en")
+  timezone String? @default("UTC")
+
+  // Privacy & Visibility
+  profileVisibility ProfileVisibility @default(EVERYONE)
+  searchVisibility  Boolean           @default(true)
+  showOnlineStatus  Boolean           @default(true)
+  showLastSeen      Boolean           @default(true)
+  dataSharing       DataSharing       @default(STANDARD)
+
+  // Notification Preferences - In-App
+  notifyConnectionRequests Boolean @default(true)
+  notifyConnectionAccepted Boolean @default(true)
+  notifySessionInvites     Boolean @default(true)
+  notifyGroupInvites       Boolean @default(true)
+  notifyMessages           Boolean @default(true)
+  notifyMissedCalls        Boolean @default(true)
+  notifyCommunityActivity  Boolean @default(true)
+  notifySessionReminders   Boolean @default(true)
+
+  // Email Notifications
+  emailConnectionRequests Boolean @default(true)
+  emailSessionInvites     Boolean @default(true)
+  emailMessages           Boolean @default(false)
+  emailWeeklySummary      Boolean @default(true)
+
+  // Notification Frequency
+  notificationFrequency NotificationFrequency @default(REALTIME)
+
+  // Do Not Disturb
+  doNotDisturbEnabled Boolean @default(false)
+  doNotDisturbStart   String? // e.g., "22:00"
+  doNotDisturbEnd     String? // e.g., "08:00"
+
+  // Study Preferences
+  defaultStudyDuration     Int                 @default(25) // minutes
+  defaultBreakDuration     Int                 @default(5) // minutes
+  preferredSessionLength   Int                 @default(60) // minutes
+  autoGenerateQuizzes      Boolean             @default(false)
+  flashcardReviewFrequency FlashcardFrequency? @default(DAILY)
+
+  // Communication Settings
+  messageReadReceipts    Boolean      @default(true)
+  typingIndicators       Boolean      @default(true)
+  autoDownloadMedia      Boolean      @default(true)
+  videoQuality           VideoQuality @default(AUTO)
+  audioQuality           VideoQuality @default(AUTO)
+  enableVirtualBackground Boolean     @default(false)
+
+  // Call Settings
+  autoAnswerFromPartners Boolean @default(false)
+  callRingtone           String? @default("default")
+
+  // Study Session Settings
+  autoStartTimer           Boolean               @default(false)
+  breakReminders           Boolean               @default(true)
+  sessionHistoryRetention  Int                   @default(90) // days
+  sessionInvitePrivacy     SessionInvitePrivacy  @default(EVERYONE)
+
+  // Group Settings
+  defaultGroupPrivacy  GroupPrivacyDefault   @default(PUBLIC)
+  groupNotifications   Boolean               @default(true)
+  autoJoinMatchingGroups Boolean             @default(false)
+  groupInvitePrivacy   SessionInvitePrivacy  @default(EVERYONE)
+
+  // Content & Community
+  feedAlgorithm       FeedAlgorithm  @default(RECOMMENDED)
+  showTrendingTopics  Boolean        @default(true)
+  commentPrivacy      CommentPrivacy @default(EVERYONE)
+  tagPrivacy          CommentPrivacy @default(EVERYONE)
+  contentFiltering    String[]       @default([])
+
+  // Accessibility
+  theme           Theme           @default(SYSTEM)
+  fontSize        FontSize        @default(MEDIUM)
+  highContrast    Boolean         @default(false)
+  reducedMotion   Boolean         @default(false)
+  keyboardShortcuts Boolean       @default(true)
+  colorBlindMode  ColorBlindMode  @default(NONE)
+
+  // Data & Storage
+  cacheEnabled       Boolean @default(true)
+  autoBackup         Boolean @default(true)
+  storageUsageLimit  Int     @default(1000) // MB
+
+  // Integrations
+  googleCalendarSync Boolean @default(false)
+  googleCalendarId   String?
+
+  // Advanced
+  developerMode     Boolean         @default(false)
+  betaFeatures      Boolean         @default(false)
+  performanceMode   PerformanceMode @default(BALANCED)
+  analyticsEnabled  Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Blocked Users for Privacy
+model BlockedUser {
+  id            String @id @default(uuid())
+  userId        String
+  user          User   @relation("UserBlocks", fields: [userId], references: [id], onDelete: Cascade)
+  blockedUserId String
+  blockedUser   User   @relation("BlockedByUser", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  reason        String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, blockedUserId])
+  @@index([userId])
+  @@index([blockedUserId])
 }
