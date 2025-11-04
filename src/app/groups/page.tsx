@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { uploadGroupAvatar } from '@/lib/supabase/storage'
+import { useTranslations } from 'next-intl'
 
 interface Group {
   id: string
@@ -35,6 +36,8 @@ interface GroupInvite {
 export default function GroupsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('groups')
+  const tCommon = useTranslations('common')
   const [activeTab, setActiveTab] = useState<'my-groups' | 'find-groups'>('my-groups')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
@@ -581,7 +584,7 @@ export default function GroupsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -603,7 +606,7 @@ export default function GroupsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-blue-600">Study Groups</h1>
+            <h1 className="text-2xl font-bold text-blue-600">{t('title')}</h1>
           </div>
           <div className="flex gap-2">
             {groupInvites.length > 0 && (
@@ -621,7 +624,7 @@ export default function GroupsPage() {
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
             >
-              Create Group
+              {t('createGroup')}
             </button>
             <button
               onClick={() => router.push('/dashboard')}
@@ -649,7 +652,7 @@ export default function GroupsPage() {
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    My Groups
+                    {t('myGroups')}
                   </button>
                   <button
                     onClick={() => setActiveTab('find-groups')}
@@ -659,7 +662,7 @@ export default function GroupsPage() {
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Find Groups
+                    {t('findGroups')}
                   </button>
                 </div>
                 {activeTab === 'my-groups' && myGroups.length > 0 && (
@@ -698,23 +701,23 @@ export default function GroupsPage() {
                     </svg>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    No Groups Yet
+                    {t('noGroups')}
                   </h3>
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Create your first study group or find existing groups to join!
+                    {t('noGroupsDesc')}
                   </p>
                   <div className="flex gap-4 justify-center">
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
                     >
-                      Create Group
+                      {t('createGroup')}
                     </button>
                     <button
                       onClick={() => setActiveTab('find-groups')}
                       className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition"
                     >
-                      Find Groups
+                      {t('findGroups')}
                     </button>
                   </div>
                 </div>
@@ -729,7 +732,7 @@ export default function GroupsPage() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                           </svg>
-                          {group.memberCount} members
+                          {group.memberCount} {t('members')}
                         </span>
                         <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                           {group.subject}
@@ -761,28 +764,28 @@ export default function GroupsPage() {
                         onClick={() => handleLeaveGroup(group.id)}
                         className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
                       >
-                        Leave Group
+                        {t('leaveGroup')}
                       </button>
                     ) : (
                       <button
                         onClick={() => handleJoinGroup(group.id)}
                         className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
                       >
-                        Join Group
+                        {t('joinGroup')}
                       </button>
                     )}
                     <button
                       onClick={() => handleShowDetails(group)}
                       className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition"
                     >
-                      Details
+                      {t('viewDetails')}
                     </button>
                     {group.isOwner && (
                       <button
                         onClick={() => handleShowManage(group)}
                         className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition"
                       >
-                        Manage
+                        {t('manage')}
                       </button>
                     )}
                   </div>
@@ -797,10 +800,10 @@ export default function GroupsPage() {
             <div>
               {/* Search Filters */}
               <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Search Filters</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('searchFilters')}</h2>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('subject')}</label>
                     <input
                       type="text"
                       value={searchSubject}
@@ -810,7 +813,7 @@ export default function GroupsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('skillLevel')}</label>
                     <select
                       value={searchSkillLevel}
                       onChange={(e) => setSearchSkillLevel(e.target.value)}
@@ -844,7 +847,7 @@ export default function GroupsPage() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Group Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('description')}</label>
                     <input
                       type="text"
                       value={searchDescription}
@@ -874,7 +877,7 @@ export default function GroupsPage() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
-                            {group.memberCount}/{group.maxMembers} members
+                            {group.memberCount}/{group.maxMembers} {t('members')}
                           </span>
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                             {group.subject}
@@ -892,21 +895,21 @@ export default function GroupsPage() {
                           onClick={() => handleLeaveGroup(group.id)}
                           className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
                         >
-                          Leave Group
+                          {t('leaveGroup')}
                         </button>
                       ) : (
                         <button
                           onClick={() => handleJoinGroup(group.id)}
                           className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
                         >
-                          Join Group
+                          {t('joinGroup')}
                         </button>
                       )}
                       <button
                         onClick={() => handleShowDetails(group)}
                         className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition"
                       >
-                        Details
+                        {t('viewDetails')}
                       </button>
                     </div>
                   </div>

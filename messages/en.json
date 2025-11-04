@@ -223,5 +223,30 @@
     "accept": "Accept",
     "decline": "Decline",
     "pendingResponse": "Pending response..."
+  },
+  "groups": {
+    "title": "Study Groups",
+    "createGroup": "Create Group",
+    "myGroups": "My Groups",
+    "findGroups": "Find Groups",
+    "allGroups": "All Groups",
+    "searchFilters": "Search Filters",
+    "groupName": "Group Name",
+    "subject": "Subject",
+    "skillLevel": "Skill Level",
+    "description": "Description",
+    "maxMembers": "Max Members",
+    "members": "members",
+    "join": "Join",
+    "leave": "Leave",
+    "leaveGroup": "Leave Group",
+    "joinGroup": "Join Group",
+    "manage": "Manage",
+    "viewDetails": "View Details",
+    "noGroups": "No groups yet",
+    "noGroupsDesc": "Create or join a group to get started",
+    "creating": "Creating...",
+    "joining": "Joining...",
+    "leaving": "Leaving..."
   }
 }

@@ -223,5 +223,30 @@
     "accept": "Aceptar",
     "decline": "Rechazar",
     "pendingResponse": "Esperando respuesta..."
+  },
+  "groups": {
+    "title": "Grupos de Estudio",
+    "createGroup": "Crear Grupo",
+    "myGroups": "Mis Grupos",
+    "findGroups": "Buscar Grupos",
+    "allGroups": "Todos los Grupos",
+    "searchFilters": "Filtros de Búsqueda",
+    "groupName": "Nombre del Grupo",
+    "subject": "Materia",
+    "skillLevel": "Nivel de Habilidad",
+    "description": "Descripción",
+    "maxMembers": "Máximo de Miembros",
+    "members": "miembros",
+    "join": "Unirse",
+    "leave": "Salir",
+    "leaveGroup": "Salir del Grupo",
+    "joinGroup": "Unirse al Grupo",
+    "manage": "Gestionar",
+    "viewDetails": "Ver Detalles",
+    "noGroups": "Aún no hay grupos",
+    "noGroupsDesc": "Crea o únete a un grupo para comenzar",
+    "creating": "Creando...",
+    "joining": "Uniéndose...",
+    "leaving": "Saliendo..."
   }
 }
