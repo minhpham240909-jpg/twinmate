@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useSettings } from '@/contexts/SettingsContext'
+import { useTranslations } from 'next-intl'
 
 // Types
 type DeletedPost = {
@@ -122,6 +123,8 @@ export default function SettingsPage() {
   const router = useRouter()
   const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
   const { settings: globalSettings, loading: loadingSettings, refreshSettings } = useSettings()
+  const t = useTranslations('settings')
+  const tCommon = useTranslations('common')
   const [activeTab, setActiveTab] = useState<TabId>('account')
   const [settings, setSettings] = useState<UserSettings>(globalSettings)
   const [saving, setSaving] = useState(false)
@@ -402,7 +405,7 @@ export default function SettingsPage() {
           setGlobalTheme(data.settings.theme)
         }
 
-        toast.success('Settings saved successfully!')
+        toast.success(t('saveSuccess'))
       } else {
         const error = await response.json()
         console.error('[Settings Save Error]', error)
@@ -417,12 +420,12 @@ export default function SettingsPage() {
             toast.error(error.message || 'Invalid data format')
           }
         } else {
-          toast.error(error.message || error.error || 'Failed to save settings')
+          toast.error(error.message || error.error || t('saveFailed'))
         }
       }
     } catch (error) {
       console.error('[Settings Save Exception]', error)
-      toast.error('Failed to save settings')
+      toast.error(t('saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -431,7 +434,7 @@ export default function SettingsPage() {
   const handleReset = () => {
     setSettings(initialSettings)
     setHasChanges(false)
-    toast.success('Changes discarded')
+    toast.success(tCommon('cancel'))
   }
 
   if (loading || loadingSettings) {
@@ -439,7 +442,7 @@ export default function SettingsPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading settings...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -448,19 +451,19 @@ export default function SettingsPage() {
   if (!user) return null
 
   const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: 'account', label: 'Account', icon: '👤' },
-    { id: 'privacy', label: 'Privacy', icon: '🔒' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'study', label: 'Study', icon: '📚' },
-    { id: 'communication', label: 'Communication', icon: '💬' },
-    { id: 'sessions', label: 'Sessions', icon: '⏱️' },
-    { id: 'groups', label: 'Groups', icon: '👥' },
-    { id: 'community', label: 'Community', icon: '🌐' },
-    { id: 'accessibility', label: 'Accessibility', icon: '♿' },
-    { id: 'data', label: 'Data & Storage', icon: '💾' },
-    { id: 'integrations', label: 'Integrations', icon: '🔗' },
-    { id: 'advanced', label: 'Advanced', icon: '⚙️' },
-    { id: 'about', label: 'About', icon: 'ℹ️' },
+    { id: 'account', label: t('account'), icon: '👤' },
+    { id: 'privacy', label: t('privacy'), icon: '🔒' },
+    { id: 'notifications', label: t('notifications'), icon: '🔔' },
+    { id: 'study', label: t('study'), icon: '📚' },
+    { id: 'communication', label: t('communication'), icon: '💬' },
+    { id: 'sessions', label: t('sessions'), icon: '⏱️' },
+    { id: 'groups', label: t('groups'), icon: '👥' },
+    { id: 'community', label: t('community'), icon: '🌐' },
+    { id: 'accessibility', label: t('accessibility'), icon: '♿' },
+    { id: 'data', label: t('data'), icon: '💾' },
+    { id: 'integrations', label: t('integrations'), icon: '🔗' },
+    { id: 'advanced', label: t('advanced'), icon: '⚙️' },
+    { id: 'about', label: t('about'), icon: 'ℹ️' },
   ]
 
   return (
@@ -477,7 +480,7 @@ export default function SettingsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
           </div>
           {hasChanges && (
             <div className="flex items-center gap-2">
@@ -486,7 +489,7 @@ export default function SettingsPage() {
                 disabled={saving}
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
               >
-                Discard
+                {tCommon('cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -496,10 +499,10 @@ export default function SettingsPage() {
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCommon('loading')}
                   </>
                 ) : (
-                  'Save Changes'
+                  tCommon('save')
                 )}
               </button>
             </div>

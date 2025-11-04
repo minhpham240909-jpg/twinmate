@@ -11,6 +11,7 @@ import IncomingCallModal from "@/components/IncomingCallModal";
 import { AIAgentWrapper } from "@/components/providers/AIAgentWrapper";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { IntlProvider } from "@/contexts/IntlContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,37 +40,39 @@ export default function RootLayout({
           <ThemeProvider>
             <AuthProvider>
               <SettingsProvider>
-                <BackgroundSessionProvider>
-                  <AIAgentWrapper>
-                    {children}
-                    <FloatingSessionButton />
-                    <IncomingCallModal />
-                  </AIAgentWrapper>
-                    <Toaster
-                    position="top-right"
-                    toastOptions={{
-                      duration: 4000,
-                      style: {
-                        background: '#363636',
-                        color: '#fff',
-                      },
-                      success: {
-                        duration: 3000,
-                        iconTheme: {
-                          primary: '#10b981',
-                          secondary: '#fff',
-                        },
-                      },
-                      error: {
+                <IntlProvider>
+                  <BackgroundSessionProvider>
+                    <AIAgentWrapper>
+                      {children}
+                      <FloatingSessionButton />
+                      <IncomingCallModal />
+                    </AIAgentWrapper>
+                      <Toaster
+                      position="top-right"
+                      toastOptions={{
                         duration: 4000,
-                        iconTheme: {
-                          primary: '#ef4444',
-                          secondary: '#fff',
+                        style: {
+                          background: '#363636',
+                          color: '#fff',
                         },
-                      },
-                    }}
-                    />
-                </BackgroundSessionProvider>
+                        success: {
+                          duration: 3000,
+                          iconTheme: {
+                            primary: '#10b981',
+                            secondary: '#fff',
+                          },
+                        },
+                        error: {
+                          duration: 4000,
+                          iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                          },
+                        },
+                      }}
+                      />
+                  </BackgroundSessionProvider>
+                </IntlProvider>
               </SettingsProvider>
             </AuthProvider>
           </ThemeProvider>
