@@ -248,5 +248,28 @@
     "creating": "Creating...",
     "joining": "Joining...",
     "leaving": "Leaving..."
+  },
+  "search": {
+    "title": "Find Study Partners",
+    "searchPlaceholder": "Search by name or keyword...",
+    "filters": "Filters",
+    "hideFilters": "Hide Filters",
+    "showFilters": "Show Filters",
+    "subjects": "Subjects",
+    "skillLevel": "Skill Level",
+    "studyStyle": "Study Style",
+    "interests": "Interests",
+    "availability": "Availability",
+    "school": "School",
+    "languages": "Languages",
+    "searchPartners": "Search Partners",
+    "noPartnersFound": "No study partners found",
+    "tryDifferentFilters": "Try adjusting your filters or search criteria",
+    "matchScore": "Match Score",
+    "connect": "Connect",
+    "viewProfile": "View Profile",
+    "alreadyConnected": "Already Connected",
+    "connectionSent": "Connection Sent",
+    "searching": "Searching..."
   }
 }

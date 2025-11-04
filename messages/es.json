@@ -248,5 +248,28 @@
     "creating": "Creando...",
     "joining": "Uniéndose...",
     "leaving": "Saliendo..."
+  },
+  "search": {
+    "title": "Encontrar Compañeros de Estudio",
+    "searchPlaceholder": "Buscar por nombre o palabra clave...",
+    "filters": "Filtros",
+    "hideFilters": "Ocultar Filtros",
+    "showFilters": "Mostrar Filtros",
+    "subjects": "Materias",
+    "skillLevel": "Nivel de Habilidad",
+    "studyStyle": "Estilo de Estudio",
+    "interests": "Intereses",
+    "availability": "Disponibilidad",
+    "school": "Escuela",
+    "languages": "Idiomas",
+    "searchPartners": "Buscar Compañeros",
+    "noPartnersFound": "No se encontraron compañeros de estudio",
+    "tryDifferentFilters": "Intenta ajustar tus filtros o criterios de búsqueda",
+    "matchScore": "Puntuación de Coincidencia",
+    "connect": "Conectar",
+    "viewProfile": "Ver Perfil",
+    "alreadyConnected": "Ya Conectado",
+    "connectionSent": "Solicitud Enviada",
+    "searching": "Buscando..."
   }
 }
