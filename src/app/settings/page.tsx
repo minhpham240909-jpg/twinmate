@@ -382,13 +382,36 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Filter out metadata fields that shouldn't be sent to the API
-      const { id, userId, createdAt, updatedAt, ...settingsToSave } = settings as any
+      // Filter out ALL metadata and system fields that shouldn't be sent to the API
+      const {
+        id,
+        userId,
+        createdAt,
+        updatedAt,
+        user,
+        ...settingsToSave
+      } = settings as any
+
+      // Clean up the payload - remove undefined values and convert empty strings to null for nullable fields
+      const cleanedSettings: Record<string, any> = {}
+      Object.entries(settingsToSave).forEach(([key, value]) => {
+        // Only include fields that have actual values
+        if (value !== undefined) {
+          // Convert empty strings to null for string fields
+          if (value === '') {
+            cleanedSettings[key] = null
+          } else {
+            cleanedSettings[key] = value
+          }
+        }
+      })
+
+      console.log('[Settings Save] Sending payload:', cleanedSettings)
 
       const response = await fetch('/api/settings/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settingsToSave),
+        body: JSON.stringify(cleanedSettings),
       })
 
       if (response.ok) {
@@ -399,16 +422,23 @@ export default function SettingsPage() {
         toast.success('Settings saved successfully!')
       } else {
         const error = await response.json()
-        console.error('Settings save error:', error)
-        toast.error(error.error || 'Failed to save settings')
+        console.error('[Settings Save Error]', error)
 
         // Show detailed validation errors if available
-        if (error.details) {
-          console.error('Validation errors:', error.details)
+        if (error.details && Array.isArray(error.details)) {
+          console.error('[Validation Errors]', error.details)
+          const firstError = error.details[0]
+          if (firstError) {
+            toast.error(`Validation error: ${firstError.path?.join('.')} - ${firstError.message}`)
+          } else {
+            toast.error(error.message || 'Invalid data format')
+          }
+        } else {
+          toast.error(error.message || error.error || 'Failed to save settings')
         }
       }
     } catch (error) {
-      console.error('Error saving settings:', error)
+      console.error('[Settings Save Exception]', error)
       toast.error('Failed to save settings')
     } finally {
       setSaving(false)
