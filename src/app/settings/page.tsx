@@ -349,7 +349,7 @@ export default function SettingsPage() {
         setGlobalTheme(settings.theme)
       }
     }
-  }, [settings.theme])
+  }, [settings.theme, currentTheme, setGlobalTheme])
 
   const handleSave = async () => {
     setSaving(true)
@@ -396,6 +396,11 @@ export default function SettingsPage() {
 
         // Refresh global context to propagate changes throughout the app
         await refreshSettings()
+
+        // Re-sync theme with ThemeContext after refresh
+        if (data.settings.theme && (data.settings.theme === 'LIGHT' || data.settings.theme === 'DARK' || data.settings.theme === 'SYSTEM')) {
+          setGlobalTheme(data.settings.theme)
+        }
 
         toast.success('Settings saved successfully!')
       } else {
