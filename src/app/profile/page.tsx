@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 type UserPost = {
   id: string
@@ -19,6 +20,8 @@ type UserPost = {
 export default function MyProfilePage() {
   const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('profile')
+  const tCommon = useTranslations('common')
 
   const [posts, setPosts] = useState<UserPost[]>([])
   const [loadingPosts, setLoadingPosts] = useState(true)
@@ -101,7 +104,7 @@ export default function MyProfilePage() {
               onClick={() => router.push('/profile/edit')}
               className="px-8 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition shadow-md"
             >
-              Edit profile
+              {t('editProfile')}
             </button>
           </div>
 
@@ -149,7 +152,7 @@ export default function MyProfilePage() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                About
+                {t('about')}
               </button>
               <button
                 onClick={() => setActiveTab('posts')}
@@ -159,7 +162,7 @@ export default function MyProfilePage() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Posts
+                {t('posts')}
               </button>
             </div>
           </div>
@@ -201,7 +204,7 @@ export default function MyProfilePage() {
                     {/* Subjects */}
                     {(profile as any).subjects?.length > 0 && (
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Subjects</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">{t('subjects')}</h3>
                         <div className="flex flex-wrap gap-2">
                           {(profile as any).subjects.map((subject: string, index: number) => (
                             <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
@@ -215,7 +218,7 @@ export default function MyProfilePage() {
                     {/* Interests */}
                     {(profile as any).interests?.length > 0 && (
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Interests</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">{t('interests')}</h3>
                         <div className="flex flex-wrap gap-2">
                           {(profile as any).interests.map((interest: string, index: number) => (
                             <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
@@ -229,7 +232,7 @@ export default function MyProfilePage() {
                     {/* Languages */}
                     {(profile as any).languages && (
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2">Languages</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">{t('languages')}</h3>
                         <p className="text-gray-700">{(profile as any).languages}</p>
                       </div>
                     )}
@@ -239,12 +242,12 @@ export default function MyProfilePage() {
                 {/* Show message if no about info */}
                 {!profile?.bio && !(profile as any)?.aboutYourself && (!(profile as any)?.aboutYourselfItems || (profile as any).aboutYourselfItems.length === 0) && (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No about information yet</p>
+                    <p className="text-gray-500 mb-4">{t('noAboutInfo')}</p>
                     <button
                       onClick={() => router.push('/profile/edit')}
                       className="text-blue-600 hover:underline font-medium"
                     >
-                      Add information to your profile
+                      {t('addInfoToProfile')}
                     </button>
                   </div>
                 )}
@@ -285,12 +288,12 @@ export default function MyProfilePage() {
                   ))
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No posts yet</p>
+                    <p className="text-gray-500 mb-4">{t('noPosts')}</p>
                     <button
                       onClick={() => router.push('/community')}
                       className="text-blue-600 hover:underline font-medium"
                     >
-                      Create your first post
+                      {t('createFirstPost')}
                     </button>
                   </div>
                 )}

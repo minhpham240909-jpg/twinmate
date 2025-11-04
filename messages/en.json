@@ -183,7 +183,15 @@
     "interests": "Interests",
     "studyStyle": "Study Style",
     "skills": "Skills",
-    "availability": "Availability"
+    "availability": "Availability",
+    "about": "About",
+    "posts": "Posts",
+    "subjects": "Subjects",
+    "languages": "Languages",
+    "noAboutInfo": "No about information yet",
+    "addInfoToProfile": "Add information to your profile",
+    "noPosts": "No posts yet",
+    "createFirstPost": "Create your first post"
   },
   "messages": {
     "noMessages": "No messages yet",
@@ -191,5 +199,17 @@
     "send": "Send",
     "conversations": "Conversations",
     "newConversation": "New Conversation"
+  },
+  "connections": {
+    "title": "Connection Requests",
+    "retry": "Retry",
+    "received": "Received",
+    "sent": "Sent",
+    "noPending": "No pending connection requests",
+    "noSent": "No pending sent requests",
+    "processing": "Processing...",
+    "accept": "Accept",
+    "decline": "Decline",
+    "pendingResponse": "Pending response..."
   }
 }

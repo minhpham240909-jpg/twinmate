@@ -183,7 +183,15 @@
     "interests": "Intereses",
     "studyStyle": "Estilo de Estudio",
     "skills": "Habilidades",
-    "availability": "Disponibilidad"
+    "availability": "Disponibilidad",
+    "about": "Acerca de",
+    "posts": "Publicaciones",
+    "subjects": "Materias",
+    "languages": "Idiomas",
+    "noAboutInfo": "Aún no hay información sobre ti",
+    "addInfoToProfile": "Agregar información a tu perfil",
+    "noPosts": "Aún no hay publicaciones",
+    "createFirstPost": "Crea tu primera publicación"
   },
   "messages": {
     "noMessages": "No hay mensajes aún",
@@ -191,5 +199,17 @@
     "send": "Enviar",
     "conversations": "Conversaciones",
     "newConversation": "Nueva Conversación"
+  },
+  "connections": {
+    "title": "Solicitudes de Conexión",
+    "retry": "Reintentar",
+    "received": "Recibidas",
+    "sent": "Enviadas",
+    "noPending": "No hay solicitudes de conexión pendientes",
+    "noSent": "No hay solicitudes enviadas pendientes",
+    "processing": "Procesando...",
+    "accept": "Aceptar",
+    "decline": "Rechazar",
+    "pendingResponse": "Esperando respuesta..."
   }
 }

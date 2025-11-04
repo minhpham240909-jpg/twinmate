@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface ConnectionRequest {
   id: string
@@ -28,6 +29,8 @@ interface ConnectionRequest {
 export default function ConnectionsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('connections')
+  const tCommon = useTranslations('common')
   const [sentRequests, setSentRequests] = useState<ConnectionRequest[]>([])
   const [receivedRequests, setReceivedRequests] = useState<ConnectionRequest[]>([])
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received')
@@ -119,7 +122,7 @@ export default function ConnectionsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -147,7 +150,7 @@ export default function ConnectionsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-blue-600">Connection Requests</h1>
+            <h1 className="text-2xl font-bold text-blue-600">{t('title')}</h1>
           </div>
         </div>
       </header>
@@ -166,7 +169,7 @@ export default function ConnectionsPage() {
                 onClick={fetchConnectionRequests}
                 className="ml-auto px-3 py-1 text-sm text-red-600 hover:text-red-700 font-medium"
               >
-                Retry
+                {t('retry')}
               </button>
             </div>
           </div>
@@ -182,7 +185,7 @@ export default function ConnectionsPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Received ({receivedRequests.length})
+              {t('received')} ({receivedRequests.length})
             </button>
             <button
               onClick={() => setActiveTab('sent')}
@@ -192,7 +195,7 @@ export default function ConnectionsPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Sent ({sentRequests.length})
+              {t('sent')} ({sentRequests.length})
             </button>
           </div>
 
@@ -201,7 +204,7 @@ export default function ConnectionsPage() {
             <div className="space-y-4">
               {receivedRequests.length === 0 ? (
                 <div className="bg-white rounded-xl p-12 text-center">
-                  <p className="text-gray-600">No pending connection requests</p>
+                  <p className="text-gray-600">{t('noPending')}</p>
                 </div>
               ) : (
                 receivedRequests.map((request) => (
@@ -233,14 +236,14 @@ export default function ConnectionsPage() {
                           disabled={processingRequest === request.id}
                           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {processingRequest === request.id ? 'Processing...' : 'Accept'}
+                          {processingRequest === request.id ? t('processing') : t('accept')}
                         </button>
                         <button
                           onClick={() => handleDecline(request.id)}
                           disabled={processingRequest === request.id}
                           className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {processingRequest === request.id ? 'Processing...' : 'Decline'}
+                          {processingRequest === request.id ? t('processing') : t('decline')}
                         </button>
                       </div>
                     </div>
@@ -255,7 +258,7 @@ export default function ConnectionsPage() {
             <div className="space-y-4">
               {sentRequests.length === 0 ? (
                 <div className="bg-white rounded-xl p-12 text-center">
-                  <p className="text-gray-600">No pending sent requests</p>
+                  <p className="text-gray-600">{t('noSent')}</p>
                 </div>
               ) : (
                 sentRequests.map((request) => (
@@ -275,7 +278,7 @@ export default function ConnectionsPage() {
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">{request.receiver.name}</h3>
                         <p className="text-sm text-gray-600">{request.receiver.email}</p>
-                        <p className="text-sm text-yellow-600 mt-2">Pending response...</p>
+                        <p className="text-sm text-yellow-600 mt-2">{t('pendingResponse')}</p>
                       </div>
                     </div>
                   </div>
