@@ -196,9 +196,21 @@
   "messages": {
     "noMessages": "No messages yet",
     "typeMessage": "Type a message...",
+    "typeMessageHint": "Type a message... (Press Enter to send)",
     "send": "Send",
     "conversations": "Conversations",
-    "newConversation": "New Conversation"
+    "newConversation": "New Conversation",
+    "searchConversations": "Search conversations...",
+    "noConversationsFound": "No conversations found",
+    "noConversationsYet": "No conversations yet",
+    "selectConversation": "Select a conversation",
+    "sendMessageToStart": "Send a message to start the conversation",
+    "members": "members",
+    "online": "● Online",
+    "offline": "○ Offline",
+    "audioCall": "Audio Call",
+    "videoCall": "Video Call",
+    "messageDeleted": "This message was deleted"
   },
   "connections": {
     "title": "Connection Requests",

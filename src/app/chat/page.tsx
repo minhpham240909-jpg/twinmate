@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { subscribeToDM, subscribeToMessages, type ConnectionStatus } from '@/lib/supabase/realtime'
 import MessageVideoCall from '@/components/messages/MessageVideoCall'
+import { useTranslations } from 'next-intl'
 
 interface Conversation {
   id: string
@@ -41,6 +42,8 @@ function ChatPageContent() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('messages')
+  const tCommon = useTranslations('common')
   // Load cached conversations immediately from localStorage
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     if (typeof window !== 'undefined') {
@@ -500,7 +503,7 @@ function ChatPageContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -563,7 +566,7 @@ function ChatPageContent() {
                 <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
                   <input
                     type="text"
-                    placeholder="Search conversations..."
+                    placeholder={t('searchConversations')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -609,7 +612,7 @@ function ChatPageContent() {
                               </div>
                               <div className="flex items-center justify-between">
                                 <p className="text-sm text-gray-600 truncate">
-                                  {conv.lastMessage || (conv.type === 'group' ? `${conv.memberCount} members` : 'No messages yet')}
+                                  {conv.lastMessage || (conv.type === 'group' ? `${conv.memberCount} ${t('members')}` : t('noMessages'))}
                                 </p>
                                 {conv.unreadCount > 0 && (
                                   <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
@@ -632,7 +635,7 @@ function ChatPageContent() {
                           </svg>
                         </div>
                         <p className="text-sm text-gray-600">
-                          {searchQuery ? 'No conversations found' : 'No conversations yet'}
+                          {searchQuery ? t('noConversationsFound') : t('noConversationsYet')}
                         </p>
                         {!searchQuery && (
                           <p className="text-xs text-gray-500 mt-2">
@@ -681,11 +684,11 @@ function ChatPageContent() {
                           </div>
                           {selectedConversation.type === 'partner' && (
                             <p className={`text-xs ${selectedConversation.onlineStatus === 'ONLINE' ? 'text-green-600' : 'text-gray-500'}`}>
-                              {selectedConversation.onlineStatus === 'ONLINE' ? '● Online' : '○ Offline'}
+                              {selectedConversation.onlineStatus === 'ONLINE' ? t('online') : t('offline')}
                             </p>
                           )}
                           {selectedConversation.type === 'group' && (
-                            <p className="text-xs text-gray-500">{selectedConversation.memberCount} members</p>
+                            <p className="text-xs text-gray-500">{selectedConversation.memberCount} {t('members')}</p>
                           )}
                         </div>
                       </div>
@@ -695,7 +698,7 @@ function ChatPageContent() {
                             <button
                               onClick={() => startCall('AUDIO')}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                              title="Audio Call"
+                              title={t('audioCall')}
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -704,7 +707,7 @@ function ChatPageContent() {
                             <button
                               onClick={() => startCall('VIDEO')}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                              title="Video Call"
+                              title={t('videoCall')}
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -739,8 +742,8 @@ function ChatPageContent() {
                         ) : messages.length === 0 ? (
                           <div className="flex items-center justify-center h-full">
                             <div className="text-center">
-                              <p className="text-gray-500">No messages yet</p>
-                              <p className="text-sm text-gray-400 mt-1">Send a message to start the conversation</p>
+                              <p className="text-gray-500">{t('noMessages')}</p>
+                              <p className="text-sm text-gray-400 mt-1">{t('sendMessageToStart')}</p>
                             </div>
                           </div>
                         ) : (
@@ -800,7 +803,7 @@ function ChatPageContent() {
                                         }}
                                       >
                                         <p className="text-sm whitespace-pre-wrap break-words">
-                                          {isDeleted ? 'This message was deleted' : msg.content}
+                                          {isDeleted ? t('messageDeleted') : msg.content}
                                         </p>
                                         <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-blue-200' : 'text-gray-500'}`}>
                                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -816,7 +819,7 @@ function ChatPageContent() {
                                               }}
                                               className="px-2 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition whitespace-nowrap shadow-lg"
                                             >
-                                              Delete
+                                              {tCommon('delete')}
                                             </button>
                                           </div>
                                         )}
@@ -867,7 +870,7 @@ function ChatPageContent() {
                               }
                             }
                           }}
-                          placeholder="Type a message... (Press Enter to send)"
+                          placeholder={t('typeMessageHint')}
                           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                         <button
@@ -891,7 +894,7 @@ function ChatPageContent() {
                         </svg>
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Select a conversation
+                        {t('selectConversation')}
                       </h3>
                       <p className="text-gray-600">
                         Choose a chat from the list to start messaging

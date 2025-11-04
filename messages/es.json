@@ -196,9 +196,21 @@
   "messages": {
     "noMessages": "No hay mensajes aún",
     "typeMessage": "Escribe un mensaje...",
+    "typeMessageHint": "Escribe un mensaje... (Presiona Enter para enviar)",
     "send": "Enviar",
     "conversations": "Conversaciones",
-    "newConversation": "Nueva Conversación"
+    "newConversation": "Nueva Conversación",
+    "searchConversations": "Buscar conversaciones...",
+    "noConversationsFound": "No se encontraron conversaciones",
+    "noConversationsYet": "Aún no hay conversaciones",
+    "selectConversation": "Selecciona una conversación",
+    "sendMessageToStart": "Envía un mensaje para iniciar la conversación",
+    "members": "miembros",
+    "online": "● En línea",
+    "offline": "○ Fuera de línea",
+    "audioCall": "Llamada de Audio",
+    "videoCall": "Videollamada",
+    "messageDeleted": "Este mensaje fue eliminado"
   },
   "connections": {
     "title": "Solicitudes de Conexión",
