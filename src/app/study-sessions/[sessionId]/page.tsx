@@ -15,6 +15,7 @@ import { useBackgroundSession } from '@/lib/session/BackgroundSessionContext'
 import VideoCall from '@/components/study-sessions/VideoCall'
 import SessionFlashcards from '@/components/session/SessionFlashcards'
 import SessionNotes from '@/components/session/SessionNotes'
+import SessionWhiteboard from '@/components/session/SessionWhiteboard'
 
 interface Participant {
   id: string
@@ -95,7 +96,7 @@ export default function SessionRoomPage() {
     return null
   })
   const [loadingSession, setLoadingSession] = useState(!session) // Only show loading if no cached data
-  const [activeTab, setActiveTab] = useState<'chat' | 'goals' | 'participants' | 'timer' | 'flashcards' | 'notes'>('timer')
+  const [activeTab, setActiveTab] = useState<'chat' | 'goals' | 'participants' | 'timer' | 'flashcards' | 'notes' | 'whiteboard'>('timer')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
@@ -443,6 +444,16 @@ export default function SessionRoomPage() {
                   >
                     📝 Notes
                   </button>
+                  <button
+                    onClick={() => setActiveTab('whiteboard')}
+                    className={`px-6 py-4 text-sm font-medium ${
+                      activeTab === 'whiteboard'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    🎨 Whiteboard
+                  </button>
                 </nav>
 
                 {/* Tab Content */}
@@ -510,6 +521,10 @@ export default function SessionRoomPage() {
 
                   {activeTab === 'notes' && (
                     <SessionNotes sessionId={sessionId} />
+                  )}
+
+                  {activeTab === 'whiteboard' && (
+                    <SessionWhiteboard sessionId={sessionId} />
                   )}
                 </div>
               </div>
