@@ -12,11 +12,63 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode via system preference */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+/* Dark mode via manual toggle (class-based) */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* Ensure dark mode colors are applied to all elements */
+.dark .bg-white {
+  background-color: #1a1a1a !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #262626 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #2a2a2a !important;
+}
+
+.dark .text-gray-900 {
+  color: #ffffff !important;
+}
+
+.dark .text-gray-800 {
+  color: #f0f0f0 !important;
+}
+
+.dark .text-gray-700 {
+  color: #e0e0e0 !important;
+}
+
+.dark .text-gray-600 {
+  color: #c0c0c0 !important;
+}
+
+.dark .text-gray-500 {
+  color: #a0a0a0 !important;
+}
+
+.dark .border-gray-300 {
+  border-color: #404040 !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #333333 !important;
+}
+
+.dark .border-gray-100 {
+  border-color: #2a2a2a !important;
 }
 
 body {

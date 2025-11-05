@@ -1,6 +1,6 @@
 // API Route: Delete User Account (Permanent)
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -40,12 +40,15 @@ export async function POST(request: NextRequest) {
         where: { id: user.id },
       })
 
-      // Delete user from Supabase Auth
-      const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(user.id)
-      
+      // Delete user from Supabase Auth using admin client with service role
+      const adminClient = createAdminClient()
+      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id)
+
       if (deleteAuthError) {
         console.error('[Delete Account] Error deleting from Supabase Auth:', deleteAuthError)
-        // Continue anyway - Prisma deletion is more important
+        // Log error but continue - Prisma deletion is more important
+      } else {
+        console.log(`[Delete Account] Successfully deleted user from Supabase Auth: ${user.id}`)
       }
 
       // Sign out the user
@@ -59,10 +62,11 @@ export async function POST(request: NextRequest) {
       })
     } catch (deleteError) {
       console.error('[Delete Account] Error during deletion:', deleteError)
-      
+
       // If user doesn't exist in Prisma, try to delete from Supabase Auth only
-      const { error: authOnlyDeleteError } = await supabase.auth.admin.deleteUser(user.id)
-      
+      const adminClient = createAdminClient()
+      const { error: authOnlyDeleteError } = await adminClient.auth.admin.deleteUser(user.id)
+
       if (authOnlyDeleteError) {
         throw new Error('Failed to delete account from both systems')
       }
