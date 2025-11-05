@@ -101,7 +101,21 @@ export function useVideoCall({
       try {
         // Subscribe to the remote user
         await agoraClient.subscribe(user, mediaType)
-        console.log('Subscribed to', user.uid, mediaType)
+        console.log('✅ Subscribed to', user.uid, mediaType)
+
+        // IMPORTANT: Play audio track immediately after subscription
+        if (mediaType === 'audio' && user.audioTrack) {
+          try {
+            user.audioTrack.play()
+            console.log('🔊 Playing audio track for user:', user.uid)
+
+            // Set volume to 100 to ensure it's audible
+            user.audioTrack.setVolume(100)
+            console.log('🔊 Audio volume set to 100 for user:', user.uid)
+          } catch (audioError) {
+            console.error('❌ Error playing audio track:', audioError)
+          }
+        }
 
         // Detect if this is a screen share BEFORE updating state
         let isScreenShare = false
@@ -328,6 +342,15 @@ export function useVideoCall({
         hasAudio: !!tracks.audioTrack
       })
 
+      // Ensure local audio track is enabled and unmuted
+      if (tracks.audioTrack) {
+        await tracks.audioTrack.setEnabled(true)
+        tracks.audioTrack.setVolume(100)
+        console.log('🔊 Local audio track enabled and volume set to 100')
+      } else {
+        console.warn('⚠️ No local audio track was created!')
+      }
+
       localTracksRef.current = {
         videoTrack: tracks.videoTrack || null,
         audioTrack: tracks.audioTrack || null,
@@ -337,15 +360,24 @@ export function useVideoCall({
 
       // Publish local tracks
       const tracksToPublish = []
-      if (tracks.videoTrack) tracksToPublish.push(tracks.videoTrack)
-      if (tracks.audioTrack) tracksToPublish.push(tracks.audioTrack)
+      if (tracks.videoTrack) {
+        tracksToPublish.push(tracks.videoTrack)
+        console.log('📹 Adding video track to publish')
+      }
+      if (tracks.audioTrack) {
+        tracksToPublish.push(tracks.audioTrack)
+        console.log('🎤 Adding audio track to publish')
+      }
 
       if (tracksToPublish.length > 0) {
         console.log('📤 Publishing', tracksToPublish.length, 'local tracks...')
         await agoraClient.publish(tracksToPublish)
-        console.log('✅ Published local tracks successfully')
+        console.log('✅ Published local tracks successfully:', {
+          publishedVideo: !!tracks.videoTrack,
+          publishedAudio: !!tracks.audioTrack
+        })
       } else {
-        console.warn('⚠️ No tracks to publish')
+        console.warn('⚠️ No tracks to publish!')
       }
 
       setIsConnected(true)

@@ -378,10 +378,10 @@ export default function SessionRoomPage() {
             <div className="col-span-2">
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 {/* Tabs */}
-                <nav className="flex border-b border-gray-200">
+                <nav className="flex overflow-x-auto border-b border-gray-200">
                   <button
                     onClick={() => setActiveTab('timer')}
-                    className={`px-6 py-4 text-sm font-medium ${
+                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'timer'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
@@ -391,7 +391,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('chat')}
-                    className={`px-6 py-4 text-sm font-medium relative ${
+                    className={`px-6 py-4 text-sm font-medium relative whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'chat'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
@@ -406,7 +406,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('goals')}
-                    className={`px-6 py-4 text-sm font-medium ${
+                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'goals'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
@@ -416,7 +416,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('participants')}
-                    className={`px-6 py-4 text-sm font-medium ${
+                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'participants'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
@@ -426,7 +426,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('flashcards')}
-                    className={`px-6 py-4 text-sm font-medium ${
+                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'flashcards'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
@@ -436,7 +436,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('notes')}
-                    className={`px-6 py-4 text-sm font-medium ${
+                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'notes'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
@@ -446,7 +446,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('whiteboard')}
-                    className={`px-6 py-4 text-sm font-medium ${
+                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'whiteboard'
                         ? 'text-blue-600 border-b-2 border-blue-600'
                         : 'text-gray-600 hover:text-gray-900'
