@@ -91,6 +91,7 @@ model User {
   postReposts           PostRepost[]
   blockedUsers          BlockedUser[]        @relation("UserBlocks")
   blockedByUsers        BlockedUser[]        @relation("BlockedByUser")
+  sessionFlashcards     SessionFlashcard[]
 
   @@index([email])
   @@index([googleId])
@@ -484,6 +485,9 @@ model StudySession {
   goals        SessionGoal[]
   messages     SessionMessage[]
   timer        SessionTimer?
+  whiteboard   SessionWhiteboard?
+  notes        SessionNote[]
+  flashcards   SessionFlashcard[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -987,3 +991,254 @@ model BlockedUser {
   @@index([userId])
   @@index([blockedUserId])
 }
+
+// ==========================================
+// STUDY SESSION COLLABORATION FEATURES
+// ==========================================
+
+// Whiteboard - Real-time collaborative drawing
+model SessionWhiteboard {
+  id        String       @id @default(uuid())
+  sessionId String       @unique
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  title       String @default("Untitled Whiteboard")
+  description String?
+
+  // Storage references (Supabase Storage)
+  snapshotUrl  String? // URL to latest full whiteboard snapshot
+  thumbnailUrl String? // Small preview thumbnail
+
+  // Real-time sync metadata
+  lastSyncedAt  DateTime @default(now())
+  lastEditedBy  String? // User ID who last edited
+  version       Int      @default(1)
+
+  // Relations
+  versions SessionWhiteboardVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([lastSyncedAt])
+}
+
+// Whiteboard version history
+model SessionWhiteboardVersion {
+  id           String            @id @default(uuid())
+  whiteboardId String
+  whiteboard   SessionWhiteboard @relation(fields: [whiteboardId], references: [id], onDelete: Cascade)
+
+  version     Int    // Version number (incremental)
+  snapshotUrl String // Supabase Storage URL for this version
+  createdBy   String // User ID who created this version
+
+  createdAt DateTime @default(now())
+
+  @@index([whiteboardId])
+  @@index([whiteboardId, version])
+  @@index([createdAt])
+}
+
+// Shared Notes - Real-time collaborative note-taking
+model SessionNote {
+  id        String       @id @default(uuid())
+  sessionId String       @unique
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  title String @default("Untitled Note")
+
+  // Content (stored in DB if < 64KB, otherwise in Storage)
+  content    String? @db.Text // Null if stored in Storage
+  contentUrl String? // Supabase Storage URL for large content
+
+  // Real-time sync
+  lastEditedBy String? // User ID
+  lastEditedAt DateTime @default(now())
+
+  // Versioning
+  version Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([lastEditedAt])
+}
+
+// Flashcards - Per-user study cards with spaced repetition
+model SessionFlashcard {
+  id        String       @id @default(uuid())
+  sessionId String
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId String // Per-user flashcards (not shared)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Card content
+  front String @db.Text
+  back  String @db.Text
+
+  // Study tracking
+  difficulty     Int       @default(0) // 0=easy, 1=medium, 2=hard
+  lastReviewed   DateTime?
+  reviewCount    Int       @default(0)
+  correctCount   Int       @default(0)
+  incorrectCount Int       @default(0)
+
+  // Spaced repetition (SM-2 algorithm)
+  nextReviewDate DateTime? // When this card should be reviewed next
+  intervalDays   Int       @default(1) // Current interval in days
+  easeFactor     Float     @default(2.5) // SM-2 ease factor (2.5 is default)
+  repetitions    Int       @default(0) // Number of successful reviews in a row
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, userId, id])
+  @@index([sessionId, userId])
+  @@index([userId, nextReviewDate]) // For querying due cards
+  @@index([createdAt])
+}
+
+// ==========================================
+// RLS POLICIES (SQL to be run after migration)
+// ==========================================
+//
+// -- Enable RLS on all collaboration tables
+// ALTER TABLE "SessionWhiteboard" ENABLE ROW LEVEL SECURITY;
+// ALTER TABLE "SessionWhiteboardVersion" ENABLE ROW LEVEL SECURITY;
+// ALTER TABLE "SessionNote" ENABLE ROW LEVEL SECURITY;
+// ALTER TABLE "SessionFlashcard" ENABLE ROW LEVEL SECURITY;
+//
+// -- SessionWhiteboard RLS: Users can only access whiteboards for sessions they're participants in
+// CREATE POLICY "Users can view whiteboards for their sessions"
+//   ON "SessionWhiteboard" FOR SELECT
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "SessionParticipant"
+//       WHERE "SessionParticipant"."sessionId" = "SessionWhiteboard"."sessionId"
+//       AND "SessionParticipant"."userId" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Users can update whiteboards for their sessions"
+//   ON "SessionWhiteboard" FOR UPDATE
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "SessionParticipant"
+//       WHERE "SessionParticipant"."sessionId" = "SessionWhiteboard"."sessionId"
+//       AND "SessionParticipant"."userId" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Session hosts can insert whiteboards"
+//   ON "SessionWhiteboard" FOR INSERT
+//   WITH CHECK (
+//     EXISTS (
+//       SELECT 1 FROM "StudySession"
+//       WHERE "StudySession"."id" = "SessionWhiteboard"."sessionId"
+//       AND "StudySession"."createdBy" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Session hosts can delete whiteboards"
+//   ON "SessionWhiteboard" FOR DELETE
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "StudySession"
+//       WHERE "StudySession"."id" = "SessionWhiteboard"."sessionId"
+//       AND "StudySession"."createdBy" = auth.uid()::text
+//     )
+//   );
+//
+// -- SessionWhiteboardVersion RLS
+// CREATE POLICY "Users can view whiteboard versions for their sessions"
+//   ON "SessionWhiteboardVersion" FOR SELECT
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "SessionWhiteboard" wb
+//       INNER JOIN "SessionParticipant" sp ON wb."sessionId" = sp."sessionId"
+//       WHERE wb."id" = "SessionWhiteboardVersion"."whiteboardId"
+//       AND sp."userId" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Users can create whiteboard versions for their sessions"
+//   ON "SessionWhiteboardVersion" FOR INSERT
+//   WITH CHECK (
+//     EXISTS (
+//       SELECT 1 FROM "SessionWhiteboard" wb
+//       INNER JOIN "SessionParticipant" sp ON wb."sessionId" = sp."sessionId"
+//       WHERE wb."id" = "SessionWhiteboardVersion"."whiteboardId"
+//       AND sp."userId" = auth.uid()::text
+//     )
+//   );
+//
+// -- SessionNote RLS: Similar to whiteboard
+// CREATE POLICY "Users can view notes for their sessions"
+//   ON "SessionNote" FOR SELECT
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "SessionParticipant"
+//       WHERE "SessionParticipant"."sessionId" = "SessionNote"."sessionId"
+//       AND "SessionParticipant"."userId" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Users can update notes for their sessions"
+//   ON "SessionNote" FOR UPDATE
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "SessionParticipant"
+//       WHERE "SessionParticipant"."sessionId" = "SessionNote"."sessionId"
+//       AND "SessionParticipant"."userId" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Session hosts can insert notes"
+//   ON "SessionNote" FOR INSERT
+//   WITH CHECK (
+//     EXISTS (
+//       SELECT 1 FROM "StudySession"
+//       WHERE "StudySession"."id" = "SessionNote"."sessionId"
+//       AND "StudySession"."createdBy" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Session hosts can delete notes"
+//   ON "SessionNote" FOR DELETE
+//   USING (
+//     EXISTS (
+//       SELECT 1 FROM "StudySession"
+//       WHERE "StudySession"."id" = "SessionNote"."sessionId"
+//       AND "StudySession"."createdBy" = auth.uid()::text
+//     )
+//   );
+//
+// -- SessionFlashcard RLS: Users can only access their own flashcards
+// CREATE POLICY "Users can view their own flashcards"
+//   ON "SessionFlashcard" FOR SELECT
+//   USING ("userId" = auth.uid()::text);
+//
+// CREATE POLICY "Users can insert their own flashcards"
+//   ON "SessionFlashcard" FOR INSERT
+//   WITH CHECK (
+//     "userId" = auth.uid()::text
+//     AND EXISTS (
+//       SELECT 1 FROM "SessionParticipant"
+//       WHERE "SessionParticipant"."sessionId" = "SessionFlashcard"."sessionId"
+//       AND "SessionParticipant"."userId" = auth.uid()::text
+//     )
+//   );
+//
+// CREATE POLICY "Users can update their own flashcards"
+//   ON "SessionFlashcard" FOR UPDATE
+//   USING ("userId" = auth.uid()::text);
+//
+// CREATE POLICY "Users can delete their own flashcards"
+//   ON "SessionFlashcard" FOR DELETE
+//   USING ("userId" = auth.uid()::text);
