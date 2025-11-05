@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useBackgroundSession } from '@/lib/session/BackgroundSessionContext'
 import VideoCall from '@/components/study-sessions/VideoCall'
+import SessionFlashcards from '@/components/session/SessionFlashcards'
 
 interface Participant {
   id: string
@@ -93,7 +94,7 @@ export default function SessionRoomPage() {
     return null
   })
   const [loadingSession, setLoadingSession] = useState(!session) // Only show loading if no cached data
-  const [activeTab, setActiveTab] = useState<'chat' | 'goals' | 'participants' | 'timer'>('timer')
+  const [activeTab, setActiveTab] = useState<'chat' | 'goals' | 'participants' | 'timer' | 'flashcards'>('timer')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
@@ -421,6 +422,16 @@ export default function SessionRoomPage() {
                   >
                     {t('participants')} ({session.participants.length})
                   </button>
+                  <button
+                    onClick={() => setActiveTab('flashcards')}
+                    className={`px-6 py-4 text-sm font-medium ${
+                      activeTab === 'flashcards'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    📚 Flashcards
+                  </button>
                 </nav>
 
                 {/* Tab Content */}
@@ -480,6 +491,10 @@ export default function SessionRoomPage() {
                         ))}
                       </div>
                     </div>
+                  )}
+
+                  {activeTab === 'flashcards' && (
+                    <SessionFlashcards sessionId={sessionId} />
                   )}
                 </div>
               </div>
