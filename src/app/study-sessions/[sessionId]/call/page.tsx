@@ -10,6 +10,9 @@ import SessionChat from '@/components/SessionChat'
 import SessionGoals from '@/components/SessionGoals'
 import SessionTimer from '@/components/study-sessions/SessionTimer'
 import InviteModal from '@/components/study-sessions/InviteModal'
+import SessionFlashcards from '@/components/session/SessionFlashcards'
+import SessionNotes from '@/components/session/SessionNotes'
+import SessionWhiteboard from '@/components/session/SessionWhiteboard'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
 
@@ -54,7 +57,7 @@ export default function StudyCallPage() {
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
-  const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | null>('timer')
+  const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | 'flashcards' | 'notes' | 'whiteboard' | null>('timer')
   const [showInviteModal, setShowInviteModal] = useState(false)
 
   const fetchSession = useCallback(async () => {
@@ -319,15 +322,24 @@ export default function StudyCallPage() {
         {activeFeature && (
           <div className="flex-1 bg-white flex flex-col overflow-hidden">
             {/* Feature Tabs */}
-            <div className="bg-gray-50 border-b flex">
-              <button onClick={() => setActiveFeature('timer')} className={`flex-1 px-4 py-3 text-sm font-medium ${activeFeature === 'timer' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+            <div className="bg-gray-50 border-b flex overflow-x-auto">
+              <button onClick={() => setActiveFeature('timer')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${activeFeature === 'timer' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
                 ⏱️ {t('timer')}
               </button>
-              <button onClick={() => setActiveFeature('goals')} className={`flex-1 px-4 py-3 text-sm font-medium ${activeFeature === 'goals' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('goals')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${activeFeature === 'goals' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
                 ✅ {t('goals')} ({session.goals.filter((g) => g.isCompleted).length}/{session.goals.length})
               </button>
-              <button onClick={() => setActiveFeature('chat')} className={`flex-1 px-4 py-3 text-sm font-medium ${activeFeature === 'chat' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('chat')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${activeFeature === 'chat' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
                 💬 {t('chat')}
+              </button>
+              <button onClick={() => setActiveFeature('flashcards')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${activeFeature === 'flashcards' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+                📚 Flashcards
+              </button>
+              <button onClick={() => setActiveFeature('notes')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${activeFeature === 'notes' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+                📝 Notes
+              </button>
+              <button onClick={() => setActiveFeature('whiteboard')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${activeFeature === 'whiteboard' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+                🎨 Whiteboard
               </button>
               <button onClick={() => setActiveFeature(null)} className="px-4 py-3 text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,6 +357,21 @@ export default function StudyCallPage() {
               )}
               {activeFeature === 'goals' && <SessionGoals sessionId={sessionId} goals={session.goals} onGoalsUpdate={fetchSession} />}
               {activeFeature === 'chat' && <SessionChat sessionId={sessionId} isHost={isHost} onUnreadCountChange={() => {}} isVisible={true} />}
+              {activeFeature === 'flashcards' && (
+                <div className="p-6">
+                  <SessionFlashcards sessionId={sessionId} />
+                </div>
+              )}
+              {activeFeature === 'notes' && (
+                <div className="p-6">
+                  <SessionNotes sessionId={sessionId} />
+                </div>
+              )}
+              {activeFeature === 'whiteboard' && (
+                <div className="p-6">
+                  <SessionWhiteboard sessionId={sessionId} />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -361,6 +388,15 @@ export default function StudyCallPage() {
               </button>
               <button onClick={() => setActiveFeature('chat')} className="w-12 h-12 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center" title={t('chat')}>
                 <span className="text-xl">💬</span>
+              </button>
+              <button onClick={() => setActiveFeature('flashcards')} className="w-12 h-12 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition flex items-center justify-center" title="Flashcards">
+                <span className="text-xl">📚</span>
+              </button>
+              <button onClick={() => setActiveFeature('notes')} className="w-12 h-12 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition flex items-center justify-center" title="Notes">
+                <span className="text-xl">📝</span>
+              </button>
+              <button onClick={() => setActiveFeature('whiteboard')} className="w-12 h-12 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition flex items-center justify-center" title="Whiteboard">
+                <span className="text-xl">🎨</span>
               </button>
             </div>
           </div>
