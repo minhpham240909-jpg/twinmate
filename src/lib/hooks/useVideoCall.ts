@@ -106,14 +106,25 @@ export function useVideoCall({
         // IMPORTANT: Play audio track immediately after subscription
         if (mediaType === 'audio' && user.audioTrack) {
           try {
+            // Play the audio track (this routes it to speakers)
             user.audioTrack.play()
             console.log('🔊 Playing audio track for user:', user.uid)
 
-            // Set volume to 100 to ensure it's audible
+            // Set volume to maximum to ensure it's audible
             user.audioTrack.setVolume(100)
             console.log('🔊 Audio volume set to 100 for user:', user.uid)
+
+            // Verify audio is actually playing
+            setTimeout(() => {
+              const volume = user.audioTrack?.getVolumeLevel()
+              console.log('🔊 Current audio level for user', user.uid, ':', volume)
+              if (volume === 0) {
+                console.warn('⚠️ Audio track has 0 volume - user might be muted or not speaking')
+              }
+            }, 1000)
           } catch (audioError) {
             console.error('❌ Error playing audio track:', audioError)
+            toast.error(`Failed to play audio from user ${user.uid}`)
           }
         }
 
@@ -330,6 +341,21 @@ export function useVideoCall({
 
       console.log('✅ Successfully joined Agora channel')
 
+      // IMPORTANT: Resume audio context for browsers that pause it by default
+      // This ensures audio can be played without user interaction issues
+      try {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+        if (AudioContext) {
+          const audioContext = new AudioContext()
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume()
+            console.log('✅ Audio context resumed')
+          }
+        }
+      } catch (audioCtxError) {
+        console.warn('Could not resume audio context:', audioCtxError)
+      }
+
       // Create local tracks
       console.log('🎥 Creating local media tracks (video:', localVideoEnabled, ', audio:', localAudioEnabled, ')...')
       const tracks = await createLocalTracks({
@@ -347,8 +373,29 @@ export function useVideoCall({
         await tracks.audioTrack.setEnabled(true)
         tracks.audioTrack.setVolume(100)
         console.log('🔊 Local audio track enabled and volume set to 100')
+
+        // Test microphone is actually capturing audio
+        console.log('🎤 Testing microphone capture...')
+        setTimeout(() => {
+          if (tracks.audioTrack) {
+            const audioLevel = tracks.audioTrack.getVolumeLevel()
+            console.log('🎤 Microphone audio level:', audioLevel)
+            if (audioLevel === 0) {
+              console.warn('⚠️ MICROPHONE NOT CAPTURING AUDIO! Possible issues:')
+              console.warn('   1. Microphone permission denied')
+              console.warn('   2. Wrong microphone selected')
+              console.warn('   3. Microphone hardware issue')
+              console.warn('   4. Another app is using the microphone')
+              toast.error('⚠️ Microphone not detecting audio. Check your microphone settings!')
+            } else {
+              console.log('✅ Microphone is working! Audio level:', audioLevel)
+              toast.success('✅ Microphone is working!')
+            }
+          }
+        }, 2000) // Wait 2 seconds to let user make some noise
       } else {
-        console.warn('⚠️ No local audio track was created!')
+        console.error('⚠️ No local audio track was created!')
+        toast.error('Failed to access microphone. Please check permissions.')
       }
 
       localTracksRef.current = {
@@ -376,8 +423,27 @@ export function useVideoCall({
           publishedVideo: !!tracks.videoTrack,
           publishedAudio: !!tracks.audioTrack
         })
+
+        // Verify tracks are actually published
+        setTimeout(() => {
+          const publishedTracks = agoraClient.localTracks
+          console.log('📤 Verification - Currently published tracks:', publishedTracks.length)
+          publishedTracks.forEach(track => {
+            console.log(`   - ${track.trackMediaType} track:`, track.isPlaying ? 'PLAYING' : 'NOT PLAYING')
+          })
+
+          if (tracks.audioTrack && !publishedTracks.includes(tracks.audioTrack as any)) {
+            console.error('❌ AUDIO TRACK NOT IN PUBLISHED TRACKS!')
+            toast.error('Audio failed to publish. Trying again...')
+            // Try to republish audio
+            agoraClient.publish([tracks.audioTrack as any]).catch(e => {
+              console.error('Failed to republish audio:', e)
+            })
+          }
+        }, 1000)
       } else {
-        console.warn('⚠️ No tracks to publish!')
+        console.error('⚠️ No tracks to publish!')
+        toast.error('No audio/video tracks created. Check permissions.')
       }
 
       setIsConnected(true)
