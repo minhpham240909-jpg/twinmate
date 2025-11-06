@@ -12,6 +12,7 @@ import { AIAgentWrapper } from "@/components/providers/AIAgentWrapper";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { IntlProvider } from "@/contexts/IntlContext";
+import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
+        <GlobalErrorHandler />
         <ErrorBoundary>
           <SessionSyncWrapper />
           <ThemeProvider>

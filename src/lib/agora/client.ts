@@ -54,6 +54,26 @@ export function createAgoraClient(): IAgoraRTCClient {
     codec: 'vp8', // VP8 codec for better browser compatibility
   })
 
+  // Add global error handler for connection state changes
+  let lastExceptionTime = 0
+  const EXCEPTION_THROTTLE_MS = 1000 // Throttle exceptions to prevent spam
+  
+  client.on('exception', (event: any) => {
+    const now = Date.now()
+    
+    // Throttle exception logging to prevent infinite loops
+    if (now - lastExceptionTime < EXCEPTION_THROTTLE_MS) {
+      return // Skip this exception to prevent spam
+    }
+    lastExceptionTime = now
+    
+    console.error('Agora SDK exception:', event)
+    // Log CSP violations if detected
+    if (event.msg && typeof event.msg === 'string' && event.msg.includes('CSP')) {
+      console.error('CSP violation detected in Agora SDK:', event)
+    }
+  })
+
   return client
 }
 

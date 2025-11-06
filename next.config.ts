@@ -58,13 +58,20 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://*.agora.io https://cdn.tldraw.com",
+              // Allow scripts from self, unsafe-inline for third-party libraries, unsafe-eval for Agora SDK
+              // Include agora.io domains for script loading
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://*.agora.io wss://*.agora.io https://cdn.tldraw.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tldraw.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://*.agora.io wss://*.agora.io wss://*.edge.agora.io https://*.edge.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://cdn.tldraw.com https://api.openai.com https://*.sentry.io",
-              "media-src 'self' data: blob:",
-              "worker-src 'self' blob:",
+              // Allow WebSocket connections to all Agora edge servers including IP-based subdomains
+              // Note: CSP wildcards match single labels, so we need broader patterns
+              // For IP-based subdomains (e.g., 38-93-228-96.edge.agora.io), we allow all edge subdomains
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://*.agora.io wss://*.agora.io wss://*.edge.agora.io https://*.edge.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com wss://*.edge.sd-rtn.com https://*.edge.sd-rtn.com https://cdn.tldraw.com https://api.openai.com https://*.sentry.io",
+              // Allow media sources (camera, microphone) from blob and data URIs
+              "media-src 'self' data: blob: https://*.agora.io",
+              // Allow workers for Agora SDK and other features
+              "worker-src 'self' blob: https://*.agora.io",
               "frame-src 'self' https://accounts.google.com",
               "base-uri 'self'",
               "form-action 'self'",

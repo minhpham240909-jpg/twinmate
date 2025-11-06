@@ -85,6 +85,10 @@ export function useVideoCall({
 
   // Join attempt tracker to prevent duplicate joins
   const isJoiningRef = useRef(false)
+  
+  // Error handling throttling to prevent infinite loops
+  const lastErrorRef = useRef<string | null>(null)
+  const errorThrottleRef = useRef(0)
 
   /**
    * Initialize Agora client and set up event listeners
@@ -258,9 +262,20 @@ export function useVideoCall({
 
       if (curState === 'DISCONNECTED') {
         setIsConnected(false)
-        toast.error('Disconnected from call')
+        // Only show error toast if we were previously connected (not initial connection)
+        if (prevState === 'CONNECTED') {
+          toast.error('Disconnected from call')
+          setConnectionError('Connection lost. Please retry.')
+        }
       } else if (curState === 'CONNECTED') {
         setIsConnected(true)
+        setConnectionError(null) // Clear any previous errors
+      } else if (curState === 'FAILED' || curState === 'DISCONNECTING') {
+        // Handle connection failures
+        if (curState === 'FAILED') {
+          setConnectionError('Connection failed. Please check your network and try again.')
+          toast.error('Connection failed')
+        }
       }
     })
 
@@ -455,26 +470,78 @@ export function useVideoCall({
       console.error('❌ Error joining call:', error)
 
       let errorMessage = 'Failed to join call'
+      let isPermissionError = false
+      let isCSPError = false
 
-      if (error && typeof error === 'object' && 'code' in error) {
-        console.error('Error code:', error.code)
-        if (error.code === 'PERMISSION_DENIED') {
-          errorMessage = 'Camera or microphone permission denied. Please enable them in your browser settings.'
-        } else if (error.code === 'NETWORK_ERROR') {
-          errorMessage = 'Network connection failed. Please check your internet connection.'
+      if (error && typeof error === 'object') {
+        // Check for permission denied errors
+        if ('code' in error && error.code === 'PERMISSION_DENIED') {
+          isPermissionError = true
+          errorMessage = 'Camera or microphone permission denied. Please click "Allow" when your browser asks for permission, or enable them in your browser settings.'
+        } else if ('name' in error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+          isPermissionError = true
+          errorMessage = 'Camera or microphone permission denied. Please enable them in your browser settings and refresh the page.'
         }
-      }
+        
+        // Check for CSP (Content Security Policy) violations
+        if ('message' in error && typeof error.message === 'string') {
+          const msg = error.message.toLowerCase()
+          if (msg.includes('content security policy') || msg.includes('csp') || msg.includes('violates the following content security policy')) {
+            isCSPError = true
+            errorMessage = 'Connection blocked by security policy. Please contact support if this persists.'
+          } else if (msg.includes('websocket') && msg.includes('refused')) {
+            isCSPError = true
+            errorMessage = 'WebSocket connection blocked. This may be due to browser security settings. Please try refreshing the page.'
+          }
+        }
 
-      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-        console.error('Error message:', error.message)
-        errorMessage = error.message
+        // Check for network errors
+        if ('code' in error && error.code === 'NETWORK_ERROR') {
+          errorMessage = 'Network connection failed. Please check your internet connection and try again.'
+        }
+
+        // If we haven't set a specific error message yet, use the original message
+        if (!isPermissionError && !isCSPError && 'message' in error && typeof error.message === 'string') {
+          console.error('Error message:', error.message)
+          errorMessage = error.message
+        }
       }
 
       console.error('Final error message:', errorMessage)
 
+      // Prevent infinite loops by throttling error handling
+      const now = Date.now()
+      const isDuplicateError = lastErrorRef.current === errorMessage && (now - errorThrottleRef.current) < 2000
+      
+      if (isDuplicateError) {
+        console.warn('⛔ Skipping duplicate error handling to prevent infinite loop:', errorMessage)
+        setIsConnecting(false)
+        isJoiningRef.current = false
+        return
+      }
+
+      // Update throttling refs
+      lastErrorRef.current = errorMessage
+      errorThrottleRef.current = now
+
       setConnectionError(errorMessage)
-      toast.error(errorMessage)
-      onError?.(error instanceof Error ? error : new Error(errorMessage))
+      
+      // Only show toast and call onError once per unique error
+      if (!isPermissionError && !isCSPError) {
+        toast.error(errorMessage)
+      } else if (isPermissionError) {
+        // For permission errors, show a more helpful message
+        toast.error(errorMessage, { duration: 6000 })
+      }
+      
+      // Call onError callback, but wrap it to prevent recursion
+      try {
+        onError?.(error instanceof Error ? error : new Error(errorMessage))
+      } catch (callbackError) {
+        console.error('Error in onError callback:', callbackError)
+        // Prevent callback errors from causing infinite loops
+      }
+      
       setIsConnecting(false)
       isJoiningRef.current = false
     }
