@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { corsHeaders, handleCorsPreFlight } from '@/lib/cors'
+
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreFlight(request)
+}
 
 // GET - Get timer state for a session
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const origin = request.headers.get('origin')
   try {
     const supabase = await createClient()
     const {
@@ -30,7 +37,7 @@ export async function GET(
     if (!participant) {
       return NextResponse.json(
         { error: 'Not a participant of this session' },
-        { status: 403 }
+        { status: 403, headers: corsHeaders(origin) }
       )
     }
 
@@ -56,15 +63,18 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      timer,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        timer,
+      },
+      { headers: corsHeaders(origin) }
+    )
   } catch (error) {
     console.error('Error fetching timer:', error)
     return NextResponse.json(
       { error: 'Failed to fetch timer' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(origin) }
     )
   }
 }
@@ -74,6 +84,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const origin = request.headers.get('origin')
   try {
     const supabase = await createClient()
     const {
@@ -81,7 +92,10 @@ export async function POST(
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders(origin) }
+      )
     }
 
     const { sessionId } = await params
@@ -93,13 +107,16 @@ export async function POST(
     })
 
     if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404, headers: corsHeaders(origin) }
+      )
     }
 
     if (session.createdBy !== user.id) {
       return NextResponse.json(
         { error: 'Only the host can set timer settings' },
-        { status: 403 }
+        { status: 403, headers: corsHeaders(origin) }
       )
     }
 
@@ -134,15 +151,18 @@ export async function POST(
       },
     })
 
-    return NextResponse.json({
-      success: true,
-      timer,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        timer,
+      },
+      { headers: corsHeaders(origin) }
+    )
   } catch (error) {
     console.error('Error creating/updating timer:', error)
     return NextResponse.json(
       { error: 'Failed to create/update timer' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(origin) }
     )
   }
 }
@@ -152,6 +172,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const origin = request.headers.get('origin')
   try {
     const supabase = await createClient()
     const {
@@ -159,7 +180,10 @@ export async function DELETE(
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders(origin) }
+      )
     }
 
     const { sessionId } = await params
@@ -170,13 +194,16 @@ export async function DELETE(
     })
 
     if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404, headers: corsHeaders(origin) }
+      )
     }
 
     if (session.createdBy !== user.id) {
       return NextResponse.json(
         { error: 'Only the host can delete the timer' },
-        { status: 403 }
+        { status: 403, headers: corsHeaders(origin) }
       )
     }
 
@@ -185,15 +212,18 @@ export async function DELETE(
       where: { sessionId },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Timer deleted successfully',
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Timer deleted successfully',
+      },
+      { headers: corsHeaders(origin) }
+    )
   } catch (error) {
     console.error('Error deleting timer:', error)
     return NextResponse.json(
       { error: 'Failed to delete timer' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(origin) }
     )
   }
 }

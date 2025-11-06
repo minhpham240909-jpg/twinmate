@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RtcTokenBuilder, RtcRole } from 'agora-token'
 import { createClient } from '@/lib/supabase/server'
+import { corsHeaders, handleCorsPreFlight } from '@/lib/cors'
+
+// Handle CORS preflight
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreFlight(req)
+}
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin')
   try {
     // Verify user is authenticated
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders(origin) }
+      )
     }
 
     const userId = user.id
@@ -19,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (!channelName) {
       return NextResponse.json(
         { error: 'Channel name is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(origin) }
       )
     }
 
@@ -32,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!appId || !appCertificate) {
       return NextResponse.json(
         { error: 'Agora credentials not configured. Please add NEXT_PUBLIC_AGORA_APP_ID and AGORA_APP_CERTIFICATE to your .env file' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders(origin) }
       )
     }
 
@@ -57,20 +67,23 @@ export async function POST(req: NextRequest) {
       privilegeExpiredTs
     )
 
-    return NextResponse.json({
-      token,
-      appId,
-      channelName,
-      uid: userUid,
-      expiresAt: privilegeExpiredTs,
-      success: true
-    })
+    return NextResponse.json(
+      {
+        token,
+        appId,
+        channelName,
+        uid: userUid,
+        expiresAt: privilegeExpiredTs,
+        success: true
+      },
+      { headers: corsHeaders(origin) }
+    )
 
   } catch (error) {
     console.error('Error generating Agora token:', error)
     return NextResponse.json(
       { error: 'Failed to generate Agora token' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(origin) }
     )
   }
 }
