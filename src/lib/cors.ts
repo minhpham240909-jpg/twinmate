@@ -4,10 +4,11 @@
 export function corsHeaders(origin?: string | null) {
   // In production, only allow requests from the app domain
   const allowedOrigins = [
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    process.env.NEXT_PUBLIC_SITE_URL,
     'https://clerva-app.vercel.app',
     'http://localhost:3000',
-  ]
+    'https://localhost:3000',
+  ].filter(Boolean) as string[]
 
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -16,11 +17,22 @@ export function corsHeaders(origin?: string | null) {
   }
 
   // Check if the origin is allowed
-  if (origin && allowedOrigins.includes(origin)) {
-    headers['Access-Control-Allow-Origin'] = origin
-    headers['Access-Control-Allow-Credentials'] = 'true'
-  } else if (!origin || origin === 'null') {
-    // Same-origin requests or file:// protocol
+  if (origin) {
+    // Allow Vercel preview deployments (*.vercel.app) and configured origins
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost')
+    ) {
+      headers['Access-Control-Allow-Origin'] = origin
+      headers['Access-Control-Allow-Credentials'] = 'true'
+      console.log('[CORS] Allowing origin:', origin)
+    } else {
+      console.warn('[CORS] Origin not allowed:', origin, 'Allowed:', allowedOrigins)
+      headers['Access-Control-Allow-Origin'] = '*'
+    }
+  } else {
+    // Same-origin requests or no origin header
     headers['Access-Control-Allow-Origin'] = '*'
   }
 

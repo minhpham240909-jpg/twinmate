@@ -10,26 +10,36 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
+
+  // Set CORS headers for all responses
+  const headers = corsHeaders(origin)
+
   try {
+    console.log('[Agora Token] Request received from origin:', origin)
+
     // Verify user is authenticated
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.error('[Agora Token] Auth error:', authError)
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401, headers: corsHeaders(origin) }
+        { error: 'Unauthorized', details: authError?.message },
+        { status: 401, headers }
       )
     }
 
-    const userId = user.id
+    console.log('[Agora Token] User authenticated:', user.id)
+
     const body = await req.json()
     const { channelName, uid, role = 'publisher' } = body
+
+    console.log('[Agora Token] Request params:', { channelName, uid, role })
 
     if (!channelName) {
       return NextResponse.json(
         { error: 'Channel name is required' },
-        { status: 400, headers: corsHeaders(origin) }
+        { status: 400, headers }
       )
     }
 
@@ -39,10 +49,21 @@ export async function POST(req: NextRequest) {
     const appId = sanitize(process.env.NEXT_PUBLIC_AGORA_APP_ID)
     const appCertificate = sanitize(process.env.AGORA_APP_CERTIFICATE)
 
+    console.log('[Agora Token] Credentials check:', {
+      appIdExists: !!appId,
+      appIdLength: appId?.length,
+      certExists: !!appCertificate,
+      certLength: appCertificate?.length
+    })
+
     if (!appId || !appCertificate) {
+      console.error('[Agora Token] Missing credentials!')
       return NextResponse.json(
-        { error: 'Agora credentials not configured. Please add NEXT_PUBLIC_AGORA_APP_ID and AGORA_APP_CERTIFICATE to your .env file' },
-        { status: 500, headers: corsHeaders(origin) }
+        {
+          error: 'Agora credentials not configured',
+          details: `AppID: ${appId ? 'exists' : 'missing'}, Certificate: ${appCertificate ? 'exists' : 'missing'}`
+        },
+        { status: 500, headers }
       )
     }
 
@@ -57,6 +78,8 @@ export async function POST(req: NextRequest) {
     // Build the token
     const agoraRole = role === 'audience' ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER
 
+    console.log('[Agora Token] Building token for:', { channelName, userUid, role: agoraRole })
+
     const token = RtcTokenBuilder.buildTokenWithUid(
       appId,
       appCertificate,
@@ -67,6 +90,8 @@ export async function POST(req: NextRequest) {
       privilegeExpiredTs
     )
 
+    console.log('[Agora Token] Token generated successfully')
+
     return NextResponse.json(
       {
         token,
@@ -76,14 +101,18 @@ export async function POST(req: NextRequest) {
         expiresAt: privilegeExpiredTs,
         success: true
       },
-      { headers: corsHeaders(origin) }
+      { headers }
     )
 
-  } catch (error) {
-    console.error('Error generating Agora token:', error)
+  } catch (error: any) {
+    console.error('[Agora Token] Fatal error:', error)
+    console.error('[Agora Token] Error stack:', error?.stack)
     return NextResponse.json(
-      { error: 'Failed to generate Agora token' },
-      { status: 500, headers: corsHeaders(origin) }
+      {
+        error: 'Failed to generate Agora token',
+        details: error?.message || String(error)
+      },
+      { status: 500, headers }
     )
   }
 }
