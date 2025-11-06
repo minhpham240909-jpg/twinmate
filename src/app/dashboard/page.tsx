@@ -215,9 +215,9 @@ export default function DashboardPage() {
         <div className="p-4 border-b border-gray-200">
           <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-3">
-              <AvatarDropdown 
-                avatarUrl={profile.avatarUrl} 
-                name={profile.name} 
+              <AvatarDropdown
+                avatarUrl={profile.avatarUrl ?? null}
+                name={profile.name}
                 onSignOut={signOut}
               />
               <div className="flex-1 min-w-0">
