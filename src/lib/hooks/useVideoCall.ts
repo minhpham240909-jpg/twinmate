@@ -389,25 +389,30 @@ export function useVideoCall({
         tracks.audioTrack.setVolume(100)
         console.log('🔊 Local audio track enabled and volume set to 100')
 
-        // Test microphone is actually capturing audio
-        console.log('🎤 Testing microphone capture...')
-        setTimeout(() => {
-          if (tracks.audioTrack) {
-            const audioLevel = tracks.audioTrack.getVolumeLevel()
-            console.log('🎤 Microphone audio level:', audioLevel)
-            if (audioLevel === 0) {
-              console.warn('⚠️ MICROPHONE NOT CAPTURING AUDIO! Possible issues:')
-              console.warn('   1. Microphone permission denied')
-              console.warn('   2. Wrong microphone selected')
-              console.warn('   3. Microphone hardware issue')
-              console.warn('   4. Another app is using the microphone')
-              toast.error('⚠️ Microphone not detecting audio. Check your microphone settings!')
-            } else {
-              console.log('✅ Microphone is working! Audio level:', audioLevel)
-              toast.success('✅ Microphone is working!')
+        // Test microphone is actually capturing audio (only if audio is enabled)
+        if (localAudioEnabled && tracks.audioTrack) {
+          console.log('🎤 Testing microphone capture...')
+          setTimeout(() => {
+            if (tracks.audioTrack) {
+              try {
+                const audioLevel = tracks.audioTrack.getVolumeLevel()
+                console.log('🎤 Microphone audio level:', audioLevel)
+                // Only warn if we're in a quiet environment (audioLevel could legitimately be 0)
+                // Don't show error toast automatically as this might be normal (user not speaking)
+                // Instead, log it for debugging
+                if (audioLevel === 0) {
+                  console.info('ℹ️ Microphone connected but no audio detected. This is normal if you\'re not speaking.')
+                  // Don't show error toast - this is often normal behavior
+                } else {
+                  console.log('✅ Microphone is working! Audio level:', audioLevel)
+                }
+              } catch (error) {
+                console.warn('Could not check microphone audio level:', error)
+                // Don't show error - microphone might still be working
+              }
             }
-          }
-        }, 2000) // Wait 2 seconds to let user make some noise
+          }, 2000) // Wait 2 seconds to let user make some noise
+        }
       } else {
         console.error('⚠️ No local audio track was created!')
         toast.error('Failed to access microphone. Please check permissions.')

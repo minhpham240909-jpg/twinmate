@@ -58,20 +58,20 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Allow scripts from self, unsafe-inline for third-party libraries, unsafe-eval for Agora SDK
-              // Include agora.io domains for script loading
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://*.agora.io wss://*.agora.io https://cdn.tldraw.com",
+              // DIRECTIVE 1: script-src - Allow scripts from Agora SDK and required sources
+              // Include wss:// for WebSocket scripts, unsafe-eval for Agora SDK dynamic code execution
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://*.agora.io wss://*.agora.io https://*.edge.agora.io wss://*.edge.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://*.edge.sd-rtn.com wss://*.edge.sd-rtn.com https://cdn.tldraw.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tldraw.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com",
-              // Allow WebSocket connections to all Agora edge servers including IP-based subdomains
-              // Note: CSP wildcards match single labels, so we need broader patterns
-              // For IP-based subdomains (e.g., 38-93-228-96.edge.agora.io), we allow all edge subdomains
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://*.agora.io wss://*.agora.io wss://*.edge.agora.io https://*.edge.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com wss://*.edge.sd-rtn.com https://*.edge.sd-rtn.com https://cdn.tldraw.com https://api.openai.com https://*.sentry.io",
-              // Allow media sources (camera, microphone) from blob and data URIs
-              "media-src 'self' data: blob: https://*.agora.io",
-              // Allow workers for Agora SDK and other features
-              "worker-src 'self' blob: https://*.agora.io",
+              // DIRECTIVE 2: connect-src - Allow WebSocket and HTTP connections to all Agora edge servers
+              // Support IP-based subdomains (e.g., 38-93-228-76.edge.sd-rtn.com) by allowing all edge subdomains
+              // CSP wildcards match single labels, so *.edge.sd-rtn.com should match IP-based subdomains
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://*.agora.io wss://*.agora.io https://*.edge.agora.io wss://*.edge.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://*.edge.sd-rtn.com wss://*.edge.sd-rtn.com https://cdn.tldraw.com https://api.openai.com https://*.sentry.io",
+              // DIRECTIVE 3: media-src - Allow media streams (camera, microphone) from Agora and blob/data URIs
+              "media-src 'self' data: blob: https://*.agora.io https://*.edge.agora.io https://*.sd-rtn.com https://*.edge.sd-rtn.com",
+              // DIRECTIVE 4: worker-src - Allow web workers from Agora SDK and blob URIs
+              "worker-src 'self' blob: https://*.agora.io https://*.edge.agora.io https://*.sd-rtn.com https://*.edge.sd-rtn.com",
               "frame-src 'self' https://accounts.google.com",
               "base-uri 'self'",
               "form-action 'self'",
