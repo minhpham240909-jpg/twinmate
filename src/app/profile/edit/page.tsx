@@ -57,11 +57,11 @@ export default function ProfilePage() {
       router.push('/auth/signin')
     }
     if (profile) {
-      setFormData({
+      const initialFormData = {
         name: profile.name || '',
         bio: profile.bio || '',
-        age: (profile as { age?: number }).age || undefined, // NEW: Load age
-        role: (profile as { role?: string }).role || '', // NEW: Load role
+        age: (profile as { age?: number }).age || undefined,
+        role: (profile as { role?: string }).role || '',
         avatarUrl: profile.avatarUrl || '',
         subjects: profile.subjects || [],
         interests: profile.interests || [],
@@ -73,15 +73,37 @@ export default function ProfilePage() {
         availableDays: profile.availableDays || [],
         availableHours: (Array.isArray(profile.availableHours) && profile.availableHours.length > 0) ? profile.availableHours[0] : '',
         availabilityDescription: profile.availabilityCustomDescription || '',
-        // NEW: Load aboutYourself fields
         aboutYourselfItems: (profile as { aboutYourselfItems?: string[] }).aboutYourselfItems || [],
         aboutYourself: (profile as { aboutYourself?: string }).aboutYourself || '',
-        // NEW: Load school and languages
         school: (profile as { school?: string }).school || '',
         languages: (profile as { languages?: string }).languages || '',
-        // NEW: Load post privacy
         postPrivacy: (profile as { postPrivacy?: 'PUBLIC' | 'PARTNERS_ONLY' }).postPrivacy || 'PUBLIC',
-      })
+      }
+      
+      setFormData(initialFormData)
+      
+      // Store profile snapshot if banner was clicked (for change detection)
+      if (typeof window !== 'undefined') {
+        const bannerClicked = localStorage.getItem('profileCompletionBannerClicked') === 'true'
+        if (bannerClicked) {
+          const snapshot = JSON.stringify({
+            bio: initialFormData.bio,
+            age: initialFormData.age,
+            role: initialFormData.role,
+            subjects: initialFormData.subjects,
+            interests: initialFormData.interests,
+            goals: initialFormData.goals,
+            skillLevel: initialFormData.skillLevel,
+            studyStyle: initialFormData.studyStyle,
+            school: initialFormData.school,
+            languages: initialFormData.languages,
+            availableDays: initialFormData.availableDays,
+            availableHours: initialFormData.availableHours,
+          })
+          localStorage.setItem('profileSnapshot', snapshot)
+        }
+      }
+      
       // Show "Add more about yourself" if it has content
       const profileWithAbout = profile as { aboutYourself?: string; aboutYourselfItems?: string[] }
       if (profileWithAbout.aboutYourself || (profileWithAbout.aboutYourselfItems && profileWithAbout.aboutYourselfItems.length > 0)) {
@@ -234,8 +256,78 @@ export default function ProfilePage() {
         throw new Error(errorData.error || 'Failed to save profile')
       }
 
-      // Refresh user data and redirect to dashboard
+      // Refresh user data
       await refreshUser()
+      
+      // Check if profile is now complete
+      const updatedProfile = {
+        bio: requestData.bio,
+        subjects: requestData.subjects,
+        interests: requestData.interests,
+        age: requestData.age,
+        role: requestData.role,
+      }
+      
+      const isComplete = 
+        updatedProfile.bio && updatedProfile.bio.trim().length > 0 &&
+        updatedProfile.subjects && updatedProfile.subjects.length > 0 &&
+        updatedProfile.interests && updatedProfile.interests.length > 0 &&
+        updatedProfile.age !== null && updatedProfile.age !== undefined &&
+        updatedProfile.role && updatedProfile.role.trim().length > 0
+      
+      // Check for profile changes if banner was clicked
+      if (typeof window !== 'undefined') {
+        const bannerClicked = localStorage.getItem('profileCompletionBannerClicked') === 'true'
+        const snapshotStr = localStorage.getItem('profileSnapshot')
+        
+        if (bannerClicked && snapshotStr) {
+          try {
+            const snapshot = JSON.parse(snapshotStr)
+            const currentProfile = {
+              bio: requestData.bio || '',
+              age: requestData.age,
+              role: requestData.role || '',
+              subjects: requestData.subjects || [],
+              interests: requestData.interests || [],
+              goals: requestData.goals || [],
+              skillLevel: requestData.skillLevel || '',
+              studyStyle: requestData.studyStyle || '',
+              school: requestData.school || '',
+              languages: requestData.languages || '',
+              availableDays: requestData.availableDays || [],
+              availableHours: requestData.availableHours || '',
+            }
+            
+            // Compare arrays and strings to detect changes
+            const hasChanges = 
+              snapshot.bio !== currentProfile.bio ||
+              snapshot.age !== currentProfile.age ||
+              snapshot.role !== currentProfile.role ||
+              JSON.stringify(snapshot.subjects?.sort()) !== JSON.stringify(currentProfile.subjects?.sort()) ||
+              JSON.stringify(snapshot.interests?.sort()) !== JSON.stringify(currentProfile.interests?.sort()) ||
+              JSON.stringify(snapshot.goals?.sort()) !== JSON.stringify(currentProfile.goals?.sort()) ||
+              snapshot.skillLevel !== currentProfile.skillLevel ||
+              snapshot.studyStyle !== currentProfile.studyStyle ||
+              snapshot.school !== currentProfile.school ||
+              snapshot.languages !== currentProfile.languages ||
+              JSON.stringify(snapshot.availableDays?.sort()) !== JSON.stringify(currentProfile.availableDays?.sort()) ||
+              snapshot.availableHours !== currentProfile.availableHours
+            
+            // If any changes were made, dismiss the banner
+            if (hasChanges) {
+              localStorage.setItem('profileCompletionBannerDismissed', 'true')
+            }
+          } catch (e) {
+            console.error('Error comparing profile snapshot:', e)
+          }
+        }
+        
+        // If profile is complete and banner was clicked, also dismiss
+        if (isComplete && bannerClicked) {
+          localStorage.setItem('profileCompletionBannerDismissed', 'true')
+        }
+      }
+      
       alert('Profile saved successfully!')
       router.push('/dashboard')
     } catch (error) {

@@ -2,14 +2,50 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import Image from 'next/image'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import NotificationPanel from '@/components/NotificationPanel'
 import StudyPartnersModal from '@/components/StudyPartnersModal'
+import AvatarDropdown from '@/components/AvatarDropdown'
 import { useSessionCleanup } from '@/hooks/useSessionCleanup'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useAIAgent } from '@/components/providers/AIAgentProvider'
 import { useTranslations } from 'next-intl'
+
+interface Partner {
+  id: string
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+  bio: string | null
+  subjects: string[]
+  interests: string[]
+  matchScore?: number
+}
+
+interface Group {
+  id: string
+  name: string
+  description: string | null
+  subject: string
+  memberCount: number
+  ownerName: string
+  isMember: boolean
+}
+
+// Profile completion check function
+const isProfileComplete = (profile: any): boolean => {
+  if (!profile) return false
+  
+  const hasBio = profile.bio && profile.bio.trim().length > 0
+  const hasSubjects = profile.subjects && profile.subjects.length > 0
+  const hasInterests = profile.interests && profile.interests.length > 0
+  const hasAge = profile.age !== null && profile.age !== undefined
+  const hasRole = profile.role && profile.role.trim().length > 0
+  
+  return hasBio && hasSubjects && hasInterests && hasAge && hasRole
+}
 
 export default function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth()
@@ -24,9 +60,28 @@ export default function DashboardPage() {
   const [partnersCount, setPartnersCount] = useState(0)
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0)
   const [showPartnersModal, setShowPartnersModal] = useState(false)
+  const [connectionRequestsCount, setConnectionRequestsCount] = useState(0)
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{ partners: Partner[]; groups: Group[] }>({ partners: [], groups: [] })
+  const [isSearching, setIsSearching] = useState(false)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useUserSync()
   useSessionCleanup()
+
+  // Check profile completion and banner visibility
+  const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false)
+
+  useEffect(() => {
+    if (!profile || typeof window === 'undefined') return
+    
+    const profileComplete = isProfileComplete(profile)
+    const bannerDismissed = localStorage.getItem('profileCompletionBannerDismissed') === 'true'
+    
+    setShowCompleteProfileBanner(!profileComplete && !bannerDismissed)
+  }, [profile])
 
   // Fetch data
   useEffect(() => {
@@ -34,15 +89,17 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const [notifs, partners, invites] = await Promise.all([
+        const [notifs, partners, invites, connections] = await Promise.all([
           fetch('/api/notifications').then(r => r.json()),
           fetch('/api/partners/count').then(r => r.json()),
-          fetch('/api/study-sessions/pending-invites').then(r => r.json())
+          fetch('/api/study-sessions/pending-invites').then(r => r.json()),
+          fetch('/api/connections?type=received').then(r => r.json()).catch(() => ({ receivedCount: 0 }))
         ])
 
         setUnreadCount(notifs.unreadCount || 0)
         setPartnersCount(partners.count || 0)
         setPendingInvitesCount(invites.invites?.length || 0)
+        setConnectionRequestsCount(connections.receivedCount || 0)
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
       }
@@ -53,11 +110,82 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [user, loading])
 
+  // Search functionality
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setSearchResults({ partners: [], groups: [] })
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const [partnersRes, groupsRes] = await Promise.all([
+        fetch('/api/partners/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ searchQuery: query }),
+        }).then(r => r.json()).catch(() => ({ profiles: [] })),
+        fetch('/api/groups/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            description: query,
+            subject: query,
+            subjectCustomDescription: query 
+          }),
+        }).then(r => r.json()).catch(() => ({ groups: [] }))
+      ])
+
+      setSearchResults({
+        partners: partnersRes.profiles || [],
+        groups: groupsRes.groups || []
+      })
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchResults({ partners: [], groups: [] })
+    } finally {
+      setIsSearching(false)
+    }
+  }, [])
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (searchQuery.trim().length >= 2) {
+      searchTimeoutRef.current = setTimeout(() => {
+        performSearch(searchQuery)
+      }, 300)
+    } else {
+      setSearchResults({ partners: [], groups: [] })
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [searchQuery, performSearch])
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/signin')
     }
   }, [user, loading, router])
+
+  const handleCompleteProfile = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('profileCompletionBannerClicked', 'true')
+    }
+    router.push('/profile/edit')
+  }
+
+  const formatStudyHours = (hours: number): string => {
+    if (hours < 1) return `${Math.round(hours * 60)}m`
+    return `${Math.round(hours)}h`
+  }
 
   if (loading) {
     return (
@@ -87,13 +215,11 @@ export default function DashboardPage() {
         <div className="p-4 border-b border-gray-200">
           <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-3">
-              {profile.avatarUrl ? (
-                <Image src={profile.avatarUrl} alt={profile.name} width={48} height={48} className="w-12 h-12 rounded-full ring-2 ring-white" />
-              ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg ring-2 ring-white">
-                  {profile.name[0]}
-                </div>
-              )}
+              <AvatarDropdown 
+                avatarUrl={profile.avatarUrl} 
+                name={profile.name} 
+                onSignOut={signOut}
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{profile.name}</p>
                 <p className="text-xs text-gray-600">{profile.role || 'FREE'} Account</p>
@@ -101,7 +227,7 @@ export default function DashboardPage() {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-lg font-bold text-blue-600">0</p>
+                <p className="text-lg font-bold text-blue-600">{profile.studyStreak || 0}</p>
                 <p className="text-xs text-gray-600">Streak</p>
               </div>
               <div>
@@ -109,7 +235,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-gray-600">Partners</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-green-600">0h</p>
+                <p className="text-lg font-bold text-green-600">{formatStudyHours(profile.totalStudyHours || 0)}</p>
                 <p className="text-xs text-gray-600">Hours</p>
               </div>
             </div>
@@ -124,7 +250,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            Dashboard
+            Home
           </button>
 
           <button
@@ -134,7 +260,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            My Schedule
+            Study with Partner
             {pendingInvitesCount > 0 && (
               <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {pendingInvitesCount}
@@ -153,6 +279,31 @@ export default function DashboardPage() {
             {unreadCount > 0 && (
               <span className="ml-auto w-2 h-2 bg-red-600 rounded-full"></span>
             )}
+          </button>
+
+          <button
+            onClick={() => router.push('/connections')}
+            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium relative"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Connection Requests
+            {connectionRequestsCount > 0 && (
+              <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                {connectionRequestsCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => router.push('/search')}
+            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Find Partner
           </button>
 
           <button
@@ -184,31 +335,7 @@ export default function DashboardPage() {
             </svg>
             Community
           </button>
-
-          <button
-            onClick={() => router.push('/settings')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Settings
-          </button>
         </nav>
-
-        {/* Logout Button */}
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={signOut}
-            className="w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition font-medium flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Logout
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}
@@ -236,133 +363,276 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <div className="p-8">
+        <div className="p-8 max-w-7xl mx-auto">
           {/* AI Agent Featured Card */}
           <button
             onClick={() => openPanel()}
-            className="w-full mb-8 p-8 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-2xl text-white text-left relative overflow-hidden group hover:shadow-2xl transition-all"
+            className="w-full mb-10 p-10 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-3xl text-white text-left relative overflow-hidden group hover:shadow-2xl hover:scale-[1.01] transition-all duration-300"
           >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
             <div className="relative z-10">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-20 h-20 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <span className="px-3 py-1 bg-white/30 backdrop-blur-sm text-xs font-bold rounded-full">
+                <span className="px-4 py-1.5 bg-white/30 backdrop-blur-md text-xs font-bold rounded-full shadow-lg">
                   NEW
                 </span>
               </div>
-              <h2 className="text-2xl font-bold mb-2">{t('clervaAI')}</h2>
-              <p className="text-blue-100 text-lg">{t('clervaAIDesc')}</p>
+              <h2 className="text-3xl font-bold mb-3">{t('clervaAI')}</h2>
+              <p className="text-blue-100 text-lg leading-relaxed">{t('clervaAIDesc')}</p>
             </div>
           </button>
 
-          {/* Quick Actions Grid */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <button
-              onClick={() => router.push('/search')}
-              className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 text-left border-2 border-transparent hover:border-blue-200"
-            >
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+          {/* Three Stat Cards */}
+          <div className="grid md:grid-cols-3 gap-6 mb-10">
+            {/* Study Partner Card */}
+            <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+              {/* Animated background elements */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 group-hover:opacity-20 transition-all duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-300 opacity-20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
+              
+              <div className="relative z-10">
+                {/* Icon container */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 border border-white/20">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Number */}
+                <p className="text-6xl font-black mb-3 tracking-tight leading-none">{partnersCount}</p>
+                
+                {/* Label */}
+                <div className="flex items-center gap-2">
+                  <p className="text-blue-50 text-lg font-semibold">Study Partners</p>
+                  <svg className="w-5 h-5 text-blue-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('findPartners')}</h3>
-              <p className="text-sm text-gray-600">{t('findPartnersDesc')}</p>
-            </button>
+            </div>
 
-            <button
-              onClick={() => router.push('/study-sessions')}
-              className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 text-left border-2 border-transparent hover:border-purple-200 relative"
-            >
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
+            {/* Streak Card */}
+            <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+              {/* Animated background elements */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 group-hover:opacity-20 transition-all duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-pink-300 opacity-20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
+              
+              <div className="relative z-10">
+                {/* Icon container */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 border border-white/20">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Number */}
+                <p className="text-6xl font-black mb-3 tracking-tight leading-none">{profile.studyStreak || 0}</p>
+                
+                {/* Label */}
+                <div className="flex items-center gap-2">
+                  <p className="text-purple-50 text-lg font-semibold">Day Streak</p>
+                  <svg className="w-5 h-5 text-purple-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                {t('studyWithPartner')}
-                {pendingInvitesCount > 0 && (
-                  <span className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold text-white bg-red-600 rounded-full">
-                    {pendingInvitesCount}
-                  </span>
-                )}
-              </h3>
-              <p className="text-sm text-gray-600">{t('studyWithPartnerDesc')}</p>
-            </button>
+            </div>
 
-            <button
-              onClick={() => router.push('/groups')}
-              className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 text-left border-2 border-transparent hover:border-indigo-200"
-            >
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+            {/* Study Hours Card */}
+            <div className="bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+              {/* Animated background elements */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 group-hover:opacity-20 transition-all duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-300 opacity-20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
+              
+              <div className="relative z-10">
+                {/* Icon container */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 border border-white/20">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Number */}
+                <p className="text-6xl font-black mb-3 tracking-tight leading-none">{formatStudyHours(profile.totalStudyHours || 0)}</p>
+                
+                {/* Label */}
+                <div className="flex items-center gap-2">
+                  <p className="text-green-50 text-lg font-semibold">Study Hours</p>
+                  <svg className="w-5 h-5 text-green-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('createGroup')}</h3>
-              <p className="text-sm text-gray-600">{t('createGroupDesc')}</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/connections')}
-              className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 text-left border-2 border-transparent hover:border-orange-200"
-            >
-              <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('connectionRequests')}</h3>
-              <p className="text-sm text-gray-600">{t('connectionRequestsDesc')}</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/chat')}
-              className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 text-left border-2 border-transparent hover:border-green-200"
-            >
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{tNav('chat')}</h3>
-              <p className="text-sm text-gray-600">{t('messagesDesc')}</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/community')}
-              className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 text-left border-2 border-transparent hover:border-pink-200"
-            >
-              <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{tNav('community')}</h3>
-              <p className="text-sm text-gray-600">{t('communityDesc')}</p>
-            </button>
-          </div>
-
-          {/* Motivational Banner */}
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">🎯</div>
-              <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-1">Ready to start your study journey?</h3>
-                <p className="text-sm text-gray-600">Connect with study partners and create your first study session today!</p>
-              </div>
-              <button
-                onClick={() => router.push('/profile')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition whitespace-nowrap"
-              >
-                {t('completeProfile')}
-              </button>
             </div>
           </div>
+
+          {/* Search Bar */}
+          <div className="mb-10 flex justify-center">
+            <div className="w-full max-w-3xl">
+              <div className="relative group">
+                {/* Animated gradient background on hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-10 blur-xl transition-all duration-500"></div>
+                
+                {/* Main search container */}
+                <div className="relative bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-3 group-hover:border-blue-200 group-hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center gap-3">
+                    {/* Search icon with gradient background */}
+                    <div className="pl-2 pr-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+                        <svg
+                          className="w-5 h-5 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    {/* Search input */}
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search for partners and groups..."
+                      className="flex-1 px-2 py-3 text-base border-0 focus:ring-0 focus:outline-none text-gray-900 placeholder-gray-400 bg-transparent"
+                    />
+                    
+                    {/* Loading spinner */}
+                    {isSearching && (
+                      <div className="pr-3">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                    
+                    {/* Clear button (when there's text) */}
+                    {searchQuery && !isSearching && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="pr-3 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Results */}
+              {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
+                <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                  {/* Partners Results */}
+                  {searchResults.partners.length > 0 && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="font-bold text-gray-900 text-lg">Partners</h3>
+                        <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">{searchResults.partners.length}</span>
+                      </div>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {searchResults.partners.slice(0, 5).map((partner) => (
+                          <button
+                            key={partner.id}
+                            onClick={() => router.push(`/profile/${partner.user.id}`)}
+                            className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
+                          >
+                            {partner.user.avatarUrl ? (
+                              <img src={partner.user.avatarUrl} alt={partner.user.name} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all" />
+                            ) : (
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all">
+                                {partner.user.name[0]}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{partner.user.name}</p>
+                              {partner.subjects.length > 0 && (
+                                <p className="text-xs text-gray-600 truncate mt-0.5">{partner.subjects.slice(0, 2).join(', ')}</p>
+                              )}
+                            </div>
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Groups Results */}
+                  {searchResults.groups.length > 0 && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="font-bold text-gray-900 text-lg">Groups</h3>
+                        <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">{searchResults.groups.length}</span>
+                      </div>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {searchResults.groups.slice(0, 5).map((group) => (
+                          <button
+                            key={group.id}
+                            onClick={() => router.push('/groups')}
+                            className="w-full flex items-start gap-3 p-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
+                          >
+                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
+                              {group.name[0]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{group.name}</p>
+                              <p className="text-xs text-gray-600 truncate mt-0.5">{group.subject} • {group.memberCount} members</p>
+                            </div>
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Complete Profile Banner */}
+          {showCompleteProfileBanner && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">🎯</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900 mb-1">Ready to start your study journey?</h3>
+                  <p className="text-sm text-gray-600">Connect with study partners and create your first study session today!</p>
+                </div>
+                <button
+                  onClick={handleCompleteProfile}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition whitespace-nowrap"
+                >
+                  {t('completeProfile')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
