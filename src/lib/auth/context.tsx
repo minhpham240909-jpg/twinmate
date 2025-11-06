@@ -26,6 +26,12 @@ export interface UserProfile {
   availabilityCustomDescription?: string | null
   subjectCustomDescription?: string | null
   interestsCustomDescription?: string | null
+  // Gamification fields from Profile
+  studyStreak?: number
+  totalStudyHours?: number
+  lastStudyDate?: Date | string | null
+  // Other profile fields
+  age?: number | null
 }
 
 interface AuthContextType {
