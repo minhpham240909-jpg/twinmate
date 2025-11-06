@@ -200,6 +200,7 @@ export async function getMicrophoneDevices(): Promise<MediaDeviceInfo[]> {
 
 /**
  * Create local video and audio tracks
+ * IMPORTANT: Creates both tracks together to trigger browser permission prompt for BOTH camera AND microphone
  */
 export async function createLocalTracks(options?: {
   videoEnabled?: boolean
@@ -221,36 +222,69 @@ export async function createLocalTracks(options?: {
       audioTrack?: Awaited<ReturnType<typeof AgoraRTC.createMicrophoneAudioTrack>>
     } = {}
 
-    if (videoEnabled) {
-      console.log('📹 Creating camera video track...')
-      tracks.videoTrack = await AgoraRTC.createCameraVideoTrack({
-        cameraId,
-        encoderConfig: {
-          width: 640,
-          height: 480,
-          frameRate: 15,
-          bitrateMin: 400,
-          bitrateMax: 1000,
+    // IMPORTANT: Create BOTH tracks together if both are enabled
+    // This ensures browser shows ONE permission dialog for BOTH camera AND microphone
+    if (videoEnabled && audioEnabled) {
+      console.log('🎥🎤 Creating camera AND microphone tracks together...')
+      // Note: createMicrophoneAndCameraTracks returns [audioTrack, videoTrack] in that order
+      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+        {
+          // Audio config
+          microphoneId,
+          encoderConfig: {
+            sampleRate: 48000,
+            stereo: true,
+            bitrate: 128,
+          },
         },
-      })
-      console.log('✅ Video track created successfully')
+        {
+          // Video config
+          cameraId,
+          encoderConfig: {
+            width: 640,
+            height: 480,
+            frameRate: 15,
+            bitrateMin: 400,
+            bitrateMax: 1000,
+          },
+        }
+      )
+      tracks.audioTrack = audioTrack
+      tracks.videoTrack = videoTrack
+      console.log('✅ Both audio and video tracks created successfully')
     } else {
-      console.log('⏭️ Skipping video track creation (videoEnabled: false)')
-    }
+      // Create tracks separately if only one is enabled
+      if (videoEnabled) {
+        console.log('📹 Creating camera video track...')
+        tracks.videoTrack = await AgoraRTC.createCameraVideoTrack({
+          cameraId,
+          encoderConfig: {
+            width: 640,
+            height: 480,
+            frameRate: 15,
+            bitrateMin: 400,
+            bitrateMax: 1000,
+          },
+        })
+        console.log('✅ Video track created successfully')
+      } else {
+        console.log('⏭️ Skipping video track creation (videoEnabled: false)')
+      }
 
-    if (audioEnabled) {
-      console.log('🎤 Creating microphone audio track...')
-      tracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
-        microphoneId,
-        encoderConfig: {
-          sampleRate: 48000,
-          stereo: true,
-          bitrate: 128,
-        },
-      })
-      console.log('✅ Audio track created successfully')
-    } else {
-      console.log('⏭️ Skipping audio track creation (audioEnabled: false)')
+      if (audioEnabled) {
+        console.log('🎤 Creating microphone audio track...')
+        tracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
+          microphoneId,
+          encoderConfig: {
+            sampleRate: 48000,
+            stereo: true,
+            bitrate: 128,
+          },
+        })
+        console.log('✅ Audio track created successfully')
+      } else {
+        console.log('⏭️ Skipping audio track creation (audioEnabled: false)')
+      }
     }
 
     console.log('🎬 Final tracks:', { hasVideo: !!tracks.videoTrack, hasAudio: !!tracks.audioTrack })
