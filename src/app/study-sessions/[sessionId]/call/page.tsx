@@ -112,6 +112,7 @@ export default function StudyCallPage() {
   useEffect(() => {
     if (!sessionId) return
 
+    console.log('[Call RT] Setting up participant listener...')
     const channel = supabase
       .channel(`call-participants-${sessionId}`)
       .on(
@@ -123,7 +124,7 @@ export default function StudyCallPage() {
           filter: `sessionId=eq.${sessionId}`,
         },
         (payload) => {
-          console.log('New participant joined call - refreshing session data')
+          console.log('[Call RT] New participant joined:', payload)
           fetchSession() // Refresh to get new participant list
 
           // Show toast notification
@@ -136,22 +137,44 @@ export default function StudyCallPage() {
       .on(
         'postgres_changes',
         {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'SessionParticipant',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        (payload) => {
+          console.log('[Call RT] Participant updated:', payload)
+          fetchSession() // Refresh to get updated participant data
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
           event: 'DELETE',
           schema: 'public',
           table: 'SessionParticipant',
           filter: `sessionId=eq.${sessionId}`,
         },
         (payload) => {
-          console.log('Participant left call - refreshing session data')
+          console.log('[Call RT] Participant left:', payload)
           fetchSession() // Refresh to get updated participant list
 
-          // Show toast notification (we'll enhance this later to show name)
+          // Show toast notification
           toast('Someone left the session', { icon: '👋' })
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[Call RT] Participant subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('[Call RT] Successfully subscribed to participant changes')
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[Call RT] Failed to subscribe to participant changes')
+        }
+      })
 
     return () => {
+      console.log('[Call RT] Cleaning up participant listener')
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, fetchSession, user?.id])

@@ -186,8 +186,9 @@ export default function WaitingLobbyPage() {
   useEffect(() => {
     if (!sessionId) return
 
+    console.log('[Lobby RT] Setting up session status listener...')
     const channel = supabase
-      .channel(`lobby-${sessionId}`)
+      .channel(`lobby-status-${sessionId}`)
       .on(
         'postgres_changes',
         {
@@ -197,16 +198,27 @@ export default function WaitingLobbyPage() {
           filter: `id=eq.${sessionId}`,
         },
         (payload) => {
+          console.log('[Lobby RT] Session status update received:', payload)
           const newStatus = (payload.new as { status?: string }).status
           if (newStatus === 'ACTIVE') {
+            console.log('[Lobby RT] Session is now ACTIVE, redirecting to call...')
             toast.success('Session is starting!')
             router.push(`/study-sessions/${sessionId}/call`)
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[Lobby RT] Session status subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('[Lobby RT] Successfully subscribed to session status changes')
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[Lobby RT] Failed to subscribe to session status changes')
+        }
+      })
 
     return () => {
+      console.log('[Lobby RT] Cleaning up session status listener')
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, router])
@@ -215,6 +227,7 @@ export default function WaitingLobbyPage() {
   useEffect(() => {
     if (!sessionId) return
 
+    console.log('[Lobby RT] Setting up participant listener...')
     const channel = supabase
       .channel(`lobby-participants-${sessionId}`)
       .on(
@@ -225,9 +238,23 @@ export default function WaitingLobbyPage() {
           table: 'SessionParticipant',
           filter: `sessionId=eq.${sessionId}`,
         },
-        () => {
-          console.log('New participant joined - refreshing session data')
+        (payload) => {
+          console.log('[Lobby RT] New participant joined:', payload)
+          toast.success('Someone joined the session!')
           fetchSession() // Refresh to get new participant list
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'SessionParticipant',
+          filter: `sessionId=eq.${sessionId}`,
+        },
+        (payload) => {
+          console.log('[Lobby RT] Participant updated:', payload)
+          fetchSession() // Refresh to get updated participant data
         }
       )
       .on(
@@ -238,14 +265,24 @@ export default function WaitingLobbyPage() {
           table: 'SessionParticipant',
           filter: `sessionId=eq.${sessionId}`,
         },
-        () => {
-          console.log('Participant left - refreshing session data')
+        (payload) => {
+          console.log('[Lobby RT] Participant left:', payload)
+          toast('Someone left the session', { icon: '👋' })
           fetchSession() // Refresh to get updated participant list
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[Lobby RT] Participant subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('[Lobby RT] Successfully subscribed to participant changes')
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[Lobby RT] Failed to subscribe to participant changes')
+        }
+      })
 
     return () => {
+      console.log('[Lobby RT] Cleaning up participant listener')
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, fetchSession])
