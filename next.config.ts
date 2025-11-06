@@ -71,7 +71,7 @@ const nextConfig: NextConfig = {
               // DIRECTIVE 3: media-src - Allow media streams from all sources (camera/mic permissions handled by browser)
               "media-src 'self' data: blob: https: mediastream:",
               // DIRECTIVE 4: worker-src - Allow workers from all blob sources
-              "worker-src 'self' blob:",
+              "worker-src 'self' blob:", 
               "frame-src 'self' https://accounts.google.com",
               "base-uri 'self'",
               "form-action 'self'",
