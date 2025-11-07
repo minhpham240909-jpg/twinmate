@@ -1,65 +1,172 @@
-import { prisma } from '@/lib/prisma'
-import { NotificationType } from '@prisma/client'
+/**
+ * Notification system for browser push notifications
+ * Handles showing notifications and navigation on click
+ */
 
-interface CreateNotificationParams {
-  userId: string
+export type NotificationType =
+  | 'connection_request'
+  | 'connection_accepted'
+  | 'incoming_call'
+  | 'session_invite'
+  | 'new_message'
+  | 'post_comment'
+  | 'post_like'
+  | 'post_repost'
+
+export interface NotificationData {
   type: NotificationType
   title: string
-  message: string
-  actionUrl?: string
-  relatedUserId?: string
-}
-
-export async function createNotification(params: CreateNotificationParams) {
-  try {
-    await prisma.notification.create({
-      data: {
-        userId: params.userId,
-        type: params.type,
-        title: params.title,
-        message: params.message,
-        actionUrl: params.actionUrl,
-        relatedUserId: params.relatedUserId,
-        isRead: false,
-      },
-    })
-  } catch (error) {
-    console.error('Error creating notification:', error)
+  body: string
+  icon?: string
+  data?: {
+    url?: string
+    userId?: string
+    postId?: string
+    sessionId?: string
+    chatId?: string
   }
 }
 
-export async function notifySessionParticipants(
-  sessionId: string,
-  type: NotificationType,
-  title: string,
-  message: string,
-  excludeUserId?: string
-) {
+/**
+ * Check if notifications are supported and permission granted
+ */
+export function canShowNotifications(): boolean {
+  if (typeof window === 'undefined') return false
+  return 'Notification' in window && Notification.permission === 'granted'
+}
+
+/**
+ * Show a browser notification
+ */
+export function showNotification(notification: NotificationData): void {
+  if (!canShowNotifications()) {
+    console.log('Notifications not available or not granted')
+    return
+  }
+
   try {
-    const participants = await prisma.sessionParticipant.findMany({
-      where: {
-        sessionId,
-        status: 'JOINED',
-        ...(excludeUserId && { userId: { not: excludeUserId } }),
-      },
-      select: { userId: true },
-    })
+    const { title, body, icon, data } = notification
 
-    const notifications = participants.map((p) => ({
-      userId: p.userId,
-      type: type,
-      title,
-      message,
-      actionUrl: `/study-sessions/${sessionId}`,
-      isRead: false,
-    }))
+    const notificationOptions: NotificationOptions = {
+      body,
+      icon: icon || '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: notification.type,
+      requireInteraction: notification.type === 'incoming_call', // Keep call notifications visible
+      data: data || {},
+    }
 
-    if (notifications.length > 0) {
-      await prisma.notification.createMany({
-        data: notifications,
-      })
+    const browserNotification = new Notification(title, notificationOptions)
+
+    // Handle notification click
+    browserNotification.onclick = (event) => {
+      event.preventDefault()
+
+      // Focus or open the app window
+      if (typeof window !== 'undefined') {
+        window.focus()
+
+        // Navigate to relevant page
+        if (data?.url) {
+          window.location.href = data.url
+        }
+      }
+
+      browserNotification.close()
     }
   } catch (error) {
-    console.error('Error notifying participants:', error)
+    console.error('Error showing notification:', error)
   }
+}
+
+/**
+ * Helper functions for specific notification types
+ */
+
+export function notifyConnectionRequest(fromUser: { name: string; id: string }): void {
+  showNotification({
+    type: 'connection_request',
+    title: 'New Connection Request',
+    body: `${fromUser.name} wants to be your study partner`,
+    data: {
+      url: '/connections',
+      userId: fromUser.id,
+    },
+  })
+}
+
+export function notifyConnectionAccepted(fromUser: { name: string; id: string }): void {
+  showNotification({
+    type: 'connection_accepted',
+    title: 'Connection Accepted!',
+    body: `${fromUser.name} accepted your study partner request`,
+    data: {
+      url: '/dashboard/partners',
+      userId: fromUser.id,
+    },
+  })
+}
+
+export function notifyIncomingCall(fromUser: { name: string; id: string }, sessionId: string): void {
+  showNotification({
+    type: 'incoming_call',
+    title: '📞 Incoming Call',
+    body: `${fromUser.name} is calling you`,
+    data: {
+      url: `/study-sessions/${sessionId}`,
+      userId: fromUser.id,
+      sessionId,
+    },
+  })
+}
+
+export function notifySessionInvite(fromUser: { name: string; id: string }, sessionId: string): void {
+  showNotification({
+    type: 'session_invite',
+    title: 'Study Session Invite',
+    body: `${fromUser.name} invited you to a study session`,
+    data: {
+      url: `/study-sessions/${sessionId}`,
+      userId: fromUser.id,
+      sessionId,
+    },
+  })
+}
+
+export function notifyNewMessage(fromUser: { name: string; id: string }, preview: string): void {
+  showNotification({
+    type: 'new_message',
+    title: `Message from ${fromUser.name}`,
+    body: preview,
+    data: {
+      url: '/chat',
+      userId: fromUser.id,
+    },
+  })
+}
+
+export function notifyPostComment(fromUser: { name: string; id: string }, postId: string): void {
+  showNotification({
+    type: 'post_comment',
+    title: 'New Comment',
+    body: `${fromUser.name} commented on your post`,
+    data: {
+      url: '/community',
+      userId: fromUser.id,
+      postId,
+    },
+  })
+}
+
+export function notifyPostLike(fromUser: { name: string; id: string }, postId: string): void {
+  showNotification({
+    type: 'post_like',
+    title: 'New Like',
+    body: `${fromUser.name} liked your post`,
+    data: {
+      url: '/community',
+      userId: fromUser.id,
+      postId,
+    },
+  })
 }

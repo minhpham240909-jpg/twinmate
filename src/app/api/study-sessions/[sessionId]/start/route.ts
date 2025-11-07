@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { notifySessionParticipants } from '@/lib/notifications'
 
 export async function POST(
   _request: Request,
@@ -71,13 +70,7 @@ export async function POST(
     })
 
     // Notify all participants
-    await notifySessionParticipants(
-      sessionId,
-      'SESSION_STARTED',
-      'Session Started',
-      `${session?.title || 'Study session'} has started!`,
-      user.id
-    )
+    // Browser notifications handled by real-time subscription on client
 
     return NextResponse.json({
       success: true,

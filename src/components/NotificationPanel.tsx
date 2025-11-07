@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { subscribeToNotifications } from '@/lib/supabase/realtime'
 import { useAuth } from '@/lib/auth/context'
+import {
+  notifyConnectionRequest,
+  notifyConnectionAccepted,
+  notifyIncomingCall,
+  notifySessionInvite,
+  notifyNewMessage,
+  notifyPostComment,
+  notifyPostLike,
+  canShowNotifications
+} from '@/lib/notifications'
 
 interface Notification {
   id: string
@@ -51,12 +61,36 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         fetchNotifications()
       }
 
-      // Show browser notification if permission granted
-      if (window.Notification && window.Notification.permission === 'granted') {
-        new window.Notification(typedNotification.title, {
-          body: typedNotification.message,
-          icon: '/icon.png'
-        })
+      // Show browser notification with proper formatting and navigation
+      if (canShowNotifications() && !typedNotification.isRead) {
+        const type = typedNotification.type
+        const relatedUserId = typedNotification.relatedUserId || ''
+        const relatedMatchId = typedNotification.relatedMatchId || ''
+
+        // Get user info from notification message (basic parsing)
+        const userName = typedNotification.message.split(' ')[0] || 'Someone'
+        const fromUser = { name: userName, id: relatedUserId }
+
+        // Trigger appropriate notification type
+        if (type === 'MATCH_REQUEST') {
+          notifyConnectionRequest(fromUser)
+        } else if (type === 'MATCH_ACCEPTED') {
+          notifyConnectionAccepted(fromUser)
+        } else if (type === 'INCOMING_CALL') {
+          const sessionId = typedNotification.actionUrl?.split('/').pop() || ''
+          notifyIncomingCall(fromUser, sessionId)
+        } else if (type === 'SESSION_INVITE') {
+          const sessionId = typedNotification.actionUrl?.split('/').pop() || ''
+          notifySessionInvite(fromUser, sessionId)
+        } else if (type === 'NEW_MESSAGE') {
+          notifyNewMessage(fromUser, typedNotification.message)
+        } else if (type === 'POST_COMMENT') {
+          const postId = typedNotification.actionUrl?.match(/postId=([^&]+)/)?.[1] || ''
+          notifyPostComment(fromUser, postId)
+        } else if (type === 'POST_LIKE') {
+          const postId = typedNotification.actionUrl?.match(/postId=([^&]+)/)?.[1] || ''
+          notifyPostLike(fromUser, postId)
+        }
       }
     })
 

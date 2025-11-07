@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useTranslations } from 'next-intl'
+import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 
 // Types
 type DeletedPost = {
@@ -836,8 +837,76 @@ function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; 
 
 // Notifications Settings
 function NotificationsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const { permission, isSupported, requestPermission, isGranted } = useNotificationPermission()
+
+  const handleRequestPermission = async () => {
+    const granted = await requestPermission()
+    if (granted) {
+      toast.success('Browser notifications enabled!')
+    } else {
+      toast.error('Browser notifications permission denied')
+    }
+  }
+
   return (
     <>
+      <SettingSection
+        title="Browser Notifications"
+        description="Get notifications even when the app is closed"
+      >
+        {!isSupported ? (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              Browser notifications are not supported in your browser.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="p-4 border border-gray-300 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900 mb-1">Browser Notification Permission</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Allow Clerva to send you browser notifications for important events like connection requests, calls, and messages.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">Status:</span>
+                    {permission === 'granted' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
+                        <span>✓</span> Enabled
+                      </span>
+                    ) : permission === 'denied' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                        <span>✗</span> Blocked
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
+                        <span>?</span> Not Set
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {!isGranted && permission !== 'denied' && (
+                  <button
+                    onClick={handleRequestPermission}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Enable Notifications
+                  </button>
+                )}
+              </div>
+              {permission === 'denied' && (
+                <div className="mt-3 p-3 bg-red-50 rounded-lg">
+                  <p className="text-xs text-red-800">
+                    You've blocked notifications. To enable them, please allow notifications in your browser settings.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </SettingSection>
+
       <SettingSection
         title="In-App Notifications"
         description="Choose what notifications you'd like to receive in the app"
