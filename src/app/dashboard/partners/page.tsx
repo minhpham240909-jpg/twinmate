@@ -6,20 +6,27 @@ import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 
 interface Partner {
+  matchId: string
   id: string
-  user: {
-    id: string
-    name: string
-    email: string
-    avatarUrl: string | null
-  }
-  bio: string | null
-  subjects: string[]
-  interests: string[]
-  goals: string[]
-  availableDays: string[]
-  availableHours: string[]
-  onlineStatus: string
+  name: string
+  email: string
+  avatarUrl: string | null
+  profile: {
+    bio: string | null
+    subjects: string[]
+    interests: string[]
+    goals: string[]
+    skillLevel: string | null
+    studyStyle: string | null
+    onlineStatus: string
+    location: string | null
+    timezone: string | null
+    availableDays: string[]
+    availableHours: string[]
+    aboutYourself: string | null
+    aboutYourselfItems: string[]
+  } | null
+  connectedAt: Date
 }
 
 export default function PartnersPage() {
@@ -54,20 +61,20 @@ export default function PartnersPage() {
     fetchPartners()
   }, [user])
 
-  const handleRemovePartner = async (partnerId: string) => {
+  const handleRemovePartner = async (matchId: string) => {
     if (!confirm('Are you sure you want to remove this study partner?')) return
 
     try {
       const response = await fetch('/api/partners/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId }),
+        body: JSON.stringify({ matchId }),
       })
 
       if (!response.ok) throw new Error('Failed to remove partner')
 
       toast.success('Study partner removed')
-      setPartners(partners.filter(p => p.id !== partnerId))
+      setPartners(partners.filter(p => p.matchId !== matchId))
     } catch (error) {
       console.error('Error removing partner:', error)
       toast.error('Failed to remove partner')
@@ -146,43 +153,43 @@ export default function PartnersPage() {
               >
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-4">
-                  {partner.user.avatarUrl ? (
+                  {partner.avatarUrl ? (
                     <img
-                      src={partner.user.avatarUrl}
-                      alt={partner.user.name}
+                      src={partner.avatarUrl}
+                      alt={partner.name}
                       className="w-16 h-16 rounded-full ring-2 ring-blue-100"
                     />
                   ) : (
                     <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-2xl ring-2 ring-blue-100">
-                      {partner.user.name[0]}
+                      {partner.name[0]}
                     </div>
                   )}
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{partner.user.name}</h3>
+                    <h3 className="text-lg font-bold text-gray-900">{partner.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <div className={`w-2 h-2 rounded-full ${
-                        partner.onlineStatus === 'ONLINE' ? 'bg-green-500' :
-                        partner.onlineStatus === 'BUSY' ? 'bg-yellow-500' :
+                        partner.profile?.onlineStatus === 'ONLINE' ? 'bg-green-500' :
+                        partner.profile?.onlineStatus === 'BUSY' ? 'bg-yellow-500' :
                         'bg-gray-400'
                       }`}></div>
                       <span className="text-xs text-gray-600 capitalize">
-                        {partner.onlineStatus.toLowerCase()}
+                        {partner.profile?.onlineStatus.toLowerCase() || 'offline'}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Bio */}
-                {partner.bio && (
-                  <p className="text-sm text-gray-700 mb-4 line-clamp-2">{partner.bio}</p>
+                {partner.profile?.bio && (
+                  <p className="text-sm text-gray-700 mb-4 line-clamp-2">{partner.profile.bio}</p>
                 )}
 
                 {/* Subjects */}
-                {partner.subjects.length > 0 && (
+                {partner.profile && partner.profile.subjects.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Subjects</p>
                     <div className="flex flex-wrap gap-2">
-                      {partner.subjects.slice(0, 3).map((subject, idx) => (
+                      {partner.profile.subjects.slice(0, 3).map((subject: string, idx: number) => (
                         <span
                           key={idx}
                           className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium"
@@ -190,9 +197,9 @@ export default function PartnersPage() {
                           {subject}
                         </span>
                       ))}
-                      {partner.subjects.length > 3 && (
+                      {partner.profile.subjects.length > 3 && (
                         <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">
-                          +{partner.subjects.length - 3} more
+                          +{partner.profile.subjects.length - 3} more
                         </span>
                       )}
                     </div>
@@ -200,11 +207,11 @@ export default function PartnersPage() {
                 )}
 
                 {/* Interests */}
-                {partner.interests.length > 0 && (
+                {partner.profile && partner.profile.interests.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Interests</p>
                     <div className="flex flex-wrap gap-2">
-                      {partner.interests.slice(0, 3).map((interest, idx) => (
+                      {partner.profile.interests.slice(0, 3).map((interest: string, idx: number) => (
                         <span
                           key={idx}
                           className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium"
@@ -212,9 +219,9 @@ export default function PartnersPage() {
                           {interest}
                         </span>
                       ))}
-                      {partner.interests.length > 3 && (
+                      {partner.profile.interests.length > 3 && (
                         <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">
-                          +{partner.interests.length - 3} more
+                          +{partner.profile.interests.length - 3} more
                         </span>
                       )}
                     </div>
@@ -224,13 +231,13 @@ export default function PartnersPage() {
                 {/* Actions */}
                 <div className="flex gap-2 mt-6 pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => router.push(`/profile/${partner.user.id}`)}
+                    onClick={() => router.push(`/profile/${partner.id}`)}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition text-sm"
                   >
                     View Profile
                   </button>
                   <button
-                    onClick={() => router.push(`/chat?userId=${partner.user.id}`)}
+                    onClick={() => router.push(`/chat?userId=${partner.id}`)}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition text-sm"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,7 +245,7 @@ export default function PartnersPage() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleRemovePartner(partner.id)}
+                    onClick={() => handleRemovePartner(partner.matchId)}
                     className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition text-sm"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
