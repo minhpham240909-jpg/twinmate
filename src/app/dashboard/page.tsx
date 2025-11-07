@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import NotificationPanel from '@/components/NotificationPanel'
 import AvatarDropdown from '@/components/AvatarDropdown'
-import { useSessionCleanup } from '@/hooks/useSessionCleanup'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useAIAgent } from '@/components/providers/AIAgentProvider'
 import { useTranslations } from 'next-intl'
@@ -73,7 +72,6 @@ export default function DashboardPage() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useUserSync()
-  useSessionCleanup()
 
   // Check profile completion and banner visibility
   const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false)

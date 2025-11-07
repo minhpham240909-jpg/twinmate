@@ -2,27 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // This endpoint cleans up sessions that were created but never started within 30 minutes
-// SECURITY: Protected by API key to prevent unauthorized cleanup operations
+// SECURITY: Protected by API key or Vercel Cron authentication
 export async function POST(request: NextRequest) {
   try {
-    // Verify API key for cron job authentication
+    // Check for Vercel Cron authentication (automatically added by Vercel)
+    const authHeader = request.headers.get('authorization')
+    const cronSecret = process.env.CRON_SECRET
+    const isVercelCron = authHeader === `Bearer ${cronSecret}`
+
+    // Also check for manual API key (for testing)
     const apiKey = request.headers.get('x-api-key')
     const validApiKey = process.env.CLEANUP_API_KEY
+    const hasValidApiKey = apiKey && validApiKey && apiKey === validApiKey
 
-    // Reject if no API key is configured (security failsafe)
-    if (!validApiKey) {
-      console.error('CLEANUP_API_KEY not configured in environment variables')
+    // Accept either Vercel Cron auth OR valid API key
+    if (!isVercelCron && !hasValidApiKey) {
+      console.warn('Unauthorized cleanup attempt - neither Vercel Cron nor valid API key')
       return NextResponse.json(
-        { error: 'Service temporarily unavailable' },
-        { status: 503 }
-      )
-    }
-
-    // Reject if API key doesn't match
-    if (!apiKey || apiKey !== validApiKey) {
-      console.warn('Unauthorized cleanup attempt with invalid API key')
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid API key' },
+        { error: 'Unauthorized' },
         { status: 401 }
       )
     }
