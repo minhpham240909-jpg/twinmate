@@ -914,9 +914,12 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
             <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900 mb-1 text-sm">Browser Permission Status</h4>
+                  <h4 className="font-medium text-gray-900 mb-1 text-sm">Notification Status</h4>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Both settings must be enabled to receive notifications.
+                  </p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-medium text-gray-700">Browser:</span>
+                    <span className="text-xs font-medium text-gray-700" title="Browser-level permission to show notifications">Browser:</span>
                     {permission === 'granted' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
                         <span>✓</span> Allowed
@@ -932,7 +935,7 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-medium text-gray-700">App Setting:</span>
+                    <span className="text-xs font-medium text-gray-700" title="In-app preference to enable/disable notifications">App Setting:</span>
                     {notificationsEnabled && isGranted ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
                         <span>✓</span> Enabled
