@@ -29,10 +29,46 @@ export interface NotificationData {
 
 /**
  * Check if notifications are supported and permission granted
+ * Also checks if user has enabled notifications in app settings
  */
 export function canShowNotifications(): boolean {
   if (typeof window === 'undefined') return false
-  return 'Notification' in window && Notification.permission === 'granted'
+
+  // Check browser permission
+  const browserPermission = 'Notification' in window && Notification.permission === 'granted'
+  if (!browserPermission) return false
+
+  // Check app-level preference (user can disable in app even if browser permission granted)
+  const appPreference = localStorage.getItem('notifications_enabled')
+  if (appPreference === 'false') return false
+
+  return true
+}
+
+/**
+ * Enable notifications at app level
+ */
+export function enableNotifications(): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('notifications_enabled', 'true')
+}
+
+/**
+ * Disable notifications at app level
+ */
+export function disableNotifications(): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('notifications_enabled', 'false')
+}
+
+/**
+ * Check if notifications are enabled at app level
+ */
+export function areNotificationsEnabled(): boolean {
+  if (typeof window === 'undefined') return true
+  const preference = localStorage.getItem('notifications_enabled')
+  // Default to true if not set
+  return preference !== 'false'
 }
 
 /**

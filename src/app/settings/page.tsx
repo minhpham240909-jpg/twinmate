@@ -838,13 +838,36 @@ function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; 
 // Notifications Settings
 function NotificationsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
   const { permission, isSupported, requestPermission, isGranted } = useNotificationPermission()
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+
+  // Load app-level notification preference on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const preference = localStorage.getItem('notifications_enabled')
+      setNotificationsEnabled(preference !== 'false')
+    }
+  }, [])
 
   const handleRequestPermission = async () => {
     const granted = await requestPermission()
     if (granted) {
+      localStorage.setItem('notifications_enabled', 'true')
+      setNotificationsEnabled(true)
       toast.success('Browser notifications enabled!')
     } else {
       toast.error('Browser notifications permission denied')
+    }
+  }
+
+  const handleToggleNotifications = (enabled: boolean) => {
+    if (enabled && !isGranted) {
+      // If trying to enable but no browser permission, request it
+      handleRequestPermission()
+    } else {
+      // Toggle app-level preference
+      localStorage.setItem('notifications_enabled', enabled ? 'true' : 'false')
+      setNotificationsEnabled(enabled)
+      toast.success(enabled ? 'Notifications enabled' : 'Notifications disabled')
     }
   }
 
@@ -862,18 +885,41 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="p-4 border border-gray-300 rounded-lg">
+            {/* Main Toggle */}
+            <div className="flex items-start justify-between py-3 border-b border-gray-100">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-900 cursor-pointer">
+                  Enable Browser Notifications
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Receive push notifications for important events
+                </p>
+              </div>
+              <button
+                onClick={() => handleToggleNotifications(!notificationsEnabled)}
+                disabled={permission === 'denied'}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                  notificationsEnabled && isGranted ? 'bg-blue-600' : 'bg-gray-300'
+                } ${permission === 'denied' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                    notificationsEnabled && isGranted ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Status Info */}
+            <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900 mb-1">Browser Notification Permission</h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Allow Clerva to send you browser notifications for important events like connection requests, calls, and messages.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">Status:</span>
+                  <h4 className="font-medium text-gray-900 mb-1 text-sm">Browser Permission Status</h4>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs font-medium text-gray-700">Browser:</span>
                     {permission === 'granted' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
-                        <span>✓</span> Enabled
+                        <span>✓</span> Allowed
                       </span>
                     ) : permission === 'denied' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
@@ -885,20 +931,24 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
                       </span>
                     )}
                   </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs font-medium text-gray-700">App Setting:</span>
+                    {notificationsEnabled && isGranted ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
+                        <span>✓</span> Enabled
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
+                        <span>○</span> Disabled
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {!isGranted && permission !== 'denied' && (
-                  <button
-                    onClick={handleRequestPermission}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-                  >
-                    Enable Notifications
-                  </button>
-                )}
               </div>
               {permission === 'denied' && (
                 <div className="mt-3 p-3 bg-red-50 rounded-lg">
                   <p className="text-xs text-red-800">
-                    You've blocked notifications. To enable them, please allow notifications in your browser settings.
+                    You've blocked notifications in your browser. To enable them, please allow notifications in your browser settings, then toggle the switch above.
                   </p>
                 </div>
               )}
