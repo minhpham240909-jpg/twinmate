@@ -8,6 +8,7 @@ import AvatarDropdown from '@/components/AvatarDropdown'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useAIAgent } from '@/components/providers/AIAgentProvider'
 import { useTranslations } from 'next-intl'
+import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 
 interface Partner {
   id: string
@@ -51,6 +52,7 @@ export default function DashboardPage() {
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
   const { openPanel } = useAIAgent()
+  const { requestPermission, hasBeenAsked, isGranted, isSupported } = useNotificationPermission()
   
   // Initialize states from localStorage cache to prevent flickering
   const getInitialCount = (key: string): number => {
@@ -126,6 +128,18 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [user, loading])
 
+  // Request notification permission on first visit after signup/login
+  useEffect(() => {
+    if (!user || !isSupported || hasBeenAsked() || isGranted) return
+
+    // Request permission after 3 seconds on dashboard
+    const timer = setTimeout(() => {
+      requestPermission()
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [user, isSupported, hasBeenAsked, isGranted, requestPermission])
+
   // Search functionality
   const performSearch = useCallback(async (query: string) => {
     if (!query.trim() || query.trim().length < 2) {
@@ -144,10 +158,10 @@ export default function DashboardPage() {
         fetch('/api/groups/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             description: query,
             subject: query,
-            subjectCustomDescription: query 
+            subjectCustomDescription: query
           }),
         }).then(r => r.json()).catch(() => ({ groups: [] }))
       ])
