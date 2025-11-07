@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
+import { useTranslations } from 'next-intl'
 
 interface Partner {
   matchId: string
@@ -32,6 +33,7 @@ interface Partner {
 export default function PartnersPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const t = useTranslations('partners')
   const [partners, setPartners] = useState<Partner[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -62,7 +64,7 @@ export default function PartnersPage() {
   }, [user])
 
   const handleRemovePartner = async (matchId: string) => {
-    if (!confirm('Are you sure you want to remove this study partner?')) return
+    if (!confirm(t('confirmRemove'))) return
 
     try {
       const response = await fetch('/api/partners/remove', {
@@ -73,11 +75,11 @@ export default function PartnersPage() {
 
       if (!response.ok) throw new Error('Failed to remove partner')
 
-      toast.success('Study partner removed')
+      toast.success(t('removed'))
       setPartners(partners.filter(p => p.matchId !== matchId))
     } catch (error) {
       console.error('Error removing partner:', error)
-      toast.error('Failed to remove partner')
+      toast.error(t('removeFailed'))
     }
   }
 
@@ -105,19 +107,19 @@ export default function PartnersPage() {
                 </svg>
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Study Partners</h1>
-                <p className="text-gray-600 mt-1">Manage your active study partnerships</p>
+                <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+                <p className="text-gray-600 mt-1">{t('managePartners')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-semibold">
-                {partners.length} {partners.length === 1 ? 'Partner' : 'Partners'}
+                {partners.length} {partners.length === 1 ? t('partner') : t('partners')}
               </span>
               <button
                 onClick={() => router.push('/search')}
                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition"
               >
-                Find Partners
+                {t('findPartners')}
               </button>
             </div>
           </div>
@@ -133,15 +135,15 @@ export default function PartnersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">No Study Partners Yet</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">{t('noPartnersYet')}</h2>
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
-              Start building your study network! Find partners who share your interests and goals.
+              {t('noPartnersDesc')}
             </p>
             <button
               onClick={() => router.push('/search')}
               className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition"
             >
-              Find Study Partners
+              {t('findStudyPartners')}
             </button>
           </div>
         ) : (
@@ -173,7 +175,9 @@ export default function PartnersPage() {
                         'bg-gray-400'
                       }`}></div>
                       <span className="text-xs text-gray-600 capitalize">
-                        {partner.profile?.onlineStatus.toLowerCase() || 'offline'}
+                        {partner.profile?.onlineStatus === 'ONLINE' ? t('online') :
+                         partner.profile?.onlineStatus === 'BUSY' ? t('busy') :
+                         t('offline')}
                       </span>
                     </div>
                   </div>
@@ -187,7 +191,7 @@ export default function PartnersPage() {
                 {/* Subjects */}
                 {partner.profile && partner.profile.subjects.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Subjects</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('subjects')}</p>
                     <div className="flex flex-wrap gap-2">
                       {partner.profile.subjects.slice(0, 3).map((subject: string, idx: number) => (
                         <span
@@ -199,7 +203,7 @@ export default function PartnersPage() {
                       ))}
                       {partner.profile.subjects.length > 3 && (
                         <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">
-                          +{partner.profile.subjects.length - 3} more
+                          +{partner.profile.subjects.length - 3} {t('more')}
                         </span>
                       )}
                     </div>
@@ -209,7 +213,7 @@ export default function PartnersPage() {
                 {/* Interests */}
                 {partner.profile && partner.profile.interests.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Interests</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('interests')}</p>
                     <div className="flex flex-wrap gap-2">
                       {partner.profile.interests.slice(0, 3).map((interest: string, idx: number) => (
                         <span
@@ -221,7 +225,7 @@ export default function PartnersPage() {
                       ))}
                       {partner.profile.interests.length > 3 && (
                         <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">
-                          +{partner.profile.interests.length - 3} more
+                          +{partner.profile.interests.length - 3} {t('more')}
                         </span>
                       )}
                     </div>
@@ -234,7 +238,7 @@ export default function PartnersPage() {
                     onClick={() => router.push(`/profile/${partner.id}`)}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition text-sm"
                   >
-                    View Profile
+                    {t('viewProfile')}
                   </button>
                   <button
                     onClick={() => router.push(`/chat?userId=${partner.id}`)}

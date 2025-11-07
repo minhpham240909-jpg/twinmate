@@ -341,5 +341,28 @@
     "alreadyConnected": "Ya Conectado",
     "connectionSent": "Solicitud Enviada",
     "searching": "Buscando..."
+  },
+  "partners": {
+    "title": "Compañeros de Estudio",
+    "managePartners": "Gestiona tus asociaciones de estudio activas",
+    "partner": "Compañero",
+    "partners": "Compañeros",
+    "findPartners": "Encontrar Compañeros",
+    "noPartnersYet": "Aún No Hay Compañeros de Estudio",
+    "noPartnersDesc": "¡Comienza a construir tu red de estudio! Encuentra compañeros que compartan tus intereses y objetivos.",
+    "findStudyPartners": "Encontrar Compañeros de Estudio",
+    "viewProfile": "Ver Perfil",
+    "remove": "Eliminar",
+    "removePartner": "Eliminar Compañero",
+    "confirmRemove": "¿Estás seguro de que quieres eliminar este compañero de estudio?",
+    "removed": "Compañero de estudio eliminado",
+    "removeFailed": "Error al eliminar compañero",
+    "subjects": "Materias",
+    "interests": "Intereses",
+    "goals": "Objetivos",
+    "online": "En línea",
+    "offline": "Fuera de línea",
+    "busy": "Ocupado",
+    "more": "más"
   }
 }

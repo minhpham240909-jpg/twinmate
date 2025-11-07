@@ -115,6 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router, supabase])
 
   const signOut = async () => {
+    // Confirm before signing out
+    if (!confirm('Are you sure you want to log out?')) {
+      return
+    }
+
     await fetch('/api/auth/signout', { method: 'POST' })
     setUser(null)
     setProfile(null)

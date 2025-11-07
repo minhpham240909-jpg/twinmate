@@ -55,12 +55,19 @@ export default function DashboardPage() {
   const tNav = useTranslations('navigation')
   const { openPanel } = useAIAgent()
   
-  const [unreadCount, setUnreadCount] = useState(0)
+  // Initialize states from localStorage cache to prevent flickering
+  const getInitialCount = (key: string): number => {
+    if (typeof window === 'undefined') return 0
+    const cached = localStorage.getItem(`dashboard_${key}`)
+    return cached ? parseInt(cached, 10) : 0
+  }
+
+  const [unreadCount, setUnreadCount] = useState(() => getInitialCount('unreadCount'))
   const [showNotifications, setShowNotifications] = useState(false)
-  const [partnersCount, setPartnersCount] = useState(0)
-  const [pendingInvitesCount, setPendingInvitesCount] = useState(0)
+  const [partnersCount, setPartnersCount] = useState(() => getInitialCount('partnersCount'))
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(() => getInitialCount('pendingInvitesCount'))
   const [showPartnersModal, setShowPartnersModal] = useState(false)
-  const [connectionRequestsCount, setConnectionRequestsCount] = useState(0)
+  const [connectionRequestsCount, setConnectionRequestsCount] = useState(() => getInitialCount('connectionRequestsCount'))
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -83,7 +90,7 @@ export default function DashboardPage() {
     setShowCompleteProfileBanner(!profileComplete && !bannerDismissed)
   }, [profile])
 
-  // Fetch data
+  // Fetch data and cache to localStorage
   useEffect(() => {
     if (!user || loading) return
 
@@ -96,10 +103,24 @@ export default function DashboardPage() {
           fetch('/api/connections?type=received').then(r => r.json()).catch(() => ({ receivedCount: 0 }))
         ])
 
-        setUnreadCount(notifs.unreadCount || 0)
-        setPartnersCount(partners.count || 0)
-        setPendingInvitesCount(invites.invites?.length || 0)
-        setConnectionRequestsCount(connections.receivedCount || 0)
+        const unread = notifs.unreadCount || 0
+        const partners_count = partners.count || 0
+        const pending = invites.invites?.length || 0
+        const requests = connections.receivedCount || 0
+
+        // Update state
+        setUnreadCount(unread)
+        setPartnersCount(partners_count)
+        setPendingInvitesCount(pending)
+        setConnectionRequestsCount(requests)
+
+        // Cache to localStorage for next visit
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('dashboard_unreadCount', String(unread))
+          localStorage.setItem('dashboard_partnersCount', String(partners_count))
+          localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
+          localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
       }

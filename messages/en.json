@@ -341,5 +341,28 @@
     "alreadyConnected": "Already Connected",
     "connectionSent": "Connection Sent",
     "searching": "Searching..."
+  },
+  "partners": {
+    "title": "Study Partners",
+    "managePartners": "Manage your active study partnerships",
+    "partner": "Partner",
+    "partners": "Partners",
+    "findPartners": "Find Partners",
+    "noPartnersYet": "No Study Partners Yet",
+    "noPartnersDesc": "Start building your study network! Find partners who share your interests and goals.",
+    "findStudyPartners": "Find Study Partners",
+    "viewProfile": "View Profile",
+    "remove": "Remove",
+    "removePartner": "Remove Partner",
+    "confirmRemove": "Are you sure you want to remove this study partner?",
+    "removed": "Study partner removed",
+    "removeFailed": "Failed to remove partner",
+    "subjects": "Subjects",
+    "interests": "Interests",
+    "goals": "Goals",
+    "online": "Online",
+    "offline": "Offline",
+    "busy": "Busy",
+    "more": "more"
   }
 }
