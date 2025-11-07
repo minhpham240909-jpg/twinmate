@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/study-sessions/cleanup",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
