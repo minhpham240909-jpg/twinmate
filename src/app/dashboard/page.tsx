@@ -211,37 +211,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* User Profile Card */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <AvatarDropdown
-                avatarUrl={profile.avatarUrl ?? null}
-                name={profile.name}
-                onSignOut={signOut}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-900 truncate">{profile.name}</p>
-                <p className="text-xs text-gray-600">{profile.role || 'FREE'} Account</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-lg font-bold text-blue-600">{profile.studyStreak || 0}</p>
-                <p className="text-xs text-gray-600">Streak</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-purple-600">{partnersCount}</p>
-                <p className="text-xs text-gray-600">Partners</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-green-600">{formatStudyHours(profile.totalStudyHours || 0)}</p>
-                <p className="text-xs text-gray-600">Hours</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <button
@@ -336,6 +305,29 @@ export default function DashboardPage() {
             Community
           </button>
         </nav>
+
+        {/* User Profile Card - Bottom */}
+        <div className="p-4 border-t border-gray-200 mt-auto">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <AvatarDropdown
+                avatarUrl={profile.avatarUrl ?? null}
+                name={profile.name}
+                onSignOut={signOut}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{profile.name}</p>
+                <p className="text-xs text-gray-600">{profile.role || 'FREE'} Account</p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/profile')}
+              className="w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+            >
+              View Profile
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -364,116 +356,104 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
-          {/* AI Agent Featured Card */}
-          <button
-            onClick={() => openPanel()}
-            className="w-full mb-10 p-10 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-3xl text-white text-left relative overflow-hidden group hover:shadow-2xl hover:scale-[1.01] transition-all duration-300"
-          >
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-6">
-                <div className="w-20 h-20 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <span className="px-4 py-1.5 bg-white/30 backdrop-blur-md text-xs font-bold rounded-full shadow-lg">
-                  NEW
-                </span>
-              </div>
-              <h2 className="text-3xl font-bold mb-3">{t('clervaAI')}</h2>
-              <p className="text-blue-100 text-lg leading-relaxed">{t('clervaAIDesc')}</p>
-            </div>
-          </button>
-
-          {/* Three Stat Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mb-10">
-            {/* Study Partner Card */}
-            <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group cursor-pointer">
-              {/* Animated background elements */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 group-hover:opacity-20 transition-all duration-700"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-300 opacity-20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
-              
+          {/* Split Layout: Left = AI Card, Right = 3 Stat Cards */}
+          <div className="grid md:grid-cols-2 gap-8 mb-10">
+            {/* Left Half - AI Agent Featured Card */}
+            <button
+              onClick={() => openPanel()}
+              className="w-full h-full p-8 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-3xl text-white text-left relative overflow-hidden group hover:shadow-2xl hover:scale-[1.01] transition-all duration-300"
+            >
+              <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
               <div className="relative z-10">
-                {/* Icon container */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 border border-white/20">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="w-16 h-16 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                   </div>
+                  <span className="px-3 py-1 bg-white/30 backdrop-blur-md text-xs font-bold rounded-full shadow-lg">
+                    NEW
+                  </span>
                 </div>
-                
-                {/* Number */}
-                <p className="text-6xl font-black mb-3 tracking-tight leading-none">{partnersCount}</p>
-                
-                {/* Label */}
-                <div className="flex items-center gap-2">
-                  <p className="text-blue-50 text-lg font-semibold">Study Partners</p>
+                <h2 className="text-2xl font-bold mb-2">{t('clervaAI')}</h2>
+                <p className="text-blue-100 text-base leading-relaxed">{t('clervaAIDesc')}</p>
+              </div>
+            </button>
+
+            {/* Right Half - Three Stat Cards (Smaller) */}
+            <div className="grid grid-rows-3 gap-4">
+              {/* Study Partner Card */}
+              <button
+                onClick={() => router.push('/dashboard/partners')}
+                className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left w-full"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black tracking-tight">{partnersCount}</p>
+                      <p className="text-blue-50 text-sm font-medium">Study Partners</p>
+                    </div>
+                  </div>
                   <svg className="w-5 h-5 text-blue-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-              </div>
-            </div>
+              </button>
 
-            {/* Streak Card */}
-            <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group cursor-pointer">
-              {/* Animated background elements */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 group-hover:opacity-20 transition-all duration-700"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-pink-300 opacity-20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
-              
-              <div className="relative z-10">
-                {/* Icon container */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 border border-white/20">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
+              {/* Streak Card */}
+              <button
+                onClick={() => {/* TODO: Add streak page */}}
+                className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left w-full"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black tracking-tight">{profile.studyStreak || 0}</p>
+                      <p className="text-purple-50 text-sm font-medium">Day Streak</p>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Number */}
-                <p className="text-6xl font-black mb-3 tracking-tight leading-none">{profile.studyStreak || 0}</p>
-                
-                {/* Label */}
-                <div className="flex items-center gap-2">
-                  <p className="text-purple-50 text-lg font-semibold">Day Streak</p>
                   <svg className="w-5 h-5 text-purple-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-              </div>
-            </div>
+              </button>
 
-            {/* Study Hours Card */}
-            <div className="bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group cursor-pointer">
-              {/* Animated background elements */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 group-hover:opacity-20 transition-all duration-700"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-300 opacity-20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
-              
-              <div className="relative z-10">
-                {/* Icon container */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 border border-white/20">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+              {/* Study Hours Card */}
+              <button
+                onClick={() => {/* TODO: Add study hours page */}}
+                className="bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left w-full"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black tracking-tight">{formatStudyHours(profile.totalStudyHours || 0)}</p>
+                      <p className="text-green-50 text-sm font-medium">Study Hours</p>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Number */}
-                <p className="text-6xl font-black mb-3 tracking-tight leading-none">{formatStudyHours(profile.totalStudyHours || 0)}</p>
-                
-                {/* Label */}
-                <div className="flex items-center gap-2">
-                  <p className="text-green-50 text-lg font-semibold">Study Hours</p>
                   <svg className="w-5 h-5 text-green-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
