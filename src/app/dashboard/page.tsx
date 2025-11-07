@@ -4,7 +4,6 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import NotificationPanel from '@/components/NotificationPanel'
-import StudyPartnersModal from '@/components/StudyPartnersModal'
 import AvatarDropdown from '@/components/AvatarDropdown'
 import { useSessionCleanup } from '@/hooks/useSessionCleanup'
 import { useUserSync } from '@/hooks/useUserSync'
@@ -52,7 +51,6 @@ export default function DashboardPage() {
   const router = useRouter()
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
-  const tNav = useTranslations('navigation')
   const { openPanel } = useAIAgent()
   
   // Initialize states from localStorage cache to prevent flickering
@@ -66,7 +64,6 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [partnersCount, setPartnersCount] = useState(() => getInitialCount('partnersCount'))
   const [pendingInvitesCount, setPendingInvitesCount] = useState(() => getInitialCount('pendingInvitesCount'))
-  const [showPartnersModal, setShowPartnersModal] = useState(false)
   const [connectionRequestsCount, setConnectionRequestsCount] = useState(() => getInitialCount('connectionRequestsCount'))
   
   // Search state
@@ -294,16 +291,6 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             Find Partner
-          </button>
-
-          <button
-            onClick={() => setShowPartnersModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            Study Partners
           </button>
 
           <button
@@ -657,13 +644,6 @@ export default function DashboardPage() {
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
         onUnreadCountChange={setUnreadCount}
-      />
-
-      {/* Study Partners Modal */}
-      <StudyPartnersModal
-        isOpen={showPartnersModal}
-        onClose={() => setShowPartnersModal(false)}
-        onPartnerRemoved={() => {}}
       />
     </div>
   )

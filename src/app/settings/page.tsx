@@ -27,6 +27,7 @@ interface UserSettings {
   timezone?: string
   // Privacy & Visibility
   profileVisibility?: 'EVERYONE' | 'CONNECTIONS_ONLY' | 'PRIVATE'
+  postPrivacy?: 'PUBLIC' | 'PARTNERS_ONLY'
   searchVisibility?: boolean
   showOnlineStatus?: boolean
   showLastSeen?: boolean
@@ -788,6 +789,16 @@ function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; 
             { value: 'PRIVATE', label: 'Private (Only Me)' },
           ]}
           onChange={(value) => updateSetting('profileVisibility', value)}
+        />
+        <SelectSetting
+          label="Who Can See Your Posts"
+          description="Control who can view your community posts"
+          value={settings.postPrivacy || 'PUBLIC'}
+          options={[
+            { value: 'PUBLIC', label: 'Public - Everyone can see' },
+            { value: 'PARTNERS_ONLY', label: 'Partners Only - Only connected study partners' },
+          ]}
+          onChange={(value) => updateSetting('postPrivacy', value)}
         />
         <ToggleSetting
           label="Appear in Search Results"

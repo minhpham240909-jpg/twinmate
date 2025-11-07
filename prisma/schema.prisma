@@ -715,6 +715,7 @@ model Post {
 
   content   String  @db.Text // Post text content
   imageUrls String[] // Array of image URLs
+  postUrl   String? // Optional link/URL to external content
 
   // Soft delete fields
   isDeleted Boolean   @default(false) // Soft delete flag

@@ -820,46 +820,6 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Post Privacy Settings */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Community Privacy Settings</h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Who can see your posts?
-                </label>
-                <div className="space-y-3">
-                  <label className="flex items-start cursor-pointer">
-                    <input
-                      type="radio"
-                      name="postPrivacy"
-                      value="PUBLIC"
-                      checked={formData.postPrivacy === 'PUBLIC'}
-                      onChange={(e) => setFormData({ ...formData, postPrivacy: e.target.value as 'PUBLIC' | 'PARTNERS_ONLY' })}
-                      className="mt-1 mr-3"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">Public</div>
-                      <div className="text-sm text-gray-600">Everyone can see your posts</div>
-                    </div>
-                  </label>
-                  <label className="flex items-start cursor-pointer">
-                    <input
-                      type="radio"
-                      name="postPrivacy"
-                      value="PARTNERS_ONLY"
-                      checked={formData.postPrivacy === 'PARTNERS_ONLY'}
-                      onChange={(e) => setFormData({ ...formData, postPrivacy: e.target.value as 'PUBLIC' | 'PARTNERS_ONLY' })}
-                      className="mt-1 mr-3"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">Partners Only</div>
-                      <div className="text-sm text-gray-600">Only your connected study partners can see your posts</div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-
             {/* Save Button */}
             <div className="flex gap-4">
               <button

@@ -11,6 +11,7 @@ type Post = {
   id: string
   content: string
   imageUrls: string[]
+  postUrl?: string | null
   createdAt: string
   user: {
     id: string
@@ -23,7 +24,6 @@ type Post = {
     reposts: number
   }
   isLikedByUser?: boolean
-  isRepostedByUser?: boolean
   connectionStatus?: 'none' | 'pending' | 'connected'
 }
 
@@ -71,6 +71,7 @@ export default function CommunityPage() {
   // Initialize with cached data for instant display - NO LOADING DELAY!
   const [posts, setPosts] = useState<Post[]>(() => getCachedPosts())
   const [newPostContent, setNewPostContent] = useState('')
+  const [newPostUrl, setNewPostUrl] = useState('')
   const [isPostingLoading, setIsPostingLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Post[]>([])
@@ -285,7 +286,7 @@ export default function CommunityPage() {
   }
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && selectedImages.length === 0) return
+    if (!newPostContent.trim() && selectedImages.length === 0 && !newPostUrl.trim()) return
 
     setIsPostingLoading(true)
     try {
@@ -313,19 +314,21 @@ export default function CommunityPage() {
         setIsUploadingImages(false)
       }
 
-      // Create post with content and image URLs
+      // Create post with content, image URLs, and optional link
       const response = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: newPostContent.trim() || 'Posted images',
+          content: newPostContent.trim() || (imageUrls.length > 0 ? 'Posted images' : 'Shared a link'),
           imageUrls,
+          postUrl: newPostUrl.trim() || null,
           allowSharing
         }),
       })
 
       if (response.ok) {
         setNewPostContent('')
+        setNewPostUrl('')
         setSelectedImages([])
         setImagePreviewUrls([])
         await fetchPosts()
@@ -411,47 +414,6 @@ export default function CommunityPage() {
       }
     } catch (error) {
       console.error('Error liking post:', error)
-    }
-  }
-
-  const handleRepost = async (postId: string, isReposted: boolean) => {
-    try {
-      const method = isReposted ? 'DELETE' : 'POST'
-      const response = await fetch(`/api/posts/${postId}/repost`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: method === 'POST' ? JSON.stringify({}) : undefined,
-      })
-
-      if (response.ok) {
-        setPosts(prev => {
-          const updated = prev.map(post =>
-            post.id === postId
-              ? {
-                  ...post,
-                  isRepostedByUser: !isReposted,
-                  _count: {
-                    ...post._count,
-                    reposts: post._count.reposts + (isReposted ? -1 : 1),
-                  },
-                }
-              : post
-          )
-
-          // Update cache
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem('community_posts', JSON.stringify(updated))
-            } catch (error) {
-              console.error('Error updating cache:', error)
-            }
-          }
-
-          return updated
-        })
-      }
-    } catch (error) {
-      console.error('Error reposting:', error)
     }
   }
 
@@ -791,6 +753,17 @@ export default function CommunityPage() {
             </div>
           )}
 
+          {/* Link/URL Input */}
+          <div className="mt-3">
+            <input
+              type="url"
+              value={newPostUrl}
+              onChange={(e) => setNewPostUrl(e.target.value)}
+              placeholder="Add a link (optional)..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-500">
@@ -833,7 +806,7 @@ export default function CommunityPage() {
 
             <button
               onClick={handleCreatePost}
-              disabled={(!newPostContent.trim() && selectedImages.length === 0) || isPostingLoading}
+              disabled={(!newPostContent.trim() && selectedImages.length === 0 && !newPostUrl.trim()) || isPostingLoading}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
             >
               {isPostingLoading ? t('posting') : t('postButton')}
@@ -1062,6 +1035,23 @@ export default function CommunityPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Post Link Preview */}
+                  {post.postUrl && (
+                    <a
+                      href={post.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block mb-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                    >
+                      <div className="flex items-center gap-2 text-blue-600 hover:text-blue-700">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        <span className="text-sm font-medium break-all">{post.postUrl}</span>
+                      </div>
+                    </a>
+                  )}
                 </div>
               )}
 
@@ -1102,23 +1092,6 @@ export default function CommunityPage() {
                     />
                   </svg>
                   <span className="text-sm font-medium">{post._count.comments}</span>
-                </button>
-
-                <button
-                  onClick={() => handleRepost(post.id, post.isRepostedByUser || false)}
-                  className={`flex items-center gap-2 ${
-                    post.isRepostedByUser ? 'text-green-600' : 'text-gray-600'
-                  } hover:text-green-600 transition`}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium">{post._count.reposts}</span>
                 </button>
               </div>
 
