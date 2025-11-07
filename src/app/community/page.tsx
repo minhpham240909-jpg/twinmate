@@ -43,7 +43,33 @@ export default function CommunityPage() {
   const router = useRouter()
   const t = useTranslations('community')
   const tCommon = useTranslations('common')
-  const [posts, setPosts] = useState<Post[]>([])
+
+  // Helper to get cached posts from localStorage for instant display
+  const getCachedPosts = (): Post[] => {
+    if (typeof window === 'undefined') return []
+    try {
+      const cached = localStorage.getItem('community_posts')
+      return cached ? JSON.parse(cached) : []
+    } catch (error) {
+      console.error('Error loading cached posts:', error)
+      return []
+    }
+  }
+
+  // Helper to get cached popular posts
+  const getCachedPopularPosts = (): Post[] => {
+    if (typeof window === 'undefined') return []
+    try {
+      const cached = localStorage.getItem('community_popular_posts')
+      return cached ? JSON.parse(cached) : []
+    } catch (error) {
+      console.error('Error loading cached popular posts:', error)
+      return []
+    }
+  }
+
+  // Initialize with cached data for instant display - NO LOADING DELAY!
+  const [posts, setPosts] = useState<Post[]>(() => getCachedPosts())
   const [newPostContent, setNewPostContent] = useState('')
   const [isPostingLoading, setIsPostingLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -56,7 +82,7 @@ export default function CommunityPage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent')
-  const [popularPosts, setPopularPosts] = useState<Post[]>([])
+  const [popularPosts, setPopularPosts] = useState<Post[]>(() => getCachedPopularPosts())
   const [trendingHashtags, setTrendingHashtags] = useState<{ hashtag: string; count: number }[]>([])
   const [isLoadingPopular, setIsLoadingPopular] = useState(false)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
@@ -133,6 +159,15 @@ export default function CommunityPage() {
         const data = await response.json()
         setPosts(data.posts)
         setNewPostsCount(0) // Reset count when fetching
+
+        // Cache posts to localStorage for instant display next time
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('community_posts', JSON.stringify(data.posts))
+          } catch (error) {
+            console.error('Error caching posts:', error)
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
@@ -146,6 +181,15 @@ export default function CommunityPage() {
       if (response.ok) {
         const data = await response.json()
         setPopularPosts(data.posts)
+
+        // Cache popular posts to localStorage
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('community_popular_posts', JSON.stringify(data.posts))
+          } catch (error) {
+            console.error('Error caching popular posts:', error)
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching popular posts:', error)
@@ -339,8 +383,8 @@ export default function CommunityPage() {
 
       if (response.ok) {
         // Update local state immediately
-        setPosts(prev =>
-          prev.map(post =>
+        setPosts(prev => {
+          const updated = prev.map(post =>
             post.id === postId
               ? {
                   ...post,
@@ -352,7 +396,18 @@ export default function CommunityPage() {
                 }
               : post
           )
-        )
+
+          // Update cache
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('community_posts', JSON.stringify(updated))
+            } catch (error) {
+              console.error('Error updating cache:', error)
+            }
+          }
+
+          return updated
+        })
       }
     } catch (error) {
       console.error('Error liking post:', error)
@@ -369,8 +424,8 @@ export default function CommunityPage() {
       })
 
       if (response.ok) {
-        setPosts(prev =>
-          prev.map(post =>
+        setPosts(prev => {
+          const updated = prev.map(post =>
             post.id === postId
               ? {
                   ...post,
@@ -382,7 +437,18 @@ export default function CommunityPage() {
                 }
               : post
           )
-        )
+
+          // Update cache
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('community_posts', JSON.stringify(updated))
+            } catch (error) {
+              console.error('Error updating cache:', error)
+            }
+          }
+
+          return updated
+        })
       }
     } catch (error) {
       console.error('Error reposting:', error)
