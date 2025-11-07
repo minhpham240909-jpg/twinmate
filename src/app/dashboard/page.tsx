@@ -533,6 +533,21 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* No Results Message */}
+              {searchQuery.trim().length >= 2 && !isSearching && searchResults.partners.length === 0 && searchResults.groups.length === 0 && (
+                <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{tCommon('noResults')}</h3>
+                    <p className="text-gray-600 max-w-md mx-auto">{tCommon('noMatchingResults')}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Search Results */}
               {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
                 <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">

@@ -181,20 +181,20 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        toast.success(data.message || 'Post restored successfully')
+        toast.success(data.message || t('postRestored'))
       } else {
         const error = await response.json()
-        toast.error(error.error || 'Failed to restore post')
+        toast.error(error.error || t('postRestoreFailed'))
       }
     } catch (error) {
       console.error('Error restoring post:', error)
-      toast.error('Failed to restore post')
+      toast.error(t('postRestoreFailed'))
     }
   }
 
   // Handle permanently delete post
   const handlePermanentlyDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this post? This action CANNOT be undone!')) {
+    if (!confirm(t('confirmPermanentDelete'))) {
       return
     }
 
@@ -205,20 +205,20 @@ export default function SettingsPage() {
 
       if (response.ok) {
         setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        toast.success('Post permanently deleted')
+        toast.success(t('postPermanentlyDeleted'))
       } else {
         const error = await response.json()
-        toast.error(error.error || 'Failed to delete post')
+        toast.error(error.error || t('postDeleteFailed'))
       }
     } catch (error) {
       console.error('Error permanently deleting post:', error)
-      toast.error('Failed to delete post')
+      toast.error(t('postDeleteFailed'))
     }
   }
 
   // Handle clear cache
   const handleClearCache = async () => {
-    if (!confirm('This will clear all cached data and you may need to reload the app. Continue?')) {
+    if (!confirm(t('confirmClearCache'))) {
       return
     }
 
@@ -242,17 +242,17 @@ export default function SettingsPage() {
       // Call API to clear server-side cache
       await fetch('/api/settings/clear-cache', { method: 'POST' })
 
-      toast.success('Cache cleared successfully!')
+      toast.success(t('cacheCleared'))
     } catch (error) {
       console.error('Error clearing cache:', error)
-      toast.error('Failed to clear cache')
+      toast.error(t('cacheClearFailed'))
     }
   }
 
   // Handle export data
   const handleExportData = async () => {
     try {
-      toast.loading('Preparing your data export...')
+      toast.loading(t('preparingExport'))
 
       const response = await fetch('/api/settings/export-data')
 
@@ -268,15 +268,15 @@ export default function SettingsPage() {
         document.body.removeChild(a)
 
         toast.dismiss()
-        toast.success('Data exported successfully!')
+        toast.success(t('dataExported'))
       } else {
         toast.dismiss()
-        toast.error('Failed to export data')
+        toast.error(t('dataExportFailed'))
       }
     } catch (error) {
       console.error('Error exporting data:', error)
       toast.dismiss()
-      toast.error('Failed to export data')
+      toast.error(t('dataExportFailed'))
     }
   }
 
@@ -296,13 +296,13 @@ export default function SettingsPage() {
 
     if (confirmation !== 'DELETE') {
       if (confirmation !== null) {
-        toast.error('Account deletion cancelled. You must type DELETE exactly.')
+        toast.error(t('deletionCancelled'))
       }
       return
     }
 
     try {
-      toast.loading('Deleting your account...')
+      toast.loading(t('deletingAccount'))
 
       const response = await fetch('/api/settings/delete-account', {
         method: 'POST',
@@ -312,7 +312,7 @@ export default function SettingsPage() {
 
       if (response.ok) {
         toast.dismiss()
-        toast.success('Account deleted successfully. Redirecting...')
+        toast.success(t('accountDeleted'))
 
         // Sign out and redirect to home page
         setTimeout(() => {
@@ -321,12 +321,12 @@ export default function SettingsPage() {
       } else {
         const error = await response.json()
         toast.dismiss()
-        toast.error(error.error || 'Failed to delete account')
+        toast.error(error.error || t('accountDeleteFailed'))
       }
     } catch (error) {
       console.error('Error deleting account:', error)
       toast.dismiss()
-      toast.error('Failed to delete account')
+      toast.error(t('accountDeleteFailed'))
     }
   }
 

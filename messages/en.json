@@ -10,7 +10,10 @@
     "loading": "Loading...",
     "logout": "Logout",
     "login": "Login",
-    "signup": "Sign Up"
+    "signup": "Sign Up",
+    "noNotifications": "No notifications",
+    "noResults": "No results found",
+    "noMatchingResults": "Sorry, no results match your criteria"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -47,7 +50,22 @@
     "feedAlgorithm": "Feed Algorithm",
     "recommended": "Recommended",
     "chronological": "Chronological",
-    "trending": "Trending"
+    "trending": "Trending",
+    "postRestored": "Post restored successfully",
+    "postRestoreFailed": "Failed to restore post",
+    "confirmPermanentDelete": "Are you sure you want to permanently delete this post? This action CANNOT be undone!",
+    "postPermanentlyDeleted": "Post permanently deleted",
+    "postDeleteFailed": "Failed to delete post",
+    "confirmClearCache": "This will clear all cached data and you may need to reload the app. Continue?",
+    "cacheCleared": "Cache cleared successfully!",
+    "cacheClearFailed": "Failed to clear cache",
+    "preparingExport": "Preparing your data export...",
+    "dataExported": "Data exported successfully!",
+    "dataExportFailed": "Failed to export data",
+    "deletionCancelled": "Account deletion cancelled. You must type DELETE exactly.",
+    "deletingAccount": "Deleting your account...",
+    "accountDeleted": "Account deleted successfully. Redirecting...",
+    "accountDeleteFailed": "Failed to delete account"
   },
   "auth": {
     "signIn": "Sign In",

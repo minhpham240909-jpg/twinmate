@@ -10,7 +10,10 @@
     "loading": "Cargando...",
     "logout": "Cerrar Sesión",
     "login": "Iniciar Sesión",
-    "signup": "Registrarse"
+    "signup": "Registrarse",
+    "noNotifications": "Sin notificaciones",
+    "noResults": "No se encontraron resultados",
+    "noMatchingResults": "Lo sentimos, no hay resultados que coincidan con tus criterios"
   },
   "navigation": {
     "dashboard": "Panel",
@@ -47,7 +50,22 @@
     "feedAlgorithm": "Algoritmo de Feed",
     "recommended": "Recomendado",
     "chronological": "Cronológico",
-    "trending": "Tendencias"
+    "trending": "Tendencias",
+    "postRestored": "Publicación restaurada exitosamente",
+    "postRestoreFailed": "Error al restaurar publicación",
+    "confirmPermanentDelete": "¿Estás seguro de que quieres eliminar permanentemente esta publicación? ¡Esta acción NO se puede deshacer!",
+    "postPermanentlyDeleted": "Publicación eliminada permanentemente",
+    "postDeleteFailed": "Error al eliminar publicación",
+    "confirmClearCache": "Esto borrará todos los datos en caché y es posible que debas recargar la aplicación. ¿Continuar?",
+    "cacheCleared": "¡Caché borrado exitosamente!",
+    "cacheClearFailed": "Error al borrar caché",
+    "preparingExport": "Preparando tu exportación de datos...",
+    "dataExported": "¡Datos exportados exitosamente!",
+    "dataExportFailed": "Error al exportar datos",
+    "deletionCancelled": "Eliminación de cuenta cancelada. Debes escribir DELETE exactamente.",
+    "deletingAccount": "Eliminando tu cuenta...",
+    "accountDeleted": "Cuenta eliminada exitosamente. Redirigiendo...",
+    "accountDeleteFailed": "Error al eliminar cuenta"
   },
   "auth": {
     "signIn": "Iniciar Sesión",
