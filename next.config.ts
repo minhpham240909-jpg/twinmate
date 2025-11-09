@@ -1,9 +1,16 @@
 import type { NextConfig } from "next";
 
-// Bundle Analyzer - Run with: ANALYZE=true npm run build
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-});
+// Bundle Analyzer - Optional (only loads if installed)
+// To use: npm install --save-dev @next/bundle-analyzer && ANALYZE=true npm run build
+let withBundleAnalyzer: (config: NextConfig) => NextConfig;
+try {
+  withBundleAnalyzer = require('@next/bundle-analyzer')({
+    enabled: process.env.ANALYZE === 'true',
+  });
+} catch {
+  // Bundle analyzer not installed or not available - skip it
+  withBundleAnalyzer = (config) => config;
+}
 
 const nextConfig: NextConfig = {
   /* config options here */
