@@ -113,6 +113,6 @@ describe('File Security', () => {
 
     expect(filename).toContain(userId)
     expect(filename).toContain(String(timestamp))
-    expect(filename).toEndWith('.jpg')
+    expect(filename.endsWith('.jpg')).toBe(true)
   })
 })
