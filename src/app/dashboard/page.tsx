@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import Image from 'next/image'
 import NotificationPanel from '@/components/NotificationPanel'
 import AvatarDropdown from '@/components/AvatarDropdown'
 import { useUserSync } from '@/hooks/useUserSync'
@@ -93,12 +94,19 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const [notifs, partners, invites, connections] = await Promise.all([
+        // Use allSettled to allow dashboard to load even if some APIs fail
+        const results = await Promise.allSettled([
           fetch('/api/notifications').then(r => r.json()),
           fetch('/api/partners/count').then(r => r.json()),
           fetch('/api/study-sessions/pending-invites').then(r => r.json()),
-          fetch('/api/connections?type=received').then(r => r.json()).catch(() => ({ receivedCount: 0 }))
+          fetch('/api/connections?type=received').then(r => r.json())
         ])
+
+        // Extract values with fallbacks for failed requests
+        const notifs = results[0].status === 'fulfilled' ? results[0].value : { unreadCount: 0 }
+        const partners = results[1].status === 'fulfilled' ? results[1].value : { count: 0 }
+        const invites = results[2].status === 'fulfilled' ? results[2].value : { invites: [] }
+        const connections = results[3].status === 'fulfilled' ? results[3].value : { receivedCount: 0 }
 
         const unread = notifs.unreadCount || 0
         const partners_count = partners.count || 0
@@ -368,7 +376,7 @@ export default function DashboardPage() {
               </svg>
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </button>
@@ -570,7 +578,7 @@ export default function DashboardPage() {
                             className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
                           >
                             {partner.user.avatarUrl ? (
-                              <img src={partner.user.avatarUrl} alt={partner.user.name} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all" />
+                              <Image src={partner.user.avatarUrl} alt={partner.user.name} width={48} height={48} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all" />
                             ) : (
                               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all">
                                 {partner.user.name[0]}

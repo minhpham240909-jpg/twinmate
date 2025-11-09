@@ -108,9 +108,20 @@ model Profile {
   age       Int? // User's age
   role      String? // User's role/position (e.g., "Student", "Graduate Student", "Software Engineer")
   timezone  String?
+
+  // DEPRECATED: Old location fields (keep for backward compatibility)
   location  String?
   latitude  Float?
   longitude Float?
+
+  // NEW: Hybrid Location System
+  location_city          String? // City from auto-detect or manual entry
+  location_state         String? // State/region from auto-detect or manual entry
+  location_country       String? // Country from auto-detect or manual entry
+  location_lat           Float? // Latitude for proximity matching (privacy-safe)
+  location_lng           Float? // Longitude for proximity matching (privacy-safe)
+  location_visibility    String  @default("match-only") // 'private', 'match-only', or 'public'
+  location_last_updated  DateTime? // When location was last updated
 
   // Academic/Learning
   subjects   String[] // ["Math", "Physics", "CS"]
@@ -166,6 +177,8 @@ model Profile {
   @@index([subjects])
   @@index([interests])
   @@index([onlineStatus])
+  @@index([location_city])
+  @@index([location_visibility])
 }
 
 model LearningProfile {

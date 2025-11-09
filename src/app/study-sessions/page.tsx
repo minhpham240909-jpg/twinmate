@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useTranslations } from 'next-intl'
@@ -272,9 +273,11 @@ export default function StudySessionsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         {invite.inviter?.avatarUrl ? (
-                          <img
+                          <Image
                             src={invite.inviter.avatarUrl}
                             alt={invite.inviter.name}
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-full"
                           />
                         ) : (

@@ -357,8 +357,12 @@
     "connect": "Conectar",
     "viewProfile": "Ver Perfil",
     "alreadyConnected": "Ya Conectado",
+    "alreadyPartners": "Ya Son Compañeros",
     "connectionSent": "Solicitud Enviada",
-    "searching": "Buscando..."
+    "searching": "Buscando...",
+    "noPartnersFoundWithFilters": "Ningún compañero coincide con tus filtros actuales. Prueba diferentes criterios.",
+    "noPartnersFoundDescription": "No hay compañeros de estudio disponibles actualmente. ¡Vuelve pronto!",
+    "sending": "Enviando..."
   },
   "partners": {
     "title": "Compañeros de Estudio",

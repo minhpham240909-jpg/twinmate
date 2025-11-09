@@ -22,7 +22,13 @@ const customJestConfig = {
     '**/__tests__/**/*.{js,jsx,ts,tsx}',
     '**/*.{spec,test}.{js,jsx,ts,tsx}',
   ],
-  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/e2e/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/.next/',
+    '/e2e/',
+    '/tests/', // Exclude Playwright tests
+    'vitest', // Exclude Vitest test files
+  ],
   coverageThreshold: {
     global: {
       branches: 25,

@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
 interface ConnectionRequest {

@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useEffect, useState, useRef } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { Sparkles } from 'lucide-react'
@@ -97,9 +98,11 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
       (t) => (
         <div className="flex items-start gap-3">
           {message.sender.avatarUrl ? (
-            <img
+            <Image
               src={message.sender.avatarUrl}
               alt={message.sender.name}
+              width={40}
+              height={40}
               className="w-10 h-10 rounded-full flex-shrink-0"
             />
           ) : (

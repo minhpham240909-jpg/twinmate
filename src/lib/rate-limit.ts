@@ -71,16 +71,25 @@ if (typeof window === 'undefined') {
  * Get client identifier from request
  * Uses IP address or user ID for authenticated requests
  */
-function getClientId(request: NextRequest): string {
-  // Try to get IP from headers (works with Vercel/proxy)
+async function getClientId(request: NextRequest): Promise<string> {
+  // Try to get user ID from Supabase session
+  try {
+    const token = request.cookies.get('sb-access-token')?.value
+    if (token) {
+      // Parse JWT to get user ID (without verification for performance)
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
+      if (payload.sub) {
+        return `user:${payload.sub}`
+      }
+    }
+  } catch {
+    // Fall through to IP-based rate limiting
+  }
+
+  // Fallback to IP address
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
-
   const ip = forwarded?.split(',')[0].trim() || realIp || 'unknown'
-
-  // TODO: Add user ID for authenticated requests
-  // const userId = request.cookies.get('user-id')?.value
-  // if (userId) return `user:${userId}`
 
   return `ip:${ip}`
 }
@@ -99,7 +108,7 @@ export async function rateLimit(
     keyPrefix = '',
   } = config
 
-  const clientId = getClientId(request)
+  const clientId = await getClientId(request)
   const key = keyPrefix ? `${keyPrefix}:${clientId}` : clientId
 
   // Check if we should use Upstash Redis (production)
@@ -144,7 +153,10 @@ async function rateLimitWithRedis(
     })
 
     if (!response.ok) {
-      console.error('Upstash Redis error:', await response.text())
+      const errorText = await response.text()
+      if (typeof console !== 'undefined') {
+        console.error('Upstash Redis error:', errorText)
+      }
       // Fallback to memory on Redis error
       return rateLimitWithMemory(key, max, windowMs)
     }
@@ -181,7 +193,9 @@ async function rateLimitWithRedis(
       headers,
     }
   } catch (error) {
-    console.error('Rate limit error:', error)
+    if (typeof console !== 'undefined') {
+      console.error('Rate limit error:', error)
+    }
     // Fallback to memory on error
     return rateLimitWithMemory(key, max, windowMs)
   }

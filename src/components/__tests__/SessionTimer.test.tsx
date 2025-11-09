@@ -1,17 +1,16 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SessionTimer from '../SessionTimer';
 
 // Mock fetch
-global.fetch = vi.fn();
+global.fetch = jest.fn() as jest.Mock;
 
 // Mock toast
-vi.mock('react-hot-toast', () => ({
-  default: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+jest.mock('react-hot-toast', () => {
+  const mockToast = jest.fn();
+  mockToast.success = jest.fn();
+  mockToast.error = jest.fn();
+  return { default: mockToast };
+});
 
 describe('SessionTimer', () => {
   const mockProps = {
@@ -20,16 +19,16 @@ describe('SessionTimer', () => {
     startedAt: null,
     durationMinutes: 0,
     isHost: true,
-    onSessionUpdate: vi.fn(),
+    onSessionUpdate: jest.fn(),
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
+    jest.clearAllMocks();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it('renders timer with initial time', () => {
@@ -92,13 +91,13 @@ describe('SessionTimer', () => {
     expect(screen.getByText('0:00')).toBeInTheDocument();
 
     // Advance by 1 second
-    vi.advanceTimersByTime(1000);
+    jest.advanceTimersByTime(1000);
     await waitFor(() => {
       expect(screen.getByText('0:01')).toBeInTheDocument();
     });
 
     // Advance by 59 more seconds
-    vi.advanceTimersByTime(59000);
+    jest.advanceTimersByTime(59000);
     await waitFor(() => {
       expect(screen.getByText('1:00')).toBeInTheDocument();
     });

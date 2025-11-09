@@ -1,9 +1,30 @@
 'use client'
 
 import { useState } from 'react'
-import { ApolloProviderWrapper } from '@/lib/apollo-provider'
-import GraphQLExample from '@/components/examples/GraphQLExample'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
+
+// Dynamically import Apollo components to defer loading Apollo Client
+// This reduces initial bundle size by ~100KB
+const ApolloProviderWrapper = dynamic(
+  () => import('@/lib/apollo-provider').then(mod => ({ default: mod.ApolloProviderWrapper })),
+  { ssr: false }
+)
+
+const GraphQLExample = dynamic(
+  () => import('@/components/examples/GraphQLExample'),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent mb-4"></div>
+          <p className="text-gray-600">Loading GraphQL client...</p>
+        </div>
+      </div>
+    ),
+    ssr: false
+  }
+)
 
 export default function GraphQLDemoPage() {
   const [sessionId, setSessionId] = useState('')

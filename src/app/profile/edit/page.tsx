@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { LocationForm } from '@/components/profile/LocationForm'
 
 export default function ProfilePage() {
   const { user, profile, loading, refreshUser } = useAuth()
@@ -36,6 +37,13 @@ export default function ProfilePage() {
     languages: '',
     // NEW: Post Privacy
     postPrivacy: 'PUBLIC' as 'PUBLIC' | 'PARTNERS_ONLY',
+    // NEW: Location
+    locationCity: '',
+    locationState: '',
+    locationCountry: '',
+    locationLat: null as number | null,
+    locationLng: null as number | null,
+    locationVisibility: 'match-only' as 'private' | 'match-only' | 'public',
   })
 
   const [customInputs, setCustomInputs] = useState({
@@ -78,6 +86,12 @@ export default function ProfilePage() {
         school: (profile as { school?: string }).school || '',
         languages: (profile as { languages?: string }).languages || '',
         postPrivacy: (profile as { postPrivacy?: 'PUBLIC' | 'PARTNERS_ONLY' }).postPrivacy || 'PUBLIC',
+        locationCity: (profile as { location_city?: string }).location_city || '',
+        locationState: (profile as { location_state?: string }).location_state || '',
+        locationCountry: (profile as { location_country?: string }).location_country || '',
+        locationLat: (profile as { location_lat?: number }).location_lat || null,
+        locationLng: (profile as { location_lng?: number }).location_lng || null,
+        locationVisibility: ((profile as { location_visibility?: string }).location_visibility || 'match-only') as 'private' | 'match-only' | 'public',
       }
       
       setFormData(initialFormData)
@@ -241,6 +255,7 @@ export default function ProfilePage() {
         postPrivacy: formData.postPrivacy,
       }
 
+      // Save profile data
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,9 +266,28 @@ export default function ProfilePage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('[CLIENT] Failed to save profile:', errorData)
-        console.error('[CLIENT] Response status:', response.status)
-        console.error('[CLIENT] Response statusText:', response.statusText)
         throw new Error(errorData.error || 'Failed to save profile')
+      }
+
+      // Save location data separately
+      if (formData.locationCity || formData.locationState || formData.locationCountry) {
+        const locationResponse = await fetch('/api/location/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            city: formData.locationCity || null,
+            state: formData.locationState || null,
+            country: formData.locationCountry || null,
+            lat: formData.locationLat,
+            lng: formData.locationLng,
+            visibility: formData.locationVisibility,
+          }),
+        })
+
+        if (!locationResponse.ok) {
+          console.error('[CLIENT] Failed to save location')
+          // Don't fail the whole save if location update fails
+        }
       }
 
       // Refresh user data
@@ -654,6 +688,31 @@ export default function ProfilePage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               <p className="text-xs text-gray-500 mt-1">This helps you find partners who speak the same languages</p>
+            </div>
+
+            {/* Location Section */}
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <LocationForm
+                initialLocation={{
+                  city: formData.locationCity,
+                  state: formData.locationState,
+                  country: formData.locationCountry,
+                  lat: formData.locationLat,
+                  lng: formData.locationLng,
+                  visibility: formData.locationVisibility,
+                }}
+                onLocationChange={(location) => {
+                  setFormData({
+                    ...formData,
+                    locationCity: location.city,
+                    locationState: location.state,
+                    locationCountry: location.country,
+                    locationLat: location.lat,
+                    locationLng: location.lng,
+                    locationVisibility: location.visibility,
+                  })
+                }}
+              />
             </div>
 
             {/* Skill Level */}

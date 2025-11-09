@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+// Bundle Analyzer - Run with: ANALYZE=true npm run build
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false, // TODO: Re-enable after fixing Agora SDK double-mount issue
@@ -126,4 +131,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Export with bundle analyzer wrapper
+export default withBundleAnalyzer(nextConfig);

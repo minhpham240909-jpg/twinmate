@@ -59,6 +59,26 @@ export async function GET(request: Request) {
 
             dbUser = result
             console.log('[Auth Callback] Created new user:', email, 'via', isGoogleOAuth ? 'Google OAuth' : 'Email/Password')
+            
+            // Redirect new users to onboarding
+            const response = NextResponse.redirect(new URL('/onboarding', requestUrl.origin))
+            const expires = new Date(data.session.expires_at! * 1000)
+            
+            response.cookies.set('sb-access-token', data.session.access_token, {
+              expires,
+              path: '/',
+              sameSite: 'lax',
+              httpOnly: false,
+            })
+            
+            response.cookies.set('sb-refresh-token', data.session.refresh_token, {
+              expires,
+              path: '/',
+              sameSite: 'lax',
+              httpOnly: false,
+            })
+            
+            return response
           } else {
             // Existing user - update emailVerified if confirmed by Supabase
             const wasUnverified = !dbUser.emailVerified

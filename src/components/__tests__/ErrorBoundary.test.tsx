@@ -1,5 +1,4 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
 import { ErrorBoundary, SoftErrorBoundary } from '../ErrorBoundary';
 
 // Component that throws an error
@@ -14,7 +13,7 @@ describe('ErrorBoundary', () => {
   // Suppress console.error for cleaner test output
   const originalError = console.error;
   beforeAll(() => {
-    console.error = vi.fn();
+    console.error = jest.fn();
   });
   afterAll(() => {
     console.error = originalError;
@@ -55,7 +54,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('calls onError callback when error is caught', () => {
-    const onError = vi.fn();
+    const onError = jest.fn();
 
     render(
       <ErrorBoundary onError={onError}>
@@ -104,7 +103,7 @@ describe('ErrorBoundary', () => {
 describe('SoftErrorBoundary', () => {
   const originalError = console.error;
   beforeAll(() => {
-    console.error = vi.fn();
+    console.error = jest.fn();
   });
   afterAll(() => {
     console.error = originalError;

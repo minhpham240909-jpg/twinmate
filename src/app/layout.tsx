@@ -13,6 +13,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { IntlProvider } from "@/contexts/IntlContext";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
+import WebVitalsReporter from "@/components/WebVitalsReporter";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,6 +24,22 @@ export const metadata: Metadata = {
   title: "Clerva - Social Learning & Study Partners",
   description: "Find study partners, collaborate in real-time, and supercharge your learning with AI-powered insights",
   keywords: ["study partners", "learning", "collaboration", "education", "AI tutor"],
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#1a1a1a' },
+  ],
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Clerva',
+  },
 };
 
 // Force dynamic rendering for all pages (prevents database queries during build)
@@ -36,6 +53,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
+        <WebVitalsReporter />
         <GlobalErrorHandler />
         <ErrorBoundary>
           <SessionSyncWrapper />

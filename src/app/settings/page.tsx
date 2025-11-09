@@ -138,10 +138,10 @@ export default function SettingsPage() {
   const [showDeletedPosts, setShowDeletedPosts] = useState(false)
   const [loadingPosts, setLoadingPosts] = useState(false)
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (use replace to prevent redirect loops)
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.replace('/auth/signin')
     }
   }, [user, loading, router])
 
@@ -712,6 +712,27 @@ function NumberSetting({
   onChange: (value: number) => void
   suffix?: string
 }) {
+  const handleChange = (inputValue: string) => {
+    // Handle empty input - use min value
+    if (inputValue === '' || inputValue === null || inputValue === undefined) {
+      onChange(min)
+      return
+    }
+
+    // Convert to number safely
+    const numValue = Number(inputValue)
+
+    // Check if conversion resulted in a valid number
+    if (isNaN(numValue)) {
+      onChange(min) // Fallback to min on invalid input
+      return
+    }
+
+    // Clamp value between min and max
+    const clampedValue = Math.min(Math.max(numValue, min), max)
+    onChange(clampedValue)
+  }
+
   return (
     <div className="py-3 border-b border-gray-100 last:border-0">
       <label className="block text-sm font-medium text-gray-900 mb-1">{label}</label>
@@ -719,10 +740,10 @@ function NumberSetting({
       <div className="flex items-center gap-2">
         <input
           type="number"
-          value={value}
+          value={value || min}
           min={min}
           max={max}
-          onChange={(e) => onChange(parseInt(e.target.value) || min)}
+          onChange={(e) => handleChange(e.target.value)}
           className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {suffix && <span className="text-sm text-gray-600">{suffix}</span>}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/context'
+import Image from 'next/image'
 
 interface IncomingCall {
   notificationId: string
@@ -156,9 +157,11 @@ export default function IncomingCallModal() {
           <div className="flex flex-col items-center mb-6">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold mb-4 ring-4 ring-blue-200 animate-pulse">
               {incomingCall.callerAvatar ? (
-                <img
+                <Image
                   src={incomingCall.callerAvatar}
                   alt={incomingCall.callerName}
+                  width={96}
+                  height={96}
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (

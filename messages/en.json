@@ -357,8 +357,12 @@
     "connect": "Connect",
     "viewProfile": "View Profile",
     "alreadyConnected": "Already Connected",
+    "alreadyPartners": "Already Partners",
     "connectionSent": "Connection Sent",
-    "searching": "Searching..."
+    "searching": "Searching...",
+    "noPartnersFoundWithFilters": "No partners match your current filters. Try different criteria.",
+    "noPartnersFoundDescription": "No study partners are currently available. Check back soon!",
+    "sending": "Sending..."
   },
   "partners": {
     "title": "Study Partners",

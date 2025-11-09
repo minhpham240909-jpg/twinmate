@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { subscribeToDM, subscribeToMessages, type ConnectionStatus } from '@/lib/supabase/realtime'
 import MessageVideoCall from '@/components/messages/MessageVideoCall'
+import SearchDropdown from '@/components/messages/SearchDropdown'
 import { useTranslations } from 'next-intl'
 
 interface Conversation {
@@ -63,7 +64,6 @@ function ChatPageContent() {
   const [message, setMessage] = useState('')
   const [loadingConversations, setLoadingConversations] = useState(false)
   const [loadingMessages, setLoadingMessages] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -318,6 +318,44 @@ function ChatPageContent() {
     setShowScrollButton(false)
   }
 
+  // Scroll to specific message function
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = document.getElementById(`message-${messageId}`)
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Highlight the message briefly
+      messageElement.classList.add('ring-4', 'ring-yellow-400', 'ring-opacity-50')
+      setTimeout(() => {
+        messageElement.classList.remove('ring-4', 'ring-yellow-400', 'ring-opacity-50')
+      }, 2000)
+    }
+  }
+
+  // Handle conversation selection from search
+  const handleSearchConversationSelect = (conversationId: string) => {
+    const conversation = conversations.find(c => c.id === conversationId)
+    if (conversation) {
+      handleSelectConversation(conversation)
+    }
+  }
+
+  // Handle message selection from search - open conversation and scroll to message
+  const handleSearchMessageSelect = async (conversationId: string, messageId: string) => {
+    // First, find and select the conversation
+    const conversation = conversations.find(c => c.id === conversationId)
+    if (!conversation) return
+
+    // If this is not the currently selected conversation, switch to it
+    if (!selectedConversation || selectedConversation.id !== conversationId) {
+      await handleSelectConversation(conversation)
+      // Wait for messages to load before scrolling
+      setTimeout(() => scrollToMessage(messageId), 500)
+    } else {
+      // Already in the conversation, just scroll to the message
+      scrollToMessage(messageId)
+    }
+  }
+
   // Send message
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedConversation || !user) return
@@ -511,10 +549,6 @@ function ChatPageContent() {
 
   if (!user) return null
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
   const formatTime = (date: string | null) => {
     if (!date) return ''
     const d = new Date(date)
@@ -564,12 +598,9 @@ function ChatPageContent() {
               <div className="col-span-1 border-r border-gray-200 flex flex-col overflow-hidden">
                 {/* Search bar - Fixed at top */}
                 <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
-                  <input
-                    type="text"
-                    placeholder={t('searchConversations')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  <SearchDropdown
+                    onConversationSelect={handleSearchConversationSelect}
+                    onMessageSelect={handleSearchMessageSelect}
                   />
                 </div>
                 
@@ -584,7 +615,7 @@ function ChatPageContent() {
                   ) : (
                     <>
                       <div className="divide-y divide-gray-200">
-                      {filteredConversations.map((conv) => (
+                      {conversations.map((conv: Conversation) => (
                         <button
                           key={`${conv.type}-${conv.id}`}
                           onClick={() => handleSelectConversation(conv)}
@@ -627,7 +658,7 @@ function ChatPageContent() {
                     </div>
 
                     {/* Empty State */}
-                    {filteredConversations.length === 0 && (
+                    {conversations.length === 0 && (
                       <div className="p-8 text-center">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -635,13 +666,11 @@ function ChatPageContent() {
                           </svg>
                         </div>
                         <p className="text-sm text-gray-600">
-                          {searchQuery ? t('noConversationsFound') : t('noConversationsYet')}
+                          {t('noConversationsYet')}
                         </p>
-                        {!searchQuery && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Connect with partners or join groups to start chatting
-                          </p>
-                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          Connect with partners or join groups to start chatting
+                        </p>
                       </div>
                     )}
                   </>
@@ -759,7 +788,7 @@ function ChatPageContent() {
                                                       msg.callStatus === 'CANCELLED' ? '🚫' : '⏳'
 
                                 return (
-                                  <div key={msg.id} className="flex justify-center">
+                                  <div key={msg.id} id={`message-${msg.id}`} className="flex justify-center transition-all duration-300">
                                     <div className="max-w-md w-full">
                                       <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-2">
@@ -781,7 +810,7 @@ function ChatPageContent() {
                               const canDelete = isOwnMessage || isGroupAdmin
 
                               return (
-                                <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                                <div key={msg.id} id={`message-${msg.id}`} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} transition-all duration-300`}>
                                   <div className={`flex gap-2 max-w-[70%] ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
                                     {/* Message Content */}
                                     <div className="relative">

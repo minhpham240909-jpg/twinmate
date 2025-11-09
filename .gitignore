@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# documentation (internal only, not for GitHub)
+/docs/
+LOCATION_SYSTEM_DEPLOYMENT.md
+OPTIMIZATION_QUICK_START.md
+PRODUCTION_OPTIMIZATION_GUIDE.md
+*_DEPLOYMENT*.md
+*_COMPLETION_STATUS.md
+*_SUMMARY.md
+*_ROADMAP.md

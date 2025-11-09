@@ -3,7 +3,7 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
-import VideoCall from '@/components/study-sessions/VideoCall'
+import VideoCall from '@/components/study-sessions/VideoCallDynamic'
 
 interface MessageVideoCallProps {
   conversationId: string

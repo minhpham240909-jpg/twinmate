@@ -11,6 +11,7 @@ export interface UserSettings {
 
   // Privacy & Visibility
   profileVisibility?: 'EVERYONE' | 'CONNECTIONS_ONLY' | 'PRIVATE'
+  postPrivacy?: 'PUBLIC' | 'PARTNERS_ONLY'
   searchVisibility?: boolean
   showOnlineStatus?: boolean
   showLastSeen?: boolean
@@ -114,6 +115,7 @@ const defaultSettings: UserSettings = {
   language: 'en',
   timezone: 'UTC',
   profileVisibility: 'EVERYONE',
+  postPrivacy: 'PUBLIC',
   searchVisibility: true,
   showOnlineStatus: true,
   showLastSeen: true,
@@ -177,6 +179,55 @@ const defaultSettings: UserSettings = {
   analyticsEnabled: true,
 }
 
+// Sanitize settings data to prevent NaN and invalid values
+function sanitizeSettings(rawSettings: Partial<UserSettings>): UserSettings {
+  const sanitized: any = { ...defaultSettings }
+
+  // Process each key from rawSettings
+  Object.keys(rawSettings).forEach((key) => {
+    const value = (rawSettings as any)[key]
+    const defaultValue = (defaultSettings as any)[key]
+
+    // Skip undefined values
+    if (value === undefined) {
+      return
+    }
+
+    // Handle numbers - reject NaN and use defaults
+    if (typeof defaultValue === 'number') {
+      const numValue = Number(value)
+      if (!isNaN(numValue) && isFinite(numValue)) {
+        sanitized[key] = numValue
+      } else {
+        console.warn(`[Settings] Invalid number for ${key}: ${value}, using default: ${defaultValue}`)
+        sanitized[key] = defaultValue
+      }
+      return
+    }
+
+    // Handle booleans
+    if (typeof defaultValue === 'boolean') {
+      sanitized[key] = Boolean(value)
+      return
+    }
+
+    // Handle arrays
+    if (Array.isArray(defaultValue)) {
+      sanitized[key] = Array.isArray(value) ? value : defaultValue
+      return
+    }
+
+    // For strings and enums, use the value if valid, otherwise use default
+    if (value !== null && value !== '') {
+      sanitized[key] = value
+    } else {
+      sanitized[key] = defaultValue
+    }
+  })
+
+  return sanitized
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
@@ -196,7 +247,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const data = await response.json()
-        setSettings({ ...defaultSettings, ...data.settings })
+        // Sanitize settings before setting to prevent corrupted data
+        const sanitizedSettings = sanitizeSettings(data.settings || {})
+        setSettings(sanitizedSettings)
       } else {
         console.error('Failed to load settings, using defaults')
         setSettings(defaultSettings)
@@ -213,8 +266,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const updateSettings = async (updates: Partial<UserSettings>) => {
     if (!user) return
 
-    // Optimistically update local state
-    setSettings(prev => ({ ...prev, ...updates }))
+    // Optimistically update local state with sanitized data
+    const sanitizedUpdates = sanitizeSettings({ ...settings, ...updates })
+    setSettings(sanitizedUpdates)
 
     try {
       const response = await fetch('/api/settings/update', {
@@ -225,7 +279,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const data = await response.json()
-        setSettings({ ...defaultSettings, ...data.settings })
+        // Sanitize response before setting to state
+        const sanitizedSettings = sanitizeSettings(data.settings || {})
+        setSettings(sanitizedSettings)
       } else {
         // Revert on error
         await refreshSettings()
