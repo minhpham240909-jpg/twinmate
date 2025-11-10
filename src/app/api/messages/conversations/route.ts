@@ -18,7 +18,7 @@ export async function GET() {
     const userId = user.id
 
     // Execute all queries in parallel for maximum performance
-    const [matches, groupMemberships] = await Promise.all([
+    const [matches, groupMemberships, userPresences] = await Promise.all([
       // Get all accepted partners with their profiles in one query
       prisma.match.findMany({
         where: {
@@ -33,12 +33,7 @@ export async function GET() {
               id: true,
               name: true,
               email: true,
-              avatarUrl: true,
-              profile: {
-                select: {
-                  onlineStatus: true
-                }
-              }
+              avatarUrl: true
             }
           },
           receiver: {
@@ -46,12 +41,7 @@ export async function GET() {
               id: true,
               name: true,
               email: true,
-              avatarUrl: true,
-              profile: {
-                select: {
-                  onlineStatus: true
-                }
-              }
+              avatarUrl: true
             }
           }
         },
@@ -79,18 +69,62 @@ export async function GET() {
         orderBy: {
           joinedAt: 'desc'
         }
+      }),
+      // Get presence data for all partners
+      prisma.match.findMany({
+        where: {
+          OR: [
+            { senderId: userId, status: 'ACCEPTED' },
+            { receiverId: userId, status: 'ACCEPTED' }
+          ]
+        },
+        select: {
+          senderId: true,
+          receiverId: true
+        }
+      }).then(async (matches) => {
+        // Extract partner IDs
+        const partnerIds = matches.map(match =>
+          match.senderId === userId ? match.receiverId : match.senderId
+        )
+        // Fetch presence for all partners
+        return prisma.userPresence.findMany({
+          where: {
+            userId: { in: partnerIds }
+          },
+          select: {
+            userId: true,
+            status: true,
+            lastSeenAt: true,
+            isPrivate: true
+          }
+        })
       })
     ])
+
+    // Create presence lookup map
+    const presenceMap = new Map(
+      userPresences.map(p => [p.userId, p])
+    )
 
     // Process partners
     const partners = matches.map(match => {
       const partner = match.senderId === userId ? match.receiver : match.sender
+      const presence = presenceMap.get(partner.id)
+
+      // Determine online status from presence data
+      let onlineStatus = 'OFFLINE'
+      if (presence && !presence.isPrivate) {
+        // Map presence status to old onlineStatus format
+        onlineStatus = presence.status === 'online' ? 'ONLINE' : 'OFFLINE'
+      }
+
       return {
         id: partner.id,
         name: partner.name,
         avatarUrl: partner.avatarUrl,
         type: 'partner' as const,
-        onlineStatus: partner.profile?.onlineStatus || 'OFFLINE',
+        onlineStatus,
         lastMessage: null as string | null,
         lastMessageTime: null as Date | null,
         unreadCount: 0
