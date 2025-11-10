@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useRef, Suspense } from 'react'
-import { subscribeToDM, subscribeToMessages, type ConnectionStatus } from '@/lib/supabase/realtime'
+import { subscribeToDM, subscribeToMessages } from '@/lib/supabase/realtime'
 import MessageVideoCall from '@/components/messages/MessageVideoCall'
 import SearchDropdown from '@/components/messages/SearchDropdown'
 import { useTranslations } from 'next-intl'
@@ -64,7 +64,6 @@ function ChatPageContent() {
   const [message, setMessage] = useState('')
   const [loadingConversations, setLoadingConversations] = useState(false)
   const [loadingMessages, setLoadingMessages] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const conversationsCache = useRef<Conversation[]>([])
@@ -224,9 +223,6 @@ function ChatPageContent() {
             localStorage.setItem(cacheKey, JSON.stringify(updated))
             return updated
           })
-        },
-        (status) => {
-          setConnectionStatus(status)
         }
       )
     } else if (selectedConversation.type === 'group') {
@@ -693,24 +689,7 @@ function ChatPageContent() {
                           )}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-900">{selectedConversation.name}</h3>
-                            {selectedConversation.type === 'partner' && connectionStatus === 'connected' && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Real-time messaging active">
-                                Live
-                              </span>
-                            )}
-                            {selectedConversation.type === 'partner' && connectionStatus === 'error' && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title="Connection error - messages may be delayed">
-                                Error
-                              </span>
-                            )}
-                            {selectedConversation.type === 'partner' && connectionStatus === 'connecting' && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800" title="Connecting to real-time messaging">
-                                Connecting...
-                              </span>
-                            )}
-                          </div>
+                          <h3 className="font-semibold text-gray-900">{selectedConversation.name}</h3>
                           {selectedConversation.type === 'partner' && (
                             <p className={`text-xs ${selectedConversation.onlineStatus === 'ONLINE' ? 'text-green-600' : 'text-gray-500'}`}>
                               {selectedConversation.onlineStatus === 'ONLINE' ? t('online') : t('offline')}

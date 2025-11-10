@@ -14,6 +14,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import { IntlProvider } from "@/contexts/IntlContext";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
+import { PresenceProvider } from "@/components/presence/PresenceProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,13 +62,14 @@ export default function RootLayout({
             <AuthProvider>
               <SettingsProvider>
                 <IntlProvider>
-                  <BackgroundSessionProvider>
-                    <AIAgentWrapper>
-                      {children}
-                      <FloatingSessionButton />
-                      <IncomingCallModal />
-                    </AIAgentWrapper>
-                      <Toaster
+                  <PresenceProvider>
+                    <BackgroundSessionProvider>
+                      <AIAgentWrapper>
+                        {children}
+                        <FloatingSessionButton />
+                        <IncomingCallModal />
+                      </AIAgentWrapper>
+                        <Toaster
                       position="top-right"
                       toastOptions={{
                         duration: 4000,
@@ -91,7 +93,8 @@ export default function RootLayout({
                         },
                       }}
                       />
-                  </BackgroundSessionProvider>
+                    </BackgroundSessionProvider>
+                  </PresenceProvider>
                 </IntlProvider>
               </SettingsProvider>
             </AuthProvider>
