@@ -6,7 +6,6 @@
 'use client'
 
 import { createContext, useContext, useState, ReactNode } from 'react'
-import { usePresence } from '@/hooks/usePresence'
 import { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import AIPanel from '@/components/ai-agent/AIPanel'
@@ -39,11 +38,7 @@ export function AIAgentProvider({ children, user }: AIAgentProviderProps) {
   const [initialMessage, setInitialMessage] = useState<string | undefined>()
   const router = useRouter()
 
-  // Initialize presence heartbeat
-  usePresence(user, {
-    enabled: !!user,
-    currentActivity: 'available',
-  })
+  // Note: Presence heartbeat is now handled by PresenceProvider in the root layout
 
   const openPanel = (message?: string) => {
     setInitialMessage(message)

@@ -93,6 +93,12 @@ model User {
   blockedByUsers        BlockedUser[]        @relation("BlockedByUser")
   sessionFlashcards     SessionFlashcard[]
 
+  // Presence system relations
+  presence              UserPresence?
+  deviceSessions        DeviceSession[]
+  messageReadStatus     MessageReadStatus[]
+  typingIndicators      TypingIndicator[]
+
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -390,6 +396,9 @@ model Message {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
+
+  // Presence system relations
+  readBy        MessageReadStatus[]
 
   // Individual indexes
   @@index([senderId])
@@ -1116,6 +1125,86 @@ model SessionFlashcard {
   @@index([sessionId, userId])
   @@index([userId, nextReviewDate]) // For querying due cards
   @@index([createdAt])
+}
+
+// ==========================================
+// PRESENCE SYSTEM (Real-time Online/Offline Tracking)
+// ==========================================
+
+// Aggregate user presence status (one per user)
+model UserPresence {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  status          String   @default("offline") // "online" | "away" | "offline"
+  lastSeenAt      DateTime @default(now())
+  lastActivityAt  DateTime @default(now())
+  isPrivate       Boolean  @default(false) // Privacy setting: hide online status
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("user_presence")
+}
+
+// Individual device/tab sessions (multiple per user)
+model DeviceSession {
+  id              String   @id @default(uuid())
+  userId          String
+  deviceId        String   // Client-generated UUID (persists across refreshes in localStorage)
+  lastHeartbeatAt DateTime @default(now())
+  isActive        Boolean  @default(true)
+  userAgent       String?  // Browser/device info
+  ipAddress       String?  // For security logging
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId, isActive])
+  @@index([lastHeartbeatAt])
+  @@map("device_sessions")
+}
+
+// Message read receipts
+model MessageReadStatus {
+  id          String   @id @default(uuid())
+  messageId   String
+  userId      String   // Who read the message
+  readAt      DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  // Relations
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@map("message_read_status")
+}
+
+// Typing indicators (short-lived, auto-expire after 10s)
+model TypingIndicator {
+  id             String   @id @default(uuid())
+  userId         String   // Who is typing
+  conversationId String   // Where they're typing (chatId or studySessionId)
+  isTyping       Boolean  @default(true)
+  expiresAt      DateTime // Auto-delete after 10 seconds
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId])
+  @@index([conversationId, expiresAt])
+  @@map("typing_indicators")
 }
 
 // ==========================================

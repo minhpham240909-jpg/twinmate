@@ -250,59 +250,6 @@ export function LocationForm({ initialLocation, onLocationChange }: LocationForm
         </div>
       </div>
 
-      {/* Visibility Selector */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Who can see your location?
-        </label>
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition">
-            <input
-              type="radio"
-              name="location_visibility"
-              value="public"
-              checked={locationData.visibility === 'public'}
-              onChange={(e) => setLocationData({ ...locationData, visibility: e.target.value as 'public' })}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-            />
-            <div>
-              <div className="font-medium text-gray-900">Public</div>
-              <div className="text-xs text-gray-500">Shown on your profile and used for matching</div>
-            </div>
-          </label>
-
-          <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition">
-            <input
-              type="radio"
-              name="location_visibility"
-              value="match-only"
-              checked={locationData.visibility === 'match-only'}
-              onChange={(e) => setLocationData({ ...locationData, visibility: e.target.value as 'match-only' })}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-            />
-            <div>
-              <div className="font-medium text-gray-900">Match-only (Recommended)</div>
-              <div className="text-xs text-gray-500">Used for matching but not shown publicly</div>
-            </div>
-          </label>
-
-          <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition">
-            <input
-              type="radio"
-              name="location_visibility"
-              value="private"
-              checked={locationData.visibility === 'private'}
-              onChange={(e) => setLocationData({ ...locationData, visibility: e.target.value as 'private' })}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-            />
-            <div>
-              <div className="font-medium text-gray-900">Private</div>
-              <div className="text-xs text-gray-500">Hidden from everyone, not used for matching</div>
-            </div>
-          </label>
-        </div>
-      </div>
-
       {/* Status Messages */}
       {isGeocoding && (
         <div className="flex items-center gap-2 text-sm text-blue-600">

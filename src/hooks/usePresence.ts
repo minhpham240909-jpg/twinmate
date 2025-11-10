@@ -1,103 +1,136 @@
-/**
- * Presence Heartbeat Hook
- * Automatically updates user's online status every 30 seconds
- */
-
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+import { useEffect, useRef, useState } from 'react'
 
-export interface PresenceOptions {
-  enabled?: boolean
-  intervalMs?: number
-  currentActivity?: 'idle' | 'studying' | 'in_session' | 'available'
+const HEARTBEAT_INTERVAL = 30000 // 30 seconds
+const DEVICE_ID_KEY = 'clerva_device_id'
+
+export interface PresenceStatus {
+  status: 'online' | 'away' | 'offline'
+  lastSeenAt: string
 }
 
-export function usePresence(user: User | null, options: PresenceOptions = {}) {
-  const {
-    enabled = true,
-    intervalMs = 30000, // 30 seconds
-    currentActivity = 'available',
-  } = options
+export function usePresence() {
+  const [isInitialized, setIsInitialized] = useState(false)
+  const deviceIdRef = useRef<string | null>(null)
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const supabase = createClient()
-
+  // Initialize device ID (persists across page refreshes)
   useEffect(() => {
-    if (!user || !enabled) {
-      // Clear interval if disabled
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      return
+    if (typeof window === 'undefined') return
+
+    // Generate UUID for device ID
+    const generateUUID = () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0
+        const v = c === 'x' ? r : (r & 0x3 | 0x8)
+        return v.toString(16)
+      })
     }
 
-    // Update presence immediately
-    updatePresence(user.id, currentActivity)
+    let deviceId = localStorage.getItem(DEVICE_ID_KEY)
+    if (!deviceId) {
+      deviceId = generateUUID()
+      localStorage.setItem(DEVICE_ID_KEY, deviceId)
+    }
+    deviceIdRef.current = deviceId
+    setIsInitialized(true)
+  }, [])
 
-    // Set up interval for heartbeat
-    intervalRef.current = setInterval(() => {
-      updatePresence(user.id, currentActivity)
-    }, intervalMs)
+  // Send heartbeat to server
+  const sendHeartbeat = async () => {
+    if (!deviceIdRef.current) return
 
-    // Set user offline when tab closes/refreshes
+    try {
+      const response = await fetch('/api/presence/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: deviceIdRef.current,
+          userAgent: navigator.userAgent,
+        }),
+      })
+
+      if (!response.ok) {
+        console.error('[HEARTBEAT] Failed:', response.statusText)
+      }
+    } catch (error) {
+      console.error('[HEARTBEAT] Error:', error)
+    }
+  }
+
+  // Disconnect device session
+  const disconnect = async () => {
+    if (!deviceIdRef.current) return
+
+    try {
+      await fetch('/api/presence/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: deviceIdRef.current,
+        }),
+      })
+    } catch (error) {
+      console.error('[DISCONNECT] Error:', error)
+    }
+  }
+
+  // Start heartbeat interval
+  useEffect(() => {
+    if (!isInitialized) return
+
+    // Send initial heartbeat immediately
+    sendHeartbeat()
+
+    // Set up interval for subsequent heartbeats
+    heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
+
+    // Cleanup on unmount
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+      }
+      disconnect()
+    }
+  }, [isInitialized])
+
+  // Handle page visibility changes (tab focus/blur)
+  useEffect(() => {
+    if (!isInitialized) return
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Tab became visible - send immediate heartbeat
+        sendHeartbeat()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isInitialized])
+
+  // Handle beforeunload (browser close)
+  useEffect(() => {
+    if (!isInitialized) return
+
     const handleBeforeUnload = () => {
-      setOffline(user.id)
+      disconnect()
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
 
-    // Cleanup
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
       window.removeEventListener('beforeunload', handleBeforeUnload)
-      setOffline(user.id)
     }
-  }, [user, enabled, intervalMs, currentActivity])
-
-  async function updatePresence(userId: string, activity: string) {
-    try {
-      const { error } = await supabase.from('presence').upsert({
-        user_id: userId,
-        is_online: true,
-        last_seen: new Date().toISOString(),
-        current_activity: activity,
-      })
-
-      if (error) {
-        // Log error but don't throw - presence is non-critical
-        console.warn('Presence update error (non-critical):', error.message || error.code)
-      }
-    } catch (err) {
-      // Silently fail for presence - it's a nice-to-have feature
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Presence update failed:', err instanceof Error ? err.message : String(err))
-      }
-    }
-  }
-
-  async function setOffline(userId: string) {
-    try {
-      await supabase.from('presence').upsert({
-        user_id: userId,
-        is_online: false,
-        last_seen: new Date().toISOString(),
-      })
-    } catch (err) {
-      console.error('Set offline failed:', err)
-    }
-  }
+  }, [isInitialized])
 
   return {
-    updateActivity: (activity: string) => {
-      if (user) {
-        updatePresence(user.id, activity)
-      }
-    },
+    isInitialized,
+    sendHeartbeat,
+    disconnect,
   }
 }

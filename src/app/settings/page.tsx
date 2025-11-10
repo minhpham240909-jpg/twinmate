@@ -33,6 +33,7 @@ interface UserSettings {
   showOnlineStatus?: boolean
   showLastSeen?: boolean
   dataSharing?: 'MINIMAL' | 'STANDARD' | 'FULL'
+  locationVisibility?: 'private' | 'match-only' | 'public'
   // Notification Preferences
   notifyConnectionRequests?: boolean
   notifyConnectionAccepted?: boolean
@@ -121,7 +122,7 @@ type TabId =
   | 'about'
 
 export default function SettingsPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, profile } = useAuth()
   const router = useRouter()
   const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
   const { settings: globalSettings, loading: loadingSettings, refreshSettings } = useSettings()
@@ -145,11 +146,15 @@ export default function SettingsPage() {
     }
   }, [user, loading, router])
 
-  // Sync with global settings from context
+  // Sync with global settings from context and load location visibility from profile
   useEffect(() => {
-    setSettings(globalSettings)
-    setInitialSettings(globalSettings)
-  }, [globalSettings])
+    const settingsWithLocation = {
+      ...globalSettings,
+      locationVisibility: (profile as any)?.location_visibility || 'match-only'
+    }
+    setSettings(settingsWithLocation)
+    setInitialSettings(settingsWithLocation)
+  }, [globalSettings, profile])
 
   // Fetch deleted posts for Post History
   useEffect(() => {
@@ -366,8 +371,32 @@ export default function SettingsPage() {
         createdAt,
         updatedAt,
         user,
+        locationVisibility,
         ...settingsToSave
       } = settings as any
+
+      // Save location visibility separately (it's stored in Profile table)
+      if (locationVisibility !== undefined && locationVisibility !== (profile as any)?.location_visibility) {
+        const locationResponse = await fetch('/api/location/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            city: (profile as any)?.location_city || null,
+            state: (profile as any)?.location_state || null,
+            country: (profile as any)?.location_country || null,
+            lat: (profile as any)?.location_lat || null,
+            lng: (profile as any)?.location_lng || null,
+            visibility: locationVisibility,
+          }),
+        })
+
+        if (!locationResponse.ok) {
+          console.error('[Settings Save] Failed to update location visibility')
+          toast.error('Failed to update location visibility')
+          setSaving(false)
+          return
+        }
+      }
 
       // Clean up the payload - remove undefined values and convert empty strings to null for nullable fields
       const cleanedSettings: Record<string, any> = {}
@@ -394,9 +423,13 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json()
 
-        // Update local state
-        setSettings(data.settings)
-        setInitialSettings(data.settings)
+        // Update local state (include locationVisibility from current settings)
+        const updatedSettings = {
+          ...data.settings,
+          locationVisibility: settings.locationVisibility
+        }
+        setSettings(updatedSettings)
+        setInitialSettings(updatedSettings)
         setHasChanges(false)
 
         // Refresh global context to propagate changes throughout the app
@@ -839,6 +872,17 @@ function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; 
           description="Display your last active time"
           checked={settings.showLastSeen ?? true}
           onChange={(value) => updateSetting('showLastSeen', value)}
+        />
+        <SelectSetting
+          label="Who Can See Your Location"
+          description="Control who can view your location information"
+          value={settings.locationVisibility || 'match-only'}
+          options={[
+            { value: 'public', label: 'Public - Shown on your profile and used for matching' },
+            { value: 'match-only', label: 'Match-only - Used for matching but not shown publicly (Recommended)' },
+            { value: 'private', label: 'Private - Hidden from everyone, not used for matching' },
+          ]}
+          onChange={(value) => updateSetting('locationVisibility', value)}
         />
         <SelectSetting
           label="Data Sharing"
