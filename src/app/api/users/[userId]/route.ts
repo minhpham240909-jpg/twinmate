@@ -111,7 +111,7 @@ export async function GET(
     }
 
     // Get user's non-deleted posts
-    let userPosts = []
+    let userPosts: any[] = []
     try {
       userPosts = await prisma.post.findMany({
         where: {
