@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { uploadGroupAvatar } from '@/lib/supabase/storage'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface Group {
   id: string
@@ -1228,9 +1229,12 @@ export default function GroupsPage() {
                 <div className="space-y-2">
                   {selectedGroup.membersList?.map((member) => (
                     <div key={member.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                        {member.name[0]}
-                      </div>
+                      <PartnerAvatar
+                        avatarUrl={member.avatarUrl || null}
+                        name={member.name}
+                        size="sm"
+                        showStatus={false}
+                      />
                       <span className="text-gray-900">{member.name}</span>
                       {member.role === 'OWNER' && (
                         <span className="ml-auto px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Owner</span>
@@ -1306,9 +1310,12 @@ export default function GroupsPage() {
                 {selectedGroup.membersList?.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                        {member.name[0]}
-                      </div>
+                      <PartnerAvatar
+                        avatarUrl={member.avatarUrl || null}
+                        name={member.name}
+                        size="sm"
+                        showStatus={false}
+                      />
                       <div>
                         <span className="text-gray-900 font-medium">{member.name}</span>
                         {member.role === 'OWNER' && (

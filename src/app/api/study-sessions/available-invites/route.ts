@@ -35,8 +35,23 @@ export async function GET() {
         name: true,
         email: true,
         avatarUrl: true,
+        presence: {
+          select: {
+            // @ts-ignore - Prisma type inference issue
+            onlineStatus: true,
+          },
+        },
       },
-    })
+    }) as any
+
+    // Map to include onlineStatus at top level
+    const partnersWithStatus = partnerUsers.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      avatarUrl: p.avatarUrl,
+      onlineStatus: p.presence?.onlineStatus || null,
+    }))
 
     // Get group members
     const groupMembers = await prisma.groupMember.findMany({
@@ -75,12 +90,12 @@ export async function GET() {
     const uniqueGroupMembers = groupMemberUsers.filter(
       (gUser, index, self) =>
         index === self.findIndex((u) => u.id === gUser.id) &&
-        !partnerUsers.some((p) => p.id === gUser.id)
+        !partnersWithStatus.some((p: any) => p.id === gUser.id)
     )
 
     return NextResponse.json({
       success: true,
-      partners: partnerUsers,
+      partners: partnersWithStatus,
       groupMembers: uniqueGroupMembers,
     })
   } catch (error) {

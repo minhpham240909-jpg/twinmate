@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 // GET /api/posts/[postId]/comments - Get comments for a post
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
@@ -25,15 +25,48 @@ export async function GET(
             id: true,
             name: true,
             avatarUrl: true,
+            presence: {
+              select: {
+                // @ts-ignore - Prisma type inference issue
+                onlineStatus: true,
+              },
+            },
           },
         },
       },
       orderBy: {
         createdAt: 'asc',
       },
+    }) as any
+
+    // Get user's partner connections
+    const partnerConnections = await prisma.match.findMany({
+      where: {
+        OR: [
+          { senderId: user.id, status: 'ACCEPTED' },
+          { receiverId: user.id, status: 'ACCEPTED' },
+        ],
+      },
+      select: {
+        senderId: true,
+        receiverId: true,
+      },
     })
 
-    return NextResponse.json({ comments })
+    const partnerIds = new Set(partnerConnections.map(match =>
+      match.senderId === user.id ? match.receiverId : match.senderId
+    ))
+
+    // Add onlineStatus only for partners
+    const commentsWithStatus = comments.map((comment: any) => ({
+      ...comment,
+      user: {
+        ...comment.user,
+        onlineStatus: partnerIds.has(comment.user.id) ? comment.user.presence?.onlineStatus : null,
+      },
+    }))
+
+    return NextResponse.json({ comments: commentsWithStatus })
   } catch (error) {
     console.error('Error fetching comments:', error)
     return NextResponse.json(

@@ -6,6 +6,7 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { subscribeToDM, subscribeToMessages } from '@/lib/supabase/realtime'
 import MessageVideoCall from '@/components/messages/MessageVideoCall'
 import SearchDropdown from '@/components/messages/SearchDropdown'
+import PartnerAvatar from '@/components/PartnerAvatar'
 import { useTranslations } from 'next-intl'
 
 interface Conversation {
@@ -620,21 +621,16 @@ function ChatPageContent() {
                           }`}
                         >
                           <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                              {conv.avatarUrl ? (
-                                <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-full object-cover" />
-                              ) : (
-                                conv.name[0].toUpperCase()
-                              )}
-                            </div>
+                            <PartnerAvatar
+                              avatarUrl={conv.avatarUrl}
+                              name={conv.name}
+                              size="md"
+                              onlineStatus={conv.type === 'partner' ? (conv.onlineStatus as 'ONLINE' | 'OFFLINE') : null}
+                              showStatus={conv.type === 'partner'}
+                            />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
-                                  {conv.type === 'partner' && conv.onlineStatus === 'ONLINE' && (
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                  )}
-                                </div>
+                                <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
                                 <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
                               </div>
                               <div className="flex items-center justify-between">

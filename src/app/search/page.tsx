@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface Partner {
   id: string
@@ -684,17 +685,12 @@ export default function SearchPage() {
                     <div key={partner.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
-                          {partner.user.avatarUrl ? (
-                            <img
-                              src={partner.user.avatarUrl}
-                              alt={partner.user.name}
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                              {partner.user.name?.[0]?.toUpperCase() || 'U'}
-                            </div>
-                          )}
+                          <PartnerAvatar
+                            avatarUrl={partner.user.avatarUrl}
+                            name={partner.user.name}
+                            size="md"
+                            showStatus={false}
+                          />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-gray-900">{partner.user.name}</h3>

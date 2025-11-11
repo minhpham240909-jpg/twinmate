@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 type Post = {
   id: string
@@ -17,6 +18,7 @@ type Post = {
     id: string
     name: string
     avatarUrl: string | null
+    onlineStatus?: 'ONLINE' | 'OFFLINE' | null
   }
   _count: {
     likes: number
@@ -35,6 +37,7 @@ type Comment = {
     id: string
     name: string
     avatarUrl: string | null
+    onlineStatus?: 'ONLINE' | 'OFFLINE' | null
   }
 }
 
@@ -861,17 +864,15 @@ export default function CommunityPage() {
               <div className="flex items-start gap-3 mb-4">
                 {/* Clickable Avatar */}
                 <Link href={`/profile/${post.user.id}`}>
-                  {post.user.avatarUrl ? (
-                    <img
-                      src={post.user.avatarUrl}
-                      alt={post.user.name}
-                      className="w-12 h-12 rounded-full cursor-pointer hover:opacity-80 transition"
+                  <div className="cursor-pointer hover:opacity-80 transition">
+                    <PartnerAvatar
+                      avatarUrl={post.user.avatarUrl}
+                      name={post.user.name}
+                      size="md"
+                      onlineStatus={post.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                      showStatus={post.connectionStatus === 'connected'}
                     />
-                  ) : (
-                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer hover:opacity-80 transition">
-                      {post.user.name[0]}
-                    </div>
-                  )}
+                  </div>
                 </Link>
                 <div className="flex-1">
                   {/* Clickable Name */}
@@ -1087,17 +1088,13 @@ export default function CommunityPage() {
                   <div className="space-y-3 mb-4">
                     {comments[post.id]?.map((comment) => (
                       <div key={comment.id} className="flex gap-3">
-                        {comment.user.avatarUrl ? (
-                          <img
-                            src={comment.user.avatarUrl}
-                            alt={comment.user.name}
-                            className="w-8 h-8 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm">
-                            {comment.user.name[0]}
-                          </div>
-                        )}
+                        <PartnerAvatar
+                          avatarUrl={comment.user.avatarUrl}
+                          name={comment.user.name}
+                          size="sm"
+                          onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                          showStatus={!!comment.user.onlineStatus}
+                        />
                         <div className="flex-1 bg-gray-50 rounded-lg p-3">
                           <p className="font-semibold text-sm">{comment.user.name}</p>
                           <p className="text-gray-800 text-sm">{comment.content}</p>

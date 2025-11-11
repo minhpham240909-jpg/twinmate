@@ -7,6 +7,7 @@ import Image from 'next/image'
 import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface Session {
   id: string
@@ -47,6 +48,7 @@ interface Partner {
   name: string
   email: string
   avatarUrl: string | null
+  onlineStatus?: 'ONLINE' | 'OFFLINE'
 }
 
 interface GroupMember {
@@ -272,19 +274,12 @@ export default function StudySessionsPage() {
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        {invite.inviter?.avatarUrl ? (
-                          <Image
-                            src={invite.inviter.avatarUrl}
-                            alt={invite.inviter.name}
-                            width={40}
-                            height={40}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                            {invite.inviter?.name?.[0] || 'U'}
-                          </div>
-                        )}
+                        <PartnerAvatar
+                          avatarUrl={invite.inviter?.avatarUrl || null}
+                          name={invite.inviter?.name || 'U'}
+                          size="sm"
+                          showStatus={false}
+                        />
                         <div>
                           <p className="text-sm text-gray-600">
                             <span className="font-semibold text-gray-900">
@@ -666,17 +661,13 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                             onChange={() => toggleInvite(partner.id)}
                             className="w-4 h-4 text-blue-600"
                           />
-                          {partner.avatarUrl ? (
-                            <img
-                              src={partner.avatarUrl}
-                              alt={partner.name}
-                              className="w-8 h-8 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
-                              {partner.name?.[0] || 'U'}
-                            </div>
-                          )}
+                          <PartnerAvatar
+                            avatarUrl={partner.avatarUrl}
+                            name={partner.name}
+                            size="sm"
+                            onlineStatus={partner.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                            showStatus={true}
+                          />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{partner.name}</p>
                             <p className="text-xs text-gray-500">{partner.email}</p>
@@ -703,17 +694,12 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                             onChange={() => toggleInvite(member.id)}
                             className="w-4 h-4 text-blue-600"
                           />
-                          {member.avatarUrl ? (
-                            <img
-                              src={member.avatarUrl}
-                              alt={member.name}
-                              className="w-8 h-8 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs">
-                              {member.name?.[0] || 'U'}
-                            </div>
-                          )}
+                          <PartnerAvatar
+                            avatarUrl={member.avatarUrl}
+                            name={member.name}
+                            size="sm"
+                            showStatus={false}
+                          />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{member.name}</p>
                             <p className="text-xs text-gray-500">{member.email}</p>

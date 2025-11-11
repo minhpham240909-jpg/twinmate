@@ -5,9 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
-import Image from 'next/image'
 import InviteModal from '@/components/study-sessions/InviteModal'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface Participant {
   id: string
@@ -609,13 +609,12 @@ export default function WaitingLobbyPage() {
                   )}
                   {messages.map((msg) => (
                     <div key={msg.id} className="flex items-start gap-3">
-                      {msg.senderAvatar ? (
-                        <Image src={msg.senderAvatar} alt={msg.senderName} width={32} height={32} className="w-8 h-8 rounded-full" />
-                      ) : (
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                          {msg.senderName[0]}
-                        </div>
-                      )}
+                      <PartnerAvatar
+                        avatarUrl={msg.senderAvatar}
+                        name={msg.senderName}
+                        size="sm"
+                        showStatus={false}
+                      />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{msg.senderName}</p>
                         <p className="text-sm text-gray-700">{msg.content}</p>
@@ -684,13 +683,12 @@ export default function WaitingLobbyPage() {
                 <div className="space-y-3">
                   {session.participants.map((participant) => (
                     <div key={participant.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      {participant.avatarUrl ? (
-                        <Image src={participant.avatarUrl} alt={participant.name} width={40} height={40} className="w-10 h-10 rounded-full" />
-                      ) : (
-                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {participant.name[0]}
-                        </div>
-                      )}
+                      <PartnerAvatar
+                        avatarUrl={participant.avatarUrl}
+                        name={participant.name}
+                        size="sm"
+                        showStatus={false}
+                      />
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{participant.name}</h4>
                         <p className="text-xs text-gray-500">{participant.role}</p>

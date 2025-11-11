@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import NotificationPanel from '@/components/NotificationPanel'
 import AvatarDropdown from '@/components/AvatarDropdown'
+import PartnerAvatar from '@/components/PartnerAvatar'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useAIAgent } from '@/components/providers/AIAgentProvider'
 import { useTranslations } from 'next-intl'
@@ -62,26 +63,44 @@ export default function DashboardPage() {
     return cached ? parseInt(cached, 10) : 0
   }
 
+  // Helper to get cached online partners from localStorage
+  const getInitialOnlinePartners = (): Array<{
+    id: string
+    name: string
+    avatarUrl: string | null
+    onlineStatus: string
+  }> => {
+    if (typeof window === 'undefined') return []
+    const cached = localStorage.getItem('dashboard_onlinePartners')
+    if (!cached) return []
+    try {
+      return JSON.parse(cached)
+    } catch {
+      return []
+    }
+  }
+
   const [unreadCount, setUnreadCount] = useState(() => getInitialCount('unreadCount'))
   const [showNotifications, setShowNotifications] = useState(false)
   const [partnersCount, setPartnersCount] = useState(() => getInitialCount('partnersCount'))
   const [pendingInvitesCount, setPendingInvitesCount] = useState(() => getInitialCount('pendingInvitesCount'))
   const [connectionRequestsCount, setConnectionRequestsCount] = useState(() => getInitialCount('connectionRequestsCount'))
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ partners: Partner[]; groups: Group[] }>({ partners: [], groups: [] })
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Online partners state
+  // Online partners state - initialize from cache
   const [onlinePartners, setOnlinePartners] = useState<Array<{
     id: string
     name: string
     avatarUrl: string | null
     onlineStatus: string
-  }>>([])
-  const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(true)
+  }>>(() => getInitialOnlinePartners())
+  // Only show loading if we don't have cached data
+  const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(() => getInitialOnlinePartners().length === 0)
 
   useUserSync()
 
@@ -148,6 +167,7 @@ export default function DashboardPage() {
           localStorage.setItem('dashboard_partnersCount', String(partners_count))
           localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
           localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
+          localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
@@ -743,7 +763,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Half - Online Partners */}
-            <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-6 self-start h-fit">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -760,13 +780,13 @@ export default function DashboardPage() {
 
               {/* Loading State */}
               {loadingOnlinePartners ? (
-                <div className="py-12 text-center">
+                <div className="py-12 text-center min-h-[280px] flex flex-col items-center justify-center">
                   <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                   <p className="text-sm text-gray-600">Loading...</p>
                 </div>
               ) : onlinePartners.length === 0 ? (
                 /* Empty State */
-                <div className="py-12 text-center">
+                <div className="py-12 text-center min-h-[280px] flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -776,25 +796,23 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 /* Online Partners List */
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-96 overflow-y-auto min-h-[280px]">
                   {onlinePartners.map((partner) => (
                     <button
                       key={partner.id}
                       onClick={() => router.push(`/profile/${partner.id}`)}
                       className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-xl transition-all duration-200 text-left group"
                     >
-                      {partner.avatarUrl ? (
-                        <Image src={partner.avatarUrl} alt={partner.name} width={48} height={48} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-green-200 transition-all" />
-                      ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-100 group-hover:ring-green-200 transition-all">
-                          {partner.name[0]}
-                        </div>
-                      )}
+                      <PartnerAvatar
+                        avatarUrl={partner.avatarUrl}
+                        name={partner.name}
+                        size="md"
+                        onlineStatus={partner.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                        showStatus={true}
+                        className="ring-2 ring-gray-100 group-hover:ring-green-200 transition-all"
+                      />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-gray-900 truncate group-hover:text-green-600 transition-colors">{partner.name}</p>
-                          <div className="w-2.5 h-2.5 bg-green-500 rounded-full" title="Online"></div>
-                        </div>
+                        <p className="font-semibold text-gray-900 truncate group-hover:text-green-600 transition-colors">{partner.name}</p>
                       </div>
                       <svg className="w-5 h-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

@@ -91,6 +91,12 @@ export async function GET(req: NextRequest) {
                 postPrivacy: true,
               },
             },
+            presence: {
+              select: {
+                // @ts-ignore - Prisma type inference issue
+                onlineStatus: true,
+              },
+            },
           },
         },
         likes: {
@@ -127,14 +133,14 @@ export async function GET(req: NextRequest) {
           ]
         : { createdAt: 'desc' }, // RECOMMENDED - for now, use chronological (can be enhanced later)
       take: limit * 2, // Fetch more for sorting
-    })
+    }) as any
 
     // Post-process for TRENDING and RECOMMENDED algorithms
     let finalPosts = posts
 
     if (feedAlgorithm === 'TRENDING') {
       // Calculate engagement score for each post
-      const scoredPosts = posts.map(post => {
+      const scoredPosts = posts.map((post: any) => {
         const hoursSinceCreated = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60)
         const engagementScore = (
           post._count.likes * 3 +
@@ -147,12 +153,12 @@ export async function GET(req: NextRequest) {
 
       // Sort by score and take limit
       finalPosts = scoredPosts
-        .sort((a, b) => b.score - a.score)
+        .sort((a: any, b: any) => b.score - a.score)
         .slice(0, limit)
-        .map(({ post }) => post)
+        .map(({ post }: any) => post)
     } else if (feedAlgorithm === 'RECOMMENDED') {
       // Simple recommendation: prioritize posts from connections, then by engagement
-      const scoredPosts = posts.map(post => {
+      const scoredPosts = posts.map((post: any) => {
         const isFromPartner = partnerIds.includes(post.userId)
         const hoursSinceCreated = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60)
         const engagementScore = (
@@ -168,9 +174,9 @@ export async function GET(req: NextRequest) {
       })
 
       finalPosts = scoredPosts
-        .sort((a, b) => b.score - a.score)
+        .sort((a: any, b: any) => b.score - a.score)
         .slice(0, limit)
-        .map(({ post }) => post)
+        .map(({ post }: any) => post)
     } else {
       // CHRONOLOGICAL - already sorted, just take limit
       finalPosts = posts.slice(0, limit)
@@ -204,12 +210,19 @@ export async function GET(req: NextRequest) {
     })
 
     // Check if user has liked each post and add connection status
-    const postsWithUserData = finalPosts.map(post => ({
-      ...post,
-      isLikedByUser: post.likes.some(like => like.userId === user.id),
-      isRepostedByUser: post.reposts.some(repost => repost.userId === user.id),
-      connectionStatus: post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none'),
-    }))
+    const postsWithUserData = finalPosts.map((post: any) => {
+      const connectionStatus = post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none')
+      return {
+        ...post,
+        user: {
+          ...post.user,
+          onlineStatus: connectionStatus === 'connected' ? post.user.presence?.onlineStatus : null,
+        },
+        isLikedByUser: post.likes.some((like: any) => like.userId === user.id),
+        isRepostedByUser: post.reposts.some((repost: any) => repost.userId === user.id),
+        connectionStatus,
+      }
+    })
 
     return NextResponse.json({
       posts: postsWithUserData,
@@ -269,6 +282,12 @@ export async function POST(req: NextRequest) {
             profile: {
               select: {
                 postPrivacy: true,
+              },
+            },
+            presence: {
+              select: {
+                // @ts-ignore - Prisma type inference issue
+                onlineStatus: true,
               },
             },
           },

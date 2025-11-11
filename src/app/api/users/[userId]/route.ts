@@ -32,8 +32,14 @@ export async function GET(
         role: true,
         profile: true,
         createdAt: true,
+        presence: {
+          select: {
+            // @ts-ignore - Prisma type inference issue
+            onlineStatus: true,
+          },
+        },
       },
-    })
+    }) as any
 
     if (!dbUser) {
       return NextResponse.json(
@@ -138,6 +144,7 @@ export async function GET(
         name: dbUser.name,
         avatarUrl: dbUser.avatarUrl,
         role: dbUser.role,
+        onlineStatus: connectionStatus === 'connected' ? dbUser.presence?.onlineStatus : null,
       },
       profile: dbUser.profile,
       posts: userPosts,

@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/auth/context'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import Image from 'next/image'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface Partner {
   id: string
@@ -11,6 +11,7 @@ interface Partner {
   name: string
   email: string
   avatarUrl: string | null
+  onlineStatus?: 'ONLINE' | 'OFFLINE'
 }
 
 interface GroupMember {
@@ -56,6 +57,7 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
             name: p.name,
             email: p.email,
             avatarUrl: p.avatarUrl,
+            onlineStatus: p.profile?.onlineStatus,
           }))
           setPartners(formattedPartners)
         }
@@ -188,19 +190,13 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
                         key={partner.id}
                         className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
                       >
-                        {partner.avatarUrl ? (
-                          <Image
-                            src={partner.avatarUrl}
-                            alt={partner.name}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                            {partner.name[0]}
-                          </div>
-                        )}
+                        <PartnerAvatar
+                          avatarUrl={partner.avatarUrl}
+                          name={partner.name}
+                          size="md"
+                          onlineStatus={partner.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                          showStatus={true}
+                        />
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">{partner.name}</h3>
                           <p className="text-sm text-gray-500">{partner.email}</p>
@@ -235,19 +231,12 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
                         key={member.id}
                         className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
                       >
-                        {member.avatarUrl ? (
-                          <Image
-                            src={member.avatarUrl}
-                            alt={member.name}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                            {member.name[0]}
-                          </div>
-                        )}
+                        <PartnerAvatar
+                          avatarUrl={member.avatarUrl}
+                          name={member.name}
+                          size="md"
+                          showStatus={false}
+                        />
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">{member.name}</h3>
                           <p className="text-sm text-gray-500">{member.email}</p>

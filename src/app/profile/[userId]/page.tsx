@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 type UserProfile = {
   user: {
@@ -11,6 +12,7 @@ type UserProfile = {
     name: string
     email: string
     avatarUrl: string | null
+    onlineStatus?: 'ONLINE' | 'OFFLINE' | null
   }
   profile: {
     bio: string
@@ -202,17 +204,16 @@ export default function UserProfilePage() {
           {/* Profile Header */}
           <div className="text-center pt-12 pb-6 px-6">
             {/* Profile Photo */}
-            {viewedUser.avatarUrl ? (
-              <img
-                src={viewedUser.avatarUrl}
-                alt={viewedUser.name}
-                className="w-32 h-32 rounded-full mx-auto mb-6 object-cover border-4 border-white shadow-lg"
+            <div className="flex justify-center mb-6">
+              <PartnerAvatar
+                avatarUrl={viewedUser.avatarUrl}
+                name={viewedUser.name}
+                size="xl"
+                onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                showStatus={profileData?.connectionStatus === 'connected'}
+                className="border-4 border-white shadow-lg"
               />
-            ) : (
-              <div className="w-32 h-32 rounded-full mx-auto mb-6 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
-                {viewedUser.name[0]?.toUpperCase()}
-              </div>
-            )}
+            </div>
 
             {/* Name */}
             <h1 className="text-3xl font-bold text-gray-900 mb-6">{viewedUser.name}</h1>

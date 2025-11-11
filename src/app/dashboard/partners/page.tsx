@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
+import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface Partner {
   matchId: string
@@ -155,24 +156,16 @@ export default function PartnersPage() {
               >
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-4">
-                  {partner.avatarUrl ? (
-                    <img
-                      src={partner.avatarUrl}
-                      alt={partner.name}
-                      className="w-16 h-16 rounded-full ring-2 ring-blue-100"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-2xl ring-2 ring-blue-100">
-                      {partner.name[0]}
-                    </div>
-                  )}
+                  <PartnerAvatar
+                    avatarUrl={partner.avatarUrl}
+                    name={partner.name}
+                    size="lg"
+                    onlineStatus={partner.profile?.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                    showStatus={true}
+                    className="ring-2 ring-blue-100"
+                  />
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-gray-900">{partner.name}</h3>
-                      <div className={`w-2.5 h-2.5 rounded-full ${
-                        partner.profile?.onlineStatus === 'ONLINE' ? 'bg-green-500' : 'bg-gray-400'
-                      }`} title={partner.profile?.onlineStatus === 'ONLINE' ? 'Online' : 'Offline'}></div>
-                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">{partner.name}</h3>
                   </div>
                 </div>
 
