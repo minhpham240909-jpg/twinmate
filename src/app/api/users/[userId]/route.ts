@@ -22,7 +22,7 @@ export async function GET(
     }
 
     // Get user with profile and posts
-    const dbUser = await prisma.user.findUnique({
+    let dbUser = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
