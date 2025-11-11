@@ -628,7 +628,7 @@ export default function DashboardPage() {
 
               {/* Search Results */}
               {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
-                <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300 min-w-[700px] md:min-w-[900px] relative z-10">
                   {/* Partners Results */}
                   {searchResults.partners.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
