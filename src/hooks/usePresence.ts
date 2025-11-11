@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { useAuth } from '@/lib/auth/context'
 
 const HEARTBEAT_INTERVAL = 15000 // 15 seconds - faster offline detection
 const DEVICE_ID_KEY = 'clerva_device_id'
@@ -11,6 +12,7 @@ export interface PresenceStatus {
 }
 
 export function usePresence() {
+  const { user, loading } = useAuth()
   const [isInitialized, setIsInitialized] = useState(false)
   const deviceIdRef = useRef<string | null>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -37,9 +39,10 @@ export function usePresence() {
     setIsInitialized(true)
   }, [])
 
-  // Send heartbeat to server
-  const sendHeartbeat = async () => {
-    if (!deviceIdRef.current) return
+  // Send heartbeat to server (memoized to prevent unnecessary re-renders)
+  const sendHeartbeat = useCallback(async () => {
+    // Only send heartbeat if user is authenticated
+    if (!deviceIdRef.current || !user) return
 
     try {
       const response = await fetch('/api/presence/heartbeat', {
@@ -57,28 +60,40 @@ export function usePresence() {
     } catch (error) {
       console.error('[HEARTBEAT] Error:', error)
     }
-  }
+  }, [user])
 
-  // Disconnect device session
-  const disconnect = async () => {
-    if (!deviceIdRef.current) return
+  // Disconnect device session (memoized to prevent unnecessary re-renders)
+  const disconnect = useCallback(async () => {
+    // Only disconnect if user is authenticated and device ID exists
+    if (!deviceIdRef.current || !user) return
 
     try {
+      // Use fetch with keepalive for reliable disconnect (works better than sendBeacon for JSON)
       await fetch('/api/presence/disconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deviceId: deviceIdRef.current,
         }),
+        keepalive: true, // Keep request alive even after page unload
       })
     } catch (error) {
-      console.error('[DISCONNECT] Error:', error)
+      // Silently fail - disconnect is best-effort
+      // Errors are expected if page is unloading
     }
-  }
+  }, [user])
 
-  // Start heartbeat interval
+  // Start heartbeat interval (only when user is authenticated)
   useEffect(() => {
-    if (!isInitialized) return
+    if (!isInitialized || loading) return
+    if (!user) {
+      // User logged out - clear any existing interval
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+      return
+    }
 
     // Send initial heartbeat immediately
     sendHeartbeat()
@@ -86,21 +101,25 @@ export function usePresence() {
     // Set up interval for subsequent heartbeats
     heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when user logs out
     return () => {
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
       }
-      disconnect()
+      // Disconnect when component unmounts or user logs out
+      if (user) {
+        disconnect()
+      }
     }
-  }, [isInitialized])
+  }, [isInitialized, user, loading, sendHeartbeat, disconnect])
 
   // Handle page visibility changes (tab focus/blur)
   useEffect(() => {
-    if (!isInitialized) return
+    if (!isInitialized || !user) return
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && user) {
         // Tab became visible - send immediate heartbeat
         sendHeartbeat()
       }
@@ -111,14 +130,16 @@ export function usePresence() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [isInitialized])
+  }, [isInitialized, user, sendHeartbeat])
 
   // Handle beforeunload (browser close)
   useEffect(() => {
-    if (!isInitialized) return
+    if (!isInitialized || !user) return
 
     const handleBeforeUnload = () => {
-      disconnect()
+      if (user) {
+        disconnect()
+      }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
@@ -126,7 +147,7 @@ export function usePresence() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [isInitialized])
+  }, [isInitialized, user, disconnect])
 
   return {
     isInitialized,

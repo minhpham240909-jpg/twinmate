@@ -33,19 +33,28 @@ export async function POST(request: NextRequest) {
 
     const { deviceId } = validation.data
 
-    // 3. Mark device session as inactive
-    await prisma.deviceSession.update({
-      where: {
-        userId_deviceId: {
-          userId: user.id,
-          deviceId,
+    // 3. Mark device session as inactive (handle case where session might not exist)
+    try {
+      await prisma.deviceSession.update({
+        where: {
+          userId_deviceId: {
+            userId: user.id,
+            deviceId,
+          },
         },
-      },
-      data: {
-        isActive: false,
-        updatedAt: new Date(),
-      },
-    })
+        data: {
+          isActive: false,
+          updatedAt: new Date(),
+        },
+      })
+    } catch (error: any) {
+      // Session might not exist (e.g., already deleted or never created)
+      // This is okay - continue to check active sessions and update presence
+      if (error?.code !== 'P2025') {
+        // P2025 = Record not found - this is expected, ignore it
+        console.warn('[DISCONNECT] Device session not found (may have been cleaned up):', deviceId)
+      }
+    }
 
     // 4. Check if user has any active sessions
     const activeSessions = await prisma.deviceSession.count({
@@ -55,26 +64,41 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // 5. Update user presence
+    // 5. Immediately set offline if no active sessions remain
+    // If user still has active sessions (multiple tabs/devices), keep them online
     let newStatus = 'online'
-    let newOnlineStatus = 'ONLINE'
     if (activeSessions === 0) {
       newStatus = 'offline'
-      newOnlineStatus = 'OFFLINE'
     }
 
-    const userPresence = await prisma.userPresence.update({
-      where: {
-        userId: user.id,
-      },
-      data: {
-        status: newStatus,
-        // @ts-ignore - Prisma type inference issue with onlineStatus
-        onlineStatus: newOnlineStatus,
-        lastSeenAt: new Date(),
-        updatedAt: new Date(),
-      },
-    })
+    // 6. Update user presence (handle case where presence might not exist)
+    let userPresence
+    try {
+      userPresence = await prisma.userPresence.update({
+        where: {
+          userId: user.id,
+        },
+        data: {
+          status: newStatus,
+          lastSeenAt: new Date(),
+          updatedAt: new Date(),
+        },
+      })
+    } catch (error: any) {
+      // Presence might not exist - create it
+      if (error?.code === 'P2025') {
+        userPresence = await prisma.userPresence.create({
+          data: {
+            userId: user.id,
+            status: newStatus,
+            lastSeenAt: new Date(),
+            lastActivityAt: new Date(),
+          },
+        })
+      } else {
+        throw error
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -128,9 +128,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    // Sign out via API (this will mark presence as offline)
     await fetch('/api/auth/signout', { method: 'POST' })
+    
+    // Clear local state
     setUser(null)
     setProfile(null)
+    
+    // Redirect to home
     router.push('/')
   }
 

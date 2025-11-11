@@ -7,24 +7,37 @@ export async function POST(_request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Get user before signing out to update their presence
+    // Get user before signing out
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Update user's presence status to offline before signing out
+    // Immediately mark user as offline when signing out
     if (user) {
       try {
-        await (prisma.userPresence.upsert as any)({
+        // Mark all device sessions for this user as inactive
+        await prisma.deviceSession.updateMany({
+          where: {
+            userId: user.id,
+            isActive: true,
+          },
+          data: {
+            isActive: false,
+            updatedAt: new Date(),
+          },
+        })
+        
+        // Immediately set user status to offline
+        await prisma.userPresence.upsert({
           where: { userId: user.id },
           update: {
             status: 'offline',
-            onlineStatus: 'OFFLINE',
             lastSeenAt: new Date(),
+            updatedAt: new Date(),
           },
           create: {
             userId: user.id,
             status: 'offline',
-            onlineStatus: 'OFFLINE',
             lastSeenAt: new Date(),
+            lastActivityAt: new Date(),
           },
         })
       } catch (presenceError) {

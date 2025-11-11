@@ -23,11 +23,12 @@ export async function cleanupPresence() {
 
     console.log(`[CLEANUP] Marked ${staleSessionsResult.count} stale sessions as inactive`)
 
-    // 2. Get all users with device sessions
-    const usersWithSessions = await prisma.user.findMany({
+    // 2. Get all users with presence records (including those without device sessions)
+    // This ensures we check all users, not just those with active sessions
+    const usersWithPresence = await prisma.user.findMany({
       where: {
-        deviceSessions: {
-          some: {},
+        presence: {
+          isNot: null,
         },
       },
       select: {
@@ -42,18 +43,20 @@ export async function cleanupPresence() {
           select: {
             status: true,
             lastActivityAt: true,
+            lastSeenAt: true,
           },
         },
       },
     })
 
-    console.log(`[CLEANUP] Processing ${usersWithSessions.length} users...`)
+    console.log(`[CLEANUP] Processing ${usersWithPresence.length} users...`)
 
-    // 3. Update user presence based on active sessions
+    // 3. Update user presence based on active sessions (immediate offline)
     let updatedCount = 0
-    const awayThreshold = new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
+    // Reuse staleThreshold from above (60 seconds) for consistency
+    // Users with no active sessions and last seen >60 seconds ago = offline
 
-    for (const user of usersWithSessions) {
+    for (const user of usersWithPresence) {
       const activeSessions = user.deviceSessions.filter((s) => s.isActive)
       const hasActiveSessions = activeSessions.length > 0
 
@@ -63,13 +66,16 @@ export async function cleanupPresence() {
         // At least one active session = online
         newStatus = 'online'
       } else {
-        // No active sessions - check last activity
-        const lastActivity = user.presence?.lastActivityAt || new Date(0)
+        // No active sessions - check if last heartbeat was recent
+        const lastSeen = user.presence?.lastSeenAt || user.presence?.lastActivityAt || new Date(0)
 
-        if (lastActivity < awayThreshold) {
-          newStatus = 'offline' // Inactive for >5 minutes
+        if (lastSeen < staleThreshold) {
+          // No heartbeat for >60 seconds = offline (immediate offline detection)
+          newStatus = 'offline'
         } else {
-          newStatus = 'away' // Recently active but no current sessions
+          // Very recently disconnected (<60 seconds) - might be temporary network issue
+          // Keep as online briefly, but will be marked offline on next cleanup cycle
+          newStatus = 'online'
         }
       }
 
