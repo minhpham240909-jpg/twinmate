@@ -57,8 +57,10 @@ export async function POST(request: NextRequest) {
 
     // 5. Update user presence
     let newStatus = 'online'
+    let newOnlineStatus = 'ONLINE'
     if (activeSessions === 0) {
       newStatus = 'offline'
+      newOnlineStatus = 'OFFLINE'
     }
 
     const userPresence = await prisma.userPresence.update({
@@ -67,6 +69,7 @@ export async function POST(request: NextRequest) {
       },
       data: {
         status: newStatus,
+        onlineStatus: newOnlineStatus,
         lastSeenAt: new Date(),
         updatedAt: new Date(),
       },
