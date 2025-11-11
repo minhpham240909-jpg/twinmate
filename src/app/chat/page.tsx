@@ -689,12 +689,14 @@ function ChatPageContent() {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900">{selectedConversation.name}</h3>
-                          {selectedConversation.type === 'partner' && (
-                            <p className={`text-xs ${selectedConversation.onlineStatus === 'ONLINE' ? 'text-green-600' : 'text-gray-500'}`}>
-                              {selectedConversation.onlineStatus === 'ONLINE' ? t('online') : t('offline')}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900">{selectedConversation.name}</h3>
+                            {selectedConversation.type === 'partner' && (
+                              <div className={`w-2.5 h-2.5 rounded-full ${
+                                selectedConversation.onlineStatus === 'ONLINE' ? 'bg-green-500' : 'bg-gray-400'
+                              }`} title={selectedConversation.onlineStatus === 'ONLINE' ? 'Online' : 'Offline'}></div>
+                            )}
+                          </div>
                           {selectedConversation.type === 'group' && (
                             <p className="text-xs text-gray-500">{selectedConversation.memberCount} {t('members')}</p>
                           )}

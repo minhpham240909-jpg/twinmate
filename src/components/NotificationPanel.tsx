@@ -40,6 +40,19 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
   const [loading, setLoading] = useState(false)
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set())
 
+  // Define which notification types should appear in the bell icon (system/critical only)
+  // Feature-specific notifications appear in their respective pages:
+  // - Connection notifications → /connections page
+  // - Session notifications → /study-sessions page
+  // - Group notifications → /groups page
+  // - Message notifications → /chat page (badges)
+  const BELL_NOTIFICATION_TYPES = [
+    'STUDY_REMINDER',      // System notification
+    'BADGE_EARNED',        // System notification
+    'STREAK_REMINDER',     // System notification
+    'INCOMING_CALL'        // Critical - needs immediate attention
+  ]
+
   // Request notification permission on mount
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
@@ -52,29 +65,32 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
     if (!user?.id) return
 
     const unsubscribe = subscribeToNotifications(user.id, (newNotification) => {
-      // Add new notification to the top of the list
-      setNotifications(prev => [newNotification as unknown as Notification, ...prev])
-
-      // Update unread count - fetch fresh count from API
       const typedNotification = newNotification as unknown as Notification
-      if (!typedNotification.isRead) {
+
+      // Only add to bell panel if it's a system/critical notification
+      if (BELL_NOTIFICATION_TYPES.includes(typedNotification.type)) {
+        setNotifications(prev => [typedNotification, ...prev])
+      }
+
+      // Update unread count - fetch fresh count from API to get accurate system notification count
+      if (!typedNotification.isRead && BELL_NOTIFICATION_TYPES.includes(typedNotification.type)) {
         fetchNotifications()
       }
 
-      // Show browser notification with proper formatting and navigation
+      // IMPORTANT: Show browser/push notification for ALL types (not just bell types)
+      // This ensures users get notified even when not on the specific feature page
       if (canShowNotifications() && !typedNotification.isRead) {
         const type = typedNotification.type
         const relatedUserId = typedNotification.relatedUserId || ''
-        const relatedMatchId = typedNotification.relatedMatchId || ''
 
         // Get user info from notification message (basic parsing)
         const userName = typedNotification.message.split(' ')[0] || 'Someone'
         const fromUser = { name: userName, id: relatedUserId }
 
-        // Trigger appropriate notification type
-        if (type === 'MATCH_REQUEST') {
+        // Trigger appropriate browser notification type for ALL notification types
+        if (type === 'MATCH_REQUEST' || type === 'CONNECTION_REQUEST') {
           notifyConnectionRequest(fromUser)
-        } else if (type === 'MATCH_ACCEPTED') {
+        } else if (type === 'MATCH_ACCEPTED' || type === 'CONNECTION_ACCEPTED') {
           notifyConnectionAccepted(fromUser)
         } else if (type === 'INCOMING_CALL') {
           const sessionId = typedNotification.actionUrl?.split('/').pop() || ''
@@ -90,6 +106,27 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         } else if (type === 'POST_LIKE') {
           const postId = typedNotification.actionUrl?.match(/postId=([^&]+)/)?.[1] || ''
           notifyPostLike(fromUser, postId)
+        } else if (type === 'GROUP_INVITE') {
+          // Generic browser notification for group invites
+          new Notification(typedNotification.title, {
+            body: typedNotification.message,
+            icon: '/logo.png',
+            tag: `group-invite-${typedNotification.id}`
+          })
+        } else if (type === 'SESSION_STARTED' || type === 'SESSION_ENDED' || type === 'SESSION_JOINED') {
+          // Generic browser notification for session updates
+          new Notification(typedNotification.title, {
+            body: typedNotification.message,
+            icon: '/logo.png',
+            tag: `session-update-${typedNotification.id}`
+          })
+        } else if (type === 'STUDY_REMINDER' || type === 'BADGE_EARNED' || type === 'STREAK_REMINDER') {
+          // Generic browser notification for system notifications
+          new Notification(typedNotification.title, {
+            body: typedNotification.message,
+            icon: '/logo.png',
+            tag: `system-${typedNotification.id}`
+          })
         }
       }
     })
@@ -109,8 +146,17 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
       const response = await fetch('/api/notifications')
       if (response.ok) {
         const data = await response.json()
-        setNotifications(data.notifications || [])
-        onUnreadCountChange(data.unreadCount || 0)
+        // Filter to show only system/critical notifications in bell icon
+        // Feature-specific notifications are shown in their respective pages
+        const allNotifications = data.notifications || []
+        const filteredNotifications = allNotifications.filter((n: Notification) =>
+          BELL_NOTIFICATION_TYPES.includes(n.type)
+        )
+        setNotifications(filteredNotifications)
+
+        // Update unread count for bell icon (only system/critical notifications)
+        const unreadCount = filteredNotifications.filter((n: Notification) => !n.isRead).length
+        onUnreadCountChange(unreadCount)
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -329,7 +375,10 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
               <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <p className="text-sm text-gray-600">No notifications</p>
+              <p className="text-sm font-medium text-gray-900 mb-1">No system notifications</p>
+              <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                Feature notifications appear in their respective pages: Connections, Study Sessions, Groups, and Chat
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">

@@ -74,6 +74,15 @@ export default function DashboardPage() {
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Online partners state
+  const [onlinePartners, setOnlinePartners] = useState<Array<{
+    id: string
+    name: string
+    avatarUrl: string | null
+    onlineStatus: string
+  }>>([])
+  const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(true)
+
   useUserSync()
 
   // Check profile completion and banner visibility
@@ -99,7 +108,8 @@ export default function DashboardPage() {
           fetch('/api/notifications').then(r => r.json()),
           fetch('/api/partners/count').then(r => r.json()),
           fetch('/api/study-sessions/pending-invites').then(r => r.json()),
-          fetch('/api/connections?type=received').then(r => r.json())
+          fetch('/api/connections?type=received').then(r => r.json()),
+          fetch('/api/partners/active').then(r => r.json())
         ])
 
         // Extract values with fallbacks for failed requests
@@ -107,6 +117,7 @@ export default function DashboardPage() {
         const partners = results[1].status === 'fulfilled' ? results[1].value : { count: 0 }
         const invites = results[2].status === 'fulfilled' ? results[2].value : { invites: [] }
         const connections = results[3].status === 'fulfilled' ? results[3].value : { receivedCount: 0 }
+        const activePartners = results[4].status === 'fulfilled' ? results[4].value : { partners: [] }
 
         const unread = notifs.unreadCount || 0
         const partners_count = partners.count || 0
@@ -119,6 +130,18 @@ export default function DashboardPage() {
         setPendingInvitesCount(pending)
         setConnectionRequestsCount(requests)
 
+        // Filter and set online partners
+        const online = activePartners.partners
+          ?.filter((p: any) => p.profile?.onlineStatus === 'ONLINE')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            avatarUrl: p.avatarUrl,
+            onlineStatus: p.profile.onlineStatus
+          })) || []
+        setOnlinePartners(online)
+        setLoadingOnlinePartners(false)
+
         // Cache to localStorage for next visit
         if (typeof window !== 'undefined') {
           localStorage.setItem('dashboard_unreadCount', String(unread))
@@ -128,6 +151,7 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
+        setLoadingOnlinePartners(false)
       }
     }
 
@@ -223,6 +247,52 @@ export default function DashboardPage() {
   const formatStudyHours = (hours: number): string => {
     if (hours < 1) return `${Math.round(hours * 60)}m`
     return `${Math.round(hours)}h`
+  }
+
+  // Helper function to detect which fields match the search query for partners
+  const getMatchingFields = (partner: Partner, query: string): string[] => {
+    const searchLower = query.toLowerCase().trim()
+    const matchingFields: string[] = []
+
+    // Check subjects
+    if (partner.subjects?.some(s => s.toLowerCase().includes(searchLower))) {
+      matchingFields.push('Subjects')
+    }
+
+    // Check bio
+    if (partner.bio?.toLowerCase().includes(searchLower)) {
+      matchingFields.push('Bio')
+    }
+
+    // Check interests
+    if (partner.interests?.some(i => i.toLowerCase().includes(searchLower))) {
+      matchingFields.push('Interests')
+    }
+
+    return matchingFields
+  }
+
+  // Helper function to detect which fields match the search query for groups
+  const getGroupMatchingFields = (group: Group, query: string): string[] => {
+    const searchLower = query.toLowerCase().trim()
+    const matchingFields: string[] = []
+
+    // Check subject
+    if (group.subject?.toLowerCase().includes(searchLower)) {
+      matchingFields.push('Subject')
+    }
+
+    // Check description
+    if (group.description?.toLowerCase().includes(searchLower)) {
+      matchingFields.push('Description')
+    }
+
+    // Check group name
+    if (group.name?.toLowerCase().includes(searchLower)) {
+      matchingFields.push('Name')
+    }
+
+    return matchingFields
   }
 
   if (loading) {
@@ -485,9 +555,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="mb-10 flex justify-center">
-            <div className="w-full max-w-3xl">
+          {/* Search Bar & Online Partners - Split 50/50 */}
+          <div className="mb-10 grid md:grid-cols-2 gap-6">
+            {/* Left Half - Search Bar */}
+            <div>
               <div className="relative group">
                 {/* Animated gradient background on hover */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-10 blur-xl transition-all duration-500"></div>
@@ -571,30 +642,46 @@ export default function DashboardPage() {
                         <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">{searchResults.partners.length}</span>
                       </div>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {searchResults.partners.slice(0, 5).map((partner) => (
-                          <button
-                            key={partner.id}
-                            onClick={() => router.push(`/profile/${partner.user.id}`)}
-                            className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
-                          >
-                            {partner.user.avatarUrl ? (
-                              <Image src={partner.user.avatarUrl} alt={partner.user.name} width={48} height={48} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all" />
-                            ) : (
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all">
-                                {partner.user.name[0]}
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{partner.user.name}</p>
-                              {partner.subjects.length > 0 && (
-                                <p className="text-xs text-gray-600 truncate mt-0.5">{partner.subjects.slice(0, 2).join(', ')}</p>
+                        {searchResults.partners.slice(0, 5).map((partner) => {
+                          const matchingFields = getMatchingFields(partner, searchQuery)
+                          const isAlreadyPartner = (partner as any).isAlreadyPartner
+
+                          return (
+                            <button
+                              key={partner.id}
+                              onClick={() => router.push(`/profile/${partner.user.id}`)}
+                              className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
+                            >
+                              {partner.user.avatarUrl ? (
+                                <Image src={partner.user.avatarUrl} alt={partner.user.name} width={48} height={48} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all" />
+                              ) : (
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all">
+                                  {partner.user.name[0]}
+                                </div>
                               )}
-                            </div>
-                            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        ))}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <p className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{partner.user.name}</p>
+                                  {isAlreadyPartner && (
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full whitespace-nowrap">
+                                      Already Partnered
+                                    </span>
+                                  )}
+                                </div>
+                                {matchingFields.length > 0 ? (
+                                  <p className="text-xs text-blue-600 truncate">
+                                    Matches in: {matchingFields.join(', ')}
+                                  </p>
+                                ) : partner.subjects.length > 0 ? (
+                                  <p className="text-xs text-gray-600 truncate">{partner.subjects.slice(0, 2).join(', ')}</p>
+                                ) : null}
+                              </div>
+                              <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
@@ -612,27 +699,108 @@ export default function DashboardPage() {
                         <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">{searchResults.groups.length}</span>
                       </div>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {searchResults.groups.slice(0, 5).map((group) => (
-                          <button
-                            key={group.id}
-                            onClick={() => router.push('/groups')}
-                            className="w-full flex items-start gap-3 p-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
-                          >
-                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
-                              {group.name[0]}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{group.name}</p>
-                              <p className="text-xs text-gray-600 truncate mt-0.5">{group.subject} • {group.memberCount} members</p>
-                            </div>
-                            <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        ))}
+                        {searchResults.groups.slice(0, 5).map((group) => {
+                          const matchingFields = getGroupMatchingFields(group, searchQuery)
+                          const isMember = group.isMember
+
+                          return (
+                            <button
+                              key={group.id}
+                              onClick={() => router.push('/groups')}
+                              className="w-full flex items-start gap-3 p-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
+                            >
+                              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
+                                {group.name[0]}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <p className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{group.name}</p>
+                                  {isMember && (
+                                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full whitespace-nowrap">
+                                      Already in Group
+                                    </span>
+                                  )}
+                                </div>
+                                {matchingFields.length > 0 ? (
+                                  <p className="text-xs text-indigo-600 truncate">
+                                    Matches in: {matchingFields.join(', ')}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-gray-600 truncate">{group.subject} • {group.memberCount} members</p>
+                                )}
+                              </div>
+                              <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Right Half - Online Partners */}
+            <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="font-bold text-gray-900 text-lg">Online Partners</h3>
+                {!loadingOnlinePartners && onlinePartners.length > 0 && (
+                  <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                    {onlinePartners.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Loading State */}
+              {loadingOnlinePartners ? (
+                <div className="py-12 text-center">
+                  <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-600">Loading...</p>
+                </div>
+              ) : onlinePartners.length === 0 ? (
+                /* Empty State */
+                <div className="py-12 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-600 font-medium">No partner is online now</p>
+                </div>
+              ) : (
+                /* Online Partners List */
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {onlinePartners.map((partner) => (
+                    <button
+                      key={partner.id}
+                      onClick={() => router.push(`/profile/${partner.id}`)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-xl transition-all duration-200 text-left group"
+                    >
+                      {partner.avatarUrl ? (
+                        <Image src={partner.avatarUrl} alt={partner.name} width={48} height={48} className="w-12 h-12 rounded-full ring-2 ring-gray-100 group-hover:ring-green-200 transition-all" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-100 group-hover:ring-green-200 transition-all">
+                          {partner.name[0]}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-900 truncate group-hover:text-green-600 transition-colors">{partner.name}</p>
+                          <div className="w-2.5 h-2.5 bg-green-500 rounded-full" title="Online"></div>
+                        </div>
+                      </div>
+                      <svg className="w-5 h-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

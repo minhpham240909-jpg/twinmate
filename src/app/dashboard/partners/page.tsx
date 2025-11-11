@@ -167,18 +167,11 @@ export default function PartnersPage() {
                     </div>
                   )}
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{partner.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        partner.profile?.onlineStatus === 'ONLINE' ? 'bg-green-500' :
-                        partner.profile?.onlineStatus === 'BUSY' ? 'bg-yellow-500' :
-                        'bg-gray-400'
-                      }`}></div>
-                      <span className="text-xs text-gray-600 capitalize">
-                        {partner.profile?.onlineStatus === 'ONLINE' ? t('online') :
-                         partner.profile?.onlineStatus === 'BUSY' ? t('busy') :
-                         t('offline')}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-gray-900">{partner.name}</h3>
+                      <div className={`w-2.5 h-2.5 rounded-full ${
+                        partner.profile?.onlineStatus === 'ONLINE' ? 'bg-green-500' : 'bg-gray-400'
+                      }`} title={partner.profile?.onlineStatus === 'ONLINE' ? 'Online' : 'Offline'}></div>
                     </div>
                   </div>
                 </div>
