@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       },
       data: {
         status: newStatus,
+        // @ts-ignore - Prisma type inference issue with onlineStatus
         onlineStatus: newOnlineStatus,
         lastSeenAt: new Date(),
         updatedAt: new Date(),

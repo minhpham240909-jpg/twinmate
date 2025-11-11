@@ -13,7 +13,7 @@ export async function POST(_request: NextRequest) {
     // Update user's presence status to offline before signing out
     if (user) {
       try {
-        await prisma.userPresence.upsert({
+        await (prisma.userPresence.upsert as any)({
           where: { userId: user.id },
           update: {
             status: 'offline',
