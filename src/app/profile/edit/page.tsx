@@ -379,7 +379,13 @@ export default function ProfilePage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => {
+                try {
+                  router.back()
+                } catch (e) {
+                  router.push('/dashboard')
+                }
+              }}
               className="text-gray-600 hover:text-gray-900"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,12 +395,17 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-bold text-blue-600">{t('editProfile')}</h1>
           </div>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => {
+              try {
+                router.push('/dashboard')
+              } catch (e) {
+                window.location.href = '/dashboard'
+              }
+            }}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
           >
             {tCommon('cancel')}
-          </button>
-        </div>
+          </button>        </div>
       </header>
 
       {/* Main Content */}
@@ -879,7 +890,13 @@ export default function ProfilePage() {
                 {isSaving ? `${tCommon('save')}...` : tCommon('save')}
               </button>
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => {
+                  try {
+                    router.push('/dashboard')
+                  } catch (e) {
+                    window.location.href = '/dashboard'
+                  }
+                }}
                 className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition"
               >
                 Cancel

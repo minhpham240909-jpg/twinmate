@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-const HEARTBEAT_INTERVAL = 30000 // 30 seconds
+const HEARTBEAT_INTERVAL = 15000 // 15 seconds - faster offline detection
 const DEVICE_ID_KEY = 'clerva_device_id'
 
 export interface PresenceStatus {

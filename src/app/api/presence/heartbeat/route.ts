@@ -67,12 +67,13 @@ export async function POST(request: NextRequest) {
     })
 
     // 5. Update user presence to "online"
-    const userPresence = await prisma.userPresence.upsert({
+    const userPresence = await (prisma.userPresence.upsert as any)({
       where: {
         userId: user.id,
       },
       update: {
         status: 'online',
+        onlineStatus: 'ONLINE',
         lastActivityAt: now,
         lastSeenAt: now,
         updatedAt: now,
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
       create: {
         userId: user.id,
         status: 'online',
+        onlineStatus: 'ONLINE',
         lastActivityAt: now,
         lastSeenAt: now,
       },
