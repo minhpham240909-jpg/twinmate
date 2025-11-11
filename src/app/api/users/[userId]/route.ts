@@ -48,6 +48,40 @@ export async function GET(
       )
     }
 
+    // Ensure profile exists - create if missing (safety check for data integrity)
+    if (!dbUser.profile) {
+      try {
+        await prisma.profile.create({
+          data: { userId: dbUser.id },
+        })
+        // Refetch user with profile
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            role: true,
+            profile: true,
+            createdAt: true,
+            presence: {
+              select: {
+                // @ts-ignore - Prisma type inference issue
+                onlineStatus: true,
+              },
+            },
+          },
+        }) as any
+        if (updatedUser) {
+          dbUser = updatedUser
+        }
+      } catch (error) {
+        // Profile might already exist (race condition), continue with null profile
+        console.warn('Could not create profile (may already exist):', error)
+      }
+    }
+
     // Get user's non-deleted posts
     const userPosts = await prisma.post.findMany({
       where: {

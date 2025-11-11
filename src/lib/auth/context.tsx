@@ -58,13 +58,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         // Merge user data with profile data
-        setProfile({
-          ...data.user,
-          ...data.profile,
-        })
+        // Ensure we have at least basic user info even if profile is null
+        if (data.user) {
+          setProfile({
+            ...data.user,
+            ...(data.profile || {}), // Use empty object if profile is null
+          })
+        }
+      } else {
+        // Log error but don't throw - let the UI handle it
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Error fetching profile:', response.status, errorData)
+        // Set a minimal profile with just user info if we have it
+        // This prevents blank page but shows error state
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
+      // Network error - don't set profile, let UI show error
     }
   }
 
