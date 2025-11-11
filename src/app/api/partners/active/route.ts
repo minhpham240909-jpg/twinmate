@@ -130,6 +130,7 @@ export async function GET() {
         name: partner.name,
         email: partner.email,
         avatarUrl: partner.avatarUrl,
+        onlineStatus,
         profile: partner.profile ? {
           bio: partner.profile.bio,
           subjects: partner.profile.subjects,
