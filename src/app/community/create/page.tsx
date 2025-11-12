@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 
 export default function CreatePostPage() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
   const [content, setContent] = useState('')
   const [postUrl, setPostUrl] = useState('')
@@ -212,19 +212,19 @@ export default function CreatePostPage() {
           {/* User Info */}
           <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
             <div className="flex items-center gap-3">
-              {user.avatarUrl ? (
+              {profile?.avatarUrl ? (
                 <img
-                  src={user.avatarUrl}
-                  alt={user.name || 'User'}
+                  src={profile.avatarUrl}
+                  alt={profile.name || 'User'}
                   className="w-12 h-12 rounded-full border-2 border-white shadow-sm"
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-lg border-2 border-white shadow-sm">
-                  {(user.name || 'U')[0].toUpperCase()}
+                  {(profile?.name || 'U')[0].toUpperCase()}
                 </div>
               )}
               <div>
-                <p className="font-semibold text-gray-900">{user.name || 'User'}</p>
+                <p className="font-semibold text-gray-900">{profile?.name || 'User'}</p>
                 <p className="text-sm text-gray-500">Posting to Community</p>
               </div>
             </div>
