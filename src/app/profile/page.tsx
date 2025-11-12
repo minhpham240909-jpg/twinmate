@@ -69,7 +69,7 @@ export default function MyProfilePage() {
       }
     } else {
       navigator.clipboard.writeText(shareUrl)
-      alert('Link copied to clipboard!')
+      alert(t('linkCopiedToClipboard'))
     }
   }
 
@@ -105,12 +105,12 @@ export default function MyProfilePage() {
       }
     } catch (error) {
       console.error('Error editing post:', error)
-      alert('Failed to edit post. Please try again.')
+      alert(t('failedToEditPost'))
     }
   }
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return
+    if (!confirm(t('confirmDeletePost'))) return
 
     try {
       const response = await fetch(`/api/posts/${postId}`, {
@@ -122,7 +122,7 @@ export default function MyProfilePage() {
       }
     } catch (error) {
       console.error('Error deleting post:', error)
-      alert('Failed to delete post. Please try again.')
+      alert(t('failedToDeletePostRetry'))
     }
   }
 

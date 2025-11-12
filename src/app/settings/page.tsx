@@ -221,15 +221,15 @@ export default function SettingsPage() {
   // Handle delete account
   const handleDeleteAccount = async () => {
     const confirmation = prompt(
-      'Are you absolutely sure you want to delete your account?\n\n' +
-      'This will permanently delete:\n' +
-      '- Your profile and all personal data\n' +
-      '- All your posts and comments\n' +
-      '- All your connections\n' +
-      '- All your messages\n' +
-      '- All your study sessions\n\n' +
-      'This action CANNOT be undone!\n\n' +
-      'Type DELETE (in capital letters) to confirm:'
+      t('confirmDeleteAccount') + '\n\n' +
+      t('thisWillPermanentlyDelete') + '\n' +
+      '- ' + t('yourProfileAndData') + '\n' +
+      '- ' + t('allYourPosts') + '\n' +
+      '- ' + t('allYourConnections') + '\n' +
+      '- ' + t('allYourMessages') + '\n' +
+      '- ' + t('allYourSessions') + '\n\n' +
+      t('thisActionCannotBeUndone') + '\n\n' +
+      t('typeDeleteToConfirm')
     )
 
     if (confirmation !== 'DELETE') {
@@ -323,7 +323,7 @@ export default function SettingsPage() {
 
         if (!locationResponse.ok) {
           console.error('[Settings Save] Failed to update location visibility')
-          toast.error('Failed to update location visibility')
+          toast.error(t('failedToUpdateLocationVisibility'))
           setSaving(false)
           return
         }
@@ -381,9 +381,9 @@ export default function SettingsPage() {
           console.error('[Validation Errors]', error.details)
           const firstError = error.details[0]
           if (firstError) {
-            toast.error(`Validation error: ${firstError.path?.join('.')} - ${firstError.message}`)
+            toast.error(`${t('validationError')}: ${firstError.path?.join('.')} - ${firstError.message}`)
           } else {
-            toast.error(error.message || 'Invalid data format')
+            toast.error(error.message || t('invalidDataFormat'))
           }
         } else {
           toast.error(error.message || error.error || t('saveFailed'))
@@ -563,10 +563,10 @@ export default function SettingsPage() {
             {saving ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving...
+                {t('saving')}
               </>
             ) : (
-              'Save'
+              t('save')
             )}
           </button>
         </div>
@@ -714,15 +714,16 @@ function NumberSetting({
 
 // Account Settings
 function AccountSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
       <SettingSection
-        title="Account & Profile"
-        description="Manage your account preferences and regional settings"
+        title={t('accountProfile')}
+        description={t('manageAccountPreferences')}
       >
         <SelectSetting
-          label="Language"
-          description="Choose your preferred language | Elige tu idioma preferido"
+          label={t('language')}
+          description={t('chooseLanguage')}
           value={settings.language || 'en'}
           options={[
             { value: 'en', label: 'English' },
@@ -731,8 +732,8 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
           onChange={(value) => updateSetting('language', value)}
         />
         <SelectSetting
-          label="Timezone"
-          description="Set your local timezone for accurate scheduling"
+          label={t('timezone')}
+          description={t('setTimezone')}
           value={settings.timezone || 'UTC'}
           options={[
             { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
@@ -755,70 +756,71 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
 
 // Privacy Settings
 function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
       <SettingSection
-        title="Privacy & Visibility"
-        description="Control who can see your information and how you appear to others"
+        title={t('privacyVisibility')}
+        description={t('controlWhoCanSee')}
       >
         <SelectSetting
-          label="Profile Visibility"
-          description="Who can view your profile"
+          label={t('profileVisibility')}
+          description={t('whoCanViewProfile')}
           value={settings.profileVisibility || 'EVERYONE'}
           options={[
-            { value: 'EVERYONE', label: 'Everyone' },
-            { value: 'CONNECTIONS_ONLY', label: 'Connections Only' },
-            { value: 'PRIVATE', label: 'Private (Only Me)' },
+            { value: 'EVERYONE', label: t('everyone') },
+            { value: 'CONNECTIONS_ONLY', label: t('connectionsOnly') },
+            { value: 'PRIVATE', label: t('privateOnlyMe') },
           ]}
           onChange={(value) => updateSetting('profileVisibility', value)}
         />
         <SelectSetting
-          label="Who Can See Your Posts"
-          description="Control who can view your community posts"
+          label={t('whoCanSeePosts')}
+          description={t('controlPostVisibility')}
           value={settings.postPrivacy || 'PUBLIC'}
           options={[
-            { value: 'PUBLIC', label: 'Public - Everyone can see' },
-            { value: 'PARTNERS_ONLY', label: 'Partners Only - Only connected study partners' },
+            { value: 'PUBLIC', label: t('publicEveryoneCanSee') },
+            { value: 'PARTNERS_ONLY', label: t('partnersOnly') },
           ]}
           onChange={(value) => updateSetting('postPrivacy', value)}
         />
         <ToggleSetting
-          label="Appear in Search Results"
-          description="Allow others to find you when searching for study partners"
+          label={t('appearInSearch')}
+          description={t('allowOthersToFind')}
           checked={settings.searchVisibility ?? true}
           onChange={(value) => updateSetting('searchVisibility', value)}
         />
         <ToggleSetting
-          label="Show Online Status"
-          description="Let others see when you're online"
+          label={t('showOnlineStatus')}
+          description={t('letOthersSeeOnline')}
           checked={settings.showOnlineStatus ?? true}
           onChange={(value) => updateSetting('showOnlineStatus', value)}
         />
         <ToggleSetting
-          label="Show Last Seen"
-          description="Display your last active time"
+          label={t('showLastSeen')}
+          description={t('displayLastActive')}
           checked={settings.showLastSeen ?? true}
           onChange={(value) => updateSetting('showLastSeen', value)}
         />
         <SelectSetting
-          label="Who Can See Your Location"
-          description="Control who can view your location information"
+          label={t('whoCanSeeLocation')}
+          description={t('controlLocationVisibility')}
           value={settings.locationVisibility || 'match-only'}
           options={[
-            { value: 'public', label: 'Public - Shown on your profile and used for matching' },
-            { value: 'match-only', label: 'Match-only - Used for matching but not shown publicly (Recommended)' },
-            { value: 'private', label: 'Private - Hidden from everyone, not used for matching' },
+            { value: 'public', label: t('publicShownOnProfile') },
+            { value: 'match-only', label: t('matchOnlyRecommended') },
+            { value: 'private', label: t('privateHidden') },
           ]}
           onChange={(value) => updateSetting('locationVisibility', value)}
         />
         <SelectSetting
-          label="Data Sharing"
-          description="How much information to share for better matching"
+          label={t('dataSharing')}
+          description={t('howMuchInfoToShare')}
           value={settings.dataSharing || 'STANDARD'}
           options={[
-            { value: 'MINIMAL', label: 'Minimal - Basic info only' },
-            { value: 'STANDARD', label: 'Standard - Recommended' },
-            { value: 'FULL', label: 'Full - Best matching experience' },
+            { value: 'MINIMAL', label: t('minimalBasicInfoOnly') },
+            { value: 'STANDARD', label: t('standardRecommended') },
+            { value: 'FULL', label: t('fullBestMatching') },
           ]}
           onChange={(value) => updateSetting('dataSharing', value)}
         />
@@ -829,6 +831,7 @@ function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; 
 
 // Notifications Settings
 function NotificationsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   const { permission, isSupported, requestPermission, isGranted } = useNotificationPermission()
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
@@ -845,9 +848,9 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
     if (granted) {
       localStorage.setItem('notifications_enabled', 'true')
       setNotificationsEnabled(true)
-      toast.success('Browser notifications enabled!')
+      toast.success(t('browserNotifications') + ' ' + t('enabled') + '!')
     } else {
-      toast.error('Browser notifications permission denied')
+      toast.error(t('browserNotifications') + ' ' + t('permissionDenied'))
     }
   }
 
@@ -859,20 +862,20 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
       // Toggle app-level preference
       localStorage.setItem('notifications_enabled', enabled ? 'true' : 'false')
       setNotificationsEnabled(enabled)
-      toast.success(enabled ? 'Notifications enabled' : 'Notifications disabled')
+      toast.success(enabled ? t('notifications') + ' ' + t('enabled') : t('notifications') + ' ' + t('disabled'))
     }
   }
 
   return (
     <>
       <SettingSection
-        title="Browser Notifications"
-        description="Get notifications even when the app is closed"
+        title={t('browserNotifications')}
+        description={t('getNotificationsWhenClosed')}
       >
         {!isSupported ? (
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
-              Browser notifications are not supported in your browser.
+              {t('browserNotificationsNotSupported')}
             </p>
           </div>
         ) : (
@@ -881,10 +884,10 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
             <div className="flex items-start justify-between py-3 border-b border-gray-100">
               <div className="flex-1">
                 <label className="text-sm font-medium text-gray-900 cursor-pointer">
-                  Enable Browser Notifications
+                  {t('enableBrowserNotifications')}
                 </label>
                 <p className="text-xs text-gray-500 mt-1">
-                  Receive push notifications for important events
+                  {t('receivePushNotifications')}
                 </p>
               </div>
               <button
@@ -906,35 +909,35 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
             <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900 mb-1 text-sm">Notification Status</h4>
+                  <h4 className="font-medium text-gray-900 mb-1 text-sm">{t('notificationStatus')}</h4>
                   <p className="text-xs text-gray-600 mb-3">
-                    Both settings must be enabled to receive notifications.
+                    {t('bothSettingsMustBeEnabled')}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-medium text-gray-700" title="Browser-level permission to show notifications">Browser:</span>
+                    <span className="text-xs font-medium text-gray-700" title={t('browser')}>{t('browser')}:</span>
                     {permission === 'granted' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
-                        <span>✓</span> Allowed
+                        <span>✓</span> {t('allowed')}
                       </span>
                     ) : permission === 'denied' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
-                        <span>✗</span> Blocked
+                        <span>✗</span> {t('blocked')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
-                        <span>?</span> Not Set
+                        <span>?</span> {t('notSet')}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-medium text-gray-700" title="In-app preference to enable/disable notifications">App Setting:</span>
+                    <span className="text-xs font-medium text-gray-700" title={t('appSetting')}>{t('appSetting')}:</span>
                     {notificationsEnabled && isGranted ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
-                        <span>✓</span> Enabled
+                        <span>✓</span> {t('enabled')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
-                        <span>○</span> Disabled
+                        <span>○</span> {t('disabled')}
                       </span>
                     )}
                   </div>
@@ -943,7 +946,7 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
               {permission === 'denied' && (
                 <div className="mt-3 p-3 bg-red-50 rounded-lg">
                   <p className="text-xs text-red-800">
-                    You've blocked notifications in your browser. To enable them, please allow notifications in your browser settings, then toggle the switch above.
+                    {t('blockedNotificationsMessage')}
                   </p>
                 </div>
               )}
@@ -953,108 +956,108 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
       </SettingSection>
 
       <SettingSection
-        title="In-App Notifications"
-        description="Choose what notifications you'd like to receive in the app"
+        title={t('inAppNotifications')}
+        description={t('chooseNotifications')}
       >
         <ToggleSetting
-          label="Connection Requests"
-          description="New study partner requests"
+          label={t('connectionRequests')}
+          description={t('newStudyPartnerRequests')}
           checked={settings.notifyConnectionRequests ?? true}
           onChange={(value) => updateSetting('notifyConnectionRequests', value)}
         />
         <ToggleSetting
-          label="Connection Accepted"
-          description="When someone accepts your request"
+          label={t('connectionAccepted')}
+          description={t('whenSomeoneAccepts')}
           checked={settings.notifyConnectionAccepted ?? true}
           onChange={(value) => updateSetting('notifyConnectionAccepted', value)}
         />
         <ToggleSetting
-          label="Study Session Invites"
-          description="Invitations to join study sessions"
+          label={t('studySessionInvites')}
+          description={t('invitationsToJoinSessions')}
           checked={settings.notifySessionInvites ?? true}
           onChange={(value) => updateSetting('notifySessionInvites', value)}
         />
         <ToggleSetting
-          label="Group Invites"
-          description="Invitations to join study groups"
+          label={t('groupInvites')}
+          description={t('invitationsToJoinGroups')}
           checked={settings.notifyGroupInvites ?? true}
           onChange={(value) => updateSetting('notifyGroupInvites', value)}
         />
         <ToggleSetting
-          label="Messages"
-          description="New messages from partners and groups"
+          label={t('messages')}
+          description={t('newMessagesFromPartners')}
           checked={settings.notifyMessages ?? true}
           onChange={(value) => updateSetting('notifyMessages', value)}
         />
         <ToggleSetting
-          label="Missed Calls"
-          description="When you miss a voice or video call"
+          label={t('missedCalls')}
+          description={t('whenYouMissCall')}
           checked={settings.notifyMissedCalls ?? true}
           onChange={(value) => updateSetting('notifyMissedCalls', value)}
         />
         <ToggleSetting
-          label="Community Activity"
-          description="Likes, comments, and mentions on your posts"
+          label={t('communityActivity')}
+          description={t('likesCommentsMentions')}
           checked={settings.notifyCommunityActivity ?? true}
           onChange={(value) => updateSetting('notifyCommunityActivity', value)}
         />
         <ToggleSetting
-          label="Study Reminders"
-          description="Reminders for scheduled study sessions"
+          label={t('studyReminders')}
+          description={t('remindersForScheduled')}
           checked={settings.notifySessionReminders ?? true}
           onChange={(value) => updateSetting('notifySessionReminders', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Email Notifications" description="Receive notifications via email">
+      <SettingSection title={t('emailNotifications')} description={t('receiveNotificationsViaEmail')}>
         <ToggleSetting
-          label="Connection Requests"
+          label={t('connectionRequests')}
           checked={settings.emailConnectionRequests ?? true}
           onChange={(value) => updateSetting('emailConnectionRequests', value)}
         />
         <ToggleSetting
-          label="Study Session Invites"
+          label={t('studySessionInvites')}
           checked={settings.emailSessionInvites ?? true}
           onChange={(value) => updateSetting('emailSessionInvites', value)}
         />
         <ToggleSetting
-          label="Messages"
+          label={t('messages')}
           checked={settings.emailMessages ?? false}
           onChange={(value) => updateSetting('emailMessages', value)}
         />
         <ToggleSetting
-          label="Weekly Summary"
-          description="Your weekly learning progress report"
+          label={t('weeklySummary')}
+          description={t('weeklyLearningProgress')}
           checked={settings.emailWeeklySummary ?? true}
           onChange={(value) => updateSetting('emailWeeklySummary', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Notification Preferences">
+      <SettingSection title={t('notificationPreferences')}>
         <SelectSetting
-          label="Notification Frequency"
-          description="How often you receive notifications"
+          label={t('notificationFrequency')}
+          description={t('howOftenReceiveNotifications')}
           value={settings.notificationFrequency || 'REALTIME'}
           options={[
-            { value: 'REALTIME', label: 'Real-time (Instant)' },
-            { value: 'DIGEST_DAILY', label: 'Daily Digest' },
-            { value: 'DIGEST_WEEKLY', label: 'Weekly Digest' },
-            { value: 'OFF', label: 'Off (No notifications)' },
+            { value: 'REALTIME', label: t('realtimeInstant') },
+            { value: 'DIGEST_DAILY', label: t('dailyDigest') },
+            { value: 'DIGEST_WEEKLY', label: t('weeklyDigest') },
+            { value: 'OFF', label: t('offNoNotifications') },
           ]}
           onChange={(value) => updateSetting('notificationFrequency', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Do Not Disturb" description="Schedule quiet hours when notifications are muted">
+      <SettingSection title={t('doNotDisturb')} description={t('scheduleQuietHours')}>
         <ToggleSetting
-          label="Enable Do Not Disturb"
+          label={t('enableDoNotDisturb')}
           checked={settings.doNotDisturbEnabled ?? false}
           onChange={(value) => updateSetting('doNotDisturbEnabled', value)}
         />
         {settings.doNotDisturbEnabled && (
           <>
             <div className="py-3 border-b border-gray-100">
-              <label className="block text-sm font-medium text-gray-900 mb-1">Start Time</label>
+              <label className="block text-sm font-medium text-gray-900 mb-1">{t('startTime')}</label>
               <input
                 type="time"
                 value={settings.doNotDisturbStart || '22:00'}
@@ -1063,7 +1066,7 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
               />
             </div>
             <div className="py-3">
-              <label className="block text-sm font-medium text-gray-900 mb-1">End Time</label>
+              <label className="block text-sm font-medium text-gray-900 mb-1">{t('endTime')}</label>
               <input
                 type="time"
                 value={settings.doNotDisturbEnd || '08:00'}
@@ -1080,53 +1083,54 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
 
 // Study Settings
 function StudySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
       <SettingSection
-        title="Study Preferences"
-        description="Customize your default study session settings"
+        title={t('study')}
+        description={t('customizeDefaultSettings')}
       >
         <NumberSetting
-          label="Default Study Duration"
-          description="Pomodoro work duration"
+          label={t('defaultStudyDuration')}
+          description={t('pomodoroWorkDuration')}
           value={settings.defaultStudyDuration || 25}
           min={5}
           max={120}
-          suffix="minutes"
+          suffix={t('minutes')}
           onChange={(value) => updateSetting('defaultStudyDuration', value)}
         />
         <NumberSetting
-          label="Default Break Duration"
-          description="Pomodoro break duration"
+          label={t('defaultBreakDuration')}
+          description={t('pomodoroBreakDuration')}
           value={settings.defaultBreakDuration || 5}
           min={1}
           max={60}
-          suffix="minutes"
+          suffix={t('minutes')}
           onChange={(value) => updateSetting('defaultBreakDuration', value)}
         />
         <NumberSetting
-          label="Preferred Session Length"
-          description="How long you typically study"
+          label={t('preferredSessionLength')}
+          description={t('howLongYouStudy')}
           value={settings.preferredSessionLength || 60}
           min={15}
           max={480}
-          suffix="minutes"
+          suffix={t('minutes')}
           onChange={(value) => updateSetting('preferredSessionLength', value)}
         />
         <ToggleSetting
-          label="Auto-Generate Quizzes"
-          description="Automatically create quizzes from study materials"
+          label={t('autoGenerateQuizzes')}
+          description={t('automaticallyCreateQuizzes')}
           checked={settings.autoGenerateQuizzes ?? false}
           onChange={(value) => updateSetting('autoGenerateQuizzes', value)}
         />
         <SelectSetting
-          label="Flashcard Review Frequency"
-          description="How often to review flashcards"
+          label={t('flashcardReviewFrequency')}
+          description={t('howOftenReviewFlashcards')}
           value={settings.flashcardReviewFrequency || 'DAILY'}
           options={[
-            { value: 'DAILY', label: 'Daily' },
-            { value: 'WEEKLY', label: 'Weekly' },
-            { value: 'CUSTOM', label: 'Custom' },
+            { value: 'DAILY', label: t('daily') },
+            { value: 'WEEKLY', label: t('weekly') },
+            { value: 'CUSTOM', label: t('custom') },
           ]}
           onChange={(value) => updateSetting('flashcardReviewFrequency', value)}
         />
@@ -1137,63 +1141,64 @@ function StudySettings({ settings, updateSetting }: { settings: UserSettings; up
 
 // Communication Settings
 function CommunicationSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="Messaging" description="Configure how messages work">
+      <SettingSection title={t('messaging')} description={t('configureHowMessagesWork')}>
         <ToggleSetting
-          label="Read Receipts"
-          description="Let others know when you've read their messages"
+          label={t('readReceipts')}
+          description={t('letOthersKnowRead')}
           checked={settings.messageReadReceipts ?? true}
           onChange={(value) => updateSetting('messageReadReceipts', value)}
         />
         <ToggleSetting
-          label="Typing Indicators"
-          description="Show when you're typing a message"
+          label={t('typingIndicators')}
+          description={t('showWhenTyping')}
           checked={settings.typingIndicators ?? true}
           onChange={(value) => updateSetting('typingIndicators', value)}
         />
         <ToggleSetting
-          label="Auto-Download Media"
-          description="Automatically download images and files"
+          label={t('autoDownloadMedia')}
+          description={t('automaticallyDownloadFiles')}
           checked={settings.autoDownloadMedia ?? true}
           onChange={(value) => updateSetting('autoDownloadMedia', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Video & Audio Calls" description="Configure call quality and features">
+      <SettingSection title={t('videoAudioCalls')} description={t('configureCallQuality')}>
         <SelectSetting
-          label="Video Quality"
-          description="Default video call quality"
+          label={t('videoQuality')}
+          description={t('defaultVideoCallQuality')}
           value={settings.videoQuality || 'AUTO'}
           options={[
-            { value: 'AUTO', label: 'Auto (Recommended)' },
-            { value: 'LOW', label: 'Low (Data Saver)' },
-            { value: 'MEDIUM', label: 'Medium' },
-            { value: 'HIGH', label: 'High (Best Quality)' },
+            { value: 'AUTO', label: t('autoRecommended') },
+            { value: 'LOW', label: t('lowDataSaver') },
+            { value: 'MEDIUM', label: t('medium') },
+            { value: 'HIGH', label: t('highBestQuality') },
           ]}
           onChange={(value) => updateSetting('videoQuality', value)}
         />
         <SelectSetting
-          label="Audio Quality"
-          description="Default audio quality"
+          label={t('audioQuality')}
+          description={t('defaultAudioQuality')}
           value={settings.audioQuality || 'AUTO'}
           options={[
-            { value: 'AUTO', label: 'Auto (Recommended)' },
-            { value: 'LOW', label: 'Low' },
-            { value: 'MEDIUM', label: 'Medium' },
-            { value: 'HIGH', label: 'High' },
+            { value: 'AUTO', label: t('autoRecommended') },
+            { value: 'LOW', label: t('low') },
+            { value: 'MEDIUM', label: t('medium') },
+            { value: 'HIGH', label: t('high') },
           ]}
           onChange={(value) => updateSetting('audioQuality', value)}
         />
         <ToggleSetting
-          label="Virtual Background"
-          description="Enable virtual background for video calls"
+          label={t('virtualBackground')}
+          description={t('enableVirtualBackground')}
           checked={settings.enableVirtualBackground ?? false}
           onChange={(value) => updateSetting('enableVirtualBackground', value)}
         />
         <ToggleSetting
-          label="Auto-Answer from Partners"
-          description="Automatically answer calls from accepted partners"
+          label={t('autoAnswerFromPartners')}
+          description={t('automaticallyAnswerCalls')}
           checked={settings.autoAnswerFromPartners ?? false}
           onChange={(value) => updateSetting('autoAnswerFromPartners', value)}
         />
@@ -1204,41 +1209,42 @@ function CommunicationSettings({ settings, updateSetting }: { settings: UserSett
 
 // Sessions Settings
 function SessionsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
       <SettingSection
-        title="Study Session Settings"
-        description="Configure how study sessions work for you"
+        title={t('studySessionSettings')}
+        description={t('configureHowSessionsWork')}
       >
         <ToggleSetting
-          label="Auto-Start Timer"
-          description="Automatically start timer when joining a session"
+          label={t('autoStartTimer')}
+          description={t('automaticallyStartTimer')}
           checked={settings.autoStartTimer ?? false}
           onChange={(value) => updateSetting('autoStartTimer', value)}
         />
         <ToggleSetting
-          label="Break Reminders"
-          description="Get reminded to take breaks during study sessions"
+          label={t('breakReminders')}
+          description={t('getRemindedToTakeBreaks')}
           checked={settings.breakReminders ?? true}
           onChange={(value) => updateSetting('breakReminders', value)}
         />
         <NumberSetting
-          label="Session History Retention"
-          description="How long to keep session history"
+          label={t('sessionHistoryRetention')}
+          description={t('howLongKeepHistory')}
           value={settings.sessionHistoryRetention || 90}
           min={1}
           max={365}
-          suffix="days"
+          suffix={t('days')}
           onChange={(value) => updateSetting('sessionHistoryRetention', value)}
         />
         <SelectSetting
-          label="Who Can Invite You"
-          description="Control who can send you session invites"
+          label={t('whoCanInviteYou')}
+          description={t('controlWhoCanSendInvites')}
           value={settings.sessionInvitePrivacy || 'EVERYONE'}
           options={[
-            { value: 'EVERYONE', label: 'Everyone' },
-            { value: 'CONNECTIONS', label: 'Connections Only' },
-            { value: 'NOBODY', label: 'Nobody' },
+            { value: 'EVERYONE', label: t('everyone') },
+            { value: 'CONNECTIONS', label: t('connectionsOnly') },
+            { value: 'NOBODY', label: t('nobody') },
           ]}
           onChange={(value) => updateSetting('sessionInvitePrivacy', value)}
         />
@@ -1249,40 +1255,41 @@ function SessionsSettings({ settings, updateSetting }: { settings: UserSettings;
 
 // Groups Settings
 function GroupsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="Group Settings" description="Manage study group preferences">
+      <SettingSection title={t('groupSettings')} description={t('manageGroupPreferences')}>
         <SelectSetting
-          label="Default Group Privacy"
-          description="Privacy setting when creating new groups"
+          label={t('defaultGroupPrivacy')}
+          description={t('privacySettingWhenCreating')}
           value={settings.defaultGroupPrivacy || 'PUBLIC'}
           options={[
-            { value: 'PUBLIC', label: 'Public - Anyone can join' },
-            { value: 'PRIVATE', label: 'Private - Approval required' },
-            { value: 'INVITE_ONLY', label: 'Invite Only - Must be invited' },
+            { value: 'PUBLIC', label: t('publicAnyoneCanJoin') },
+            { value: 'PRIVATE', label: t('privateApprovalRequired') },
+            { value: 'INVITE_ONLY', label: t('inviteOnlyMustBeInvited') },
           ]}
           onChange={(value) => updateSetting('defaultGroupPrivacy', value)}
         />
         <ToggleSetting
-          label="Group Notifications"
-          description="Receive notifications for group activity"
+          label={t('groupNotifications')}
+          description={t('receiveNotificationsForActivity')}
           checked={settings.groupNotifications ?? true}
           onChange={(value) => updateSetting('groupNotifications', value)}
         />
         <ToggleSetting
-          label="Auto-Join Matching Groups"
-          description="Automatically join groups that match your interests"
+          label={t('autoJoinMatchingGroups')}
+          description={t('automaticallyJoinMatching')}
           checked={settings.autoJoinMatchingGroups ?? false}
           onChange={(value) => updateSetting('autoJoinMatchingGroups', value)}
         />
         <SelectSetting
-          label="Who Can Invite You to Groups"
-          description="Control who can invite you to groups"
+          label={t('whoCanInviteToGroups')}
+          description={t('controlWhoCanInvite')}
           value={settings.groupInvitePrivacy || 'EVERYONE'}
           options={[
-            { value: 'EVERYONE', label: 'Everyone' },
-            { value: 'CONNECTIONS', label: 'Connections Only' },
-            { value: 'NOBODY', label: 'Nobody' },
+            { value: 'EVERYONE', label: t('everyone') },
+            { value: 'CONNECTIONS', label: t('connectionsOnly') },
+            { value: 'NOBODY', label: t('nobody') },
           ]}
           onChange={(value) => updateSetting('groupInvitePrivacy', value)}
         />
@@ -1293,48 +1300,49 @@ function GroupsSettings({ settings, updateSetting }: { settings: UserSettings; u
 
 // Community Settings
 function CommunitySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="Feed Preferences" description="Customize your community feed">
+      <SettingSection title={t('feedPreferences')} description={t('customizeCommunityFeed')}>
         <SelectSetting
-          label="Feed Algorithm"
-          description="How posts are sorted in your feed"
+          label={t('feedAlgorithm')}
+          description={t('howPostsAreSorted')}
           value={settings.feedAlgorithm || 'RECOMMENDED'}
           options={[
-            { value: 'RECOMMENDED', label: 'Recommended (Personalized)' },
-            { value: 'CHRONOLOGICAL', label: 'Chronological (Latest First)' },
-            { value: 'TRENDING', label: 'Trending (Popular Posts)' },
+            { value: 'RECOMMENDED', label: t('recommendedPersonalized') },
+            { value: 'CHRONOLOGICAL', label: t('chronologicalLatestFirst') },
+            { value: 'TRENDING', label: t('trendingPopularPosts') },
           ]}
           onChange={(value) => updateSetting('feedAlgorithm', value)}
         />
         <ToggleSetting
-          label="Show Trending Topics"
-          description="Display trending hashtags and topics"
+          label={t('showTrendingTopics')}
+          description={t('displayTrendingHashtags')}
           checked={settings.showTrendingTopics ?? true}
           onChange={(value) => updateSetting('showTrendingTopics', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Interaction Privacy" description="Control who can interact with your posts">
+      <SettingSection title={t('interactionPrivacy')} description={t('controlWhoCanInteract')}>
         <SelectSetting
-          label="Who Can Comment"
-          description="Who can comment on your posts"
+          label={t('whoCanComment')}
+          description={t('whoCanCommentOnPosts')}
           value={settings.commentPrivacy || 'EVERYONE'}
           options={[
-            { value: 'EVERYONE', label: 'Everyone' },
-            { value: 'CONNECTIONS', label: 'Connections Only' },
-            { value: 'NOBODY', label: 'Nobody (Comments Disabled)' },
+            { value: 'EVERYONE', label: t('everyone') },
+            { value: 'CONNECTIONS', label: t('connectionsOnly') },
+            { value: 'NOBODY', label: t('nobodyCommentsDisabled') },
           ]}
           onChange={(value) => updateSetting('commentPrivacy', value)}
         />
         <SelectSetting
-          label="Who Can Tag You"
-          description="Who can mention/tag you in posts"
+          label={t('whoCanTagYou')}
+          description={t('whoCanMentionTag')}
           value={settings.tagPrivacy || 'EVERYONE'}
           options={[
-            { value: 'EVERYONE', label: 'Everyone' },
-            { value: 'CONNECTIONS', label: 'Connections Only' },
-            { value: 'NOBODY', label: 'Nobody' },
+            { value: 'EVERYONE', label: t('everyone') },
+            { value: 'CONNECTIONS', label: t('connectionsOnly') },
+            { value: 'NOBODY', label: t('nobody') },
           ]}
           onChange={(value) => updateSetting('tagPrivacy', value)}
         />
@@ -1345,62 +1353,63 @@ function CommunitySettings({ settings, updateSetting }: { settings: UserSettings
 
 // Accessibility Settings
 function AccessibilitySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="Display" description="Customize how the app looks">
+      <SettingSection title={t('display')} description={t('customizeHowAppLooks')}>
         <SelectSetting
-          label="Theme"
-          description="Choose your preferred color scheme"
+          label={t('theme')}
+          description={t('chooseColorScheme')}
           value={settings.theme || 'SYSTEM'}
           options={[
-            { value: 'LIGHT', label: 'Light' },
-            { value: 'DARK', label: 'Dark' },
-            { value: 'SYSTEM', label: 'System Default' },
+            { value: 'LIGHT', label: t('light') },
+            { value: 'DARK', label: t('dark') },
+            { value: 'SYSTEM', label: t('systemDefault') },
           ]}
           onChange={(value) => updateSetting('theme', value)}
         />
         <SelectSetting
-          label="Font Size"
-          description="Adjust text size for better readability"
+          label={t('fontSize')}
+          description={t('adjustTextSize')}
           value={settings.fontSize || 'MEDIUM'}
           options={[
-            { value: 'SMALL', label: 'Small' },
-            { value: 'MEDIUM', label: 'Medium (Default)' },
-            { value: 'LARGE', label: 'Large' },
-            { value: 'XLARGE', label: 'Extra Large' },
+            { value: 'SMALL', label: t('small') },
+            { value: 'MEDIUM', label: t('mediumDefault') },
+            { value: 'LARGE', label: t('large') },
+            { value: 'XLARGE', label: t('extraLarge') },
           ]}
           onChange={(value) => updateSetting('fontSize', value)}
         />
         <ToggleSetting
-          label="High Contrast"
-          description="Increase contrast for better visibility"
+          label={t('highContrast')}
+          description={t('increaseContrast')}
           checked={settings.highContrast ?? false}
           onChange={(value) => updateSetting('highContrast', value)}
         />
         <ToggleSetting
-          label="Reduced Motion"
-          description="Minimize animations and transitions"
+          label={t('reducedMotion')}
+          description={t('minimizeAnimations')}
           checked={settings.reducedMotion ?? false}
           onChange={(value) => updateSetting('reducedMotion', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Interaction" description="How you navigate the app">
+      <SettingSection title={t('interaction')} description={t('howYouNavigate')}>
         <ToggleSetting
-          label="Keyboard Shortcuts"
-          description="Enable keyboard shortcuts for faster navigation"
+          label={t('keyboardShortcuts')}
+          description={t('enableKeyboardShortcuts')}
           checked={settings.keyboardShortcuts ?? true}
           onChange={(value) => updateSetting('keyboardShortcuts', value)}
         />
         <SelectSetting
-          label="Color Blind Mode"
-          description="Adjust colors for color vision deficiency"
+          label={t('colorBlindMode')}
+          description={t('adjustColorsForDeficiency')}
           value={settings.colorBlindMode || 'NONE'}
           options={[
-            { value: 'NONE', label: 'None' },
-            { value: 'PROTANOPIA', label: 'Protanopia (Red-Blind)' },
-            { value: 'DEUTERANOPIA', label: 'Deuteranopia (Green-Blind)' },
-            { value: 'TRITANOPIA', label: 'Tritanopia (Blue-Blind)' },
+            { value: 'NONE', label: t('none') },
+            { value: 'PROTANOPIA', label: t('protanopiaRedBlind') },
+            { value: 'DEUTERANOPIA', label: t('deuteranopiaGreenBlind') },
+            { value: 'TRITANOPIA', label: t('tritanopiaBlueBlind') },
           ]}
           onChange={(value) => updateSetting('colorBlindMode', value)}
         />
@@ -1423,54 +1432,55 @@ function DataSettings({
   handleExportData: () => void
   handleDeleteAccount: () => void
 }) {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="Storage" description="Manage app data and cache">
+      <SettingSection title={t('storage')} description={t('manageAppData')}>
         <ToggleSetting
-          label="Enable Cache"
-          description="Store data locally for faster loading"
+          label={t('enableCache')}
+          description={t('storeDataLocally')}
           checked={settings.cacheEnabled ?? true}
           onChange={(value) => updateSetting('cacheEnabled', value)}
         />
         <ToggleSetting
-          label="Auto-Backup"
-          description="Automatically back up your data"
+          label={t('autoBackup')}
+          description={t('automaticallyBackupData')}
           checked={settings.autoBackup ?? true}
           onChange={(value) => updateSetting('autoBackup', value)}
         />
         <NumberSetting
-          label="Storage Limit"
-          description="Maximum storage for cached data"
+          label={t('storageLimit')}
+          description={t('maximumStorageForCache')}
           value={settings.storageUsageLimit || 1000}
           min={100}
           max={10000}
-          suffix="MB"
+          suffix={t('MB')}
           onChange={(value) => updateSetting('storageUsageLimit', value)}
         />
       </SettingSection>
 
-      <SettingSection title="Data Management">
+      <SettingSection title={t('dataManagement')}>
         <div className="space-y-3">
           <button
             onClick={handleClearCache}
             className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
-            <div className="font-medium text-gray-900">Clear Cache</div>
-            <div className="text-sm text-gray-500">Free up space by clearing cached data</div>
+            <div className="font-medium text-gray-900">{t('clearCache')}</div>
+            <div className="text-sm text-gray-500">{t('freeUpSpace')}</div>
           </button>
           <button
             onClick={handleExportData}
             className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
-            <div className="font-medium text-gray-900">Export Data</div>
-            <div className="text-sm text-gray-500">Download your data as JSON (GDPR compliant)</div>
+            <div className="font-medium text-gray-900">{t('exportData')}</div>
+            <div className="text-sm text-gray-500">{t('downloadDataAsJson')}</div>
           </button>
           <button
             onClick={handleDeleteAccount}
             className="w-full px-4 py-3 text-left border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
           >
-            <div className="font-medium">Delete Account</div>
-            <div className="text-sm opacity-75">Permanently delete your account and all data</div>
+            <div className="font-medium">{t('deleteAccount')}</div>
+            <div className="text-sm opacity-75">{t('permanentlyDeleteAccount')}</div>
           </button>
         </div>
       </SettingSection>
@@ -1480,21 +1490,22 @@ function DataSettings({
 
 // Integrations Settings
 function IntegrationsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
       <SettingSection
-        title="Calendar Integration"
-        description="Sync your study sessions with external calendars"
+        title={t('calendarIntegration')}
+        description={t('syncWithExternalCalendars')}
       >
         <ToggleSetting
-          label="Google Calendar Sync"
-          description="Sync sessions to your Google Calendar"
+          label={t('googleCalendarSync')}
+          description={t('syncToGoogleCalendar')}
           checked={settings.googleCalendarSync ?? false}
           onChange={(value) => updateSetting('googleCalendarSync', value)}
         />
         {settings.googleCalendarSync && (
           <div className="py-3">
-            <label className="block text-sm font-medium text-gray-900 mb-1">Calendar ID</label>
+            <label className="block text-sm font-medium text-gray-900 mb-1">{t('calendarId')}</label>
             <input
               type="text"
               value={settings.googleCalendarId || ''}
@@ -1502,12 +1513,12 @@ function IntegrationsSettings({ settings, updateSetting }: { settings: UserSetti
               placeholder="your-calendar@gmail.com"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">Enter your Google Calendar ID to enable sync</p>
+            <p className="text-xs text-gray-500 mt-1">{t('enterCalendarId')}</p>
           </div>
         )}
       </SettingSection>
 
-      <SettingSection title="Connected Accounts">
+      <SettingSection title={t('connectedAccounts')}>
         <div className="space-y-3">
           <div className="p-4 border border-gray-300 rounded-lg flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1515,12 +1526,12 @@ function IntegrationsSettings({ settings, updateSetting }: { settings: UserSetti
                 <span className="text-xl">🔗</span>
               </div>
               <div>
-                <div className="font-medium text-gray-900">Google Account</div>
-                <div className="text-sm text-gray-500">Connected</div>
+                <div className="font-medium text-gray-900">{t('googleAccount')}</div>
+                <div className="text-sm text-gray-500">{t('connected')}</div>
               </div>
             </div>
             <button className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition">
-              Disconnect
+              {t('disconnect')}
             </button>
           </div>
         </div>
@@ -1531,35 +1542,36 @@ function IntegrationsSettings({ settings, updateSetting }: { settings: UserSetti
 
 // Advanced Settings
 function AdvancedSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="Advanced" description="Power user settings">
+      <SettingSection title={t('advanced')} description={t('powerUserSettings')}>
         <ToggleSetting
-          label="Developer Mode"
-          description="Enable developer tools and debug features"
+          label={t('developerMode')}
+          description={t('enableDeveloperTools')}
           checked={settings.developerMode ?? false}
           onChange={(value) => updateSetting('developerMode', value)}
         />
         <ToggleSetting
-          label="Beta Features"
-          description="Try new features before they're released"
+          label={t('betaFeatures')}
+          description={t('tryNewFeatures')}
           checked={settings.betaFeatures ?? false}
           onChange={(value) => updateSetting('betaFeatures', value)}
         />
         <SelectSetting
-          label="Performance Mode"
-          description="Optimize app performance"
+          label={t('performanceMode')}
+          description={t('optimizeAppPerformance')}
           value={settings.performanceMode || 'BALANCED'}
           options={[
-            { value: 'LOW_POWER', label: 'Low Power (Battery Saver)' },
-            { value: 'BALANCED', label: 'Balanced (Recommended)' },
-            { value: 'PERFORMANCE', label: 'Performance (Best Experience)' },
+            { value: 'LOW_POWER', label: t('lowPowerBatterySaver') },
+            { value: 'BALANCED', label: t('balancedRecommended') },
+            { value: 'PERFORMANCE', label: t('performanceBestExperience') },
           ]}
           onChange={(value) => updateSetting('performanceMode', value)}
         />
         <ToggleSetting
-          label="Analytics"
-          description="Help improve Clerva by sharing anonymous usage data"
+          label={t('analytics')}
+          description={t('helpImproveClerva')}
           checked={settings.analyticsEnabled ?? true}
           onChange={(value) => updateSetting('analyticsEnabled', value)}
         />
@@ -1570,29 +1582,30 @@ function AdvancedSettings({ settings, updateSetting }: { settings: UserSettings;
 
 // History Section
 function HistorySection() {
+  const t = useTranslations('settings')
   const [activeSubTab, setActiveSubTab] = useState<string>('study')
   const [loading, setLoading] = useState(false)
 
   const subTabs = [
-    { id: 'study', label: 'Study Activity', icon: '📚' },
-    { id: 'connections', label: 'Connections', icon: '🤝' },
-    { id: 'groups', label: 'Groups', icon: '👥' },
-    { id: 'calls', label: 'Calls', icon: '📞' },
-    { id: 'achievements', label: 'Achievements', icon: '🏆' },
-    { id: 'account', label: 'Account Activity', icon: '👤' },
-    { id: 'blocked', label: 'Blocked Users', icon: '🚫' },
-    { id: 'deleted-messages', label: 'Deleted Messages', icon: '💬' },
-    { id: 'deleted-groups', label: 'Deleted Groups', icon: '🗑️' },
-    { id: 'deleted-posts', label: 'Deleted Posts', icon: '📝' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'community', label: 'Community Activity', icon: '🌐' },
+    { id: 'study', label: t('studyActivity'), icon: '📚' },
+    { id: 'connections', label: t('connections'), icon: '🤝' },
+    { id: 'groups', label: t('groups'), icon: '👥' },
+    { id: 'calls', label: t('calls'), icon: '📞' },
+    { id: 'achievements', label: t('achievements'), icon: '🏆' },
+    { id: 'account', label: t('accountActivity'), icon: '👤' },
+    { id: 'blocked', label: t('blockedUsers'), icon: '🚫' },
+    { id: 'deleted-messages', label: t('deletedMessages'), icon: '💬' },
+    { id: 'deleted-groups', label: t('deletedGroups'), icon: '🗑️' },
+    { id: 'deleted-posts', label: t('deletedPosts'), icon: '📝' },
+    { id: 'notifications', label: t('notificationsHistory'), icon: '🔔' },
+    { id: 'community', label: t('communityActivityHistory'), icon: '🌐' },
   ]
 
   return (
     <>
       <SettingSection
-        title="History"
-        description="View your activity history and manage deleted items"
+        title={t('history')}
+        description={t('viewActivityHistory')}
       >
         {/* Sub-tabs */}
         <div className="mb-6 border-b border-gray-200">
@@ -1636,6 +1649,7 @@ function HistorySection() {
 
 // Individual History Components
 function StudyActivityHistory() {
+  const t = useTranslations('settings')
   const [sessions, setSessions] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -1659,7 +1673,7 @@ function StudyActivityHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -1668,21 +1682,21 @@ function StudyActivityHistory() {
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">{statistics.totalSessions}</div>
-            <div className="text-sm text-gray-600">Total Sessions</div>
+            <div className="text-sm text-gray-600">{t('totalSessions')}</div>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">{statistics.totalHours}h</div>
-            <div className="text-sm text-gray-600">Total Hours</div>
+            <div className="text-sm text-gray-600">{t('totalHours')}</div>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">{statistics.sessionsThisMonth}</div>
-            <div className="text-sm text-gray-600">This Month</div>
+            <div className="text-sm text-gray-600">{t('thisMonth')}</div>
           </div>
         </div>
       )}
       <div className="space-y-3">
         {sessions.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No study sessions found.</p>
+          <p className="text-gray-500 text-center py-8">{t('noStudySessionsFound')}</p>
         ) : (
           sessions.map((session) => (
             <div key={session.id} className="border border-gray-200 rounded-lg p-4">
@@ -1693,10 +1707,10 @@ function StudyActivityHistory() {
                 </span>
               </div>
               <div className="text-sm text-gray-600 mb-2">
-                {session.durationMinutes} minutes • {session.type}
+                {session.durationMinutes} {t('minutes')} • {session.type}
               </div>
               {session.subject && (
-                <div className="text-sm text-gray-500">Subject: {session.subject}</div>
+                <div className="text-sm text-gray-500">{t('subject')}: {session.subject}</div>
               )}
             </div>
           ))
@@ -1707,6 +1721,7 @@ function StudyActivityHistory() {
 }
 
 function ConnectionsHistory() {
+  const t = useTranslations('settings')
   const [matches, setMatches] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -1730,7 +1745,7 @@ function ConnectionsHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -1738,22 +1753,22 @@ function ConnectionsHistory() {
       {statistics && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="font-semibold mb-2">Sent</div>
-            <div className="text-sm">Total: {statistics.sent.total}</div>
-            <div className="text-sm">Accepted: {statistics.sent.accepted}</div>
-            <div className="text-sm">Pending: {statistics.sent.pending}</div>
+            <div className="font-semibold mb-2">{t('sent')}</div>
+            <div className="text-sm">{t('total')}: {statistics.sent.total}</div>
+            <div className="text-sm">{t('accepted')}: {statistics.sent.accepted}</div>
+            <div className="text-sm">{t('pending')}: {statistics.sent.pending}</div>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
-            <div className="font-semibold mb-2">Received</div>
-            <div className="text-sm">Total: {statistics.received.total}</div>
-            <div className="text-sm">Accepted: {statistics.received.accepted}</div>
-            <div className="text-sm">Pending: {statistics.received.pending}</div>
+            <div className="font-semibold mb-2">{t('received')}</div>
+            <div className="text-sm">{t('total')}: {statistics.received.total}</div>
+            <div className="text-sm">{t('accepted')}: {statistics.received.accepted}</div>
+            <div className="text-sm">{t('pending')}: {statistics.received.pending}</div>
           </div>
         </div>
       )}
       <div className="space-y-3">
         {matches.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No connections found.</p>
+          <p className="text-gray-500 text-center py-8">{t('noConnectionsFound')}</p>
         ) : (
           matches.map((match) => (
             <div key={match.id} className="border border-gray-200 rounded-lg p-4">
@@ -1762,7 +1777,7 @@ function ConnectionsHistory() {
                   <div className="font-semibold">
                     {match.isSender ? match.receiver.name : match.sender.name}
                   </div>
-                  <div className="text-sm text-gray-500">Status: {match.status}</div>
+                  <div className="text-sm text-gray-500">{t('status')}: {match.status}</div>
                 </div>
                 <span className="text-sm text-gray-500">
                   {new Date(match.createdAt).toLocaleDateString()}
@@ -1770,7 +1785,7 @@ function ConnectionsHistory() {
               </div>
               {match.compatibilityScore && (
                 <div className="text-sm text-gray-600">
-                  Compatibility: {match.compatibilityScore}%
+                  {t('compatibility')}: {match.compatibilityScore}%
                 </div>
               )}
             </div>
@@ -1782,6 +1797,7 @@ function ConnectionsHistory() {
 }
 
 function GroupsHistory() {
+  const t = useTranslations('settings')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -1803,20 +1819,20 @@ function GroupsHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
     <div className="space-y-6">
       {data?.joinedGroups && data.joinedGroups.length > 0 && (
         <div>
-          <h3 className="font-semibold mb-3">Joined Groups</h3>
+          <h3 className="font-semibold mb-3">{t('joinedGroups')}</h3>
           <div className="space-y-2">
             {data.joinedGroups.map((gm: any) => (
               <div key={gm.id} className="border border-gray-200 rounded-lg p-3">
                 <div className="font-medium">{gm.group.name}</div>
                 <div className="text-sm text-gray-500">
-                  Joined: {new Date(gm.joinedAt).toLocaleDateString()}
+                  {t('joined')}: {new Date(gm.joinedAt).toLocaleDateString()}
                 </div>
               </div>
             ))}
@@ -1825,13 +1841,13 @@ function GroupsHistory() {
       )}
       {data?.createdGroups && data.createdGroups.length > 0 && (
         <div>
-          <h3 className="font-semibold mb-3">Created Groups</h3>
+          <h3 className="font-semibold mb-3">{t('createdGroups')}</h3>
           <div className="space-y-2">
             {data.createdGroups.map((group: any) => (
               <div key={group.id} className="border border-gray-200 rounded-lg p-3">
                 <div className="font-medium">{group.name}</div>
                 <div className="text-sm text-gray-500">
-                  Created: {new Date(group.createdAt).toLocaleDateString()}
+                  {t('created')}: {new Date(group.createdAt).toLocaleDateString()}
                 </div>
               </div>
             ))}
@@ -1839,13 +1855,14 @@ function GroupsHistory() {
         </div>
       )}
       {(!data?.joinedGroups?.length && !data?.createdGroups?.length) && (
-        <p className="text-gray-500 text-center py-8">No groups found.</p>
+        <p className="text-gray-500 text-center py-8">{t('noGroupsFound')}</p>
       )}
     </div>
   )
 }
 
 function CallsHistory() {
+  const t = useTranslations('settings')
   const [calls, setCalls] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -1869,7 +1886,7 @@ function CallsHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -1878,21 +1895,21 @@ function CallsHistory() {
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">{statistics.totalCalls}</div>
-            <div className="text-sm text-gray-600">Total Calls</div>
+            <div className="text-sm text-gray-600">{t('totalCalls')}</div>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">{statistics.completedCalls}</div>
-            <div className="text-sm text-gray-600">Completed</div>
+            <div className="text-sm text-gray-600">{t('completed')}</div>
           </div>
           <div className="p-4 bg-red-50 rounded-lg">
             <div className="text-2xl font-bold text-red-600">{statistics.missedCalls}</div>
-            <div className="text-sm text-gray-600">Missed</div>
+            <div className="text-sm text-gray-600">{t('missedCalls')}</div>
           </div>
         </div>
       )}
       <div className="space-y-3">
         {calls.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No calls found.</p>
+          <p className="text-gray-500 text-center py-8">{t('noCallsFound')}</p>
         ) : (
           calls.map((call) => (
             <div key={call.id} className="border border-gray-200 rounded-lg p-4">
@@ -1920,6 +1937,7 @@ function CallsHistory() {
 }
 
 function AchievementsHistory() {
+  const t = useTranslations('settings')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -1941,7 +1959,7 @@ function AchievementsHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -1950,27 +1968,27 @@ function AchievementsHistory() {
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">{data.milestones.studyStreak}</div>
-            <div className="text-sm text-gray-600">Day Streak</div>
+            <div className="text-sm text-gray-600">{t('dayStreak')}</div>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">{data.milestones.totalStudyHours}h</div>
-            <div className="text-sm text-gray-600">Study Hours</div>
+            <div className="text-sm text-gray-600">{t('totalHours')}</div>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">{data.badges.length}</div>
-            <div className="text-sm text-gray-600">Badges Earned</div>
+            <div className="text-sm text-gray-600">{t('badgesEarned')}</div>
           </div>
         </div>
       )}
       <div>
-        <h3 className="font-semibold mb-3">Badges</h3>
+        <h3 className="font-semibold mb-3">{t('badges')}</h3>
         <div className="grid grid-cols-2 gap-3">
           {data?.badges?.map((badge: any) => (
             <div key={badge.id} className="border border-gray-200 rounded-lg p-3">
               <div className="font-medium">{badge.badge.name}</div>
               <div className="text-sm text-gray-500">{badge.badge.description}</div>
               <div className="text-xs text-gray-400 mt-1">
-                Earned: {new Date(badge.earnedAt).toLocaleDateString()}
+                {t('earned')}: {new Date(badge.earnedAt).toLocaleDateString()}
               </div>
             </div>
           ))}
@@ -1981,6 +1999,7 @@ function AchievementsHistory() {
 }
 
 function AccountActivityHistory() {
+  const t = useTranslations('settings')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -2002,7 +2021,7 @@ function AccountActivityHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -2039,6 +2058,7 @@ function AccountActivityHistory() {
 }
 
 function BlockedUsersHistory() {
+  const t = useTranslations('settings')
   const [blockedUsers, setBlockedUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2060,7 +2080,7 @@ function BlockedUsersHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -2087,6 +2107,7 @@ function BlockedUsersHistory() {
 }
 
 function DeletedMessagesHistory() {
+  const t = useTranslations('settings')
   const [conversations, setConversations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2113,7 +2134,7 @@ function DeletedMessagesHistory() {
         method: 'POST',
       })
       if (response.ok) {
-        toast.success('Message restored')
+        toast.success(t('messageRestored'))
         // Refresh list
         const fetchData = async () => {
           const res = await fetch('/api/history/deleted-messages')
@@ -2124,16 +2145,16 @@ function DeletedMessagesHistory() {
         }
         fetchData()
       } else {
-        toast.error('Failed to restore message')
+        toast.error(t('failedToRestoreMessage'))
       }
     } catch (error) {
       console.error('Error restoring message:', error)
-      toast.error('Failed to restore message')
+      toast.error(t('failedToRestoreMessage'))
     }
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -2170,6 +2191,7 @@ function DeletedMessagesHistory() {
 }
 
 function DeletedGroupsHistory() {
+  const t = useTranslations('settings')
   const [groups, setGroups] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -2196,7 +2218,7 @@ function DeletedGroupsHistory() {
         method: 'POST',
       })
       if (response.ok) {
-        toast.success('Group restored')
+        toast.success(t('groupRestored'))
         // Refresh list
         const fetchData = async () => {
           const res = await fetch('/api/history/deleted-groups')
@@ -2207,16 +2229,16 @@ function DeletedGroupsHistory() {
         }
         fetchData()
       } else {
-        toast.error('Failed to restore group')
+        toast.error(t('failedToRestoreGroup'))
       }
     } catch (error) {
       console.error('Error restoring group:', error)
-      toast.error('Failed to restore group')
+      toast.error(t('failedToRestoreGroup'))
     }
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -2251,6 +2273,7 @@ function DeletedGroupsHistory() {
 }
 
 function DeletedPostsHistory() {
+  const t = useTranslations('settings')
   const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [showDeletedPosts, setShowDeletedPosts] = useState(true)
@@ -2288,12 +2311,12 @@ function DeletedPostsHistory() {
       }
     } catch (error) {
       console.error('Error restoring post:', error)
-      toast.error('Failed to restore post')
+      toast.error(t('postRestoreFailed'))
     }
   }
 
   const handlePermanentlyDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this post? This action cannot be undone.')) {
+    if (!confirm(t('confirmPermanentDelete'))) {
       return
     }
 
@@ -2304,14 +2327,14 @@ function DeletedPostsHistory() {
 
       if (response.ok) {
         setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        toast.success('Post permanently deleted')
+        toast.success(t('postPermanentlyDeleted'))
       } else {
         const error = await response.json()
-        toast.error(error.error || 'Failed to delete post')
+        toast.error(error.error || t('failedToDeletePost'))
       }
     } catch (error) {
       console.error('Error permanently deleting post:', error)
-      toast.error('Failed to delete post')
+      toast.error(t('failedToDeletePost'))
     }
   }
 
@@ -2319,7 +2342,7 @@ function DeletedPostsHistory() {
     return (
       <div className="text-center py-8">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-        <p className="text-sm text-gray-500">Loading deleted posts...</p>
+        <p className="text-sm text-gray-500">{t('loadingDeletedPosts')}</p>
       </div>
     )
   }
@@ -2332,10 +2355,10 @@ function DeletedPostsHistory() {
       >
         <div>
           <div className="font-medium text-gray-900">
-            {showDeletedPosts ? 'Hide' : 'Show'} Deleted Posts
+            {showDeletedPosts ? t('hide') : t('show')} {t('deletedPosts')}
           </div>
           <div className="text-sm text-gray-500">
-            {deletedPosts.length} deleted post{deletedPosts.length !== 1 ? 's' : ''} in history
+            {deletedPosts.length} {deletedPosts.length !== 1 ? t('deletedPostsPlural') : t('deletedPost')} {t('inHistory')}
           </div>
         </div>
         <svg
@@ -2351,7 +2374,7 @@ function DeletedPostsHistory() {
       {showDeletedPosts && (
         <div className="space-y-4 mt-4">
           {deletedPosts.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No deleted posts in history.</p>
+            <p className="text-gray-500 text-center py-8">{t('noDeletedPostsInHistory')}</p>
           ) : (
             deletedPosts.map((post) => (
               <div key={post.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
@@ -2360,30 +2383,30 @@ function DeletedPostsHistory() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
-                        DELETED
+                        {t('deleted')}
                       </span>
                       <span className="text-xs text-red-600 font-medium">
-                        {post.daysRemaining} day{post.daysRemaining !== 1 ? 's' : ''} remaining to restore
+                        {post.daysRemaining} {post.daysRemaining !== 1 ? t('daysRemainingToRestorePlural') : t('daysRemainingToRestore')}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      Deleted on {new Date(post.deletedAt).toLocaleDateString()} at {new Date(post.deletedAt).toLocaleTimeString()}
+                      {t('deletedOn')} {new Date(post.deletedAt).toLocaleDateString()} {t('at')} {new Date(post.deletedAt).toLocaleTimeString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleRestorePost(post.id)}
                       className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
-                      title="Restore post"
+                      title={t('restorePost')}
                     >
-                      Restore
+                      {t('restore')}
                     </button>
                     <button
                       onClick={() => handlePermanentlyDeletePost(post.id)}
                       className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
-                      title="Permanently delete"
+                      title={t('permanentlyDelete')}
                     >
-                      Delete Forever
+                      {t('deleteForever')}
                     </button>
                   </div>
                 </div>
@@ -2409,6 +2432,7 @@ function DeletedPostsHistory() {
 }
 
 function NotificationsHistory() {
+  const t = useTranslations('settings')
   const [notifications, setNotifications] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -2432,7 +2456,7 @@ function NotificationsHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -2477,6 +2501,7 @@ function NotificationsHistory() {
 }
 
 function CommunityActivityHistory() {
+  const t = useTranslations('settings')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -2498,7 +2523,7 @@ function CommunityActivityHistory() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">{t('loading')}</div>
   }
 
   return (
@@ -2507,31 +2532,31 @@ function CommunityActivityHistory() {
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">{data.statistics.totalPosts}</div>
-            <div className="text-sm text-gray-600">Posts</div>
+            <div className="text-sm text-gray-600">{t('posts')}</div>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">{data.statistics.totalComments}</div>
-            <div className="text-sm text-gray-600">Comments</div>
+            <div className="text-sm text-gray-600">{t('comments')}</div>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">{data.statistics.totalLikesGiven}</div>
-            <div className="text-sm text-gray-600">Likes Given</div>
+            <div className="text-sm text-gray-600">{t('likesGiven')}</div>
           </div>
           <div className="p-4 bg-yellow-50 rounded-lg">
             <div className="text-2xl font-bold text-yellow-600">{data.statistics.totalLikesReceived}</div>
-            <div className="text-sm text-gray-600">Likes Received</div>
+            <div className="text-sm text-gray-600">{t('likesReceived')}</div>
           </div>
         </div>
       )}
       {data?.recentPosts && data.recentPosts.length > 0 && (
         <div>
-          <h3 className="font-semibold mb-3">Recent Posts</h3>
+          <h3 className="font-semibold mb-3">{t('recentPosts')}</h3>
           <div className="space-y-2">
             {data.recentPosts.map((post: any) => (
               <div key={post.id} className="border border-gray-200 rounded-lg p-3">
                 <div className="text-sm">{post.content.substring(0, 100)}...</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {post._count.likes} likes • {post._count.comments} comments
+                  {post._count.likes} {t('likes')} • {post._count.comments} {t('comments')}
                 </div>
               </div>
             ))}
@@ -2544,40 +2569,41 @@ function CommunityActivityHistory() {
 
 // About Section
 function AboutSection() {
+  const t = useTranslations('settings')
   return (
     <>
-      <SettingSection title="About Clerva" description="Learn more about the app">
+      <SettingSection title={t('aboutClerva')} description={t('learnMoreAboutApp')}>
         <div className="space-y-4">
           <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Clerva</h3>
-            <p className="text-gray-600 mb-4">Social Learning & Study Partners Platform</p>
-            <p className="text-sm text-gray-500">Version 2.0.0</p>
+            <p className="text-gray-600 mb-4">{t('socialLearningPlatform')}</p>
+            <p className="text-sm text-gray-500">{t('version')}</p>
           </div>
 
           <div className="space-y-3">
             <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">Terms of Service</div>
-              <div className="text-sm text-gray-500">Read our terms and conditions</div>
+              <div className="font-medium text-gray-900">{t('termsOfService')}</div>
+              <div className="text-sm text-gray-500">{t('readTermsAndConditions')}</div>
             </button>
             <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">Privacy Policy</div>
-              <div className="text-sm text-gray-500">How we handle your data</div>
+              <div className="font-medium text-gray-900">{t('privacyPolicy')}</div>
+              <div className="text-sm text-gray-500">{t('howWeHandleData')}</div>
             </button>
             <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">Contact Support</div>
-              <div className="text-sm text-gray-500">Get help with Clerva</div>
+              <div className="font-medium text-gray-900">{t('contactSupport')}</div>
+              <div className="text-sm text-gray-500">{t('getHelpWithClerva')}</div>
             </button>
             <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">Report a Bug</div>
-              <div className="text-sm text-gray-500">Help us improve the app</div>
+              <div className="font-medium text-gray-900">{t('reportBug')}</div>
+              <div className="text-sm text-gray-500">{t('helpUsImprove')}</div>
             </button>
           </div>
 
           <div className="pt-4 border-t border-gray-200">
             <p className="text-center text-sm text-gray-500">
-              © 2025 Clerva. All rights reserved.
+              {t('allRightsReserved')}
               <br />
-              Made with ❤️ for learners everywhere
+              {t('madeWithLove')}
             </p>
           </div>
         </div>

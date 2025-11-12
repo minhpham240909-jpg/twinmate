@@ -88,14 +88,14 @@ export default function WaitingLobbyPage() {
 
         // If session is ACTIVE, redirect to call page
         if (sess.status === 'ACTIVE') {
-          toast.success('Session has started!')
+          toast.success(t('sessionHasStarted'))
           router.push(`/study-sessions/${sessionId}/call`)
           return
         }
 
         // If session is COMPLETED or CANCELLED, redirect to history
         if (sess.status === 'COMPLETED' || sess.status === 'CANCELLED') {
-          toast.error('This session has ended')
+          toast.error(t('sessionHasEnded'))
           router.push('/study-sessions')
           return
         }
@@ -112,19 +112,19 @@ export default function WaitingLobbyPage() {
 
           // If expired, show message and redirect
           if (diff === 0) {
-            toast.error('Session has expired')
+            toast.error(t('sessionHasExpired'))
             router.push('/study-sessions')
           }
         } else {
           console.log('Fetch session: No waitingExpiresAt found in session data!')
         }
       } else {
-        toast.error(data.error || 'Failed to load session')
+        toast.error(data.error || t('failedToLoadSession'))
         router.push('/study-sessions')
       }
     } catch (error) {
       console.error('Error fetching session:', error)
-      toast.error('Failed to load session')
+      toast.error(t('failedToLoadSession'))
     } finally {
       setLoadingSession(false)
     }
@@ -159,7 +159,7 @@ export default function WaitingLobbyPage() {
       setTimeRemaining(diff)
 
       if (diff === 0) {
-        toast.error('Session has expired')
+        toast.error(t('sessionHasExpired'))
         router.push('/study-sessions')
         return false // Stop interval
       }
@@ -202,7 +202,7 @@ export default function WaitingLobbyPage() {
           const newStatus = (payload.new as { status?: string }).status
           if (newStatus === 'ACTIVE') {
             console.log('[Lobby RT] Session is now ACTIVE, redirecting to call...')
-            toast.success('Session is starting!')
+            toast.success(t('sessionIsStarting'))
             router.push(`/study-sessions/${sessionId}/call`)
           }
         }
@@ -240,7 +240,7 @@ export default function WaitingLobbyPage() {
         },
         (payload) => {
           console.log('[Lobby RT] New participant joined:', payload)
-          toast.success('Someone joined the session!')
+          toast.success(t('someoneJoinedSession'))
           fetchSession() // Refresh to get new participant list
         }
       )
@@ -463,13 +463,13 @@ export default function WaitingLobbyPage() {
 
       const data = await res.json()
       if (!data.success) {
-        toast.error('Failed to send message')
+        toast.error(t('failedToSendMessage'))
         setNewMessage(messageContent) // Restore message on error
       }
       // Message will appear via real-time polling
     } catch (error) {
       console.error('Error sending message:', error)
-      toast.error('Failed to send message')
+      toast.error(t('failedToSendMessage'))
       setNewMessage(messageContent) // Restore message on error
     } finally {
       setSending(false)
@@ -487,14 +487,14 @@ export default function WaitingLobbyPage() {
 
       const data = await res.json()
       if (data.success) {
-        toast.success('Starting session...')
+        toast.success(t('startingSession'))
         router.push(`/study-sessions/${sessionId}/call`)
       } else {
-        toast.error(data.error || 'Failed to start session')
+        toast.error(data.error || t('failedToStartSession'))
       }
     } catch (error) {
       console.error('Error starting session:', error)
-      toast.error('Failed to start session')
+      toast.error(t('failedToStartSession'))
     } finally {
       setStarting(false)
     }

@@ -226,7 +226,7 @@ export default function GroupsPage() {
   const handleCreateGroup = async () => {
     // Validate max members range
     if (maxMembers < 2 || maxMembers > 50) {
-      toast.error('Max members must be between 2 and 50')
+      toast.error(t('maxMembersRange'))
       return
     }
 
@@ -249,7 +249,7 @@ export default function GroupsPage() {
 
       if (!response.ok) {
         const data = await response.json()
-        toast.error(data.error || 'Failed to create group')
+        toast.error(data.error || t('failedToCreateGroup'))
         return
       }
 
@@ -269,12 +269,12 @@ export default function GroupsPage() {
             body: JSON.stringify({ avatarUrl: uploadResult.url }),
           })
         } else {
-          toast.error(uploadResult.error || 'Failed to upload avatar')
+          toast.error(uploadResult.error || t('failedToUploadAvatar'))
         }
         setUploadingAvatar(false)
       }
 
-      toast.success('Group created successfully!')
+      toast.success(t('groupCreatedSuccessfully'))
       setShowCreateModal(false)
       // Reset form
       setGroupName('')
@@ -291,7 +291,7 @@ export default function GroupsPage() {
       await fetchMyGroups()
     } catch (error) {
       console.error('Error creating group:', error)
-      toast.error('Failed to create group')
+      toast.error(t('failedToCreateGroup'))
     }
   }
 
@@ -327,7 +327,7 @@ export default function GroupsPage() {
       })
 
       if (response.ok) {
-        toast.success('Successfully joined group!')
+        toast.success(t('successfullyJoinedGroup'))
         await fetchMyGroups() // Refresh my groups (also updates cache)
         if (activeTab === 'find-groups') {
           // Refresh search results and update isMember flag
@@ -338,16 +338,16 @@ export default function GroupsPage() {
         }
       } else {
         const data = await response.json()
-        toast.error(data.error || 'Failed to join group')
+        toast.error(data.error || t('failedToJoinGroup'))
       }
     } catch (error) {
       console.error('Error joining group:', error)
-      toast.error('Failed to join group')
+      toast.error(t('failedToJoinGroup'))
     }
   }
 
   const handleLeaveGroup = async (groupId: string) => {
-    if (!confirm('Are you sure you want to leave this group?')) return
+    if (!confirm(t('confirmLeaveGroup'))) return
 
     try {
       const response = await fetch('/api/groups/leave', {
@@ -357,7 +357,7 @@ export default function GroupsPage() {
       })
 
       if (response.ok) {
-        toast.success('Successfully left group')
+        toast.success(t('successfullyLeftGroup'))
         await fetchMyGroups() // Refresh my groups (also updates cache)
         if (activeTab === 'find-groups') {
           // Update search results to reflect left status
@@ -368,16 +368,16 @@ export default function GroupsPage() {
         }
       } else {
         const data = await response.json()
-        toast.error(data.error || 'Failed to leave group')
+        toast.error(data.error || t('failedToLeaveGroup'))
       }
     } catch (error) {
       console.error('Error leaving group:', error)
-      toast.error('Failed to leave group')
+      toast.error(t('failedToLeaveGroup'))
     }
   }
 
   const handleKickMember = async (userId: string) => {
-    if (!selectedGroup || !confirm('Are you sure you want to remove this member?')) return
+    if (!selectedGroup || !confirm(t('confirmRemoveMember'))) return
 
     try {
       const response = await fetch('/api/groups/kick', {
@@ -390,7 +390,7 @@ export default function GroupsPage() {
       })
 
       if (response.ok) {
-        toast.success('Member removed successfully')
+        toast.success(t('memberRemovedSuccessfully'))
         // Fetch fresh group data
         const groupsResponse = await fetch('/api/groups/my-groups')
         if (groupsResponse.ok) {
@@ -405,11 +405,11 @@ export default function GroupsPage() {
         }
       } else {
         const data = await response.json()
-        toast.error(data.error || 'Failed to remove member')
+        toast.error(data.error || t('failedToRemoveMember'))
       }
     } catch (error) {
       console.error('Error kicking member:', error)
-      toast.error('Failed to remove member')
+      toast.error(t('failedToRemoveMember'))
     }
   }
 
@@ -432,11 +432,11 @@ export default function GroupsPage() {
         setShowManageSuggestions(false)
       } else {
         const data = await response.json()
-        toast.error(data.error || 'Failed to invite user')
+        toast.error(data.error || t('failedToInviteUser'))
       }
     } catch (error) {
       console.error('Error inviting user:', error)
-      toast.error('Failed to invite user')
+      toast.error(t('failedToInviteUser'))
     }
   }
 
@@ -452,22 +452,22 @@ export default function GroupsPage() {
       })
 
       if (response.ok) {
-        toast.success(accept ? 'Joined group successfully!' : 'Invite declined')
+        toast.success(accept ? t('joinedGroupSuccessfully') : t('inviteDeclined'))
         // Refresh invites and groups (also updates cache)
         await fetchGroupInvites()
         await fetchMyGroups()
       } else {
         const data = await response.json()
-        toast.error(data.error || 'Failed to respond to invite')
+        toast.error(data.error || t('failedToRespondToInvite'))
       }
     } catch (error) {
       console.error('Error responding to invite:', error)
-      toast.error('Failed to respond to invite')
+      toast.error(t('failedToRespondToInvite'))
     }
   }
 
   const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this group? All members will be notified.')) {
+    if (!confirm(t('confirmDeleteGroup'))) {
       return
     }
 
@@ -486,7 +486,7 @@ export default function GroupsPage() {
 
       // Handle 401 Unauthorized
       if (response.status === 401) {
-        toast.error('Your session has expired. Please sign in again.')
+        toast.error(t('sessionExpired'))
         console.error('[FRONTEND] Authentication failed (401) - redirecting to signin')
         setTimeout(() => router.push('/auth/signin'), 2000)
         return
@@ -517,12 +517,12 @@ export default function GroupsPage() {
           }, 500)
         }
       } else {
-        toast.error(data.error || 'Failed to delete group')
+        toast.error(data.error || t('failedToDeleteGroupRetry'))
         console.error(`[FRONTEND] Failed to delete group: ${data.error}`)
       }
     } catch (error) {
       console.error('[FRONTEND] Error deleting group:', error)
-      toast.error('Failed to delete group. Please try again.')
+      toast.error(t('failedToDeleteGroupRetry'))
     } finally {
       setDeletingGroup(false)
     }
@@ -539,7 +539,7 @@ export default function GroupsPage() {
   }
 
   const handleForceDeleteAll = async () => {
-    if (!confirm('⚠️ WARNING: This will PERMANENTLY DELETE ALL groups you own from the database. This cannot be undone!\n\nAre you absolutely sure?')) {
+    if (!confirm(t('confirmForceDeleteGroups'))) {
       return
     }
 
@@ -568,12 +568,12 @@ export default function GroupsPage() {
         // Refresh to verify
         await fetchMyGroups()
       } else {
-        toast.error(data.error || 'Failed to force delete groups')
+        toast.error(data.error || t('failedToForceDeleteGroups'))
         console.error('[FORCE DELETE] Failed:', data)
       }
     } catch (error) {
       console.error('[FORCE DELETE] Error:', error)
-      toast.error('Failed to force delete groups')
+      toast.error(t('failedToForceDeleteGroups'))
     } finally {
       setForceDeleting(false)
     }
@@ -631,7 +631,7 @@ export default function GroupsPage() {
               onClick={() => router.push('/dashboard')}
               className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
             >
-              Back to Dashboard
+              {tCommon('backToDashboard')}
             </button>
           </div>
         </div>
@@ -757,7 +757,7 @@ export default function GroupsPage() {
                         onClick={() => router.push(`/chat?conversation=${group.id}&type=group`)}
                         className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
                       >
-                        Open Chat
+                        {t('openChat')}
                       </button>
                     )}
                     {group.isMember ? (
@@ -820,7 +820,7 @@ export default function GroupsPage() {
                       onChange={(e) => setSearchSkillLevel(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">Any level</option>
+                      <option value="">{t('anyLevel')}</option>
                       <option value="Beginner">Beginner</option>
                       <option value="Intermediate">Intermediate</option>
                       <option value="Advanced">Advanced</option>
@@ -828,22 +828,22 @@ export default function GroupsPage() {
                     </select>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('subjectDescription')}</label>
                     <input
                       type="text"
                       value={searchSubjectDesc}
                       onChange={(e) => setSearchSubjectDesc(e.target.value)}
-                      placeholder="Search in subject descriptions..."
+                      placeholder={t('searchSubjectPlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('skillLevelDescription')}</label>
                     <input
                       type="text"
                       value={searchSkillLevelDesc}
                       onChange={(e) => setSearchSkillLevelDesc(e.target.value)}
-                      placeholder="Search in skill level descriptions..."
+                      placeholder={t('searchSkillLevelPlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -853,7 +853,7 @@ export default function GroupsPage() {
                       type="text"
                       value={searchDescription}
                       onChange={(e) => setSearchDescription(e.target.value)}
-                      placeholder="Search in group descriptions..."
+                      placeholder={t('searchGroupDescPlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -960,7 +960,7 @@ export default function GroupsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Group Avatar (Optional)</label>
                 <div className="flex items-center gap-4">
                   {avatarPreview && (
-                    <img src={avatarPreview} alt="Avatar preview" className="w-16 h-16 rounded-xl object-cover" />
+                    <img src={avatarPreview} alt={t('avatarPreview')} className="w-16 h-16 rounded-xl object-cover" />
                   )}
                   <input
                     id="avatar-field"
@@ -1010,7 +1010,7 @@ export default function GroupsPage() {
                       document.getElementById('group-desc-field')?.focus()
                     }
                   }}
-                  placeholder="Add more details about the subject for this group..."
+                  placeholder={t('subjectDetailsPlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -1028,7 +1028,7 @@ export default function GroupsPage() {
                       document.getElementById('skill-level-field')?.focus()
                     }
                   }}
-                  placeholder="What will this group study?"
+                  placeholder={t('groupDescriptionPlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -1041,7 +1041,7 @@ export default function GroupsPage() {
                   onChange={(e) => setSkillLevel(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">No preference</option>
+                  <option value="">{t('noPreference')}</option>
                   <option value="Beginner">Beginner</option>
                   <option value="Intermediate">Intermediate</option>
                   <option value="Advanced">Advanced</option>
@@ -1104,7 +1104,7 @@ export default function GroupsPage() {
                         }
                       }
                     }}
-                    placeholder="Type username to search... (Press Enter to create group)"
+                    placeholder={t('inviteUsernamePlaceholder')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {showSuggestions && usernameSuggestions.length > 0 && (
@@ -1283,7 +1283,7 @@ export default function GroupsPage() {
                   onChange={(e) => handleManageUsernameSearch(e.target.value)}
                   onBlur={() => setTimeout(() => setShowManageSuggestions(false), 200)}
                   onFocus={() => manageInviteUsername.length >= 2 && setShowManageSuggestions(true)}
-                  placeholder="Type username to invite..."
+                  placeholder={t('inviteUserPlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 {showManageSuggestions && manageUserSuggestions.length > 0 && (

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
+import toast from 'react-hot-toast'
 
 interface ConnectionRequest {
   id: string
@@ -57,12 +58,12 @@ export default function ConnectionsPage() {
         setReceivedRequests(data.received || [])
         setSentRequests(data.sent || [])
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch connections' }))
-        setError(errorData.error || 'Failed to load connection requests')
+        const errorData = await response.json().catch(() => ({ error: t('failedToFetch') }))
+        setError(errorData.error || t('failedToLoad'))
       }
     } catch (error) {
       console.error('Error fetching connection requests:', error)
-      setError('Unable to connect to server. Please check your internet connection.')
+      setError(t('connectionError'))
     }
   }
 
@@ -78,15 +79,15 @@ export default function ConnectionsPage() {
       })
 
       if (response.ok) {
-        alert('Connection accepted!')
+        toast.success(t('connectionAccepted'))
         fetchConnectionRequests()
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to accept connection' }))
-        alert(errorData.error || 'Failed to accept connection')
+        const errorData = await response.json().catch(() => ({ error: t('failedToAccept') }))
+        toast.error(errorData.error || t('failedToAccept'))
       }
     } catch (error) {
       console.error('Error accepting connection:', error)
-      alert('Failed to accept connection. Please try again.')
+      toast.error(t('failedToAcceptRetry'))
     } finally {
       setProcessingRequest(null)
     }
@@ -104,15 +105,15 @@ export default function ConnectionsPage() {
       })
 
       if (response.ok) {
-        alert('Connection declined')
+        toast.success(t('connectionDeclined'))
         fetchConnectionRequests()
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to decline connection' }))
-        alert(errorData.error || 'Failed to decline connection')
+        const errorData = await response.json().catch(() => ({ error: t('failedToDecline') }))
+        toast.error(errorData.error || t('failedToDecline'))
       }
     } catch (error) {
       console.error('Error declining connection:', error)
-      alert('Failed to decline connection. Please try again.')
+      toast.error(t('failedToDeclineRetry'))
     } finally {
       setProcessingRequest(null)
     }

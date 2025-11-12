@@ -6,8 +6,10 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { useTranslations } from 'next-intl'
 
 export default function CreatePostPage() {
+  const t = useTranslations('community')
   const { user, profile, loading } = useAuth()
   const router = useRouter()
   const [content, setContent] = useState('')
@@ -89,7 +91,7 @@ export default function CreatePostPage() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length + selectedImages.length > 4) {
-      toast.error('Maximum 4 images allowed per post')
+      toast.error(t('maxImagesAllowed'))
       return
     }
 
@@ -110,7 +112,7 @@ export default function CreatePostPage() {
 
   const handleCreatePost = async () => {
     if (!content.trim() && selectedImages.length === 0 && !postUrl.trim()) {
-      toast.error('Please add some content to your post')
+      toast.error(t('pleaseAddContent'))
       return
     }
 
@@ -145,7 +147,7 @@ export default function CreatePostPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: content.trim() || (imageUrls.length > 0 ? 'Posted images' : 'Shared a link'),
+          content: content.trim() || (imageUrls.length > 0 ? t('postedImages') : t('sharedLink')),
           imageUrls,
           postUrl: postUrl.trim() || null,
           allowSharing
@@ -153,16 +155,16 @@ export default function CreatePostPage() {
       })
 
       if (response.ok) {
-        toast.success('Post created successfully!')
+        toast.success(t('postCreatedSuccessfully'))
         // Redirect back to community page
         router.push('/community')
       } else {
         const error = await response.json()
-        toast.error(error.error || 'Failed to create post')
+        toast.error(error.error || t('failedToCreatePost'))
       }
     } catch (error) {
       console.error('Error creating post:', error)
-      toast.error('Failed to create post. Please try again.')
+      toast.error(t('failedToCreatePostRetry'))
     } finally {
       setIsPosting(false)
       setIsUploadingImages(false)
@@ -192,7 +194,7 @@ export default function CreatePostPage() {
               <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span className="font-medium">Back to Community</span>
+              <span className="font-medium">{t('backToCommunity')}</span>
             </button>
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Create Post
@@ -225,7 +227,7 @@ export default function CreatePostPage() {
               )}
               <div>
                 <p className="font-semibold text-gray-900">{profile?.name || 'User'}</p>
-                <p className="text-sm text-gray-500">Posting to Community</p>
+                <p className="text-sm text-gray-500">{t('postingToCommunity')}</p>
               </div>
             </div>
           </div>
@@ -313,7 +315,7 @@ export default function CreatePostPage() {
                     ref={textareaRef}
                     value={content}
                     onChange={handleContentChange}
-                    placeholder="What's on your mind? Share your thoughts, ask questions, or start a discussion..."
+                    placeholder={t('whatsOnYourMindPlaceholder')}
                     className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all text-gray-900 placeholder-gray-400 min-h-[200px] text-lg"
                     rows={8}
                     maxLength={5000}
@@ -381,7 +383,7 @@ export default function CreatePostPage() {
                       <textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder="Share your thoughts about this link..."
+                        placeholder={t('shareLinkPlaceholder')}
                         className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all text-gray-900 placeholder-gray-400 min-h-[120px]"
                         rows={4}
                         maxLength={5000}
@@ -454,7 +456,7 @@ export default function CreatePostPage() {
                               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                               </svg>
-                              <span className="text-sm text-gray-600">Add more</span>
+                              <span className="text-sm text-gray-600">{t('addMore')}</span>
                             </div>
                           </label>
                         )}
@@ -469,7 +471,7 @@ export default function CreatePostPage() {
                       <textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder="Describe your images..."
+                        placeholder={t('describeImagesPlaceholder')}
                         className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all text-gray-900 placeholder-gray-400 min-h-[100px]"
                         rows={3}
                         maxLength={5000}
@@ -490,8 +492,8 @@ export default function CreatePostPage() {
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                 />
                 <div>
-                  <span className="font-medium text-gray-900">Allow sharing</span>
-                  <p className="text-sm text-gray-500">Others can share your post</p>
+                  <span className="font-medium text-gray-900">{t('allowSharing')}</span>
+                  <p className="text-sm text-gray-500">{t('allowSharingDescription')}</p>
                 </div>
               </label>
             </div>

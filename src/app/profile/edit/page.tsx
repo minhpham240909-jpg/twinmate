@@ -180,13 +180,13 @@ export default function ProfilePage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file')
+      alert(t('pleaseUploadImageFile'))
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB')
+      alert(t('imageSizeLimit'))
       return
     }
 
@@ -211,14 +211,14 @@ export default function ProfilePage() {
       })
 
       if (!response.ok) {
-        throw new Error('Upload failed')
+        throw new Error(t('uploadFailed'))
       }
 
       const data = await response.json()
       setFormData({ ...formData, avatarUrl: data.url })
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Failed to upload image. Please try again.')
+      alert(t('failedToUploadImage'))
     } finally {
       setIsUploading(false)
     }
@@ -264,7 +264,7 @@ export default function ProfilePage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        const errorData = await response.json().catch(() => ({ error: t('unknownError') }))
         console.error('[CLIENT] Failed to save profile:', errorData)
         throw new Error(errorData.error || 'Failed to save profile')
       }
@@ -362,11 +362,11 @@ export default function ProfilePage() {
         }
       }
       
-      alert('Profile saved successfully!')
+      alert(t('profileSavedSuccessfully'))
       router.push('/dashboard')
     } catch (error) {
       console.error('Save error:', error)
-      alert(`Failed to save profile: ${error instanceof Error ? error.message : 'Please try again.'}`)
+      alert(`${t('failedToSaveProfile')}: ${error instanceof Error ? error.message : tCommon('pleaseTryRefreshing')}`)
     } finally {
       setIsSaving(false)
     }
@@ -463,7 +463,7 @@ export default function ProfilePage() {
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter your name"
+                placeholder={t('enterYourName')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -476,7 +476,7 @@ export default function ProfilePage() {
               <textarea
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                placeholder="Tell others about yourself and your learning goals..."
+                placeholder={t('tellOthersAboutYourself')}
                 rows={4}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -495,7 +495,7 @@ export default function ProfilePage() {
                   max="150"
                   value={formData.age || ''}
                   onChange={(e) => setFormData({ ...formData, age: e.target.value ? parseInt(e.target.value) : undefined })}
-                  placeholder="Enter your age"
+                  placeholder={t('enterYourAge')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -555,7 +555,7 @@ export default function ProfilePage() {
                   value={customInputs.subject}
                   onChange={(e) => setCustomInputs({ ...customInputs, subject: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomItem('subject')}
-                  placeholder="Add custom subject..."
+                  placeholder={t('addCustomSubject')}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
                 <button
@@ -607,7 +607,7 @@ export default function ProfilePage() {
                   value={customInputs.interest}
                   onChange={(e) => setCustomInputs({ ...customInputs, interest: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomItem('interest')}
-                  placeholder="Add custom interest..."
+                  placeholder={t('addCustomInterest')}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                 />
                 <button
@@ -659,7 +659,7 @@ export default function ProfilePage() {
                   value={customInputs.goal}
                   onChange={(e) => setCustomInputs({ ...customInputs, goal: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomItem('goal')}
-                  placeholder="Add custom goal..."
+                  placeholder={t('addCustomGoal')}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                 />
                 <button
@@ -735,7 +735,7 @@ export default function ProfilePage() {
                 type="text"
                 value={formData.skillLevelDescription}
                 onChange={(e) => setFormData({ ...formData, skillLevelDescription: e.target.value })}
-                placeholder="Describe your skill level (e.g., Beginner, Intermediate, Advanced)..."
+                placeholder={t('describeSkillLevel')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -758,7 +758,7 @@ export default function ProfilePage() {
                 type="text"
                 value={formData.studyStyleDescription}
                 onChange={(e) => setFormData({ ...formData, studyStyleDescription: e.target.value })}
-                placeholder="Describe your study style (optional)..."
+                placeholder={t('describeStudyStyle')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
@@ -790,13 +790,13 @@ export default function ProfilePage() {
                 type="text"
                 value={formData.availableHours}
                 onChange={(e) => setFormData({ ...formData, availableHours: e.target.value })}
-                placeholder="Typical hours (e.g., '6-9 PM' or 'Mornings')"
+                placeholder={t('typicalHours')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm mb-2"
               />
               <textarea
                 value={formData.availabilityDescription}
                 onChange={(e) => setFormData({ ...formData, availabilityDescription: e.target.value })}
-                placeholder="Describe your availability in detail (e.g., 'Flexible on weekends, prefer evening sessions during weekdays')..."
+                placeholder={t('describeAvailability')}
                 rows={2}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
@@ -831,7 +831,7 @@ export default function ProfilePage() {
                         value={customInputs.aboutYourselfItem}
                         onChange={(e) => setCustomInputs({ ...customInputs, aboutYourselfItem: e.target.value })}
                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem('aboutYourselfItem'))}
-                        placeholder="Add a tag..."
+                        placeholder={t('addTag')}
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       <button
@@ -871,7 +871,7 @@ export default function ProfilePage() {
                     <textarea
                       value={formData.aboutYourself}
                       onChange={(e) => setFormData({ ...formData, aboutYourself: e.target.value })}
-                      placeholder="Example: I'm looking for a co-founder to build an AI-powered EdTech startup. I have 5 years of experience in React and Python, and I'm passionate about making education accessible. Also open to finding study partners for machine learning courses..."
+                      placeholder={t('aboutYourselfPlaceholder')}
                       rows={6}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />

@@ -143,17 +143,17 @@ export default function StudySessionsPage() {
       const data = await res.json()
 
       if (data.success) {
-        toast.success('Invitation accepted! Redirecting to session...')
+        toast.success(t('invitationAccepted'))
         // Remove from pending invites
         setPendingInvites(prev => prev.filter(inv => inv.sessionId !== sessionId))
         // Auto-redirect to lobby or call based on session status
         router.push(`/study-sessions/${sessionId}/lobby`)
       } else {
-        toast.error(data.error || 'Failed to accept invitation')
+        toast.error(data.error || t('failedToAcceptInvitation'))
       }
     } catch (error) {
       console.error('Error accepting invitation:', error)
-      toast.error('Failed to accept invitation')
+      toast.error(t('failedToAcceptInvitation'))
     } finally {
       setProcessingInvite(null)
     }
@@ -169,22 +169,22 @@ export default function StudySessionsPage() {
       const data = await res.json()
 
       if (data.success) {
-        toast.success('Invitation declined')
+        toast.success(t('invitationDeclinedSuccess'))
         // Remove from pending invites
         setPendingInvites(prev => prev.filter(inv => inv.sessionId !== sessionId))
       } else {
-        toast.error(data.error || 'Failed to decline invitation')
+        toast.error(data.error || t('failedToDeclineInvitation'))
       }
     } catch (error) {
       console.error('Error declining invitation:', error)
-      toast.error('Failed to decline invitation')
+      toast.error(t('failedToDeclineInvitation'))
     } finally {
       setProcessingInvite(null)
     }
   }
 
   const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this session from your history?')) {
+    if (!confirm(t('confirmDeleteSession'))) {
       return
     }
 
@@ -197,18 +197,18 @@ export default function StudySessionsPage() {
       const data = await res.json()
 
       if (data.success) {
-        toast.success('Session deleted successfully')
+        toast.success(t('sessionDeletedSuccessfully'))
         // Remove from sessions list
         setSessions(prev => prev.filter(session => session.id !== sessionId))
         // Update localStorage
         const updatedSessions = sessions.filter(session => session.id !== sessionId)
         localStorage.setItem('studySessions', JSON.stringify(updatedSessions))
       } else {
-        toast.error(data.error || 'Failed to delete session')
+        toast.error(data.error || t('failedToDeleteSession'))
       }
     } catch (error) {
       console.error('Error deleting session:', error)
-      toast.error('Failed to delete session')
+      toast.error(t('failedToDeleteSession'))
     } finally {
       setDeletingSession(null)
     }
@@ -481,7 +481,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
 
   const handleCreate = async () => {
     if (!title) {
-      toast.error('Please enter a title')
+      toast.error(t('pleaseEnterTitle'))
       return
     }
 
@@ -502,14 +502,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
       const data = await res.json()
 
       if (data.success) {
-        toast.success('Session created!')
+        toast.success(t('sessionCreated'))
         onSuccess(data.session.id)
       } else {
-        toast.error(data.error || 'Failed to create session')
+        toast.error(data.error || t('failedToCreateSession'))
       }
     } catch (error) {
       console.error('Error creating session:', error)
-      toast.error('Failed to create session')
+      toast.error(t('failedToCreateSession'))
     } finally {
       setCreating(false)
     }

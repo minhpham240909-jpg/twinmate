@@ -45,6 +45,7 @@ function ChatPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('messages')
+  const tChat = useTranslations('chat')
   const tCommon = useTranslations('common')
   // Load cached conversations immediately from localStorage
   const [conversations, setConversations] = useState<Conversation[]>(() => {
@@ -448,7 +449,7 @@ function ChatPageContent() {
 
   // Delete message
   const handleDeleteMessage = async (messageId: string) => {
-    if (!confirm('Are you sure you want to delete this message?')) {
+    if (!confirm(t('confirmDeleteMessage'))) {
       return
     }
 
@@ -478,11 +479,11 @@ function ChatPageContent() {
           localStorage.setItem(cacheKey, JSON.stringify(updatedMessages))
         }
       } else {
-        alert(data.error || 'Failed to delete message')
+        alert(data.error || t('failedToDeleteMessage'))
       }
     } catch (error) {
       console.error('Error deleting message:', error)
-      alert('Failed to delete message')
+      alert(t('failedToDeleteMessage'))
     }
   }
 
@@ -517,11 +518,11 @@ function ChatPageContent() {
         // Start the video call interface
         setIsInCall(true)
       } else {
-        alert(callMessageData.error || 'Failed to start call')
+        alert(callMessageData.error || t('failedToStartCall'))
       }
     } catch (error) {
       console.error('Error starting call:', error)
-      alert('Failed to start call. Please try again.')
+      alert(t('failedToStartCall'))
     }
   }
 
@@ -555,7 +556,7 @@ function ChatPageContent() {
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
 
-    if (minutes < 1) return 'Just now'
+    if (minutes < 1) return tChat('justNow')
     if (minutes < 60) return `${minutes}m ago`
     if (hours < 24) return `${hours}h ago`
     return `${days}d ago`
@@ -575,13 +576,13 @@ function ChatPageContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Messages</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('title')}</h1>
           </div>
           <button
             onClick={() => router.push('/dashboard')}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
           >
-            Back to Dashboard
+            {tCommon('backToDashboard')}
           </button>
         </div>
       </header>
@@ -846,7 +847,7 @@ function ChatPageContent() {
                           <button
                             onClick={scrollToBottom}
                             className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200"
-                            aria-label="Scroll to bottom"
+                            aria-label={tChat('scrollToBottom')}
                           >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />

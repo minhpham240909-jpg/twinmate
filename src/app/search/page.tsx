@@ -99,7 +99,7 @@ export default function SearchPage() {
 
       if (!response.ok) {
         // Show the actual error message from the API
-        const errorMessage = data.details || data.error || 'Search failed'
+        const errorMessage = data.details || data.error || t('searchFailed')
         throw new Error(errorMessage)
       }
 
@@ -163,13 +163,13 @@ export default function SearchPage() {
       if (!response.ok) {
         // Handle specific error cases - these are expected, so don't restore partner
         if (data.error === 'Connection request already sent') {
-          toast.error('You have already sent a connection request to this user. Please wait for their response.')
+          toast.error(t('alreadySentRequest'))
           return
         } else if (data.error === 'You are already connected with this user') {
-          toast.error('You are already connected with this user!')
+          toast.error(t('alreadyConnected'))
           return
         } else if (data.error === 'This user has already sent you a request') {
-          toast('This user has already sent you a connection request! Check your notifications.', { icon: '📬' })
+          toast(t('userAlreadySentRequest'), { icon: '📬' })
           return
         } else {
           // Unexpected error - restore the partner
@@ -177,10 +177,10 @@ export default function SearchPage() {
         }
       }
 
-      toast.success('Connection request sent!')
+      toast.success(t('connectionRequestSent'))
     } catch (error) {
       console.error('Connection request error:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to send connection request')
+      toast.error(error instanceof Error ? error.message : t('failedToSendConnectionRequest'))
 
       // Restore the partner to the list on unexpected errors
       if (partnerToRemove) {
@@ -287,7 +287,7 @@ export default function SearchPage() {
 
       if (!response.ok) {
         // Show the actual error message from the API
-        const errorMessage = data.details || data.error || 'Search failed'
+        const errorMessage = data.details || data.error || t('searchFailed')
         throw new Error(errorMessage)
       }
 
@@ -354,7 +354,7 @@ export default function SearchPage() {
             onClick={() => router.push('/dashboard')}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
           >
-            Back to Dashboard
+            {tCommon('backToDashboard')}
           </button>
         </div>
       </header>
@@ -416,7 +416,7 @@ export default function SearchPage() {
                       onClick={() => setShowSubjectDescription(!showSubjectDescription)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      {showSubjectDescription ? 'Hide info' : 'Show info'}
+                      {showSubjectDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showSubjectDescription && (
@@ -440,7 +440,7 @@ export default function SearchPage() {
                   <textarea
                     value={subjectCustomDescription}
                     onChange={(e) => setSubjectCustomDescription(e.target.value)}
-                    placeholder="Add custom description for subjects you're looking for..."
+                    placeholder={t('subjectCustomDescPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
                   />
@@ -456,7 +456,7 @@ export default function SearchPage() {
                       onClick={() => setShowSkillLevelDescription(!showSkillLevelDescription)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      {showSkillLevelDescription ? 'Hide info' : 'Show info'}
+                      {showSkillLevelDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showSkillLevelDescription && (
@@ -479,7 +479,7 @@ export default function SearchPage() {
                   <textarea
                     value={skillLevelCustomDescription}
                     onChange={(e) => setSkillLevelCustomDescription(e.target.value)}
-                    placeholder="Add custom description for skill level you're looking for..."
+                    placeholder={t('skillLevelCustomDescPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
                   />
@@ -495,7 +495,7 @@ export default function SearchPage() {
                       onClick={() => setShowStudyStyleDescription(!showStudyStyleDescription)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      {showStudyStyleDescription ? 'Hide info' : 'Show info'}
+                      {showStudyStyleDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showStudyStyleDescription && (
@@ -516,7 +516,7 @@ export default function SearchPage() {
                   <textarea
                     value={studyStyleCustomDescription}
                     onChange={(e) => setStudyStyleCustomDescription(e.target.value)}
-                    placeholder="Add custom description for study style you're looking for..."
+                    placeholder={t('studyStyleCustomDescPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs"
                   />
@@ -532,7 +532,7 @@ export default function SearchPage() {
                       onClick={() => setShowInterestsDescription(!showInterestsDescription)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      {showInterestsDescription ? 'Hide info' : 'Show info'}
+                      {showInterestsDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showInterestsDescription && (
@@ -556,7 +556,7 @@ export default function SearchPage() {
                   <textarea
                     value={interestsCustomDescription}
                     onChange={(e) => setInterestsCustomDescription(e.target.value)}
-                    placeholder="Add custom description for learning interests you're looking for..."
+                    placeholder={t('interestsCustomDescPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-xs"
                   />
@@ -572,7 +572,7 @@ export default function SearchPage() {
                       onClick={() => setShowAvailabilityDescription(!showAvailabilityDescription)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      {showAvailabilityDescription ? 'Hide info' : 'Show info'}
+                      {showAvailabilityDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showAvailabilityDescription && (
@@ -596,7 +596,7 @@ export default function SearchPage() {
                   <textarea
                     value={availabilityCustomDescription}
                     onChange={(e) => setAvailabilityCustomDescription(e.target.value)}
-                    placeholder="Add custom description for availability you're looking for..."
+                    placeholder={t('availabilityCustomDescPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
                   />
@@ -605,31 +605,31 @@ export default function SearchPage() {
                 {/* School Filter */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    School / University
+                    {t('schoolUniversity')}
                   </label>
                   <textarea
                     value={schoolFilter}
                     onChange={(e) => setSchoolFilter(e.target.value)}
-                    placeholder="e.g., Harvard, MIT, Stanford..."
+                    placeholder={t('schoolPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Find partners from the same school</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('findPartnersFromSameSchool')}</p>
                 </div>
 
                 {/* Languages Filter */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Languages
+                    {t('languages')}
                   </label>
                   <textarea
                     value={languagesFilter}
                     onChange={(e) => setLanguagesFilter(e.target.value)}
-                    placeholder="e.g., English, Spanish, Mandarin..."
+                    placeholder={t('languagesPlaceholder')}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Find partners who speak these languages</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('findPartnersWhoSpeak')}</p>
                 </div>
 
                 <button
@@ -648,21 +648,21 @@ export default function SearchPage() {
               <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Available Study Partners {partners.length > 0 && `(${partners.length})`}
+                    {t('availableStudyPartners')} {partners.length > 0 && `(${partners.length})`}
                   </h2>
                   <button
                     onClick={loadRandomPartners}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                    title="Load new random partners"
+                    title={t('loadNewRandomPartners')}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Refresh
+                    {t('refresh')}
                   </button>
                 </div>
                 <p className="text-sm text-gray-600">
-                  Connect with learners who share your interests and goals
+                  {t('connectWithLearners')}
                 </p>
               </div>
 

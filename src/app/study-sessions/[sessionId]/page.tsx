@@ -131,12 +131,12 @@ export default function SessionRoomPage() {
         // Cache session data for instant return
         localStorage.setItem(`session_${sessionId}`, JSON.stringify(data.session))
       } else {
-        toast.error(data.error || 'Failed to load session')
+        toast.error(data.error || t('failedToLoadSession'))
         router.push('/study-sessions')
       }
     } catch (error) {
       console.error('Error fetching session:', error)
-      toast.error('Failed to load session')
+      toast.error(t('failedToLoadSession'))
     } finally {
       setLoadingSession(false)
     }
@@ -216,20 +216,20 @@ export default function SessionRoomPage() {
         localStorage.removeItem(`session_${sessionId}`)
 
         if (data.action === 'deleted') {
-          toast.success('Session ended (no participants left)')
+          toast.success(t('sessionEndedNoParticipants'))
         } else if (data.action === 'left_transferred') {
-          toast.success(`Left session. ${data.newHost.name} is now the host.`)
+          toast.success(t('leftSessionTransferred', { name: data.newHost.name }))
         } else {
-          toast.success('Left session successfully')
+          toast.success(t('leftSessionSuccessfully'))
         }
 
         router.push('/study-sessions')
       } else {
-        toast.error(data.error || 'Failed to leave session')
+        toast.error(data.error || t('failedToLeaveSession'))
       }
     } catch (error) {
       console.error('Error leaving session:', error)
-      toast.error('Failed to leave session')
+      toast.error(t('failedToLeaveSession'))
     } finally {
       setIsLeaving(false)
       setShowLeaveModal(false)
@@ -264,18 +264,18 @@ export default function SessionRoomPage() {
       const data = await res.json()
 
       if (data.success) {
-        toast.success('Session ended!')
+        toast.success(t('sessionEnded'))
         // Clear active session from context
         setActiveSessionId(null)
         // Clear cached session data
         localStorage.removeItem(`session_${sessionId}`)
         router.push('/study-sessions')
       } else {
-        toast.error(data.error || 'Failed to end session')
+        toast.error(data.error || t('failedToEndSession'))
       }
     } catch (error) {
       console.error('Error ending session:', error)
-      toast.error('Failed to end session')
+      toast.error(t('failedToEndSession'))
     }
   }
 
@@ -505,9 +505,9 @@ export default function SessionRoomPage() {
                               <p className="text-xs text-gray-500">{participant.role}</p>
                             </div>
                             {onlineUsers.has(participant.userId) ? (
-                              <span className="w-2 h-2 bg-green-500 rounded-full" title="Online"></span>
+                              <span className="w-2 h-2 bg-green-500 rounded-full" title={tCommon('online')}></span>
                             ) : (
-                              <span className="w-2 h-2 bg-gray-300 rounded-full" title="Offline"></span>
+                              <span className="w-2 h-2 bg-gray-300 rounded-full" title={tCommon('offline')}></span>
                             )}
                           </div>
                         ))}
@@ -754,7 +754,7 @@ function InvitePartnersModal({
 
   const handleInvite = async () => {
     if (selectedInvites.length === 0) {
-      toast.error('Please select at least one partner to invite')
+      toast.error(t('pleaseSelectPartnerToInvite'))
       return
     }
 
@@ -771,14 +771,14 @@ function InvitePartnersModal({
       const data = await res.json()
 
       if (data.success) {
-        toast.success(`Invited ${selectedInvites.length} partner${selectedInvites.length > 1 ? 's' : ''}!`)
+        toast.success(selectedInvites.length > 1 ? t('invitedPartnersPlural', { count: selectedInvites.length }) : t('invitedPartners', { count: selectedInvites.length }))
         onSuccess()
       } else {
-        toast.error(data.error || 'Failed to send invitations')
+        toast.error(data.error || t('failedToSendInvitations'))
       }
     } catch (error) {
       console.error('Error inviting partners:', error)
-      toast.error('Failed to send invitations')
+      toast.error(t('failedToSendInvitations'))
     } finally {
       setInviting(false)
     }

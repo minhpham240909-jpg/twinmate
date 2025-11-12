@@ -302,17 +302,17 @@ export default function DashboardPage() {
 
     // Check subjects
     if (partner.subjects?.some(s => s.toLowerCase().includes(searchLower))) {
-      matchingFields.push('Subjects')
+      matchingFields.push(t('subjects'))
     }
 
     // Check bio
     if (partner.bio?.toLowerCase().includes(searchLower)) {
-      matchingFields.push('Bio')
+      matchingFields.push(t('bio'))
     }
 
     // Check interests
     if (partner.interests?.some(i => i.toLowerCase().includes(searchLower))) {
-      matchingFields.push('Interests')
+      matchingFields.push(t('interests'))
     }
 
     return matchingFields
@@ -325,17 +325,17 @@ export default function DashboardPage() {
 
     // Check subject
     if (group.subject?.toLowerCase().includes(searchLower)) {
-      matchingFields.push('Subject')
+      matchingFields.push(t('subject'))
     }
 
     // Check description
     if (group.description?.toLowerCase().includes(searchLower)) {
-      matchingFields.push('Description')
+      matchingFields.push(t('description'))
     }
 
     // Check group name
     if (group.name?.toLowerCase().includes(searchLower)) {
-      matchingFields.push('Name')
+      matchingFields.push(t('name'))
     }
 
     return matchingFields
@@ -355,7 +355,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your profile...</p>
+          <p className="text-gray-600">{t('loadingProfile')}</p>
         </div>
       </div>
     )
@@ -376,13 +376,13 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to load profile</h2>
-          <p className="text-gray-600 mb-6">We couldn't load your profile. Please try refreshing the page.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{tCommon('failedToLoad')}</h2>
+          <p className="text-gray-600 mb-6">{tCommon('pleaseTryRefreshing')}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition"
           >
-            Refresh Page
+            {tCommon('refreshPage')}
           </button>
         </div>
       </div>
@@ -411,7 +411,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            Home
+            {tCommon('navigation.home')}
           </button>
 
           <button
@@ -421,7 +421,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Study with Partner
+            {tCommon('navigation.studyWithPartner')}
             {pendingInvitesCount > 0 && (
               <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {pendingInvitesCount}
@@ -436,7 +436,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
-            Chat
+            {tCommon('navigation.chat')}
             {unreadCount > 0 && (
               <span className="ml-auto w-2 h-2 bg-red-600 rounded-full"></span>
             )}
@@ -449,7 +449,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            Connection Requests
+            {t('connectionRequests')}
             {connectionRequestsCount > 0 && (
               <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {connectionRequestsCount}
@@ -464,7 +464,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            Find Partner
+            {tCommon('navigation.findPartner')}
           </button>
 
           <button
@@ -474,7 +474,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            Study Groups
+            {tCommon('navigation.studyGroups')}
           </button>
 
           <button
@@ -484,7 +484,7 @@ export default function DashboardPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Community
+            {tCommon('navigation.community')}
           </button>
         </nav>
 
@@ -499,14 +499,14 @@ export default function DashboardPage() {
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{profile.name}</p>
-                <p className="text-xs text-gray-600">{profile.role || 'FREE'} Account</p>
+                <p className="text-xs text-gray-600">{profile.role === 'PREMIUM' ? tCommon('premiumAccount') : tCommon('freeAccount')}</p>
               </div>
             </div>
             <button
               onClick={() => router.push('/profile')}
               className="w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
             >
-              View Profile
+              {t('viewProfile')}
             </button>
           </div>
         </div>
@@ -555,7 +555,7 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <span className="px-3 py-1 bg-white/30 backdrop-blur-md text-xs font-bold rounded-full shadow-lg">
-                    NEW
+                    {t('new')}
                   </span>
                 </div>
                 <h2 className="text-2xl font-bold mb-2">{t('clervaAI')}</h2>
@@ -580,7 +580,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-3xl font-black tracking-tight">{partnersCount}</p>
-                      <p className="text-blue-50 text-sm font-medium">Study Partners</p>
+                      <p className="text-blue-50 text-sm font-medium">{t('studyPartners')}</p>
                     </div>
                   </div>
                   <svg className="w-5 h-5 text-blue-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -604,7 +604,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-3xl font-black tracking-tight">{profile.studyStreak || 0}</p>
-                      <p className="text-purple-50 text-sm font-medium">Day Streak</p>
+                      <p className="text-purple-50 text-sm font-medium">{t('dayStreak')}</p>
                     </div>
                   </div>
                   <svg className="w-5 h-5 text-purple-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -628,7 +628,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-3xl font-black tracking-tight">{formatStudyHours(profile.totalStudyHours || 0)}</p>
-                      <p className="text-green-50 text-sm font-medium">Study Hours</p>
+                      <p className="text-green-50 text-sm font-medium">{t('studyHours')}</p>
                     </div>
                   </div>
                   <svg className="w-5 h-5 text-green-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -669,7 +669,7 @@ export default function DashboardPage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for partners and groups..."
+                      placeholder={t('searchPlaceholder')}
                       className="flex-1 px-2 py-3 text-base border-0 focus:ring-0 focus:outline-none text-gray-900 placeholder-gray-400 bg-transparent"
                     />
                     
@@ -722,7 +722,7 @@ export default function DashboardPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                           </svg>
                         </div>
-                        <h3 className="font-bold text-gray-900 text-lg">Partners</h3>
+                        <h3 className="font-bold text-gray-900 text-lg">{t('partners')}</h3>
                         <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">{searchResults.partners.length}</span>
                       </div>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -748,13 +748,13 @@ export default function DashboardPage() {
                                   <p className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">{partner.user.name}</p>
                                   {isAlreadyPartner && (
                                     <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full whitespace-nowrap">
-                                      Already Partnered
+                                      {t('alreadyPartnered')}
                                     </span>
                                   )}
                                 </div>
                                 {matchingFields.length > 0 ? (
                                   <p className="text-xs text-blue-600 truncate">
-                                    Matches in: {matchingFields.join(', ')}
+                                    {t('matchesIn')} {matchingFields.join(', ')}
                                   </p>
                                 ) : partner.subjects.length > 0 ? (
                                   <p className="text-xs text-gray-600 truncate">{partner.subjects.slice(0, 2).join(', ')}</p>
@@ -779,7 +779,7 @@ export default function DashboardPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
                         </div>
-                        <h3 className="font-bold text-gray-900 text-lg">Groups</h3>
+                        <h3 className="font-bold text-gray-900 text-lg">{t('groups')}</h3>
                         <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">{searchResults.groups.length}</span>
                       </div>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -801,16 +801,16 @@ export default function DashboardPage() {
                                   <p className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{group.name}</p>
                                   {isMember && (
                                     <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full whitespace-nowrap">
-                                      Already in Group
+                                      {t('alreadyInGroup')}
                                     </span>
                                   )}
                                 </div>
                                 {matchingFields.length > 0 ? (
                                   <p className="text-xs text-indigo-600 truncate">
-                                    Matches in: {matchingFields.join(', ')}
+                                    {t('matchesIn')} {matchingFields.join(', ')}
                                   </p>
                                 ) : (
-                                  <p className="text-xs text-gray-600 truncate">{group.subject} • {group.memberCount} members</p>
+                                  <p className="text-xs text-gray-600 truncate">{group.subject} • {group.memberCount} {t('members')}</p>
                                 )}
                               </div>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -834,7 +834,7 @@ export default function DashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg">Online Partners</h3>
+                <h3 className="font-bold text-gray-900 text-lg">{t('onlinePartners')}</h3>
                 {!loadingOnlinePartners && onlinePartners.length > 0 && (
                   <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
                     {onlinePartners.length}
@@ -846,7 +846,7 @@ export default function DashboardPage() {
               {loadingOnlinePartners ? (
                 <div className="py-12 text-center min-h-[280px] flex flex-col items-center justify-center">
                   <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-600">Loading...</p>
+                  <p className="text-sm text-gray-600">{tCommon('loading')}</p>
                 </div>
               ) : onlinePartners.length === 0 ? (
                 /* Empty State */
@@ -856,7 +856,7 @@ export default function DashboardPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
-                  <p className="text-gray-600 font-medium">No partner is online now</p>
+                  <p className="text-gray-600 font-medium">{t('noPartnerOnline')}</p>
                 </div>
               ) : (
                 /* Online Partners List */
@@ -894,8 +894,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-4">
                 <div className="text-4xl">🎯</div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 mb-1">Ready to start your study journey?</h3>
-                  <p className="text-sm text-gray-600">Connect with study partners and create your first study session today!</p>
+                  <h3 className="font-bold text-gray-900 mb-1">{t('readyToStartJourney')}</h3>
+                  <p className="text-sm text-gray-600">{t('connectWithPartners')}</p>
                 </div>
                 <button
                   onClick={handleCompleteProfile}

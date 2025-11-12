@@ -34,7 +34,7 @@ interface Partner {
 export default function PartnersPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const t = useTranslations('partners')
+  const t = useTranslations('dashboard')
   const [partners, setPartners] = useState<Partner[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -55,7 +55,7 @@ export default function PartnersPage() {
         setPartners(data.partners || [])
       } catch (error) {
         console.error('Error fetching partners:', error)
-        toast.error('Failed to load study partners')
+        toast.error(t('failedToLoadPartners'))
       } finally {
         setIsLoading(false)
       }

@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { useTranslations } from 'next-intl'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const t = useTranslations('auth')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -16,12 +18,12 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     
     if (password !== confirmPassword) {
-      toast.error("Passwords don't match")
+      toast.error(t('passwordsDontMatch'))
       return
     }
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters')
+      toast.error(t('passwordMinLength'))
       return
     }
 
@@ -37,17 +39,17 @@ export default function ResetPasswordPage() {
       const data = await res.json()
 
       if (res.ok) {
-        toast.success('Password updated successfully!')
+        toast.success(t('passwordUpdatedSuccessfully'))
         // Redirect to signin after 2 seconds
         setTimeout(() => {
           router.push('/auth/signin')
         }, 2000)
       } else {
-        toast.error(data.error || 'Failed to reset password')
+        toast.error(data.error || t('failedToResetPassword'))
       }
     } catch (error) {
       console.error('Reset password error:', error)
-      toast.error('Failed to reset password. Please try again.')
+      toast.error(t('failedToResetPassword'))
     } finally {
       setIsLoading(false)
     }
@@ -79,7 +81,7 @@ export default function ResetPasswordPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder={t('enterNewPassword')}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
                 required
                 disabled={isLoading}
@@ -114,7 +116,7 @@ export default function ResetPasswordPage() {
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
+              placeholder={t('confirmNewPassword')}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
               disabled={isLoading}

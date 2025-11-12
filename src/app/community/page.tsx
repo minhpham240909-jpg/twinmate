@@ -235,10 +235,10 @@ export default function CommunityPage() {
 
   const copyShareLink = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
-      alert('Share link copied to clipboard!')
+      alert(t('shareLinkCopied'))
     }).catch(err => {
       console.error('Failed to copy:', err)
-      alert('Failed to copy link. Please try again.')
+      alert(t('failedToCopyLink'))
     })
   }
 
@@ -385,16 +385,16 @@ export default function CommunityPage() {
         setEditContent('')
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to edit post')
+        alert(error.error || t('failedToEditPost'))
       }
     } catch (error) {
       console.error('Error editing post:', error)
-      alert('Failed to edit post')
+      alert(t('failedToEditPost'))
     }
   }
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm('This post will be deleted for 30 days. You can restore it anytime before permanent deletion.')) {
+    if (!confirm(t('confirmDeletePost'))) {
       return
     }
 
@@ -409,14 +409,14 @@ export default function CommunityPage() {
         setPosts(prev => prev.filter(post => post.id !== postId))
         setSearchResults(prev => prev.filter(post => post.id !== postId))
         setPopularPosts(prev => prev.filter(post => post.id !== postId))
-        alert(data.message || 'Post moved to history. You can restore it within 30 days.')
+        alert(data.message || t('postMovedToHistory'))
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to delete post')
+        alert(error.error || t('failedToDeletePostAlert'))
       }
     } catch (error) {
       console.error('Error deleting post:', error)
-      alert('Failed to delete post')
+      alert(t('failedToDeletePostAlert'))
     }
   }
 
@@ -470,7 +470,7 @@ export default function CommunityPage() {
       }
     } catch (error) {
       console.error('Error sending connection:', error)
-      alert('Failed to send connection request')
+      alert(t('failedToSendConnectionRequest'))
     } finally {
       setConnectingPostIds(prev => {
         const newSet = new Set(prev)
@@ -677,7 +677,7 @@ export default function CommunityPage() {
                   <button
                     onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
-                    title="More options"
+                    title={t('moreOptions')}
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -904,7 +904,7 @@ export default function CommunityPage() {
                     onClick={() => router.push('/community/create')}
                     className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
                   >
-                    Create First Post
+                    {t('createFirstPost')}
                   </button>
                 )}
               </div>
@@ -959,7 +959,7 @@ export default function CommunityPage() {
         whileTap={{ scale: 0.95 }}
         onClick={() => router.push('/community/create')}
         className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center z-50 transition-all group"
-        aria-label="Create new post"
+        aria-label={t('createNewPost')}
       >
         <svg className="w-8 h-8 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />

@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { useTranslations } from 'next-intl'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
+  const t = useTranslations('auth')
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
@@ -15,7 +17,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     
     if (!email) {
-      toast.error('Please enter your email address')
+      toast.error(t('pleaseEnterEmail'))
       return
     }
 
@@ -32,13 +34,13 @@ export default function ForgotPasswordPage() {
 
       if (res.ok) {
         setEmailSent(true)
-        toast.success('Password reset email sent! Check your inbox.')
+        toast.success(t('passwordResetEmailSent'))
       } else {
-        toast.error(data.error || 'Failed to send reset email')
+        toast.error(data.error || t('failedToSendResetEmail'))
       }
     } catch (error) {
       console.error('Forgot password error:', error)
-      toast.error('Failed to send reset email. Please try again.')
+      toast.error(t('failedToSendResetEmail'))
     } finally {
       setIsLoading(false)
     }

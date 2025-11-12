@@ -111,14 +111,14 @@ export default function UserProfilePage() {
 
       if (response.ok) {
         await fetchUserProfile()
-        alert('Connection request sent!')
+        alert(t('connectionRequestSent'))
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to send connection request')
+        alert(error.error || t('failedToSendConnectionRequest'))
       }
     } catch (error) {
       console.error('Error sending connection:', error)
-      alert('Failed to send connection request')
+      alert(t('failedToSendConnectionRequest'))
     } finally {
       setSendingConnection(false)
     }
@@ -137,14 +137,14 @@ export default function UserProfilePage() {
 
       if (response.ok) {
         await fetchUserProfile()
-        alert('Connection request cancelled')
+        alert(t('connectionRequestCancelled'))
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to cancel connection')
+        alert(error.error || t('failedToCancelConnection'))
       }
     } catch (error) {
       console.error('Error cancelling connection:', error)
-      alert('Failed to cancel connection')
+      alert(t('failedToCancelConnection'))
     } finally {
       setSendingConnection(false)
     }

@@ -54,6 +54,7 @@ export default function StudyCallPage() {
   const sessionId = params.sessionId as string
   const supabase = createClient()
   const t = useTranslations('studySessions')
+  const tCommon = useTranslations('common')
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
@@ -79,19 +80,19 @@ export default function StudyCallPage() {
 
         // If COMPLETED or CANCELLED, redirect
         if (sess.status === 'COMPLETED' || sess.status === 'CANCELLED') {
-          toast.error('This session has ended')
+          toast.error(t('sessionHasEnded'))
           router.push('/study-sessions')
           return
         }
 
         setSession(sess)
       } else {
-        toast.error(data.error || 'Failed to load session')
+        toast.error(data.error || t('failedToLoadSession'))
         router.push('/study-sessions')
       }
     } catch (error) {
       console.error('Error fetching session:', error)
-      toast.error('Failed to load session')
+      toast.error(t('failedToLoadSession'))
     } finally {
       setLoadingSession(false)
     }
@@ -130,7 +131,7 @@ export default function StudyCallPage() {
           // Show toast notification
           const newParticipant = payload.new as { userId?: string }
           if (newParticipant.userId && newParticipant.userId !== user?.id) {
-            toast.success('Someone joined the session')
+            toast.success(t('someoneJoinedSession'))
           }
         }
       )
@@ -412,13 +413,13 @@ export default function StudyCallPage() {
               <button onClick={() => setActiveFeature('chat')} className="w-12 h-12 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center" title={t('chat')}>
                 <span className="text-xl">💬</span>
               </button>
-              <button onClick={() => setActiveFeature('flashcards')} className="w-12 h-12 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition flex items-center justify-center" title="Flashcards">
+              <button onClick={() => setActiveFeature('flashcards')} className="w-12 h-12 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition flex items-center justify-center" title={tCommon('flashcards')}>
                 <span className="text-xl">📚</span>
               </button>
-              <button onClick={() => setActiveFeature('notes')} className="w-12 h-12 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition flex items-center justify-center" title="Notes">
+              <button onClick={() => setActiveFeature('notes')} className="w-12 h-12 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition flex items-center justify-center" title={tCommon('notes')}>
                 <span className="text-xl">📝</span>
               </button>
-              <button onClick={() => setActiveFeature('whiteboard')} className="w-12 h-12 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition flex items-center justify-center" title="Whiteboard">
+              <button onClick={() => setActiveFeature('whiteboard')} className="w-12 h-12 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition flex items-center justify-center" title={tCommon('whiteboard')}>
                 <span className="text-xl">🎨</span>
               </button>
             </div>
