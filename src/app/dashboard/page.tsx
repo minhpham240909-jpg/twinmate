@@ -99,8 +99,11 @@ export default function DashboardPage() {
     avatarUrl: string | null
     onlineStatus: string
   }>>(() => getInitialOnlinePartners())
-  // Only show loading if we don't have cached data
-  const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(() => getInitialOnlinePartners().length === 0)
+  // Only show loading on very first visit when there's no cached data
+  const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(() => {
+    // Only show spinner if we have no cached data at all
+    return getInitialOnlinePartners().length === 0
+  })
 
   useUserSync()
 
