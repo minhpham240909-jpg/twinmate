@@ -135,10 +135,6 @@ export default function SettingsPage() {
   const [hasChanges, setHasChanges] = useState(false)
   const [initialSettings, setInitialSettings] = useState<UserSettings>(globalSettings)
 
-  // Post History state
-  const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
-  const [showDeletedPosts, setShowDeletedPosts] = useState(false)
-  const [loadingPosts, setLoadingPosts] = useState(false)
 
   // Redirect if not authenticated (use replace to prevent redirect loops)
   useEffect(() => {
@@ -157,72 +153,6 @@ export default function SettingsPage() {
     setInitialSettings(settingsWithLocation)
   }, [globalSettings, profile])
 
-  // Fetch deleted posts for Post History
-  useEffect(() => {
-    const fetchDeletedPosts = async () => {
-      if (!user || activeTab !== 'data') return
-
-      setLoadingPosts(true)
-      try {
-        const response = await fetch('/api/posts/deleted')
-        if (response.ok) {
-          const data = await response.json()
-          setDeletedPosts(data.posts || [])
-        }
-      } catch (error) {
-        console.error('Error fetching deleted posts:', error)
-      } finally {
-        setLoadingPosts(false)
-      }
-    }
-
-    fetchDeletedPosts()
-  }, [user, activeTab])
-
-  // Handle restore post
-  const handleRestorePost = async (postId: string) => {
-    try {
-      const response = await fetch(`/api/posts/${postId}/restore`, {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        toast.success(data.message || t('postRestored'))
-      } else {
-        const error = await response.json()
-        toast.error(error.error || t('postRestoreFailed'))
-      }
-    } catch (error) {
-      console.error('Error restoring post:', error)
-      toast.error(t('postRestoreFailed'))
-    }
-  }
-
-  // Handle permanently delete post
-  const handlePermanentlyDeletePost = async (postId: string) => {
-    if (!confirm(t('confirmPermanentDelete'))) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
-        toast.success(t('postPermanentlyDeleted'))
-      } else {
-        const error = await response.json()
-        toast.error(error.error || t('postDeleteFailed'))
-      }
-    } catch (error) {
-      console.error('Error permanently deleting post:', error)
-      toast.error(t('postDeleteFailed'))
-    }
-  }
 
   // Handle clear cache
   const handleClearCache = async () => {
@@ -604,12 +534,6 @@ export default function SettingsPage() {
                 <DataSettings
                   settings={settings}
                   updateSetting={updateSetting}
-                  deletedPosts={deletedPosts}
-                  showDeletedPosts={showDeletedPosts}
-                  setShowDeletedPosts={setShowDeletedPosts}
-                  loadingPosts={loadingPosts}
-                  handleRestorePost={handleRestorePost}
-                  handlePermanentlyDeletePost={handlePermanentlyDeletePost}
                   handleClearCache={handleClearCache}
                   handleExportData={handleExportData}
                   handleDeleteAccount={handleDeleteAccount}
@@ -1489,24 +1413,12 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
 function DataSettings({
   settings,
   updateSetting,
-  deletedPosts,
-  showDeletedPosts,
-  setShowDeletedPosts,
-  loadingPosts,
-  handleRestorePost,
-  handlePermanentlyDeletePost,
   handleClearCache,
   handleExportData,
   handleDeleteAccount
 }: {
   settings: UserSettings
   updateSetting: any
-  deletedPosts: DeletedPost[]
-  showDeletedPosts: boolean
-  setShowDeletedPosts: (show: boolean) => void
-  loadingPosts: boolean
-  handleRestorePost: (postId: string) => void
-  handlePermanentlyDeletePost: (postId: string) => void
   handleClearCache: () => void
   handleExportData: () => void
   handleDeleteAccount: () => void
@@ -1535,95 +1447,6 @@ function DataSettings({
           suffix="MB"
           onChange={(value) => updateSetting('storageUsageLimit', value)}
         />
-      </SettingSection>
-
-      {/* Post History Section */}
-      <SettingSection title="Post History" description="Manage deleted posts (restorable for 30 days)">
-        <div className="space-y-4">
-          <button
-            onClick={() => setShowDeletedPosts(!showDeletedPosts)}
-            className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center justify-between"
-          >
-            <div>
-              <div className="font-medium text-gray-900">
-                {showDeletedPosts ? 'Hide' : 'Show'} Deleted Posts
-              </div>
-              <div className="text-sm text-gray-500">
-                {deletedPosts.length} deleted post{deletedPosts.length !== 1 ? 's' : ''} in history
-              </div>
-            </div>
-            <svg
-              className={`w-5 h-5 text-gray-400 transition-transform ${showDeletedPosts ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {showDeletedPosts && (
-            <div className="space-y-4 mt-4">
-              {loadingPosts ? (
-                <div className="text-center py-8">
-                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-500">Loading deleted posts...</p>
-                </div>
-              ) : deletedPosts.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No deleted posts in history.</p>
-              ) : (
-                deletedPosts.map((post) => (
-                  <div key={post.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                    {/* Deleted Post Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
-                            DELETED
-                          </span>
-                          <span className="text-xs text-red-600 font-medium">
-                            {post.daysRemaining} day{post.daysRemaining !== 1 ? 's' : ''} remaining to restore
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          Deleted on {new Date(post.deletedAt).toLocaleDateString()} at {new Date(post.deletedAt).toLocaleTimeString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleRestorePost(post.id)}
-                          className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
-                          title="Restore post"
-                        >
-                          Restore
-                        </button>
-                        <button
-                          onClick={() => handlePermanentlyDeletePost(post.id)}
-                          className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
-                          title="Permanently delete"
-                        >
-                          Delete Forever
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Post Content */}
-                    <div className="mb-3 opacity-75">
-                      <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
-                    </div>
-
-                    {/* Post Stats */}
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>❤️ {post._count?.likes || 0} likes</span>
-                      <span>💬 {post._count?.comments || 0} comments</span>
-                      <span>🔁 {post._count?.reposts || 0} reposts</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
       </SettingSection>
 
       <SettingSection title="Data Management">
@@ -1760,6 +1583,7 @@ function HistorySection() {
     { id: 'blocked', label: 'Blocked Users', icon: '🚫' },
     { id: 'deleted-messages', label: 'Deleted Messages', icon: '💬' },
     { id: 'deleted-groups', label: 'Deleted Groups', icon: '🗑️' },
+    { id: 'deleted-posts', label: 'Deleted Posts', icon: '📝' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'community', label: 'Community Activity', icon: '🌐' },
   ]
@@ -1801,6 +1625,7 @@ function HistorySection() {
           {activeSubTab === 'blocked' && <BlockedUsersHistory />}
           {activeSubTab === 'deleted-messages' && <DeletedMessagesHistory />}
           {activeSubTab === 'deleted-groups' && <DeletedGroupsHistory />}
+          {activeSubTab === 'deleted-posts' && <DeletedPostsHistory />}
           {activeSubTab === 'notifications' && <NotificationsHistory />}
           {activeSubTab === 'community' && <CommunityActivityHistory />}
         </div>
@@ -2420,6 +2245,164 @@ function DeletedGroupsHistory() {
             </div>
           </div>
         ))
+      )}
+    </div>
+  )
+}
+
+function DeletedPostsHistory() {
+  const [deletedPosts, setDeletedPosts] = useState<DeletedPost[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showDeletedPosts, setShowDeletedPosts] = useState(true)
+
+  useEffect(() => {
+    const fetchDeletedPosts = async () => {
+      try {
+        const response = await fetch('/api/posts/deleted')
+        if (response.ok) {
+          const data = await response.json()
+          setDeletedPosts(data.posts || [])
+        }
+      } catch (error) {
+        console.error('Error fetching deleted posts:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDeletedPosts()
+  }, [])
+
+  const handleRestorePost = async (postId: string) => {
+    try {
+      const response = await fetch(`/api/posts/${postId}/restore`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
+        toast.success(data.message || 'Post restored successfully')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to restore post')
+      }
+    } catch (error) {
+      console.error('Error restoring post:', error)
+      toast.error('Failed to restore post')
+    }
+  }
+
+  const handlePermanentlyDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this post? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        setDeletedPosts(prev => prev.filter(post => post.id !== postId))
+        toast.success('Post permanently deleted')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete post')
+      }
+    } catch (error) {
+      console.error('Error permanently deleting post:', error)
+      toast.error('Failed to delete post')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+        <p className="text-sm text-gray-500">Loading deleted posts...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={() => setShowDeletedPosts(!showDeletedPosts)}
+        className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center justify-between"
+      >
+        <div>
+          <div className="font-medium text-gray-900">
+            {showDeletedPosts ? 'Hide' : 'Show'} Deleted Posts
+          </div>
+          <div className="text-sm text-gray-500">
+            {deletedPosts.length} deleted post{deletedPosts.length !== 1 ? 's' : ''} in history
+          </div>
+        </div>
+        <svg
+          className={`w-5 h-5 text-gray-400 transition-transform ${showDeletedPosts ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {showDeletedPosts && (
+        <div className="space-y-4 mt-4">
+          {deletedPosts.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No deleted posts in history.</p>
+          ) : (
+            deletedPosts.map((post) => (
+              <div key={post.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                {/* Deleted Post Header */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                        DELETED
+                      </span>
+                      <span className="text-xs text-red-600 font-medium">
+                        {post.daysRemaining} day{post.daysRemaining !== 1 ? 's' : ''} remaining to restore
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Deleted on {new Date(post.deletedAt).toLocaleDateString()} at {new Date(post.deletedAt).toLocaleTimeString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleRestorePost(post.id)}
+                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
+                      title="Restore post"
+                    >
+                      Restore
+                    </button>
+                    <button
+                      onClick={() => handlePermanentlyDeletePost(post.id)}
+                      className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
+                      title="Permanently delete"
+                    >
+                      Delete Forever
+                    </button>
+                  </div>
+                </div>
+
+                {/* Post Content */}
+                <div className="mb-3 opacity-75">
+                  <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
+                </div>
+
+                {/* Post Stats */}
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <span>❤️ {post._count?.likes || 0} likes</span>
+                  <span>💬 {post._count?.comments || 0} comments</span>
+                  <span>🔁 {post._count?.reposts || 0} reposts</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       )}
     </div>
   )

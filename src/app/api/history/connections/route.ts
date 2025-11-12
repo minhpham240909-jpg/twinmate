@@ -62,14 +62,32 @@ export async function GET(request: Request) {
       where: { receiverId: user.id },
     })
 
-    const acceptedMatches = await prisma.match.count({
+    const acceptedSent = await prisma.match.count({
       where: {
+        senderId: user.id,
         status: 'ACCEPTED',
-        OR: [
-          { senderId: user.id },
-          { receiverId: user.id },
-        ],
-      } as any,
+      },
+    })
+
+    const acceptedReceived = await prisma.match.count({
+      where: {
+        receiverId: user.id,
+        status: 'ACCEPTED',
+      },
+    })
+
+    const pendingSent = await prisma.match.count({
+      where: {
+        senderId: user.id,
+        status: 'PENDING',
+      },
+    })
+
+    const pendingReceived = await prisma.match.count({
+      where: {
+        receiverId: user.id,
+        status: 'PENDING',
+      },
     })
 
     return NextResponse.json({
@@ -83,13 +101,19 @@ export async function GET(request: Request) {
         respondedAt: match.respondedAt,
         sender: match.sender,
         receiver: match.receiver,
-        isSent: match.senderId === user.id,
+        isSender: match.senderId === user.id,
       })),
       statistics: {
-        totalSent,
-        totalReceived,
-        acceptedMatches,
-        totalMatches: totalSent + totalReceived,
+        sent: {
+          total: totalSent,
+          accepted: acceptedSent,
+          pending: pendingSent,
+        },
+        received: {
+          total: totalReceived,
+          accepted: acceptedReceived,
+          pending: pendingReceived,
+        },
       },
       pagination: {
         limit,
