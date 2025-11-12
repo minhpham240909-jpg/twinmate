@@ -733,7 +733,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
             disabled={creating}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {creating ? t('creating') : t('create')}
+            {creating ? t('creating') : t('createButton')}
           </button>
         </div>
       </div>
