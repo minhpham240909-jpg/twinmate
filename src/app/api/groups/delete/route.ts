@@ -76,7 +76,6 @@ export async function POST(request: Request) {
     // Soft delete the group
     console.log(`[DELETE GROUP] Soft deleting group: ${groupId} (${group.name})`)
 
-    // @ts-expect-error - isDeleted and deletedAt fields are present in the database but may not be in the generated Prisma types
     await prisma.group.update({
       where: { id: groupId },
       data: {

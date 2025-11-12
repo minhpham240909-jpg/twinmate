@@ -34,7 +34,6 @@ export async function DELETE(
     }
 
     // Check if message is already deleted
-    // @ts-expect-error - isDeleted and deletedAt fields are present in the database but may not be in the generated Prisma types
     if (message.isDeleted || message.deletedAt) {
       return NextResponse.json({ error: 'Message already deleted' }, { status: 400 })
     }
@@ -60,7 +59,6 @@ export async function DELETE(
     }
 
     // Soft delete the message
-    // @ts-expect-error - isDeleted and deletedAt fields are present in the database but may not be in the generated Prisma types
     const deletedMessage = await prisma.message.update({
       where: { id: messageId },
       data: {
