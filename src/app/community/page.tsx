@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import { motion } from 'framer-motion'
 
 type Post = {
   id: string
@@ -73,9 +74,6 @@ export default function CommunityPage() {
 
   // Initialize with cached data for instant display - NO LOADING DELAY!
   const [posts, setPosts] = useState<Post[]>(() => getCachedPosts())
-  const [newPostContent, setNewPostContent] = useState('')
-  const [newPostUrl, setNewPostUrl] = useState('')
-  const [isPostingLoading, setIsPostingLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Post[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -89,15 +87,7 @@ export default function CommunityPage() {
   const [popularPosts, setPopularPosts] = useState<Post[]>(() => getCachedPopularPosts())
   const [trendingHashtags, setTrendingHashtags] = useState<{ hashtag: string; count: number }[]>([])
   const [isLoadingPopular, setIsLoadingPopular] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
-  const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
-  const [allowSharing, setAllowSharing] = useState(true)
-  const [showMentions, setShowMentions] = useState(false)
-  const [mentionQuery, setMentionQuery] = useState('')
-  const [mentionUsers, setMentionUsers] = useState<{ id: string; name: string; avatarUrl: string | null }[]>([])
-  const [mentionCursorPosition, setMentionCursorPosition] = useState(0)
   const [connectingPostIds, setConnectingPostIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -214,136 +204,6 @@ export default function CommunityPage() {
     }
   }
 
-  // Handle @ mention detection and search
-  const handleContentChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value
-    const cursorPos = e.target.selectionStart || 0
-    setNewPostContent(value)
-    setMentionCursorPosition(cursorPos)
-
-    // Check if user typed @
-    const textBeforeCursor = value.substring(0, cursorPos)
-    const mentionMatch = textBeforeCursor.match(/@(\w*)$/)
-
-    if (mentionMatch) {
-      const query = mentionMatch[1]
-      setMentionQuery(query)
-
-      if (query.length >= 1) {
-        // Search for users
-        try {
-          const response = await fetch(`/api/users/mentions?query=${encodeURIComponent(query)}&limit=5`)
-          if (response.ok) {
-            const data = await response.json()
-            setMentionUsers(data.users)
-            setShowMentions(data.users.length > 0)
-          }
-        } catch (error) {
-          console.error('Error searching users:', error)
-        }
-      } else {
-        setShowMentions(false)
-        setMentionUsers([])
-      }
-    } else {
-      setShowMentions(false)
-      setMentionUsers([])
-    }
-  }
-
-  const insertMention = (user: { id: string; name: string; avatarUrl: string | null }) => {
-    const textBeforeCursor = newPostContent.substring(0, mentionCursorPosition)
-    const textAfterCursor = newPostContent.substring(mentionCursorPosition)
-
-    // Replace @query with @username
-    const beforeMention = textBeforeCursor.replace(/@\w*$/, `@${user.name} `)
-    const newContent = beforeMention + textAfterCursor
-
-    setNewPostContent(newContent)
-    setShowMentions(false)
-    setMentionUsers([])
-  }
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length + selectedImages.length > 4) {
-      alert('Maximum 4 images allowed per post')
-      return
-    }
-
-    setSelectedImages(prev => [...prev, ...files])
-
-    // Create preview URLs
-    files.forEach(file => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreviewUrls(prev => [...prev, reader.result as string])
-      }
-      reader.readAsDataURL(file)
-    })
-  }
-
-  const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index))
-    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const handleCreatePost = async () => {
-    if (!newPostContent.trim() && selectedImages.length === 0 && !newPostUrl.trim()) return
-
-    setIsPostingLoading(true)
-    try {
-      let imageUrls: string[] = []
-
-      // Upload images if any
-      if (selectedImages.length > 0) {
-        setIsUploadingImages(true)
-        const formData = new FormData()
-        selectedImages.forEach(image => {
-          formData.append('images', image)
-        })
-
-        const uploadResponse = await fetch('/api/upload/post-images', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json()
-          imageUrls = uploadData.urls
-        } else {
-          throw new Error('Failed to upload images')
-        }
-        setIsUploadingImages(false)
-      }
-
-      // Create post with content, image URLs, and optional link
-      const response = await fetch('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: newPostContent.trim() || (imageUrls.length > 0 ? 'Posted images' : 'Shared a link'),
-          imageUrls,
-          postUrl: newPostUrl.trim() || null,
-          allowSharing
-        }),
-      })
-
-      if (response.ok) {
-        setNewPostContent('')
-        setNewPostUrl('')
-        setSelectedImages([])
-        setImagePreviewUrls([])
-        await fetchPosts()
-      }
-    } catch (error) {
-      console.error('Error creating post:', error)
-      alert('Failed to create post. Please try again.')
-    } finally {
-      setIsPostingLoading(false)
-      setIsUploadingImages(false)
-    }
-  }
 
   const handleSharePost = async (postId: string) => {
     const shareUrl = `${window.location.origin}/share/${postId}`
@@ -640,31 +500,35 @@ export default function CommunityPage() {
     : posts
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
+      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors group"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-gray-600 group-hover:text-gray-900 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-blue-600">{t('title')}</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {t('title')}
+              </h1>
               {newPostsCount > 0 && (
-                <button
+                <motion.button
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
                   onClick={fetchPosts}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  {newPostsCount} {t('newPostsNotification')} {newPostsCount === 1 ? t('post') : t('posts')}
-                </button>
+                  <span className="font-medium">{newPostsCount} {t('newPostsNotification')}</span>
+                </motion.button>
               )}
             </div>
 
@@ -676,10 +540,10 @@ export default function CommunityPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('searchPlaceholder')}
-                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 pl-11 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all bg-white/80 backdrop-blur-sm"
                 />
                 <svg
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                  className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -692,161 +556,52 @@ export default function CommunityPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - Left/Center */}
-          <div className="lg:col-span-2">
-            {/* Create Post */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 relative">
-          <textarea
-            value={newPostContent}
-            onChange={handleContentChange}
-            placeholder={t('newPost')}
-            className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-            maxLength={5000}
-          />
-
-          {/* @ Mention Autocomplete Dropdown */}
-          {showMentions && mentionUsers.length > 0 && (
-            <div className="absolute z-10 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {mentionUsers.map((user) => (
+          <div className="lg:col-span-2 space-y-6">
+            {/* Tabs */}
+            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
+              <div className="flex border-b border-gray-200">
                 <button
-                  key={user.id}
-                  onClick={() => insertMention(user)}
-                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-blue-50 transition text-left"
+                  onClick={() => setActiveTab('recent')}
+                  className={`flex-1 px-6 py-4 font-semibold transition relative ${
+                    activeTab === 'recent'
+                      ? 'text-blue-600'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
                 >
-                  {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.name}
-                      className="w-8 h-8 rounded-full"
+                  {t('recent')}
+                  {activeTab === 'recent' && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600"
                     />
-                  ) : (
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                      {user.name[0]}
-                    </div>
                   )}
-                  <span className="font-medium text-gray-900">@{user.name}</span>
                 </button>
-              ))}
+                <button
+                  onClick={() => {
+                    setActiveTab('popular')
+                    if (popularPosts.length === 0) {
+                      fetchPopularPosts()
+                    }
+                  }}
+                  className={`flex-1 px-6 py-4 font-semibold transition relative ${
+                    activeTab === 'popular'
+                      ? 'text-blue-600'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
+                >
+                  🔥 {t('popular')}
+                  {activeTab === 'popular' && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600"
+                    />
+                  )}
+                </button>
+              </div>
             </div>
-          )}
-
-          {/* Image Previews */}
-          {imagePreviewUrls.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {imagePreviewUrls.map((url, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={url}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => removeImage(index)}
-                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Link/URL Input */}
-          <div className="mt-3">
-            <input
-              type="url"
-              value={newPostUrl}
-              onChange={(e) => setNewPostUrl(e.target.value)}
-              placeholder="Add a link (optional)..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500">
-                {newPostContent.length}/5000
-              </span>
-
-              {/* Image Upload Button */}
-              <label className="cursor-pointer flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm font-medium">
-                  {selectedImages.length > 0 ? `${selectedImages.length}/4` : t('addImages')}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  disabled={selectedImages.length >= 4}
-                />
-              </label>
-
-              {isUploadingImages && (
-                <span className="text-sm text-blue-600">{t('uploadingImages')}</span>
-              )}
-
-              {/* Allow Sharing Checkbox */}
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={allowSharing}
-                  onChange={(e) => setAllowSharing(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span>{t('allowSharing')}</span>
-              </label>
-            </div>
-
-            <button
-              onClick={handleCreatePost}
-              disabled={(!newPostContent.trim() && selectedImages.length === 0 && !newPostUrl.trim()) || isPostingLoading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-            >
-              {isPostingLoading ? t('posting') : t('postButton')}
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm mb-6">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('recent')}
-              className={`flex-1 px-6 py-4 font-semibold transition ${
-                activeTab === 'recent'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              {t('recent')}
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('popular')
-                if (popularPosts.length === 0) {
-                  fetchPopularPosts()
-                }
-              }}
-              className={`flex-1 px-6 py-4 font-semibold transition ${
-                activeTab === 'popular'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              🔥 {t('popular')}
-            </button>
-          </div>
-        </div>
 
         {/* Loading state for popular posts */}
         {isLoadingPopular && (
@@ -855,11 +610,17 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {/* Posts Feed */}
-        {!isLoadingPopular && (
-        <div className="space-y-4">
-          {displayPosts.map((post) => (
-            <div key={post.id} className="bg-white rounded-xl shadow-sm p-6">
+            {/* Posts Feed */}
+            {!isLoadingPopular && (
+            <div className="space-y-6">
+              {displayPosts.map((post) => (
+                <motion.div
+                  key={post.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all"
+                >
               {/* Post Header */}
               <div className="flex items-start gap-3 mb-4">
                 {/* Clickable Avatar */}
@@ -1124,26 +885,38 @@ export default function CommunityPage() {
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
+                )}
+              </motion.div>
+            ))}
 
-          {displayPosts.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">
-                {isSearching ? t('noPostsFound') : t('noPostsYet')}
-              </p>
-            </div>
-          )}
-        </div>
-        )}
+            {displayPosts.length === 0 && (
+              <div className="text-center py-16 bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="text-gray-600 text-lg font-medium">
+                  {isSearching ? t('noPostsFound') : t('noPostsYet')}
+                </p>
+                {!isSearching && (
+                  <button
+                    onClick={() => router.push('/community/create')}
+                    className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+                  >
+                    Create First Post
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           </div>
 
           {/* Sidebar - Right */}
           <div className="lg:col-span-1">
             {/* Trending Hashtags */}
-            <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">🔥 {t('trendingHashtags')}</h3>
+            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 p-6 sticky top-24">
+              <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">🔥 {t('trendingHashtags')}</h3>
               {trendingHashtags.length > 0 ? (
                 <div className="space-y-3">
                   {trendingHashtags.map((item, index) => (
@@ -1176,6 +949,21 @@ export default function CommunityPage() {
           </div>
         </div>
       </main>
+
+      {/* Floating Create Post Button */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => router.push('/community/create')}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center z-50 transition-all group"
+        aria-label="Create new post"
+      >
+        <svg className="w-8 h-8 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+        </svg>
+      </motion.button>
     </div>
   )
 }

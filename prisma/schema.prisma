@@ -275,6 +275,10 @@ model Group {
 
   ownerId String
 
+  // Soft delete fields
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -285,6 +289,8 @@ model Group {
   @@index([subject])
   @@index([privacy])
   @@index([ownerId])
+  @@index([isDeleted])
+  @@index([deletedAt])
 }
 
 enum MemberRole {
@@ -393,9 +399,12 @@ model Message {
   callStatus    CallStatus?
   callStartedAt DateTime?
 
+  // Soft delete fields
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  deletedAt DateTime?
 
   // Presence system relations
   readBy        MessageReadStatus[]
@@ -406,6 +415,7 @@ model Message {
   @@index([recipientId])
   @@index([createdAt])
   @@index([deliveredAt]) // New index for delivery status
+  @@index([isDeleted])
   @@index([deletedAt])
   // Critical composite indexes for performance
   @@index([senderId, recipientId, createdAt]) // DM message loading

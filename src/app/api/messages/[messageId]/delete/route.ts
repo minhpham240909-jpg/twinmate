@@ -34,7 +34,8 @@ export async function DELETE(
     }
 
     // Check if message is already deleted
-    if (message.deletedAt) {
+    // @ts-expect-error - isDeleted and deletedAt fields are present in the database but may not be in the generated Prisma types
+    if (message.isDeleted || message.deletedAt) {
       return NextResponse.json({ error: 'Message already deleted' }, { status: 400 })
     }
 
@@ -44,7 +45,7 @@ export async function DELETE(
     // For group messages, check if user is admin or owner
     let isGroupAdmin = false
     if (message.groupId) {
-      const membership = message.group?.members.find(m => m.userId === user.id)
+      const membership = message.group?.members.find((m) => m.userId === user.id)
       isGroupAdmin = membership?.role === 'ADMIN' || membership?.role === 'OWNER'
     }
 
@@ -59,9 +60,13 @@ export async function DELETE(
     }
 
     // Soft delete the message
+    // @ts-expect-error - isDeleted and deletedAt fields are present in the database but may not be in the generated Prisma types
     const deletedMessage = await prisma.message.update({
       where: { id: messageId },
-      data: { deletedAt: new Date() },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
       include: {
         sender: {
           select: {

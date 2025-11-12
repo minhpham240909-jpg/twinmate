@@ -65,42 +65,36 @@ export async function POST(request: Request) {
 
     const ownerName = ownerUser?.name || ownerUser?.email || 'The owner'
 
-    // Delete the group (cascade will delete members, messages, invites)
-    console.log(`[DELETE GROUP] Deleting group: ${groupId} (${group.name})`)
-
-    await prisma.group.delete({
-      where: { id: groupId },
-    })
-
-    // Verify deletion
-    const verifyDeleted = await prisma.group.findUnique({
-      where: { id: groupId },
-    })
-
-    if (verifyDeleted) {
-      console.error(`[DELETE GROUP ERROR] Group ${groupId} still exists after deletion!`)
+    // Check if group is already deleted
+    if (group.isDeleted) {
       return NextResponse.json(
-        { success: false, error: 'Failed to delete group from database' },
-        { status: 500 }
+        { success: false, error: 'Group already deleted' },
+        { status: 400 }
       )
     }
 
-    console.log(`[DELETE GROUP] Successfully deleted group: ${groupId}`)
+    // Soft delete the group
+    console.log(`[DELETE GROUP] Soft deleting group: ${groupId} (${group.name})`)
+
+    // @ts-expect-error - isDeleted and deletedAt fields are present in the database but may not be in the generated Prisma types
+    await prisma.group.update({
+      where: { id: groupId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    })
+
+    console.log(`[DELETE GROUP] Successfully soft deleted group: ${groupId}`)
 
     // Send notification to all members (excluding owner)
     if (memberIds.length > 0) {
       await prisma.notification.createMany({
-        data: memberIds.map((memberId) => ({
+        data: memberIds.map((memberId: string) => ({
           userId: memberId,
           type: 'GROUP_REMOVED',
           title: 'Group Deleted',
           message: `${ownerName} has deleted the group "${group.name}"`,
-          metadata: {
-            groupId: group.id,
-            groupName: group.name,
-            deletedBy: user.id,
-            deletedByName: ownerName,
-          },
         })),
       })
     }

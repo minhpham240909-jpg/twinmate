@@ -27,6 +27,7 @@
     "generate-tests:scan": "tsx scripts/generate-tests.ts --scan",
     "generate-tests:watch": "tsx scripts/generate-tests.ts --watch",
     "qa:full": "npm run typecheck && npm run test && npm run test:e2e && npm run security",
+    "cleanup:history": "tsx scripts/cleanup-history.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

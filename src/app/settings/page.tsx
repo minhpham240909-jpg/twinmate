@@ -117,6 +117,7 @@ type TabId =
   | 'community'
   | 'accessibility'
   | 'data'
+  | 'history'
   | 'integrations'
   | 'advanced'
   | 'about'
@@ -496,6 +497,7 @@ export default function SettingsPage() {
     { id: 'community', label: t('community'), icon: '🌐' },
     { id: 'accessibility', label: t('accessibility'), icon: '♿' },
     { id: 'data', label: t('data'), icon: '💾' },
+    { id: 'history', label: 'History', icon: '📜' },
     { id: 'integrations', label: t('integrations'), icon: '🔗' },
     { id: 'advanced', label: t('advanced'), icon: '⚙️' },
     { id: 'about', label: t('about'), icon: 'ℹ️' },
@@ -613,6 +615,7 @@ export default function SettingsPage() {
                   handleDeleteAccount={handleDeleteAccount}
                 />
               )}
+              {activeTab === 'history' && <HistorySection />}
               {activeTab === 'integrations' && (
                 <IntegrationsSettings settings={settings} updateSetting={updateSetting} />
               )}
@@ -1739,6 +1742,820 @@ function AdvancedSettings({ settings, updateSetting }: { settings: UserSettings;
         />
       </SettingSection>
     </>
+  )
+}
+
+// History Section
+function HistorySection() {
+  const [activeSubTab, setActiveSubTab] = useState<string>('study')
+  const [loading, setLoading] = useState(false)
+
+  const subTabs = [
+    { id: 'study', label: 'Study Activity', icon: '📚' },
+    { id: 'connections', label: 'Connections', icon: '🤝' },
+    { id: 'groups', label: 'Groups', icon: '👥' },
+    { id: 'calls', label: 'Calls', icon: '📞' },
+    { id: 'achievements', label: 'Achievements', icon: '🏆' },
+    { id: 'account', label: 'Account Activity', icon: '👤' },
+    { id: 'blocked', label: 'Blocked Users', icon: '🚫' },
+    { id: 'deleted-messages', label: 'Deleted Messages', icon: '💬' },
+    { id: 'deleted-groups', label: 'Deleted Groups', icon: '🗑️' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'community', label: 'Community Activity', icon: '🌐' },
+  ]
+
+  return (
+    <>
+      <SettingSection
+        title="History"
+        description="View your activity history and manage deleted items"
+      >
+        {/* Sub-tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex flex-wrap gap-2">
+            {subTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
+                  activeSubTab === tab.id
+                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content based on active sub-tab */}
+        <div className="mt-6">
+          {activeSubTab === 'study' && <StudyActivityHistory />}
+          {activeSubTab === 'connections' && <ConnectionsHistory />}
+          {activeSubTab === 'groups' && <GroupsHistory />}
+          {activeSubTab === 'calls' && <CallsHistory />}
+          {activeSubTab === 'achievements' && <AchievementsHistory />}
+          {activeSubTab === 'account' && <AccountActivityHistory />}
+          {activeSubTab === 'blocked' && <BlockedUsersHistory />}
+          {activeSubTab === 'deleted-messages' && <DeletedMessagesHistory />}
+          {activeSubTab === 'deleted-groups' && <DeletedGroupsHistory />}
+          {activeSubTab === 'notifications' && <NotificationsHistory />}
+          {activeSubTab === 'community' && <CommunityActivityHistory />}
+        </div>
+      </SettingSection>
+    </>
+  )
+}
+
+// Individual History Components
+function StudyActivityHistory() {
+  const [sessions, setSessions] = useState<any[]>([])
+  const [statistics, setStatistics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/study-activity')
+        if (response.ok) {
+          const data = await response.json()
+          setSessions(data.sessions || [])
+          setStatistics(data.statistics || {})
+        }
+      } catch (error) {
+        console.error('Error fetching study activity:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {statistics && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{statistics.totalSessions}</div>
+            <div className="text-sm text-gray-600">Total Sessions</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{statistics.totalHours}h</div>
+            <div className="text-sm text-gray-600">Total Hours</div>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">{statistics.sessionsThisMonth}</div>
+            <div className="text-sm text-gray-600">This Month</div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
+        {sessions.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No study sessions found.</p>
+        ) : (
+          sessions.map((session) => (
+            <div key={session.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-semibold">{session.title}</h4>
+                <span className="text-sm text-gray-500">
+                  {new Date(session.endedAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="text-sm text-gray-600 mb-2">
+                {session.durationMinutes} minutes • {session.type}
+              </div>
+              {session.subject && (
+                <div className="text-sm text-gray-500">Subject: {session.subject}</div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ConnectionsHistory() {
+  const [matches, setMatches] = useState<any[]>([])
+  const [statistics, setStatistics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/connections')
+        if (response.ok) {
+          const data = await response.json()
+          setMatches(data.matches || [])
+          setStatistics(data.statistics || {})
+        }
+      } catch (error) {
+        console.error('Error fetching connections:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {statistics && (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="font-semibold mb-2">Sent</div>
+            <div className="text-sm">Total: {statistics.sent.total}</div>
+            <div className="text-sm">Accepted: {statistics.sent.accepted}</div>
+            <div className="text-sm">Pending: {statistics.sent.pending}</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="font-semibold mb-2">Received</div>
+            <div className="text-sm">Total: {statistics.received.total}</div>
+            <div className="text-sm">Accepted: {statistics.received.accepted}</div>
+            <div className="text-sm">Pending: {statistics.received.pending}</div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
+        {matches.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No connections found.</p>
+        ) : (
+          matches.map((match) => (
+            <div key={match.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-semibold">
+                    {match.isSender ? match.receiver.name : match.sender.name}
+                  </div>
+                  <div className="text-sm text-gray-500">Status: {match.status}</div>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {new Date(match.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              {match.compatibilityScore && (
+                <div className="text-sm text-gray-600">
+                  Compatibility: {match.compatibilityScore}%
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GroupsHistory() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/groups')
+        if (response.ok) {
+          const result = await response.json()
+          setData(result)
+        }
+      } catch (error) {
+        console.error('Error fetching groups:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      {data?.joinedGroups && data.joinedGroups.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3">Joined Groups</h3>
+          <div className="space-y-2">
+            {data.joinedGroups.map((gm: any) => (
+              <div key={gm.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="font-medium">{gm.group.name}</div>
+                <div className="text-sm text-gray-500">
+                  Joined: {new Date(gm.joinedAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {data?.createdGroups && data.createdGroups.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3">Created Groups</h3>
+          <div className="space-y-2">
+            {data.createdGroups.map((group: any) => (
+              <div key={group.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="font-medium">{group.name}</div>
+                <div className="text-sm text-gray-500">
+                  Created: {new Date(group.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {(!data?.joinedGroups?.length && !data?.createdGroups?.length) && (
+        <p className="text-gray-500 text-center py-8">No groups found.</p>
+      )}
+    </div>
+  )
+}
+
+function CallsHistory() {
+  const [calls, setCalls] = useState<any[]>([])
+  const [statistics, setStatistics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/calls')
+        if (response.ok) {
+          const data = await response.json()
+          setCalls(data.calls || [])
+          setStatistics(data.statistics || {})
+        }
+      } catch (error) {
+        console.error('Error fetching calls:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {statistics && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{statistics.totalCalls}</div>
+            <div className="text-sm text-gray-600">Total Calls</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{statistics.completedCalls}</div>
+            <div className="text-sm text-gray-600">Completed</div>
+          </div>
+          <div className="p-4 bg-red-50 rounded-lg">
+            <div className="text-2xl font-bold text-red-600">{statistics.missedCalls}</div>
+            <div className="text-sm text-gray-600">Missed</div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
+        {calls.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No calls found.</p>
+        ) : (
+          calls.map((call) => (
+            <div key={call.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-semibold">
+                    {call.callType} Call - {call.callStatus}
+                  </div>
+                  {call.callDuration && (
+                    <div className="text-sm text-gray-600">
+                      Duration: {Math.floor(call.callDuration / 60)}m {call.callDuration % 60}s
+                    </div>
+                  )}
+                </div>
+                <span className="text-sm text-gray-500">
+                  {new Date(call.callStartedAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AchievementsHistory() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/achievements')
+        if (response.ok) {
+          const result = await response.json()
+          setData(result)
+        }
+      } catch (error) {
+        console.error('Error fetching achievements:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      {data?.milestones && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{data.milestones.studyStreak}</div>
+            <div className="text-sm text-gray-600">Day Streak</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{data.milestones.totalStudyHours}h</div>
+            <div className="text-sm text-gray-600">Study Hours</div>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">{data.badges.length}</div>
+            <div className="text-sm text-gray-600">Badges Earned</div>
+          </div>
+        </div>
+      )}
+      <div>
+        <h3 className="font-semibold mb-3">Badges</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {data?.badges?.map((badge: any) => (
+            <div key={badge.id} className="border border-gray-200 rounded-lg p-3">
+              <div className="font-medium">{badge.badge.name}</div>
+              <div className="text-sm text-gray-500">{badge.badge.description}</div>
+              <div className="text-xs text-gray-400 mt-1">
+                Earned: {new Date(badge.earnedAt).toLocaleDateString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AccountActivityHistory() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/account-activity')
+        if (response.ok) {
+          const result = await response.json()
+          setData(result)
+        }
+      } catch (error) {
+        console.error('Error fetching account activity:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {data?.account && (
+        <div className="space-y-3">
+          <div className="border border-gray-200 rounded-lg p-4">
+            <div className="font-semibold mb-2">Account Information</div>
+            <div className="text-sm text-gray-600">Email: {data.account.email}</div>
+            <div className="text-sm text-gray-600">Role: {data.account.role}</div>
+            <div className="text-sm text-gray-600">
+              Created: {new Date(data.account.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+          {data.activity && (
+            <div className="border border-gray-200 rounded-lg p-4">
+              <div className="font-semibold mb-2">Activity</div>
+              {data.activity.lastLogin && (
+                <div className="text-sm text-gray-600">
+                  Last Login: {new Date(data.activity.lastLogin).toLocaleString()}
+                </div>
+              )}
+              {data.activity.lastProfileUpdate && (
+                <div className="text-sm text-gray-600">
+                  Last Profile Update: {new Date(data.activity.lastProfileUpdate).toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BlockedUsersHistory() {
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/blocked-users')
+        if (response.ok) {
+          const data = await response.json()
+          setBlockedUsers(data.blockedUsers || [])
+        }
+      } catch (error) {
+        console.error('Error fetching blocked users:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-3">
+      {blockedUsers.length === 0 ? (
+        <p className="text-gray-500 text-center py-8">No blocked users.</p>
+      ) : (
+        blockedUsers.map((bu) => (
+          <div key={bu.id} className="border border-gray-200 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="font-semibold">{bu.user.name}</div>
+                {bu.reason && <div className="text-sm text-gray-500">{bu.reason}</div>}
+              </div>
+              <span className="text-sm text-gray-500">
+                {new Date(bu.blockedAt).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function DeletedMessagesHistory() {
+  const [conversations, setConversations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/deleted-messages')
+        if (response.ok) {
+          const data = await response.json()
+          setConversations(data.conversations || [])
+        }
+      } catch (error) {
+        console.error('Error fetching deleted messages:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const handleRestore = async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/messages/${messageId}/restore`, {
+        method: 'POST',
+      })
+      if (response.ok) {
+        toast.success('Message restored')
+        // Refresh list
+        const fetchData = async () => {
+          const res = await fetch('/api/history/deleted-messages')
+          if (res.ok) {
+            const data = await res.json()
+            setConversations(data.conversations || [])
+          }
+        }
+        fetchData()
+      } else {
+        toast.error('Failed to restore message')
+      }
+    } catch (error) {
+      console.error('Error restoring message:', error)
+      toast.error('Failed to restore message')
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {conversations.length === 0 ? (
+        <p className="text-gray-500 text-center py-8">No deleted messages.</p>
+      ) : (
+        conversations.map((conv) => (
+          <div key={conv.id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <div className="font-semibold">{conv.name}</div>
+                <div className="text-sm text-gray-600">
+                  {conv.type === 'group' ? 'Group' : 'DM'} • {conv.messageCount} messages
+                </div>
+              </div>
+              <span className="text-xs text-red-600 font-medium">
+                {conv.daysRemaining} days remaining
+              </span>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => conv.messages[0] && handleRestore(conv.messages[0].id)}
+                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Restore
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function DeletedGroupsHistory() {
+  const [groups, setGroups] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/deleted-groups')
+        if (response.ok) {
+          const data = await response.json()
+          setGroups(data.groups || [])
+        }
+      } catch (error) {
+        console.error('Error fetching deleted groups:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const handleRestore = async (groupId: string) => {
+    try {
+      const response = await fetch(`/api/groups/${groupId}/restore`, {
+        method: 'POST',
+      })
+      if (response.ok) {
+        toast.success('Group restored')
+        // Refresh list
+        const fetchData = async () => {
+          const res = await fetch('/api/history/deleted-groups')
+          if (res.ok) {
+            const data = await res.json()
+            setGroups(data.groups || [])
+          }
+        }
+        fetchData()
+      } else {
+        toast.error('Failed to restore group')
+      }
+    } catch (error) {
+      console.error('Error restoring group:', error)
+      toast.error('Failed to restore group')
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {groups.length === 0 ? (
+        <p className="text-gray-500 text-center py-8">No deleted groups.</p>
+      ) : (
+        groups.map((group) => (
+          <div key={group.id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <div className="font-semibold">{group.name}</div>
+                <div className="text-sm text-gray-600">{group.subject}</div>
+              </div>
+              <span className="text-xs text-red-600 font-medium">
+                {group.daysRemaining} days remaining
+              </span>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => handleRestore(group.id)}
+                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Restore
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function NotificationsHistory() {
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [statistics, setStatistics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/notifications')
+        if (response.ok) {
+          const data = await response.json()
+          setNotifications(data.notifications || [])
+          setStatistics(data.statistics || {})
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {statistics && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{statistics.total}</div>
+            <div className="text-sm text-gray-600">Total</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{statistics.read}</div>
+            <div className="text-sm text-gray-600">Read</div>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <div className="text-2xl font-bold text-yellow-600">{statistics.unread}</div>
+            <div className="text-sm text-gray-600">Unread</div>
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
+        {notifications.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No notifications found.</p>
+        ) : (
+          notifications.map((notif) => (
+            <div key={notif.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-semibold">{notif.title}</div>
+                  <div className="text-sm text-gray-600">{notif.message}</div>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {new Date(notif.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CommunityActivityHistory() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/history/community-activity')
+        if (response.ok) {
+          const result = await response.json()
+          setData(result)
+        }
+      } catch (error) {
+        console.error('Error fetching community activity:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {data?.statistics && (
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{data.statistics.totalPosts}</div>
+            <div className="text-sm text-gray-600">Posts</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{data.statistics.totalComments}</div>
+            <div className="text-sm text-gray-600">Comments</div>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">{data.statistics.totalLikesGiven}</div>
+            <div className="text-sm text-gray-600">Likes Given</div>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <div className="text-2xl font-bold text-yellow-600">{data.statistics.totalLikesReceived}</div>
+            <div className="text-sm text-gray-600">Likes Received</div>
+          </div>
+        </div>
+      )}
+      {data?.recentPosts && data.recentPosts.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3">Recent Posts</h3>
+          <div className="space-y-2">
+            {data.recentPosts.map((post: any) => (
+              <div key={post.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="text-sm">{post.content.substring(0, 100)}...</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {post._count.likes} likes • {post._count.comments} comments
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
