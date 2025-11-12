@@ -99,10 +99,24 @@ export default function DashboardPage() {
     avatarUrl: string | null
     onlineStatus: string
   }>>(() => getInitialOnlinePartners())
-  // Only show loading on very first visit when there's no cached data
+  
+  // Track if we've ever successfully loaded data (from cache or fetch)
+  // This prevents showing spinner on subsequent navigations
+  const getHasLoadedOnce = (): boolean => {
+    if (typeof window === 'undefined') return false
+    // Check if we've loaded data before (explicit flag)
+    const hasLoadedFlag = localStorage.getItem('dashboard_hasLoadedOnce') === 'true'
+    // Or check if we have any cached data (partners or other dashboard data)
+    const hasCachedPartners = getInitialOnlinePartners().length > 0
+    const hasCachedCounts = localStorage.getItem('dashboard_partnersCount') !== null
+    return hasLoadedFlag || hasCachedPartners || hasCachedCounts
+  }
+  const hasLoadedOnceRef = useRef<boolean>(getHasLoadedOnce())
+  
+  // Only show loading on very first visit when there's no cached data at all
   const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(() => {
-    // Only show spinner if we have no cached data at all
-    return getInitialOnlinePartners().length === 0
+    // Only show spinner if we have never loaded data before
+    return !hasLoadedOnceRef.current
   })
 
   useUserSync()
@@ -162,6 +176,9 @@ export default function DashboardPage() {
             onlineStatus: p.profile.onlineStatus
           })) || []
         setOnlinePartners(online)
+        
+        // Mark that we've successfully loaded data
+        hasLoadedOnceRef.current = true
         setLoadingOnlinePartners(false)
 
         // Cache to localStorage for next visit
@@ -171,10 +188,16 @@ export default function DashboardPage() {
           localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
           localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
           localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
+          // Mark that we've loaded data at least once
+          localStorage.setItem('dashboard_hasLoadedOnce', 'true')
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
-        setLoadingOnlinePartners(false)
+        // Only hide loading if we've never loaded before
+        // If we have cached data, keep showing it even if fetch fails
+        if (!hasLoadedOnceRef.current) {
+          setLoadingOnlinePartners(false)
+        }
       }
     }
 
@@ -495,7 +518,7 @@ export default function DashboardPage() {
         <header className="bg-white border-b border-gray-200 px-8 py-6 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{t('welcomeTitle')} 👋</h1>
+              <h1 className="text-3xl font-bold text-gray-900"><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('welcomeTitle')}</span> 👋</h1>
               <p className="text-gray-600 mt-1">{t('welcomeMessage')}</p>
             </div>
             <button

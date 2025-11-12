@@ -22,10 +22,10 @@ export default function StudyGroupsPage() {
                 Collaborative Learning
               </div>
               <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-                Study Groups That Actually Work
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Study Groups</span> That Actually Work
               </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
-                Create or join study groups tailored to your needs. Organize sessions, share resources, and achieve your academic goals together with motivated learners.
+                Create or join <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">study groups</span> tailored to your needs. <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Organize sessions</span>, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">share resources</span>, and achieve your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">academic goals</span> together with motivated learners.
               </p>
             </motion.div>
 
@@ -116,10 +116,10 @@ export default function StudyGroupsPage() {
                 viewport={{ once: true }}
               >
                 <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                  Create Groups in Minutes
+                  Create <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Groups</span> in Minutes
                 </h2>
                 <p className="text-lg text-gray-600 mb-6">
-                  Set up your study group with just a few clicks. Customize privacy settings, add members, and start collaborating immediately.
+                  Set up your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">study group</span> with just a few clicks. <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Customize privacy</span> settings, add members, and start <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">collaborating</span> immediately.
                 </p>
                 <ul className="space-y-4">
                   {[
@@ -161,9 +161,9 @@ export default function StudyGroupsPage() {
                     </div>
                   </motion.div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Goal-Oriented Learning</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3"><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Goal-Oriented</span> Learning</h3>
                 <p className="text-gray-600">
-                  Set shared goals, track progress together, and celebrate milestones as a group. Stay motivated and accountable.
+                  Set shared <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">goals</span>, track <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">progress</span> together, and celebrate <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">milestones</span> as a group. Stay motivated and accountable.
                 </p>
               </motion.div>
             </div>
@@ -196,9 +196,9 @@ export default function StudyGroupsPage() {
                     </div>
                   </motion.div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Smart Scheduling</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3"><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Smart Scheduling</span></h3>
                 <p className="text-gray-600">
-                  Find the best time for everyone with built-in scheduling tools. Set recurring sessions and get automatic reminders.
+                  Find the best time for everyone with built-in <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">scheduling tools</span>. Set <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">recurring sessions</span> and get automatic <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">reminders</span>.
                 </p>
               </motion.div>
 
@@ -209,10 +209,10 @@ export default function StudyGroupsPage() {
                 className="md:order-1"
               >
                 <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                  Organize Sessions Effortlessly
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Organize Sessions</span> Effortlessly
                 </h2>
                 <p className="text-lg text-gray-600 mb-6">
-                  Keep your study group organized with integrated scheduling, automatic reminders, and session planning tools.
+                  Keep your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">study group</span> organized with integrated <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">scheduling</span>, automatic <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">reminders</span>, and <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">session planning</span> tools.
                 </p>
                 <ul className="space-y-4">
                   {[
@@ -306,8 +306,27 @@ export default function StudyGroupsPage() {
                     </motion.div>
                   </div>
 
-                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{type.title}</h3>
-                  <p className="text-gray-600 mb-4 relative">{type.description}</p>
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">
+                    {type.title.split(' ').map((word, idx) => {
+                      const keyWords = ['Exam', 'Prep', 'Groups', 'Subject', 'Study', 'Groups', 'Project', 'Teams'];
+                      return keyWords.includes(word) ? (
+                        <span key={idx} className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{word} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </h3>
+                  <p className="text-gray-600 mb-4 relative">
+                    {type.description.split(' ').map((word, idx) => {
+                      const keyWords = ['Intensive', 'study', 'groups', 'focused', 'upcoming', 'exams', 'Share', 'practice', 'questions', 'review', 'materials', 'test', 'Long-term', 'groups', 'mastering', 'specific', 'subjects', 'Build', 'knowledge', 'progressively', 'consistent', 'peers', 'Collaborate', 'group', 'projects', 'shared', 'workspaces', 'file', 'storage', 'task', 'management', 'tools'];
+                      const cleanWord = word.replace(/[.,!?]/g, '');
+                      return keyWords.includes(cleanWord) ? (
+                        <span key={idx}><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">{cleanWord}</span>{word.replace(cleanWord, '')} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </p>
                   <div className="space-y-2 relative">
                     {type.features.map((feature, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-sm text-gray-600">

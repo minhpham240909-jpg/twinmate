@@ -23,10 +23,10 @@ export default function RealTimeCollaborationPage() {
                   Collaborate in Real-Time
                 </div>
                 <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-                  Study Together, Anywhere
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Study Together</span>, Anywhere
                 </h1>
                 <p className="text-xl text-gray-600 mb-8">
-                  Connect with your study partners through video calls, chat, shared whiteboards, and collaborative tools—all in one seamless platform.
+                  Connect with your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">study partners</span> through <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">video calls</span>, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">chat</span>, shared <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">whiteboards</span>, and <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">collaborative tools</span>—all in one seamless platform.
                 </p>
                 <Link
                   href="/auth/signup"
@@ -193,8 +193,27 @@ export default function RealTimeCollaborationPage() {
                   }`}>
                     {feature.icon}
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-900">{feature.title}</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
+                  <h3 className="text-xl font-semibold mb-2 text-gray-900">
+                    {feature.title.split(' ').map((word, idx) => {
+                      const keyWords = ['HD', 'Video', 'Calls', 'Real-Time', 'Chat', 'Shared', 'Whiteboard', 'Document', 'Collaboration', 'Screen', 'Sharing', 'Session', 'Recording'];
+                      return keyWords.includes(word) ? (
+                        <span key={idx} className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{word} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {feature.description.split(' ').map((word, idx) => {
+                      const keyWords = ['Crystal-clear', 'video', 'audio', 'quality', 'participants', 'session', 'Screen', 'sharing', 'included', 'Instant', 'messaging', 'file', 'sharing', 'code', 'snippets', 'LaTeX', 'math', 'equation', 'support', 'Collaborate', 'visually', 'infinite', 'canvas', 'Draw', 'write', 'equations', 'brainstorm', 'together', 'Work', 'notes', 'documents', 'together', 'real-time', 'version', 'history', 'auto-save', 'Share', 'screen', 'explain', 'concepts', 'review', 'code', 'demonstrate', 'problem-solving', 'techniques', 'Record', 'sessions', 'later', 'review', 'Automatic', 'transcription', 'searchable', 'content', 'included'];
+                      const cleanWord = word.replace(/[.,!?]/g, '');
+                      return keyWords.includes(cleanWord) ? (
+                        <span key={idx}><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">{cleanWord}</span>{word.replace(cleanWord, '')} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -275,8 +294,27 @@ export default function RealTimeCollaborationPage() {
                     </motion.div>
                   </div>
 
-                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{useCase.title}</h3>
-                  <p className="text-gray-600 leading-relaxed relative">{useCase.description}</p>
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">
+                    {useCase.title.split(' ').map((word, idx) => {
+                      const keyWords = ['Quick', 'Study', 'Sessions', 'Exam', 'Preparation', 'Project', 'Collaboration', 'Language', 'Practice'];
+                      return keyWords.includes(word) ? (
+                        <span key={idx} className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{word} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed relative">
+                    {useCase.description.split(' ').map((word, idx) => {
+                      const keyWords = ['Need', 'help', 'specific', 'problem', 'Jump', 'quick', 'video', 'call', 'share', 'screen', 'instant', 'help', 'study', 'partner', 'Prepare', 'exams', 'together', 'extended', 'sessions', 'Use', 'whiteboard', 'problem-solving', 'screen', 'sharing', 'reviewing', 'materials', 'Work', 'group', 'projects', 'document', 'collaboration', 'file', 'sharing', 'video', 'conferencing', 'place', 'Practice', 'speaking', 'language', 'partners', 'video', 'calls', 'Record', 'sessions', 'review', 'pronunciation', 'conversation', 'skills'];
+                      const cleanWord = word.replace(/[.,!?]/g, '');
+                      return keyWords.includes(cleanWord) ? (
+                        <span key={idx}><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">{cleanWord}</span>{word.replace(cleanWord, '')} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </p>
                 </motion.div>
               ))}
             </div>

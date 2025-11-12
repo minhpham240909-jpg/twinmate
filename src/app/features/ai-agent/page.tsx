@@ -23,10 +23,10 @@ export default function AIAgentFeaturePage() {
                 AI-Powered Matching
               </div>
               <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-                AI Agent: Your Personal Study Partner Finder
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">AI Agent</span>: Your Personal Study Partner Finder
               </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Stop wasting time searching for the perfect study partner. Our intelligent AI Agent analyzes your profile and automatically matches you with compatible partners who share your goals and learning style.
+                Stop wasting time searching for the perfect <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">study partner</span>. Our intelligent <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">AI Agent</span> analyzes your profile and automatically <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">matches</span> you with <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">compatible partners</span> who share your goals and learning style.
               </p>
             </motion.div>
 
@@ -178,8 +178,27 @@ export default function AIAgentFeaturePage() {
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-4">
                     {item.icon}
                   </div>
-                  <h3 className="text-xl font-semibold mb-3 text-gray-900">{item.title}</h3>
-                  <p className="text-gray-600 leading-relaxed">{item.description}</p>
+                  <h3 className="text-xl font-semibold mb-3 text-gray-900">
+                    {item.title.split(' ').map((word, idx) => {
+                      const keyWords = ['Describe', 'Ideal', 'Partner', 'Analyzes', 'Matches', 'Connect', 'Study'];
+                      return keyWords.includes(word) ? (
+                        <span key={idx} className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{word} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    {item.description.split(' ').map((word, idx) => {
+                      const keyWords = ['Tell', 'subjects', 'learning', 'style', 'goals', 'availability', 'specific', 'matches', 'processes', 'preferences', 'finds', 'partners', 'complement', 'needs', 'compatibility', 'dimensions', 'Review', 'matches', 'connect', 'partners', 'collaborating', 'immediately', 'Update', 'preferences'];
+                      const cleanWord = word.replace(/[.,!?]/g, '');
+                      return keyWords.includes(cleanWord) ? (
+                        <span key={idx}><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">{cleanWord}</span>{word.replace(cleanWord, '')} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -260,8 +279,27 @@ export default function AIAgentFeaturePage() {
                     </motion.div>
                   </div>
 
-                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">{feature.title}</h3>
-                  <p className="text-gray-600 leading-relaxed relative">{feature.description}</p>
+                  <h3 className="text-2xl font-semibold mb-3 text-gray-900 relative">
+                    {feature.title.split(' ').map((word, idx) => {
+                      const keyWords = ['Multi-Dimensional', 'Matching', 'Continuous', 'Learning', 'Real-Time', 'Availability', 'Compatibility', 'Scores'];
+                      return keyWords.includes(word) ? (
+                        <span key={idx} className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{word} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed relative">
+                    {feature.description.split(' ').map((word, idx) => {
+                      const keyWords = ['considers', 'subjects', 'learning', 'styles', 'schedules', 'goals', 'personality', 'traits', 'communication', 'preferences', 'compatible', 'partners', 'learns', 'interactions', 'feedback', 'improving', 'match', 'quality', 'understand', 'preferences', 'Matches', 'based', 'current', 'availability', 'ensuring', 'connect', 'partners', 'ready', 'study', 'See', 'detailed', 'compatibility', 'breakdowns', 'showing', 'match', 'recommended', 'common'];
+                      const cleanWord = word.replace(/[.,!?]/g, '');
+                      return keyWords.includes(cleanWord) ? (
+                        <span key={idx}><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">{cleanWord}</span>{word.replace(cleanWord, '')} </span>
+                      ) : (
+                        <span key={idx}>{word} </span>
+                      );
+                    })}
+                  </p>
                 </motion.div>
               ))}
             </div>
