@@ -910,7 +910,6 @@ export default function CommunityPage() {
               </div>
             )}
           </div>
-          </div>
 
           {/* Sidebar - Right */}
           <div className="lg:col-span-1">
