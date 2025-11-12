@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Verify user is authenticated
     const supabase = await createClient()
@@ -14,6 +14,10 @@ export async function GET() {
         { status: 401 }
       )
     }
+
+    // Get type filter from query params
+    const { searchParams } = new URL(request.url)
+    const typeFilter = searchParams.get('type') // 'partner' or 'group'
 
     const userId = user.id
 
@@ -282,8 +286,17 @@ export async function GET() {
       }
     })
 
-    // Combine and sort by last message time
-    const allConversations = [...partners, ...groups].sort((a, b) => {
+    // Combine and filter by type if specified
+    let allConversations = [...partners, ...groups]
+    
+    if (typeFilter === 'partner') {
+      allConversations = partners
+    } else if (typeFilter === 'group') {
+      allConversations = groups
+    }
+
+    // Sort by last message time
+    allConversations.sort((a, b) => {
       const timeA = a.lastMessageTime?.getTime() || 0
       const timeB = b.lastMessageTime?.getTime() || 0
       return timeB - timeA
