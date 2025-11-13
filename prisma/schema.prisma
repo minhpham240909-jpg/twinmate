@@ -65,6 +65,15 @@ model User {
   subscriptionStatus   String? // active, canceled, past_due, etc.
   subscriptionEndsAt   DateTime?
 
+  // Account Deactivation
+  deactivatedAt DateTime? // When account was deactivated (null if active)
+  deactivationReason String? @db.Text // Optional reason for deactivation
+
+  // Two-Factor Authentication
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret String? // TOTP secret (encrypted)
+  twoFactorBackupCodes String[] @default([]) // Backup codes for recovery
+
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -102,6 +111,8 @@ model User {
   @@index([email])
   @@index([googleId])
   @@index([role])
+  @@index([deactivatedAt])
+  @@index([twoFactorEnabled])
 }
 
 model Profile {

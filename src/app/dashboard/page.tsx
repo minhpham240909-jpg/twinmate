@@ -539,7 +539,7 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
-          {/* Split Layout: Left = AI Card, Right = 3 Stat Cards */}
+          {/* Split Layout: Left = AI Card, Right = Study Partners Card */}
           <div className="grid md:grid-cols-2 gap-8 mb-10">
             {/* Left Half - AI Agent Featured Card */}
             <button
@@ -564,80 +564,32 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            {/* Right Half - Three Stat Cards (Smaller) */}
-            <div className="grid grid-rows-3 gap-4">
-              {/* Study Partner Card */}
-              <button
-                onClick={() => router.push('/dashboard/partners')}
-                className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left w-full"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-black tracking-tight">{partnersCount}</p>
-                      <p className="text-blue-50 text-sm font-medium">{t('studyPartners')}</p>
-                    </div>
+            {/* Right Half - Study Partners Card */}
+            <button
+              onClick={() => router.push('/dashboard/partners')}
+              className="w-full h-full p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl text-white shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
+            >
+              <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="w-16 h-16 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
                   </div>
-                  <svg className="w-5 h-5 text-blue-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                </div>
+                <h2 className="text-2xl font-bold mb-2">{t('studyPartners')}</h2>
+                <p className="text-4xl font-black mb-2">{partnersCount}</p>
+                <p className="text-blue-100 text-base leading-relaxed">Connect with study partners and collaborate</p>
+                <div className="mt-6 flex items-center gap-2 text-blue-200">
+                  <span className="text-sm font-medium">View all partners</span>
+                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-              </button>
-
-              {/* Streak Card */}
-              <button
-                onClick={() => {/* TODO: Add streak page */}}
-                className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left w-full"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-black tracking-tight">{profile.studyStreak || 0}</p>
-                      <p className="text-purple-50 text-sm font-medium">{t('dayStreak')}</p>
-                    </div>
-                  </div>
-                  <svg className="w-5 h-5 text-purple-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </button>
-
-              {/* Study Hours Card */}
-              <button
-                onClick={() => {/* TODO: Add study hours page */}}
-                className="bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left w-full"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-black tracking-tight">{formatStudyHours(profile.totalStudyHours || 0)}</p>
-                      <p className="text-green-50 text-sm font-medium">{t('studyHours')}</p>
-                    </div>
-                  </div>
-                  <svg className="w-5 h-5 text-green-200 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </button>
-            </div>
+              </div>
+            </button>
           </div>
 
           {/* Search Bar & Online Partners - Split 50/50 */}

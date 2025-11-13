@@ -16,8 +16,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: '',
     bio: '',
-    age: undefined as number | undefined, // NEW: Age field
-    role: '', // NEW: Role field
+    age: undefined as number | undefined,
+    role: '',
     avatarUrl: '',
     subjects: [] as string[],
     interests: [] as string[],
@@ -29,15 +29,11 @@ export default function ProfilePage() {
     availableDays: [] as string[],
     availableHours: '',
     availabilityDescription: '',
-    // NEW: Add more about yourself
     aboutYourselfItems: [] as string[],
     aboutYourself: '',
-    // NEW: School and Languages
     school: '',
     languages: '',
-    // NEW: Post Privacy
     postPrivacy: 'PUBLIC' as 'PUBLIC' | 'PARTNERS_ONLY',
-    // NEW: Location
     locationCity: '',
     locationState: '',
     locationCountry: '',
@@ -53,9 +49,7 @@ export default function ProfilePage() {
     aboutYourselfItem: '',
   })
 
-  // State for "Add more about yourself" visibility
   const [showAboutYourself, setShowAboutYourself] = useState(false)
-
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [previewImage, setPreviewImage] = useState<string>('')
@@ -96,7 +90,6 @@ export default function ProfilePage() {
       
       setFormData(initialFormData)
       
-      // Store profile snapshot if banner was clicked (for change detection)
       if (typeof window !== 'undefined') {
         const bannerClicked = localStorage.getItem('profileCompletionBannerClicked') === 'true'
         if (bannerClicked) {
@@ -118,7 +111,6 @@ export default function ProfilePage() {
         }
       }
       
-      // Show "Add more about yourself" if it has content
       const profileWithAbout = profile as { aboutYourself?: string; aboutYourselfItems?: string[] }
       if (profileWithAbout.aboutYourself || (profileWithAbout.aboutYourselfItems && profileWithAbout.aboutYourselfItems.length > 0)) {
         setShowAboutYourself(true)
@@ -129,7 +121,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">{tCommon('loading')}</p>
@@ -178,13 +170,11 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert(t('pleaseUploadImageFile'))
       return
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert(t('imageSizeLimit'))
       return
@@ -193,14 +183,12 @@ export default function ProfilePage() {
     setIsUploading(true)
 
     try {
-      // Create preview
       const reader = new FileReader()
       reader.onloadend = () => {
         setPreviewImage(reader.result as string)
       }
       reader.readAsDataURL(file)
 
-      // Upload to server
       const formDataUpload = new FormData()
       formDataUpload.append('file', file)
       formDataUpload.append('userId', user.id)
@@ -232,8 +220,8 @@ export default function ProfilePage() {
         userId: user.id,
         name: formData.name,
         bio: formData.bio || undefined,
-        age: formData.age || undefined, // NEW: Include age
-        role: formData.role || undefined, // NEW: Include role
+        age: formData.age || undefined,
+        role: formData.role || undefined,
         avatarUrl: formData.avatarUrl || undefined,
         subjects: formData.subjects,
         interests: formData.interests,
@@ -245,17 +233,13 @@ export default function ProfilePage() {
         availableDays: formData.availableDays,
         availableHours: formData.availableHours || undefined,
         availabilityCustomDescription: formData.availabilityDescription || undefined,
-        // NEW: Include aboutYourself fields
         aboutYourselfItems: formData.aboutYourselfItems,
         aboutYourself: formData.aboutYourself || undefined,
-        // NEW: Include school and languages
         school: formData.school || undefined,
         languages: formData.languages || undefined,
-        // NEW: Include post privacy
         postPrivacy: formData.postPrivacy,
       }
 
-      // Save profile data
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -269,7 +253,6 @@ export default function ProfilePage() {
         throw new Error(errorData.error || 'Failed to save profile')
       }
 
-      // Save location data separately
       if (formData.locationCity || formData.locationState || formData.locationCountry) {
         const locationResponse = await fetch('/api/location/update', {
           method: 'POST',
@@ -286,14 +269,11 @@ export default function ProfilePage() {
 
         if (!locationResponse.ok) {
           console.error('[CLIENT] Failed to save location')
-          // Don't fail the whole save if location update fails
         }
       }
 
-      // Refresh user data
       await refreshUser()
       
-      // Check if profile is now complete
       const updatedProfile = {
         bio: requestData.bio,
         subjects: requestData.subjects,
@@ -309,7 +289,6 @@ export default function ProfilePage() {
         updatedProfile.age !== null && updatedProfile.age !== undefined &&
         updatedProfile.role && updatedProfile.role.trim().length > 0
       
-      // Check for profile changes if banner was clicked
       if (typeof window !== 'undefined') {
         const bannerClicked = localStorage.getItem('profileCompletionBannerClicked') === 'true'
         const snapshotStr = localStorage.getItem('profileSnapshot')
@@ -332,7 +311,6 @@ export default function ProfilePage() {
               availableHours: requestData.availableHours || '',
             }
             
-            // Compare arrays and strings to detect changes
             const hasChanges = 
               snapshot.bio !== currentProfile.bio ||
               snapshot.age !== currentProfile.age ||
@@ -347,7 +325,6 @@ export default function ProfilePage() {
               JSON.stringify(snapshot.availableDays?.sort()) !== JSON.stringify(currentProfile.availableDays?.sort()) ||
               snapshot.availableHours !== currentProfile.availableHours
             
-            // If any changes were made, dismiss the banner
             if (hasChanges) {
               localStorage.setItem('profileCompletionBannerDismissed', 'true')
             }
@@ -356,7 +333,6 @@ export default function ProfilePage() {
           }
         }
         
-        // If profile is complete and banner was clicked, also dismiss
         if (isComplete && bannerClicked) {
           localStorage.setItem('profileCompletionBannerDismissed', 'true')
         }
@@ -373,10 +349,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => {
@@ -386,13 +362,16 @@ export default function ProfilePage() {
                   router.push('/dashboard')
                 }
               }}
-              className="text-gray-600 hover:text-gray-900"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
+              <span className="font-medium">Back</span>
             </button>
-            <h1 className="text-2xl font-bold text-blue-600">{t('editProfile')}</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {t('editProfile')}
+            </h1>
           </div>
           <button
             onClick={() => {
@@ -402,40 +381,42 @@ export default function ProfilePage() {
                 window.location.href = '/dashboard'
               }
             }}
-            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition font-medium"
           >
             {tCommon('cancel')}
-          </button>        </div>
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            {/* Profile Picture Upload */}
-            <div className="flex items-center gap-6 mb-8 pb-8 border-b">
-              <div className="relative">
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+          {/* Profile Picture Section */}
+          <div className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-8">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="relative group">
                 {previewImage ? (
                   <img
                     src={previewImage}
                     alt="Profile"
-                    className="w-24 h-24 rounded-full object-cover"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-2xl"
                   />
                 ) : (
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-3xl">
+                  <div className="w-32 h-32 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-2xl">
                     {formData.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
                   </div>
                 )}
                 {isUploading && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
                     <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 )}
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                  {user.email}
-                </h2>
+                <div className="absolute bottom-0 right-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white cursor-pointer hover:bg-blue-700 transition-colors group-hover:scale-110">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -446,338 +427,371 @@ export default function ProfilePage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUploading ? 'Uploading...' : 'Upload Profile Picture'}
-                </button>
-                <p className="text-xs text-gray-500 mt-1">JPG, PNG or GIF (max 5MB)</p>
-              </div>
-            </div>
-
-            {/* Name */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder={t('enterYourName')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Bio */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Bio
-              </label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                placeholder={t('tellOthersAboutYourself')}
-                rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Age and Role Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Age */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Age (Optional)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="150"
-                  value={formData.age || ''}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value ? parseInt(e.target.value) : undefined })}
-                  placeholder={t('enterYourAge')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="absolute inset-0 rounded-full cursor-pointer disabled:cursor-not-allowed"
                 />
               </div>
+              <div className="flex-1 text-center sm:text-left">
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  {formData.name || user.email}
+                </h2>
+                <p className="text-blue-100 mb-2">{user.email}</p>
+                <p className="text-sm text-blue-50">JPG, PNG or GIF (max 5MB)</p>
+              </div>
+            </div>
+          </div>
 
-              {/* Role */}
+          {/* Form Content */}
+          <div className="p-8 space-y-8">
+            {/* Basic Information Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+                <h3 className="text-xl font-bold text-gray-900">Basic Information</h3>
+              </div>
+
+              {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role / Position (Optional)
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Full Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  placeholder="e.g., Student, Software Engineer, Graduate Student"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder={t('enterYourName')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Bio <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  placeholder={t('tellOthersAboutYourself')}
+                  rows={4}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                />
+              </div>
+
+              {/* Age and Role */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Age <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="150"
+                    value={formData.age || ''}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder={t('enterYourAge')}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Role / Position <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    placeholder="e.g., Student, Software Engineer"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Subjects */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Subjects I&apos;m Learning
-              </label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {allSubjects.map((subject) => (
-                  <button
-                    key={subject}
-                    onClick={() => toggleArrayItem(formData.subjects, subject, (val) => setFormData({ ...formData, subjects: val }))}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      formData.subjects.includes(subject)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {subject}
-                  </button>
-                ))}
-                {formData.subjects.filter(s => !allSubjects.includes(s)).map((subject) => (
-                  <button
-                    key={subject}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white flex items-center gap-2"
-                  >
-                    {subject}
-                    <span
-                      onClick={() => removeCustomItem('subjects', subject)}
-                      className="hover:bg-blue-700 rounded-full p-0.5"
-                    >
-                      ×
-                    </span>
-                  </button>
-                ))}
+            {/* Divider */}
+            <div className="border-t border-gray-200"></div>
+
+            {/* Learning Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+                <h3 className="text-xl font-bold text-gray-900">Learning Preferences</h3>
               </div>
-              <div className="flex gap-2">
+
+              {/* Subjects */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Subjects I&apos;m Learning <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {allSubjects.map((subject) => (
+                    <button
+                      key={subject}
+                      type="button"
+                      onClick={() => toggleArrayItem(formData.subjects, subject, (val) => setFormData({ ...formData, subjects: val }))}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        formData.subjects.includes(subject)
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {subject}
+                    </button>
+                  ))}
+                  {formData.subjects.filter(s => !allSubjects.includes(s)).map((subject) => (
+                    <span key={subject} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-medium shadow-lg">
+                      {subject}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomItem('subjects', subject)}
+                        className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customInputs.subject}
+                    onChange={(e) => setCustomInputs({ ...customInputs, subject: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomItem('subject')}
+                    placeholder={t('addCustomSubject')}
+                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addCustomItem('subject')}
+                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Interests */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Learning Interests <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {allInterests.map((interest) => (
+                    <button
+                      key={interest}
+                      type="button"
+                      onClick={() => toggleArrayItem(formData.interests, interest, (val) => setFormData({ ...formData, interests: val }))}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        formData.interests.includes(interest)
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {interest}
+                    </button>
+                  ))}
+                  {formData.interests.filter(i => !allInterests.includes(i)).map((interest) => (
+                    <span key={interest} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl text-sm font-medium shadow-lg">
+                      {interest}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomItem('interests', interest)}
+                        className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customInputs.interest}
+                    onChange={(e) => setCustomInputs({ ...customInputs, interest: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomItem('interest')}
+                    placeholder={t('addCustomInterest')}
+                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addCustomItem('interest')}
+                    className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Goals */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  My Learning Goals
+                </label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {allGoals.map((goal) => (
+                    <button
+                      key={goal}
+                      type="button"
+                      onClick={() => toggleArrayItem(formData.goals, goal, (val) => setFormData({ ...formData, goals: val }))}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        formData.goals.includes(goal)
+                          ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg scale-105'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {goal}
+                    </button>
+                  ))}
+                  {formData.goals.filter(g => !allGoals.includes(g)).map((goal) => (
+                    <span key={goal} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl text-sm font-medium shadow-lg">
+                      {goal}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomItem('goals', goal)}
+                        className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customInputs.goal}
+                    onChange={(e) => setCustomInputs({ ...customInputs, goal: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomItem('goal')}
+                    placeholder={t('addCustomGoal')}
+                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addCustomItem('goal')}
+                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-200"></div>
+
+            {/* Additional Information */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+                <h3 className="text-xl font-bold text-gray-900">Additional Information</h3>
+              </div>
+
+              {/* School */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  School / University
+                </label>
+                <textarea
+                  value={formData.school}
+                  onChange={(e) => setFormData({ ...formData, school: e.target.value })}
+                  placeholder="e.g., Harvard University, MIT, Stanford..."
+                  rows={2}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">This helps you find partners from the same school</p>
+              </div>
+
+              {/* Languages */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Languages Spoken
+                </label>
+                <textarea
+                  value={formData.languages}
+                  onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
+                  placeholder="e.g., English, Spanish, Mandarin, French..."
+                  rows={2}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">This helps you find partners who speak the same languages</p>
+              </div>
+
+              {/* Location */}
+              <div className="pb-6 border-b border-gray-200">
+                <LocationForm
+                  initialLocation={{
+                    city: formData.locationCity,
+                    state: formData.locationState,
+                    country: formData.locationCountry,
+                    lat: formData.locationLat,
+                    lng: formData.locationLng,
+                    visibility: formData.locationVisibility,
+                  }}
+                  onLocationChange={(location) => {
+                    setFormData({
+                      ...formData,
+                      locationCity: location.city,
+                      locationState: location.state,
+                      locationCountry: location.country,
+                      locationLat: location.lat,
+                      locationLng: location.lng,
+                      locationVisibility: location.visibility,
+                    })
+                  }}
+                />
+              </div>
+
+              {/* Skill Level */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Skill Level
+                </label>
                 <input
                   type="text"
-                  value={customInputs.subject}
-                  onChange={(e) => setCustomInputs({ ...customInputs, subject: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('subject')}
-                  placeholder={t('addCustomSubject')}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  value={formData.skillLevelDescription}
+                  onChange={(e) => setFormData({ ...formData, skillLevelDescription: e.target.value })}
+                  placeholder={t('describeSkillLevel')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
-                <button
-                  onClick={() => addCustomItem('subject')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
-                >
-                  Add
-                </button>
               </div>
-            </div>
 
-            {/* Interests */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Learning Interests
-              </label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {allInterests.map((interest) => (
-                  <button
-                    key={interest}
-                    onClick={() => toggleArrayItem(formData.interests, interest, (val) => setFormData({ ...formData, interests: val }))}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      formData.interests.includes(interest)
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {interest}
-                  </button>
-                ))}
-                {formData.interests.filter(i => !allInterests.includes(i)).map((interest) => (
-                  <button
-                    key={interest}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white flex items-center gap-2"
-                  >
-                    {interest}
-                    <span
-                      onClick={() => removeCustomItem('interests', interest)}
-                      className="hover:bg-purple-700 rounded-full p-0.5"
-                    >
-                      ×
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
+              {/* Study Style */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Preferred Study Style
+                </label>
+                <select
+                  value={formData.studyStyle}
+                  onChange={(e) => setFormData({ ...formData, studyStyle: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-3"
+                >
+                  <option value="COLLABORATIVE">Collaborative (Group Study)</option>
+                  <option value="INDEPENDENT">Independent (Self-Study)</option>
+                  <option value="MIXED">Mixed (Both)</option>
+                </select>
                 <input
                   type="text"
-                  value={customInputs.interest}
-                  onChange={(e) => setCustomInputs({ ...customInputs, interest: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('interest')}
-                  placeholder={t('addCustomInterest')}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  value={formData.studyStyleDescription}
+                  onChange={(e) => setFormData({ ...formData, studyStyleDescription: e.target.value })}
+                  placeholder={t('describeStudyStyle')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
                 />
-                <button
-                  onClick={() => addCustomItem('interest')}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition"
-                >
-                  Add
-                </button>
               </div>
-            </div>
 
-            {/* Goals */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                My Learning Goals
-              </label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {allGoals.map((goal) => (
-                  <button
-                    key={goal}
-                    onClick={() => toggleArrayItem(formData.goals, goal, (val) => setFormData({ ...formData, goals: val }))}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      formData.goals.includes(goal)
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {goal}
-                  </button>
-                ))}
-                {formData.goals.filter(g => !allGoals.includes(g)).map((goal) => (
-                  <button
-                    key={goal}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white flex items-center gap-2"
-                  >
-                    {goal}
-                    <span
-                      onClick={() => removeCustomItem('goals', goal)}
-                      className="hover:bg-green-700 rounded-full p-0.5"
-                    >
-                      ×
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customInputs.goal}
-                  onChange={(e) => setCustomInputs({ ...customInputs, goal: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('goal')}
-                  placeholder={t('addCustomGoal')}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                />
-                <button
-                  onClick={() => addCustomItem('goal')}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-
-            {/* School */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                School / University (Optional)
-              </label>
-              <textarea
-                value={formData.school}
-                onChange={(e) => setFormData({ ...formData, school: e.target.value })}
-                placeholder="e.g., Harvard University, MIT, Stanford..."
-                rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-1">This helps you find partners from the same school</p>
-            </div>
-
-            {/* Languages */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Languages Spoken (Optional)
-              </label>
-              <textarea
-                value={formData.languages}
-                onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
-                placeholder="e.g., English, Spanish, Mandarin, French..."
-                rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-1">This helps you find partners who speak the same languages</p>
-            </div>
-
-            {/* Location Section */}
-            <div className="mb-6 pb-6 border-b border-gray-200">
-              <LocationForm
-                initialLocation={{
-                  city: formData.locationCity,
-                  state: formData.locationState,
-                  country: formData.locationCountry,
-                  lat: formData.locationLat,
-                  lng: formData.locationLng,
-                  visibility: formData.locationVisibility,
-                }}
-                onLocationChange={(location) => {
-                  setFormData({
-                    ...formData,
-                    locationCity: location.city,
-                    locationState: location.state,
-                    locationCountry: location.country,
-                    locationLat: location.lat,
-                    locationLng: location.lng,
-                    locationVisibility: location.visibility,
-                  })
-                }}
-              />
-            </div>
-
-            {/* Skill Level */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Skill Level (Optional)
-              </label>
-              <input
-                type="text"
-                value={formData.skillLevelDescription}
-                onChange={(e) => setFormData({ ...formData, skillLevelDescription: e.target.value })}
-                placeholder={t('describeSkillLevel')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Study Style */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Preferred Study Style
-              </label>
-              <select
-                value={formData.studyStyle}
-                onChange={(e) => setFormData({ ...formData, studyStyle: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
-              >
-                <option value="COLLABORATIVE">Collaborative (Group Study)</option>
-                <option value="INDEPENDENT">Independent (Self-Study)</option>
-                <option value="MIXED">Mixed (Both)</option>
-              </select>
-              <input
-                type="text"
-                value={formData.studyStyleDescription}
-                onChange={(e) => setFormData({ ...formData, studyStyleDescription: e.target.value })}
-                placeholder={t('describeStudyStyle')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-
-            {/* Availability */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                When I&apos;m Available
-              </label>
-              <div className="mb-3">
-                <p className="text-xs text-gray-600 mb-2">Select days you&apos;re available:</p>
-                <div className="flex flex-wrap gap-2">
+              {/* Availability */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  When I&apos;m Available
+                </label>
+                <p className="text-xs text-gray-600 mb-3">Select days you&apos;re available:</p>
+                <div className="flex flex-wrap gap-2 mb-4">
                   {daysOfWeek.map((day) => (
                     <button
                       key={day}
+                      type="button"
                       onClick={() => toggleArrayItem(formData.availableDays, day, (val) => setFormData({ ...formData, availableDays: val }))}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                         formData.availableDays.includes(day)
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -785,59 +799,59 @@ export default function ProfilePage() {
                     </button>
                   ))}
                 </div>
+                <input
+                  type="text"
+                  value={formData.availableHours}
+                  onChange={(e) => setFormData({ ...formData, availableHours: e.target.value })}
+                  placeholder={t('typicalHours')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm mb-3"
+                />
+                <textarea
+                  value={formData.availabilityDescription}
+                  onChange={(e) => setFormData({ ...formData, availabilityDescription: e.target.value })}
+                  placeholder={t('describeAvailability')}
+                  rows={2}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-sm"
+                />
               </div>
-              <input
-                type="text"
-                value={formData.availableHours}
-                onChange={(e) => setFormData({ ...formData, availableHours: e.target.value })}
-                placeholder={t('typicalHours')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm mb-2"
-              />
-              <textarea
-                value={formData.availabilityDescription}
-                onChange={(e) => setFormData({ ...formData, availabilityDescription: e.target.value })}
-                placeholder={t('describeAvailability')}
-                rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
             </div>
 
-            {/* NEW: Add More About Yourself Section */}
-            <div className="mb-8 border-t pt-8">
+            {/* About Yourself Section */}
+            <div className="border-t border-gray-200 pt-8">
               <button
                 type="button"
                 onClick={() => setShowAboutYourself(!showAboutYourself)}
-                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
+                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl transition-all w-full text-left group"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-5 h-5 text-blue-600 transition-transform ${showAboutYourself ? 'rotate-45' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                {showAboutYourself ? 'Hide' : 'Add more about yourself'}
+                <span className="font-semibold text-gray-900">{showAboutYourself ? 'Hide' : 'Add more about yourself'}</span>
               </button>
 
               {showAboutYourself && (
-                <div className="mt-4 space-y-4">
-                  {/* Custom Items */}
+                <div className="mt-6 space-y-6">
+                  {/* Tags */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Add Tags
                     </label>
-                    <p className="text-xs text-gray-600 mb-2">
+                    <p className="text-xs text-gray-600 mb-3">
                       Add keywords that describe you (e.g., &quot;Startup&quot;, &quot;AI&quot;, &quot;Co-founder&quot;, &quot;React Developer&quot;)
                     </p>
-                    <div className="flex gap-2 mb-2">
+                    <div className="flex gap-2 mb-3">
                       <input
                         type="text"
                         value={customInputs.aboutYourselfItem}
                         onChange={(e) => setCustomInputs({ ...customInputs, aboutYourselfItem: e.target.value })}
                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem('aboutYourselfItem'))}
                         placeholder={t('addTag')}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
                       />
                       <button
                         type="button"
                         onClick={() => addCustomItem('aboutYourselfItem')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition font-medium"
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all"
                       >
                         Add
                       </button>
@@ -845,12 +859,12 @@ export default function ProfilePage() {
                     {formData.aboutYourselfItems.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {formData.aboutYourselfItems.map((item) => (
-                          <span key={item} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                          <span key={item} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 rounded-xl text-sm font-medium border border-blue-200">
                             {item}
                             <button
                               type="button"
                               onClick={() => removeCustomItem('aboutYourselfItems', item)}
-                              className="ml-2 text-blue-600 hover:text-blue-800 font-bold"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-lg leading-none"
                             >
                               ×
                             </button>
@@ -862,10 +876,10 @@ export default function ProfilePage() {
 
                   {/* Description */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Tell us more about yourself
                     </label>
-                    <p className="text-xs text-gray-600 mb-2">
+                    <p className="text-xs text-gray-600 mb-3">
                       Share anything you&apos;d like others to know - your collaboration preferences, what you&apos;re looking for, your goals, or anything else that helps others understand you better.
                     </p>
                     <textarea
@@ -873,19 +887,19 @@ export default function ProfilePage() {
                       onChange={(e) => setFormData({ ...formData, aboutYourself: e.target.value })}
                       placeholder={t('aboutYourselfPlaceholder')}
                       rows={6}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-sm"
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Save Button */}
-            <div className="flex gap-4">
+            {/* Save Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
               <button
                 onClick={handleSave}
                 disabled={isSaving || isUploading}
-                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isSaving ? `${tCommon('save')}...` : tCommon('save')}
               </button>
@@ -897,7 +911,7 @@ export default function ProfilePage() {
                     window.location.href = '/dashboard'
                   }
                 }}
-                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition"
+                className="px-8 py-4 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all"
               >
                 Cancel
               </button>

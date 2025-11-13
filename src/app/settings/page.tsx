@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
+import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
 
 // Types
 type DeletedPost = {
@@ -714,9 +715,476 @@ function NumberSetting({
 
 // Account Settings
 function AccountSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+  const { user, profile } = useAuth()
+  const router = useRouter()
   const t = useTranslations('settings')
+  const tCommon = useTranslations('common')
+  
+  // State for various features
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [showChangeEmail, setShowChangeEmail] = useState(false)
+  const [showActiveSessions, setShowActiveSessions] = useState(false)
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [emailData, setEmailData] = useState({ newEmail: '', verificationCode: '' })
+  const [activeSessions, setActiveSessions] = useState<any[]>([])
+  const [profileCompletion, setProfileCompletion] = useState<any>(null)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+
+  // 2FA Modal State
+  const [show2FAModal, setShow2FAModal] = useState(false)
+  const [twoFactorQRCode, setTwoFactorQRCode] = useState<string | null>(null)
+  const [twoFactorSecret, setTwoFactorSecret] = useState<string | null>(null)
+  const [twoFactorVerificationCode, setTwoFactorVerificationCode] = useState('')
+  const [twoFactorBackupCodes, setTwoFactorBackupCodes] = useState<string[]>([])
+  const [twoFactorStep, setTwoFactorStep] = useState<'setup' | 'verify' | 'backup' | 'disable'>('setup')
+
+  // Load profile completion on mount
+  useEffect(() => {
+    const fetchProfileCompletion = async () => {
+      try {
+        const response = await fetch('/api/settings/profile-completion')
+        if (response.ok) {
+          const data = await response.json()
+          setProfileCompletion(data)
+        }
+      } catch (error) {
+        console.error('Error fetching profile completion:', error)
+      }
+    }
+    fetchProfileCompletion()
+  }, [])
+
+  // Load 2FA status
+  useEffect(() => {
+    const fetch2FAStatus = async () => {
+      try {
+        const response = await fetch('/api/settings/two-factor')
+        if (response.ok) {
+          const data = await response.json()
+          setTwoFactorEnabled(data.enabled || false)
+        }
+      } catch (error) {
+        console.error('Error fetching 2FA status:', error)
+      }
+    }
+    fetch2FAStatus()
+  }, [])
+
+  // Load active sessions
+  const loadActiveSessions = async () => {
+    setSessionsLoading(true)
+    try {
+      // Get or create device ID
+      const deviceId = getOrCreateDeviceId()
+
+      const headers: HeadersInit = {
+        'x-device-id': deviceId
+      }
+      
+      const response = await fetch('/api/settings/active-sessions', { headers })
+      if (response.ok) {
+        const data = await response.json()
+        setActiveSessions(data.sessions || [])
+      }
+    } catch (error) {
+      console.error('Error fetching active sessions:', error)
+      toast.error('Failed to load active sessions')
+    } finally {
+      setSessionsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (showActiveSessions) {
+      loadActiveSessions()
+    }
+  }, [showActiveSessions])
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/settings/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Password changed successfully')
+        setShowChangePassword(false)
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      } else {
+        toast.error(data.error || 'Failed to change password')
+      }
+    } catch (error) {
+      console.error('Change password error:', error)
+      toast.error('Failed to change password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleChangeEmail = async () => {
+    if (!emailData.newEmail || !emailData.newEmail.includes('@')) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/settings/change-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newEmail: emailData.newEmail,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(data.message || 'Verification email sent. Please check your inbox.')
+        setShowChangeEmail(false)
+        setEmailData({ newEmail: '', verificationCode: '' })
+      } else {
+        toast.error(data.error || 'Failed to change email')
+      }
+    } catch (error) {
+      console.error('Change email error:', error)
+      toast.error('Failed to change email')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/settings/resend-verification', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Verification email sent. Please check your inbox.')
+      } else {
+        toast.error(data.error || 'Failed to send verification email')
+      }
+    } catch (error) {
+      console.error('Resend verification error:', error)
+      toast.error('Failed to send verification email')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogoutDevice = async (deviceId: string) => {
+    if (!confirm('Are you sure you want to log out this device?')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Get current device ID
+      const currentDeviceId = getOrCreateDeviceId()
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-device-id': currentDeviceId
+      }
+      
+      const response = await fetch('/api/settings/active-sessions', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ deviceId }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Device logged out successfully')
+        loadActiveSessions()
+      } else {
+        toast.error(data.error || 'Failed to logout device')
+      }
+    } catch (error) {
+      console.error('Logout device error:', error)
+      toast.error('Failed to logout device')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogoutAllDevices = async () => {
+    if (!confirm('Are you sure you want to log out all other devices? You will remain logged in on this device.')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Get current device ID
+      const currentDeviceId = getOrCreateDeviceId()
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'x-device-id': currentDeviceId
+      }
+      
+      const response = await fetch('/api/settings/active-sessions', {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ logoutAll: true }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('All other devices logged out successfully')
+        loadActiveSessions()
+      } else {
+        toast.error(data.error || 'Failed to logout devices')
+      }
+    } catch (error) {
+      console.error('Logout all devices error:', error)
+      toast.error('Failed to logout devices')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleToggle2FA = async () => {
+    if (twoFactorEnabled) {
+      // Disable 2FA - show modal to get verification code
+      setTwoFactorStep('disable')
+      setShow2FAModal(true)
+    } else {
+      // Enable 2FA - initiate setup
+      setLoading(true)
+      try {
+        const response = await fetch('/api/settings/two-factor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'enable' }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          // Show QR code modal
+          setTwoFactorQRCode(data.qrCode)
+          setTwoFactorSecret(data.manualEntryKey)
+          setTwoFactorStep('setup')
+          setShow2FAModal(true)
+        } else {
+          toast.error(data.error || 'Failed to initiate 2FA setup')
+        }
+      } catch (error) {
+        console.error('2FA setup error:', error)
+        toast.error('Failed to initiate 2FA setup')
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
+
+  const handleVerify2FA = async () => {
+    if (!twoFactorVerificationCode || twoFactorVerificationCode.length < 6) {
+      toast.error('Please enter a valid 6-digit code')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/settings/two-factor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: twoFactorStep === 'disable' ? 'disable' : 'verify',
+          code: twoFactorVerificationCode
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        if (twoFactorStep === 'disable') {
+          toast.success('2FA disabled successfully')
+          setTwoFactorEnabled(false)
+          setShow2FAModal(false)
+          setTwoFactorVerificationCode('')
+        } else {
+          // Show backup codes
+          setTwoFactorBackupCodes(data.backupCodes || [])
+          setTwoFactorStep('backup')
+          setTwoFactorEnabled(true)
+        }
+      } else {
+        toast.error(data.error || 'Invalid verification code')
+      }
+    } catch (error) {
+      console.error('2FA verification error:', error)
+      toast.error('Failed to verify code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleClose2FAModal = () => {
+    setShow2FAModal(false)
+    setTwoFactorQRCode(null)
+    setTwoFactorSecret(null)
+    setTwoFactorVerificationCode('')
+    setTwoFactorBackupCodes([])
+    setTwoFactorStep('setup')
+  }
+
+  const handleDeactivateAccount = async () => {
+    const confirmation = prompt('Type DEACTIVATE to confirm account deactivation:')
+    
+    if (confirmation !== 'DEACTIVATE') {
+      if (confirmation !== null) {
+        toast.error('Deactivation cancelled')
+      }
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch('/api/settings/deactivate-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DEACTIVATE' }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Account deactivated. You will be signed out.')
+        setTimeout(() => {
+          window.location.href = '/auth/signin'
+        }, 2000)
+      } else {
+        toast.error(data.error || 'Failed to deactivate account')
+      }
+    } catch (error) {
+      console.error('Deactivate account error:', error)
+      toast.error('Failed to deactivate account')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <>
+      {/* Profile Completion Indicator */}
+      {profileCompletion && (
+        <SettingSection
+          title="Profile Completion"
+          description="Complete your profile to improve matching"
+        >
+          <div className="py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-900">Profile Completion</span>
+              <span className="text-lg font-bold text-blue-600">{profileCompletion.completionPercentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all"
+                style={{ width: `${profileCompletion.completionPercentage}%` }}
+              />
+            </div>
+            {profileCompletion.missingFields.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">
+                  Missing: {profileCompletion.missingFields.slice(0, 3).join(', ')}
+                  {profileCompletion.missingFields.length > 3 && '...'}
+                </span>
+                <button
+                  onClick={() => router.push('/profile/edit')}
+                  className="text-xs text-blue-600 hover:underline font-medium"
+                >
+                  Complete Profile →
+                </button>
+              </div>
+            )}
+          </div>
+        </SettingSection>
+      )}
+
+      {/* Email Verification Status */}
+      <SettingSection
+        title="Email Verification"
+        description="Verify your email address to secure your account"
+      >
+        <div className="py-3 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-gray-900">Email Status</div>
+            <div className="text-xs text-gray-500 mt-1">{user?.email}</div>
+          </div>
+          <div className="flex items-center gap-3">
+            {(user as any)?.email_confirmed_at ? (
+              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                ✓ Verified
+              </span>
+            ) : (
+              <>
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium">
+                  ⚠ Not Verified
+                </span>
+                <button
+                  onClick={handleResendVerification}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Resend Verification'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </SettingSection>
+
+      {/* Account Type/Role */}
+      <SettingSection
+        title="Account Type"
+        description="Your current account subscription"
+      >
+        <div className="py-3 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-gray-900">Account Role</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {(user as any)?.role === 'PREMIUM' ? 'Premium Account' : 'Free Account'}
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
+            (user as any)?.role === 'PREMIUM' 
+              ? 'bg-purple-100 text-purple-700' 
+              : 'bg-gray-100 text-gray-700'
+          }`}>
+            {(user as any)?.role === 'PREMIUM' ? 'Premium' : 'Free'}
+          </span>
+        </div>
+      </SettingSection>
+
+      {/* Basic Settings */}
       <SettingSection
         title={t('accountProfile')}
         description={t('manageAccountPreferences')}
@@ -750,6 +1218,391 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
           onChange={(value) => updateSetting('timezone', value)}
         />
       </SettingSection>
+
+      {/* Change Password */}
+      <SettingSection
+        title="Security"
+        description="Manage your account security settings"
+      >
+        {/* Only show password change for non-OAuth users */}
+        {!(user as any)?.app_metadata?.provider && (
+          <div className="py-3 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm font-medium text-gray-900">Password</div>
+                <div className="text-xs text-gray-500 mt-1">Change your account password</div>
+              </div>
+              <button
+                onClick={() => setShowChangePassword(!showChangePassword)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              >
+                {showChangePassword ? 'Cancel' : 'Change Password'}
+              </button>
+            </div>
+          {showChangePassword && (
+            <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={handleChangePassword}
+                disabled={loading}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? 'Changing...' : 'Change Password'}
+              </button>
+            </div>
+          )}
+          </div>
+        )}
+
+        {/* Change Email */}
+        <div className="py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-medium text-gray-900">Email Address</div>
+              <div className="text-xs text-gray-500 mt-1">Change your account email</div>
+            </div>
+            <button
+              onClick={() => setShowChangeEmail(!showChangeEmail)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+            >
+              {showChangeEmail ? 'Cancel' : 'Change Email'}
+            </button>
+          </div>
+          {showChangeEmail && (
+            <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Email Address</label>
+                <input
+                  type="email"
+                  value={emailData.newEmail}
+                  onChange={(e) => setEmailData({ ...emailData, newEmail: e.target.value })}
+                  placeholder="new@example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={handleChangeEmail}
+                disabled={loading}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? 'Sending...' : 'Send Verification Email'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Two-Factor Authentication */}
+        <div className="py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-gray-900">Two-Factor Authentication</div>
+              <div className="text-xs text-gray-500 mt-1">Add an extra layer of security</div>
+            </div>
+            <button
+              onClick={handleToggle2FA}
+              disabled={loading}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
+                twoFactorEnabled
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {loading ? 'Updating...' : twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+            </button>
+          </div>
+          {twoFactorEnabled && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-xs text-green-800">✓ Two-factor authentication is enabled</p>
+            </div>
+          )}
+        </div>
+      </SettingSection>
+
+      {/* Active Sessions */}
+      <SettingSection
+        title="Active Sessions"
+        description="Manage devices where you're logged in"
+      >
+        <div className="py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-medium text-gray-900">Active Devices</div>
+              <div className="text-xs text-gray-500 mt-1">View and manage your active sessions</div>
+            </div>
+            <button
+              onClick={() => {
+                setShowActiveSessions(!showActiveSessions)
+                if (!showActiveSessions) {
+                  loadActiveSessions()
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+            >
+              {showActiveSessions ? 'Hide' : 'View Sessions'}
+            </button>
+          </div>
+          {showActiveSessions && (
+            <div className="mt-4 space-y-3">
+              {sessionsLoading ? (
+                <div className="text-center py-4">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                </div>
+              ) : activeSessions.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No active sessions found</p>
+              ) : (
+                <>
+                  {activeSessions.map((session) => (
+                    <div key={session.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-gray-900">
+                              {session.deviceType} • {session.browser}
+                            </span>
+                            {session.isCurrentDevice && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                Current Device
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 space-y-1">
+                            <div>IP: {session.ipAddress}</div>
+                            <div>Last active: {new Date(session.lastActive).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        {!session.isCurrentDevice && (
+                          <button
+                            onClick={() => handleLogoutDevice(session.deviceId)}
+                            disabled={loading}
+                            className="px-3 py-1 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
+                          >
+                            Logout
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {activeSessions.length > 1 && (
+                    <button
+                      onClick={handleLogoutAllDevices}
+                      disabled={loading}
+                      className="w-full px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition disabled:opacity-50 font-medium"
+                    >
+                      Log Out All Other Devices
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </SettingSection>
+
+      {/* Account Deactivation */}
+      <SettingSection
+        title="Account Management"
+        description="Manage your account status"
+      >
+        <div className="py-3">
+          <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="text-sm font-medium text-red-900 mb-1">Deactivate Account</div>
+                <div className="text-xs text-red-700">
+                  Temporarily disable your account. You can reactivate by signing in again.
+                </div>
+              </div>
+              <button
+                onClick={handleDeactivateAccount}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {loading ? 'Deactivating...' : 'Deactivate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </SettingSection>
+
+      {/* 2FA Modal */}
+      {show2FAModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            {/* Setup Step - Show QR Code */}
+            {twoFactorStep === 'setup' && (
+              <>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Set Up Two-Factor Authentication</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                </p>
+
+                {twoFactorQRCode && (
+                  <div className="flex justify-center mb-4">
+                    <img src={twoFactorQRCode} alt="2FA QR Code" className="w-64 h-64" />
+                  </div>
+                )}
+
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <p className="text-xs text-gray-600 mb-2">Or enter this code manually:</p>
+                  <code className="text-sm font-mono bg-white px-3 py-2 rounded border border-gray-200 block text-center">
+                    {twoFactorSecret}
+                  </code>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Enter 6-digit code from app
+                    </label>
+                    <input
+                      type="text"
+                      value={twoFactorVerificationCode}
+                      onChange={(e) => setTwoFactorVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-center text-2xl font-mono tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      maxLength={6}
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleClose2FAModal}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleVerify2FA}
+                      disabled={loading || twoFactorVerificationCode.length !== 6}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                    >
+                      {loading ? 'Verifying...' : 'Verify & Enable'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Backup Codes Step */}
+            {twoFactorStep === 'backup' && (
+              <>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Save Your Backup Codes</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Save these backup codes in a safe place. You can use them to access your account if you lose your authenticator device.
+                </p>
+
+                <div className="bg-gray-50 p-4 rounded-lg mb-4 max-h-64 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {twoFactorBackupCodes.map((code, index) => (
+                      <code key={index} className="text-sm font-mono bg-white px-3 py-2 rounded border border-gray-200 text-center">
+                        {code}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-yellow-800">
+                    ⚠️ Each backup code can only be used once. Store them securely - we won't show them again!
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    // Copy all codes to clipboard
+                    navigator.clipboard.writeText(twoFactorBackupCodes.join('\n'))
+                    toast.success('Backup codes copied to clipboard!')
+                  }}
+                  className="w-full px-4 py-2 mb-3 border border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition"
+                >
+                  📋 Copy All Codes
+                </button>
+
+                <button
+                  onClick={handleClose2FAModal}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                >
+                  Done
+                </button>
+              </>
+            )}
+
+            {/* Disable Step - Verify with code */}
+            {twoFactorStep === 'disable' && (
+              <>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Disable Two-Factor Authentication</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Enter a code from your authenticator app or use a backup code to disable 2FA.
+                </p>
+
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-red-800">
+                    ⚠️ Disabling 2FA will reduce your account security.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      value={twoFactorVerificationCode}
+                      onChange={(e) => setTwoFactorVerificationCode(e.target.value.toUpperCase())}
+                      placeholder="000000 or BACKUP-CODE"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-center text-lg font-mono tracking-wider focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleClose2FAModal}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleVerify2FA}
+                      disabled={loading || !twoFactorVerificationCode}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50"
+                    >
+                      {loading ? 'Disabling...' : 'Disable 2FA'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
