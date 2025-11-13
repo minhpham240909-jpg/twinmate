@@ -60,6 +60,8 @@ export default function UserProfilePage() {
   const t = useTranslations('profile')
   const tCommon = useTranslations('common')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,6 +71,7 @@ export default function UserProfilePage() {
   const [showFullProfile, setShowFullProfile] = useState(false)
   const [showCoverPhotoMenu, setShowCoverPhotoMenu] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -81,6 +84,23 @@ export default function UserProfilePage() {
       fetchUserProfile()
     }
   }, [currentUser, authLoading, userId])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowCoverPhotoMenu(false)
+      }
+    }
+
+    if (showCoverPhotoMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showCoverPhotoMenu])
 
   const fetchUserProfile = async () => {
     try {
@@ -160,7 +180,8 @@ export default function UserProfilePage() {
     router.push(`/chat/partners?conversation=${userId}`)
   }
 
-  const handleCoverPhotoClick = () => {
+  const handleCoverPhotoClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setShowCoverPhotoMenu(!showCoverPhotoMenu)
   }
 
@@ -214,6 +235,45 @@ export default function UserProfilePage() {
       alert('Failed to upload cover photo')
     } finally {
       setIsUploadingCover(false)
+    }
+  }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB')
+      return
+    }
+
+    setIsUploadingAvatar(true)
+
+    try {
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+      formDataUpload.append('userId', userId)
+
+      const response = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formDataUpload,
+      })
+
+      if (!response.ok) {
+        throw new Error('Upload failed')
+      }
+
+      await fetchUserProfile()
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Failed to upload avatar')
+    } finally {
+      setIsUploadingAvatar(false)
     }
   }
 
@@ -285,7 +345,7 @@ export default function UserProfilePage() {
         <div className="absolute inset-0 bg-black/5"></div>
         
         {/* Cover Photo Menu Button */}
-        <div className="absolute bottom-4 right-4">
+        <div className="absolute bottom-4 right-4" ref={menuRef}>
           <button
             onClick={handleCoverPhotoClick}
             className="p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
@@ -297,7 +357,7 @@ export default function UserProfilePage() {
           
           {/* Cover Photo Menu */}
           {showCoverPhotoMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[100]">
               {coverPhotoUrl && (
                 <button
                   onClick={handleSeeCoverPhoto}
@@ -326,7 +386,7 @@ export default function UserProfilePage() {
         </div>
         
         {isUploadingCover && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
@@ -344,14 +404,48 @@ export default function UserProfilePage() {
       <div className="max-w-4xl mx-auto px-4">
         <div className="relative -mt-24 mb-4">
           {/* Profile Picture */}
-          <div className="inline-block">
-            <PartnerAvatar
-              avatarUrl={viewedUser.avatarUrl}
-              name={viewedUser.name}
-              size="xl"
-              onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
-              showStatus={profileData?.connectionStatus === 'connected'}
-            />
+          <div className="inline-block relative">
+            {isOwnProfile ? (
+              <div className="relative group">
+                <PartnerAvatar
+                  avatarUrl={viewedUser.avatarUrl}
+                  name={viewedUser.name}
+                  size="xl"
+                  onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                  showStatus={false}
+                />
+                {isUploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute bottom-0 right-0 w-10 h-10 bg-black rounded-full flex items-center justify-center shadow-lg border-4 border-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+              </div>
+            ) : (
+              <PartnerAvatar
+                avatarUrl={viewedUser.avatarUrl}
+                name={viewedUser.name}
+                size="xl"
+                onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                showStatus={profileData?.connectionStatus === 'connected'}
+              />
+            )}
           </div>
 
           {/* Action Buttons */}

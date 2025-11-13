@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { LocationForm } from '@/components/profile/LocationForm'
 
@@ -11,14 +11,12 @@ export default function ProfilePage() {
   const router = useRouter()
   const t = useTranslations('profile')
   const tCommon = useTranslations('common')
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
     name: '',
     bio: '',
     age: undefined as number | undefined,
     role: '',
-    avatarUrl: '',
     subjects: [] as string[],
     interests: [] as string[],
     goals: [] as string[],
@@ -51,8 +49,6 @@ export default function ProfilePage() {
 
   const [showAboutYourself, setShowAboutYourself] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [previewImage, setPreviewImage] = useState<string>('')
 
   useEffect(() => {
     if (!loading && !user) {
@@ -64,7 +60,6 @@ export default function ProfilePage() {
         bio: profile.bio || '',
         age: (profile as { age?: number }).age || undefined,
         role: (profile as { role?: string }).role || '',
-        avatarUrl: profile.avatarUrl || '',
         subjects: profile.subjects || [],
         interests: profile.interests || [],
         goals: profile.goals || [],
@@ -115,7 +110,6 @@ export default function ProfilePage() {
       if (profileWithAbout.aboutYourself || (profileWithAbout.aboutYourselfItems && profileWithAbout.aboutYourselfItems.length > 0)) {
         setShowAboutYourself(true)
       }
-      setPreviewImage(profile.avatarUrl || '')
     }
   }, [user, profile, loading, router])
 
@@ -166,52 +160,6 @@ export default function ProfilePage() {
     setFormData({ ...formData, [field]: formData[field].filter(i => i !== item) })
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      alert(t('pleaseUploadImageFile'))
-      return
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert(t('imageSizeLimit'))
-      return
-    }
-
-    setIsUploading(true)
-
-    try {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-
-      const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
-      formDataUpload.append('userId', user.id)
-
-      const response = await fetch('/api/upload/avatar', {
-        method: 'POST',
-        body: formDataUpload,
-      })
-
-      if (!response.ok) {
-        throw new Error(t('uploadFailed'))
-      }
-
-      const data = await response.json()
-      setFormData({ ...formData, avatarUrl: data.url })
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert(t('failedToUploadImage'))
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
   const handleSave = async () => {
     setIsSaving(true)
 
@@ -222,7 +170,7 @@ export default function ProfilePage() {
         bio: formData.bio || undefined,
         age: formData.age || undefined,
         role: formData.role || undefined,
-        avatarUrl: formData.avatarUrl || undefined,
+        avatarUrl: undefined, // Not updating avatar here
         subjects: formData.subjects,
         interests: formData.interests,
         goals: formData.goals,
@@ -339,7 +287,7 @@ export default function ProfilePage() {
       }
       
       alert(t('profileSavedSuccessfully'))
-      router.push('/dashboard')
+      router.push(`/profile/${user.id}`)
     } catch (error) {
       console.error('Save error:', error)
       alert(`${t('failedToSaveProfile')}: ${error instanceof Error ? error.message : tCommon('pleaseTryRefreshing')}`)
@@ -359,7 +307,7 @@ export default function ProfilePage() {
                 try {
                   router.back()
                 } catch (e) {
-                  router.push('/dashboard')
+                  router.push(`/profile/${user.id}`)
                 }
               }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors -ml-2"
@@ -368,11 +316,11 @@ export default function ProfilePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold text-gray-900">{t('editProfile')}</h1>
+            <h1 className="text-xl font-bold text-gray-900">Edit Profile</h1>
           </div>
           <button
             onClick={handleSave}
-            disabled={isSaving || isUploading}
+            disabled={isSaving}
             className="px-6 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? 'Saving...' : 'Save'}
@@ -380,53 +328,9 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      {/* Banner */}
-      <div className="h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 relative">
-        <div className="absolute inset-0 bg-black/5"></div>
-      </div>
-
-      {/* Profile Picture Section */}
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="relative -mt-24 mb-6">
-          <div className="relative inline-block group">
-            {previewImage ? (
-              <img
-                src={previewImage}
-                alt="Profile"
-                className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-              />
-            ) : (
-              <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-4xl border-4 border-white shadow-lg">
-                {formData.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
-              </div>
-            )}
-            {isUploading && (
-              <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="absolute bottom-0 right-0 w-10 h-10 bg-black rounded-full flex items-center justify-center shadow-lg border-4 border-white hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-          </div>
-        </div>
-
-        {/* Form Content */}
-        <div className="space-y-8 pb-8">
+      {/* Form Content */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="space-y-8">
           {/* Basic Information */}
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-gray-900">Basic Information</h2>
