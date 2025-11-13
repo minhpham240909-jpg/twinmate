@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
 
@@ -13,6 +13,7 @@ type UserProfile = {
     email: string
     avatarUrl: string | null
     onlineStatus?: 'ONLINE' | 'OFFLINE' | null
+    coverPhotoUrl?: string | null
   }
   profile: {
     bio: string
@@ -58,6 +59,7 @@ export default function UserProfilePage() {
   const userId = params.userId as string
   const t = useTranslations('profile')
   const tCommon = useTranslations('common')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -65,6 +67,9 @@ export default function UserProfilePage() {
   const [sendingConnection, setSendingConnection] = useState(false)
   const [activeTab, setActiveTab] = useState<'about' | 'posts'>('about')
   const [showFullProfile, setShowFullProfile] = useState(false)
+  const [showCoverPhotoMenu, setShowCoverPhotoMenu] = useState(false)
+  const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -90,6 +95,7 @@ export default function UserProfilePage() {
 
       const data = await response.json()
       setProfileData(data)
+      setCoverPhotoUrl(data.user?.coverPhotoUrl || null)
       setLoading(false)
     } catch (err) {
       console.error('Error fetching profile:', err)
@@ -154,6 +160,63 @@ export default function UserProfilePage() {
     router.push(`/chat/partners?conversation=${userId}`)
   }
 
+  const handleCoverPhotoClick = () => {
+    setShowCoverPhotoMenu(!showCoverPhotoMenu)
+  }
+
+  const handleSeeCoverPhoto = () => {
+    if (coverPhotoUrl) {
+      window.open(coverPhotoUrl, '_blank')
+    }
+    setShowCoverPhotoMenu(false)
+  }
+
+  const handleUploadCoverPhoto = () => {
+    fileInputRef.current?.click()
+    setShowCoverPhotoMenu(false)
+  }
+
+  const handleCoverPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB')
+      return
+    }
+
+    setIsUploadingCover(true)
+
+    try {
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+      formDataUpload.append('userId', userId)
+
+      const response = await fetch('/api/upload/cover-photo', {
+        method: 'POST',
+        body: formDataUpload,
+      })
+
+      if (!response.ok) {
+        throw new Error('Upload failed')
+      }
+
+      const data = await response.json()
+      setCoverPhotoUrl(data.url)
+      await fetchUserProfile()
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Failed to upload cover photo')
+    } finally {
+      setIsUploadingCover(false)
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -210,9 +273,71 @@ export default function UserProfilePage() {
         </div>
       </header>
 
-      {/* Banner */}
-      <div className="h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 relative">
+      {/* Banner with Cover Photo */}
+      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+        {coverPhotoUrl ? (
+          <img
+            src={coverPhotoUrl}
+            alt="Cover photo"
+            className="w-full h-full object-cover"
+          />
+        ) : null}
         <div className="absolute inset-0 bg-black/5"></div>
+        
+        {/* Cover Photo Menu Button */}
+        <div className="absolute bottom-4 right-4">
+          <button
+            onClick={handleCoverPhotoClick}
+            className="p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
+          >
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
+          
+          {/* Cover Photo Menu */}
+          {showCoverPhotoMenu && (
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+              {coverPhotoUrl && (
+                <button
+                  onClick={handleSeeCoverPhoto}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  See cover photo
+                </button>
+              )}
+              {isOwnProfile && (
+                <button
+                  onClick={handleUploadCoverPhoto}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Upload cover photo
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {isUploadingCover && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleCoverPhotoUpload}
+          className="hidden"
+        />
       </div>
 
       {/* Profile Header */}
@@ -220,19 +345,13 @@ export default function UserProfilePage() {
         <div className="relative -mt-24 mb-4">
           {/* Profile Picture */}
           <div className="inline-block">
-            <div className="relative">
-              <PartnerAvatar
-                avatarUrl={viewedUser.avatarUrl}
-                name={viewedUser.name}
-                size="xl"
-                onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                showStatus={profileData?.connectionStatus === 'connected'}
-                className="border-4 border-white"
-              />
-              {profileData?.connectionStatus === 'connected' && (
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>
-              )}
-            </div>
+            <PartnerAvatar
+              avatarUrl={viewedUser.avatarUrl}
+              name={viewedUser.name}
+              size="xl"
+              onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
+              showStatus={profileData?.connectionStatus === 'connected'}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -246,19 +365,7 @@ export default function UserProfilePage() {
               </button>
             ) : (
               <>
-                {profileData.connectionStatus === 'connected' ? (
-                  <>
-                    <button
-                      onClick={handleMessage}
-                      className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
-                      Message
-                    </button>
-                  </>
-                ) : profileData.connectionStatus === 'pending' ? (
+                {profileData.connectionStatus === 'pending' ? (
                   <button
                     onClick={handleCancelConnection}
                     disabled={sendingConnection}
@@ -266,7 +373,7 @@ export default function UserProfilePage() {
                   >
                     {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
                   </button>
-                ) : (
+                ) : !profileData.connectionStatus || profileData.connectionStatus === 'none' ? (
                   <button
                     onClick={handleSendConnection}
                     disabled={sendingConnection}
@@ -274,7 +381,7 @@ export default function UserProfilePage() {
                   >
                     {sendingConnection ? 'Connecting...' : tCommon('connect')}
                   </button>
-                )}
+                ) : null}
               </>
             )}
           </div>
@@ -312,7 +419,7 @@ export default function UserProfilePage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="flex gap-6 text-sm">
+          <div className="flex gap-6 text-sm mb-4">
             {(profile?.subjects && profile.subjects.length > 0) && (
               <div>
                 <span className="font-semibold text-gray-900">{profile.subjects.length}</span>
@@ -332,6 +439,21 @@ export default function UserProfilePage() {
               </div>
             )}
           </div>
+
+          {/* Message Button - Below Profile Info */}
+          {!isOwnProfile && profileData.connectionStatus === 'connected' && (
+            <div className="mb-4">
+              <button
+                onClick={handleMessage}
+                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Message
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tabs */}

@@ -53,6 +53,7 @@ model User {
   passwordHash  String? // null if OAuth only
   name          String
   avatarUrl     String?
+  coverPhotoUrl String?
   role          UserRole @default(FREE)
   emailVerified Boolean  @default(false)
 

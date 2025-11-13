@@ -54,14 +54,12 @@ export default function PartnerAvatar({
         </div>
       )}
 
-      {/* Online Status Indicator - Only show for partners */}
-      {showStatus && onlineStatus && (
-        <div className="absolute bottom-0 right-0 transform translate-x-0.5 translate-y-0.5">
+      {/* Online Status Indicator - Facebook style green circle on bottom right, only show if online */}
+      {showStatus && onlineStatus === 'ONLINE' && (
+        <div className="absolute bottom-0 right-0">
           <div
-            className={`${statusSizeClass} rounded-full border-2 border-white shadow-sm ${
-              onlineStatus === 'ONLINE' ? 'bg-green-500' : 'bg-gray-400'
-            }`}
-            title={onlineStatus === 'ONLINE' ? 'Online' : 'Offline'}
+            className={`${statusSizeClass} rounded-full border-2 border-white bg-green-500`}
+            title="Online"
           />
         </div>
       )}
