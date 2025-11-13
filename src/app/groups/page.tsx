@@ -754,7 +754,7 @@ export default function GroupsPage() {
                   <div className="flex gap-2 flex-wrap">
                     {group.isMember && (
                       <button
-                        onClick={() => router.push(`/chat?conversation=${group.id}&type=group`)}
+                        onClick={() => router.push(`/chat/groups?conversation=${group.id}`)}
                         className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
                       >
                         {t('openChat')}

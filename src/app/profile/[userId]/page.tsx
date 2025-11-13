@@ -151,7 +151,7 @@ export default function UserProfilePage() {
   }
 
   const handleMessage = () => {
-    router.push(`/chat?userId=${userId}`)
+    router.push(`/chat/partners?conversation=${userId}`)
   }
 
   if (authLoading || loading) {

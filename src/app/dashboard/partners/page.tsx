@@ -227,7 +227,7 @@ export default function PartnersPage() {
                     {t('viewProfile')}
                   </button>
                   <button
-                    onClick={() => router.push(`/chat?userId=${partner.id}`)}
+                    onClick={() => router.push(`/chat/partners?conversation=${partner.id}`)}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition text-sm"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
