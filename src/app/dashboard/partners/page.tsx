@@ -108,8 +108,7 @@ export default function PartnersPage() {
                 </svg>
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
-                <p className="text-gray-600 mt-1">{t('managePartners')}</p>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('title')}</h1>
               </div>
             </div>
             <div className="flex items-center gap-3">
