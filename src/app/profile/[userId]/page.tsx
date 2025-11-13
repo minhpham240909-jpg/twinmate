@@ -344,46 +344,48 @@ export default function UserProfilePage() {
         ) : null}
         <div className="absolute inset-0 bg-black/5"></div>
         
-        {/* Cover Photo Menu Button */}
-        <div className="absolute bottom-4 right-4" ref={menuRef}>
-          <button
-            onClick={handleCoverPhotoClick}
-            className="p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
-          
-          {/* Cover Photo Menu */}
-          {showCoverPhotoMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]">
-              {coverPhotoUrl && (
-                <button
-                  onClick={handleSeeCoverPhoto}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  See cover photo
-                </button>
-              )}
-              {isOwnProfile && (
-                <button
-                  onClick={handleUploadCoverPhoto}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  Upload cover photo
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Cover Photo Menu Button - Only show if there's a cover photo OR it's own profile */}
+        {(coverPhotoUrl || isOwnProfile) && (
+          <div className="absolute bottom-4 right-4" ref={menuRef}>
+            <button
+              onClick={handleCoverPhotoClick}
+              className="p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
+            >
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
+
+            {/* Cover Photo Menu */}
+            {showCoverPhotoMenu && (
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]">
+                {coverPhotoUrl && (
+                  <button
+                    onClick={handleSeeCoverPhoto}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    See cover photo
+                  </button>
+                )}
+                {isOwnProfile && (
+                  <button
+                    onClick={handleUploadCoverPhoto}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload cover photo
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         
         {isUploadingCover && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -448,37 +450,17 @@ export default function UserProfilePage() {
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="absolute right-0 top-4 flex gap-3">
-            {isOwnProfile ? (
+          {/* Action Buttons - Edit Profile for own profile */}
+          {isOwnProfile && (
+            <div className="absolute right-0 top-4 flex gap-3">
               <button
                 onClick={() => router.push('/profile/edit')}
                 className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm"
               >
                 Edit profile
               </button>
-            ) : (
-              <>
-                {profileData.connectionStatus === 'pending' ? (
-                  <button
-                    onClick={handleCancelConnection}
-                    disabled={sendingConnection}
-                    className="px-6 py-2.5 bg-gray-200 text-gray-900 rounded-full font-semibold hover:bg-gray-300 transition-colors text-sm disabled:opacity-50"
-                  >
-                    {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
-                  </button>
-                ) : !profileData.connectionStatus || profileData.connectionStatus === 'none' ? (
-                  <button
-                    onClick={handleSendConnection}
-                    disabled={sendingConnection}
-                    className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm disabled:opacity-50"
-                  >
-                    {sendingConnection ? 'Connecting...' : tCommon('connect')}
-                  </button>
-                ) : null}
-              </>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* User Info */}
@@ -534,18 +516,36 @@ export default function UserProfilePage() {
             )}
           </div>
 
-          {/* Message Button - Below Profile Info */}
-          {!isOwnProfile && profileData.connectionStatus === 'connected' && (
-            <div className="mb-4">
-              <button
-                onClick={handleMessage}
-                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                Message
-              </button>
+          {/* Connect/Message Buttons - Below Profile Info */}
+          {!isOwnProfile && (
+            <div className="mb-4 flex gap-3">
+              {profileData.connectionStatus === 'pending' ? (
+                <button
+                  onClick={handleCancelConnection}
+                  disabled={sendingConnection}
+                  className="px-6 py-2.5 bg-gray-200 text-gray-900 rounded-full font-semibold hover:bg-gray-300 transition-colors text-sm disabled:opacity-50"
+                >
+                  {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
+                </button>
+              ) : profileData.connectionStatus === 'connected' ? (
+                <button
+                  onClick={handleMessage}
+                  className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  Message
+                </button>
+              ) : (
+                <button
+                  onClick={handleSendConnection}
+                  disabled={sendingConnection}
+                  className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm disabled:opacity-50"
+                >
+                  {sendingConnection ? 'Connecting...' : tCommon('connect')}
+                </button>
+              )}
             </div>
           )}
         </div>
