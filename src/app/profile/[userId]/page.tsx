@@ -357,7 +357,7 @@ export default function UserProfilePage() {
           
           {/* Cover Photo Menu */}
           {showCoverPhotoMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[100]">
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]">
               {coverPhotoUrl && (
                 <button
                   onClick={handleSeeCoverPhoto}
