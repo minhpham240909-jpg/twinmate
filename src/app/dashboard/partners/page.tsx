@@ -34,7 +34,7 @@ interface Partner {
 export default function PartnersPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const t = useTranslations('dashboard')
+  const t = useTranslations('partners')
   const [partners, setPartners] = useState<Partner[]>([])
   const [isLoading, setIsLoading] = useState(true)
 

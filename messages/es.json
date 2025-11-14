@@ -898,6 +898,7 @@
     "confirmRemove": "¿Estás seguro de que quieres eliminar este compañero de estudio?",
     "removed": "Compañero de estudio eliminado",
     "removeFailed": "Error al eliminar compañero",
+    "failedToLoadPartners": "Error al cargar compañeros de estudio",
     "subjects": "Materias",
     "interests": "Intereses",
     "goals": "Objetivos",

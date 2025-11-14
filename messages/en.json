@@ -902,6 +902,7 @@
     "confirmRemove": "Are you sure you want to remove this study partner?",
     "removed": "Study partner removed",
     "removeFailed": "Failed to remove partner",
+    "failedToLoadPartners": "Failed to load study partners",
     "subjects": "Subjects",
     "interests": "Interests",
     "goals": "Goals",
