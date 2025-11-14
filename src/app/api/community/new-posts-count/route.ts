@@ -55,6 +55,14 @@ export async function GET() {
     // Combine partner and group member IDs
     const relevantUserIds = [...new Set([...partnerIds, ...groupMemberUserIds])]
 
+    // If no partners or group members, return count of 0
+    if (relevantUserIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        count: 0,
+      })
+    }
+
     // Count posts from partners and group members created in the last 24 hours
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 

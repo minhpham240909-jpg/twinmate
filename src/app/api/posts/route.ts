@@ -228,22 +228,26 @@ export async function GET(req: NextRequest) {
 
     // Get all post authors' group memberships (batch query)
     const postAuthorIds = Array.from(new Set(finalPosts.map((p: any) => p.userId))) as string[]
-    const authorGroupMemberships = await prisma.groupMember.findMany({
-      where: {
-        userId: { in: postAuthorIds },
-        groupId: { in: userGroupIds },
-      },
-      select: {
-        userId: true,
-        groupId: true,
-        group: {
-          select: {
-            id: true,
-            name: true,
+
+    // Only fetch shared groups if user has groups and there are posts to check
+    const authorGroupMemberships = (postAuthorIds.length > 0 && userGroupIds.length > 0)
+      ? await prisma.groupMember.findMany({
+          where: {
+            userId: { in: postAuthorIds },
+            groupId: { in: userGroupIds },
           },
-        },
-      },
-    })
+          select: {
+            userId: true,
+            groupId: true,
+            group: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        })
+      : []
 
     // Create map of userId -> shared groups
     const sharedGroupsMap = new Map<string, Array<{ id: string; name: string }>>()
