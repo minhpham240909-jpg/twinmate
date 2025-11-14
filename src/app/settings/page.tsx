@@ -9,6 +9,31 @@ import { useSettings } from '@/contexts/SettingsContext'
 import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  User,
+  Lock,
+  Bell,
+  BookOpen,
+  MessageSquare,
+  Clock,
+  Users,
+  Globe,
+  Accessibility,
+  Database,
+  History,
+  Link2,
+  Settings as SettingsIcon,
+  Info,
+  ArrowLeft,
+  Check,
+  X,
+  Save,
+  RotateCcw,
+  Sun,
+  Moon,
+  Monitor
+} from 'lucide-react'
 
 // Types
 type DeletedPost = {
@@ -417,161 +442,309 @@ export default function SettingsPage() {
 
   if (!user) return null
 
-  const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: 'account', label: t('account'), icon: '👤' },
-    { id: 'privacy', label: t('privacy'), icon: '🔒' },
-    { id: 'notifications', label: t('notifications'), icon: '🔔' },
-    { id: 'study', label: t('study'), icon: '📚' },
-    { id: 'communication', label: t('communication'), icon: '💬' },
-    { id: 'sessions', label: t('sessions'), icon: '⏱️' },
-    { id: 'groups', label: t('groups'), icon: '👥' },
-    { id: 'community', label: t('community'), icon: '🌐' },
-    { id: 'accessibility', label: t('accessibility'), icon: '♿' },
-    { id: 'data', label: t('data'), icon: '💾' },
-    { id: 'history', label: 'History', icon: '📜' },
-    { id: 'integrations', label: t('integrations'), icon: '🔗' },
-    { id: 'advanced', label: t('advanced'), icon: '⚙️' },
-    { id: 'about', label: t('about'), icon: 'ℹ️' },
+  const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+    { id: 'account', label: t('account'), icon: User, color: 'from-blue-500 to-cyan-500' },
+    { id: 'privacy', label: t('privacy'), icon: Lock, color: 'from-purple-500 to-pink-500' },
+    { id: 'notifications', label: t('notifications'), icon: Bell, color: 'from-orange-500 to-red-500' },
+    { id: 'study', label: t('study'), icon: BookOpen, color: 'from-green-500 to-emerald-500' },
+    { id: 'communication', label: t('communication'), icon: MessageSquare, color: 'from-indigo-500 to-blue-500' },
+    { id: 'sessions', label: t('sessions'), icon: Clock, color: 'from-amber-500 to-yellow-500' },
+    { id: 'groups', label: t('groups'), icon: Users, color: 'from-violet-500 to-purple-500' },
+    { id: 'community', label: t('community'), icon: Globe, color: 'from-teal-500 to-cyan-500' },
+    { id: 'accessibility', label: t('accessibility'), icon: Accessibility, color: 'from-rose-500 to-pink-500' },
+    { id: 'data', label: t('data'), icon: Database, color: 'from-slate-500 to-gray-500' },
+    { id: 'history', label: 'History', icon: History, color: 'from-zinc-500 to-slate-500' },
+    { id: 'integrations', label: t('integrations'), icon: Link2, color: 'from-cyan-500 to-blue-500' },
+    { id: 'advanced', label: t('advanced'), icon: SettingsIcon, color: 'from-gray-500 to-slate-500' },
+    { id: 'about', label: t('about'), icon: Info, color: 'from-blue-500 to-indigo-500' },
   ]
 
+  const { effectiveTheme } = useTheme()
+  
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      effectiveTheme === 'dark' 
+        ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-zinc-900' 
+        : 'bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20'
+    }`}>
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
-            >
-              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
-          </div>
-          {hasChanges && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleReset}
-                disabled={saving}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
+      <header className={`backdrop-blur-lg border-b sticky top-0 z-50 shadow-sm transition-colors duration-300 ${
+        effectiveTheme === 'dark'
+          ? 'bg-gray-900/80 border-gray-700/50'
+          : 'bg-white/80 border-gray-200/50'
+      }`}>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <motion.button
+                onClick={() => router.push('/dashboard')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`p-2 rounded-xl transition-colors duration-200 ${
+                  effectiveTheme === 'dark'
+                    ? 'hover:bg-gray-800'
+                    : 'hover:bg-gray-100/80'
+                }`}
               >
-                {tCommon('cancel')}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    {tCommon('loading')}
-                  </>
-                ) : (
-                  tCommon('save')
-                )}
-              </button>
+                <ArrowLeft className={`w-5 h-5 transition-colors duration-300 ${
+                  effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                }`} />
+              </motion.button>
+              <div>
+                <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent ${
+                  effectiveTheme === 'dark' ? 'dark:text-blue-400' : ''
+                }`}>
+                  {t('title')}
+                </h1>
+                <p className={`text-xs mt-0.5 transition-colors duration-300 ${
+                  effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  Manage your account settings and preferences
+                </p>
+              </div>
             </div>
-          )}
+            <AnimatePresence>
+              {hasChanges && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="flex items-center gap-3"
+                >
+                  <motion.button
+                    onClick={handleReset}
+                    disabled={saving}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-4 py-2 rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium ${
+                      effectiveTheme === 'dark'
+                        ? 'text-gray-300 hover:bg-gray-800'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    {tCommon('cancel')}
+                  </motion.button>
+                  <motion.button
+                    onClick={handleSave}
+                    disabled={saving}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium shadow-md"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        {tCommon('loading')}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        {tCommon('save')}
+                      </>
+                    )}
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex gap-8 max-w-7xl mx-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 max-w-7xl mx-auto">
           {/* Sidebar Navigation */}
-          <aside className="w-64 flex-shrink-0">
-            <nav className="bg-white rounded-xl shadow-sm p-2 sticky top-24">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition ${
-                    activeTab === tab.id
-                      ? 'bg-blue-50 text-blue-600 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-xl">{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
+          <aside className="w-full lg:w-72 flex-shrink-0">
+            <nav className={`backdrop-blur-lg rounded-2xl shadow-lg border p-3 sticky top-24 transition-colors duration-300 ${
+              effectiveTheme === 'dark'
+                ? 'bg-gray-900/80 border-gray-700/50'
+                : 'bg-white/80 border-gray-200/50'
+            }`}>
+              <div className="space-y-1">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon
+                  const isActive = activeTab === tab.id
+                  return (
+                    <motion.button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 relative overflow-hidden group ${
+                        isActive
+                          ? 'bg-gradient-to-r ' + tab.color + ' text-white shadow-lg shadow-blue-500/20'
+                          : effectiveTheme === 'dark'
+                          ? 'text-gray-300 hover:bg-gray-800/80'
+                          : 'text-gray-700 hover:bg-gray-50/80'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeTab"
+                          className={`absolute inset-0 bg-gradient-to-r ${tab.color} opacity-100`}
+                          initial={false}
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        />
+                      )}
+                      <div className={`relative z-10 flex items-center gap-3 ${isActive ? 'text-white' : ''}`}>
+                        <div className={`p-2 rounded-lg ${
+                          isActive 
+                            ? 'bg-white/20' 
+                            : effectiveTheme === 'dark'
+                            ? 'bg-gray-800 group-hover:bg-gray-700'
+                            : 'bg-gray-100 group-hover:bg-gray-200'
+                        }`}>
+                          <Icon className={`w-5 h-5 ${
+                            isActive 
+                              ? 'text-white' 
+                              : effectiveTheme === 'dark'
+                              ? 'text-gray-400'
+                              : 'text-gray-600'
+                          }`} />
+                        </div>
+                        <span className={`font-medium ${
+                          isActive 
+                            ? 'text-white' 
+                            : effectiveTheme === 'dark'
+                            ? 'text-gray-300'
+                            : 'text-gray-700'
+                        }`}>{tab.label}</span>
+                      </div>
+                    </motion.button>
+                  )
+                })}
+              </div>
             </nav>
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1">
-            <div className="bg-white rounded-xl shadow-sm p-8">
-              {/* Render active tab content */}
-              {activeTab === 'account' && (
-                <AccountSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'privacy' && (
-                <PrivacySettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'notifications' && (
-                <NotificationsSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'study' && (
-                <StudySettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'communication' && (
-                <CommunicationSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'sessions' && (
-                <SessionsSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'groups' && (
-                <GroupsSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'community' && (
-                <CommunitySettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'accessibility' && (
-                <AccessibilitySettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'data' && (
-                <DataSettings
-                  settings={settings}
-                  updateSetting={updateSetting}
-                  handleClearCache={handleClearCache}
-                  handleExportData={handleExportData}
-                  handleDeleteAccount={handleDeleteAccount}
-                />
-              )}
-              {activeTab === 'history' && <HistorySection />}
-              {activeTab === 'integrations' && (
-                <IntegrationsSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'advanced' && (
-                <AdvancedSettings settings={settings} updateSetting={updateSetting} />
-              )}
-              {activeTab === 'about' && <AboutSection />}
-            </div>
+          <main className="flex-1 min-w-0">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className={`backdrop-blur-lg rounded-2xl shadow-lg border p-6 sm:p-8 lg:p-10 transition-colors duration-300 ${
+                effectiveTheme === 'dark'
+                  ? 'bg-gray-900/80 border-gray-700/50'
+                  : 'bg-white/80 border-gray-200/50'
+              }`}
+            >
+              <AnimatePresence mode="wait">
+                {activeTab === 'account' && (
+                  <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <AccountSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'privacy' && (
+                  <motion.div key="privacy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <PrivacySettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'notifications' && (
+                  <motion.div key="notifications" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <NotificationsSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'study' && (
+                  <motion.div key="study" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <StudySettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'communication' && (
+                  <motion.div key="communication" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <CommunicationSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'sessions' && (
+                  <motion.div key="sessions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <SessionsSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'groups' && (
+                  <motion.div key="groups" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <GroupsSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'community' && (
+                  <motion.div key="community" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <CommunitySettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'accessibility' && (
+                  <motion.div key="accessibility" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <AccessibilitySettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'data' && (
+                  <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <DataSettings
+                      settings={settings}
+                      updateSetting={updateSetting}
+                      handleClearCache={handleClearCache}
+                      handleExportData={handleExportData}
+                      handleDeleteAccount={handleDeleteAccount}
+                    />
+                  </motion.div>
+                )}
+                {activeTab === 'history' && (
+                  <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <HistorySection />
+                  </motion.div>
+                )}
+                {activeTab === 'integrations' && (
+                  <motion.div key="integrations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <IntegrationsSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'advanced' && (
+                  <motion.div key="advanced" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <AdvancedSettings settings={settings} updateSetting={updateSetting} />
+                  </motion.div>
+                )}
+                {activeTab === 'about' && (
+                  <motion.div key="about" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <AboutSection />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </main>
         </div>
       </div>
 
       {/* Floating Save Button for Mobile */}
-      {hasChanges && (
-        <div className="fixed bottom-4 right-4 md:hidden">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed bottom-6 right-6 md:hidden z-50"
           >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {t('saving')}
-              </>
-            ) : (
-              t('save')
-            )}
-          </button>
-        </div>
-      )}
+            <motion.button
+              onClick={handleSave}
+              disabled={saving}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium"
+            >
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  {t('saving')}
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  {t('save')}
+                </>
+              )}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -582,11 +755,20 @@ export default function SettingsPage() {
 
 // Reusable Components
 function SettingSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  const { effectiveTheme } = useTheme()
   return (
-    <div className="mb-8 last:mb-0">
-      <h2 className="text-xl font-semibold text-gray-900 mb-2">{title}</h2>
-      {description && <p className="text-gray-600 text-sm mb-4">{description}</p>}
-      <div className="space-y-4">{children}</div>
+    <div className="mb-10 last:mb-0">
+      <div className="mb-6">
+        <h2 className={`text-2xl font-bold mb-2 transition-colors duration-300 ${
+          effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+        }`}>{title}</h2>
+        {description && (
+          <p className={`text-sm leading-relaxed max-w-2xl transition-colors duration-300 ${
+            effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>{description}</p>
+        )}
+      </div>
+      <div className="space-y-3">{children}</div>
     </div>
   )
 }
@@ -602,25 +784,49 @@ function ToggleSetting({
   checked: boolean
   onChange: (checked: boolean) => void
 }) {
+  const { effectiveTheme } = useTheme()
   return (
-    <div className="flex items-start justify-between py-3 border-b border-gray-100 last:border-0">
-      <div className="flex-1">
-        <label className="text-sm font-medium text-gray-900 cursor-pointer">{label}</label>
-        {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+    <motion.div
+      whileHover={{ 
+        backgroundColor: effectiveTheme === 'dark' 
+          ? 'rgba(31, 41, 55, 0.8)' 
+          : 'rgba(249, 250, 251, 0.8)' 
+      }}
+      className={`flex items-start justify-between p-4 rounded-xl border transition-all duration-200 group ${
+        effectiveTheme === 'dark'
+          ? 'border-gray-700/50 bg-gray-800/50 hover:bg-gray-800'
+          : 'border-gray-200/50 bg-gray-50/50 hover:bg-gray-50'
+      }`}
+    >
+      <div className="flex-1 pr-4">
+        <label className={`text-sm font-semibold cursor-pointer block mb-1 transition-colors duration-300 ${
+          effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+        }`}>{label}</label>
+        {description && (
+          <p className={`text-xs leading-relaxed transition-colors duration-300 ${
+            effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`}>{description}</p>
+        )}
       </div>
-      <button
+      <motion.button
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-          checked ? 'bg-blue-600' : 'bg-gray-300'
+        whileTap={{ scale: 0.95 }}
+        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+          checked
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 focus:ring-blue-500'
+            : 'bg-gray-300 focus:ring-gray-400'
         }`}
       >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+        <motion.span
+          layout
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-all duration-300 ${
             checked ? 'translate-x-6' : 'translate-x-1'
           }`}
+          initial={false}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         />
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   )
 }
 
@@ -637,14 +843,34 @@ function SelectSetting({
   options: { value: string; label: string }[]
   onChange: (value: string) => void
 }) {
+  const { effectiveTheme } = useTheme()
   return (
-    <div className="py-3 border-b border-gray-100 last:border-0">
-      <label className="block text-sm font-medium text-gray-900 mb-1">{label}</label>
-      {description && <p className="text-xs text-gray-500 mb-2">{description}</p>}
+    <motion.div
+      whileHover={{ 
+        backgroundColor: effectiveTheme === 'dark' 
+          ? 'rgba(31, 41, 55, 0.8)' 
+          : 'rgba(249, 250, 251, 0.8)' 
+      }}
+      className={`p-4 rounded-xl border transition-all duration-200 ${
+        effectiveTheme === 'dark'
+          ? 'border-gray-700/50 bg-gray-800/50 hover:bg-gray-800'
+          : 'border-gray-200/50 bg-gray-50/50 hover:bg-gray-50'
+      }`}
+    >
+      <label className={`block text-sm font-semibold mb-1 transition-colors duration-300 ${
+        effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+      }`}>{label}</label>
+      {description && <p className={`text-xs mb-3 leading-relaxed transition-colors duration-300 ${
+        effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+      }`}>{description}</p>}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer ${
+          effectiveTheme === 'dark'
+            ? 'border-gray-600 bg-gray-800 text-gray-100'
+            : 'border-gray-300 bg-white text-gray-900'
+        }`}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -652,7 +878,7 @@ function SelectSetting({
           </option>
         ))}
       </select>
-    </div>
+    </motion.div>
   )
 }
 
@@ -673,6 +899,7 @@ function NumberSetting({
   onChange: (value: number) => void
   suffix?: string
 }) {
+  const { effectiveTheme } = useTheme()
   const handleChange = (inputValue: string) => {
     // Handle empty input - use min value
     if (inputValue === '' || inputValue === null || inputValue === undefined) {
@@ -695,21 +922,42 @@ function NumberSetting({
   }
 
   return (
-    <div className="py-3 border-b border-gray-100 last:border-0">
-      <label className="block text-sm font-medium text-gray-900 mb-1">{label}</label>
-      {description && <p className="text-xs text-gray-500 mb-2">{description}</p>}
-      <div className="flex items-center gap-2">
+    <motion.div
+      whileHover={{ 
+        backgroundColor: effectiveTheme === 'dark' 
+          ? 'rgba(31, 41, 55, 0.8)' 
+          : 'rgba(249, 250, 251, 0.8)' 
+      }}
+      className={`p-4 rounded-xl border transition-all duration-200 ${
+        effectiveTheme === 'dark'
+          ? 'border-gray-700/50 bg-gray-800/50 hover:bg-gray-800'
+          : 'border-gray-200/50 bg-gray-50/50 hover:bg-gray-50'
+      }`}
+    >
+      <label className={`block text-sm font-semibold mb-1 transition-colors duration-300 ${
+        effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+      }`}>{label}</label>
+      {description && <p className={`text-xs mb-3 leading-relaxed transition-colors duration-300 ${
+        effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+      }`}>{description}</p>}
+      <div className="flex items-center gap-3">
         <input
           type="number"
           value={value || min}
           min={min}
           max={max}
           onChange={(e) => handleChange(e.target.value)}
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={`w-32 px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md ${
+            effectiveTheme === 'dark'
+              ? 'border-gray-600 bg-gray-800 text-gray-100'
+              : 'border-gray-300 bg-white text-gray-900'
+          }`}
         />
-        {suffix && <span className="text-sm text-gray-600">{suffix}</span>}
+        {suffix && <span className={`text-sm font-medium transition-colors duration-300 ${
+          effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+        }`}>{suffix}</span>}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -1100,29 +1348,35 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
           title="Profile Completion"
           description="Complete your profile to improve matching"
         >
-          <div className="py-4 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-900">Profile Completion</span>
-              <span className="text-lg font-bold text-blue-600">{profileCompletion.completionPercentage}%</span>
+          <div className="p-5 rounded-xl border border-gray-200/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-gray-900">Profile Completion</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                {profileCompletion.completionPercentage}%
+              </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-              <div
-                className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all"
-                style={{ width: `${profileCompletion.completionPercentage}%` }}
+            <div className="w-full bg-gray-200/80 rounded-full h-3 mb-4 overflow-hidden shadow-inner">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${profileCompletion.completionPercentage}%` }}
+                transition={{ duration: 1, ease: 'easeOut' }}
+                className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 h-full rounded-full shadow-lg"
               />
             </div>
             {profileCompletion.missingFields.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-gray-600 font-medium">
                   Missing: {profileCompletion.missingFields.slice(0, 3).join(', ')}
                   {profileCompletion.missingFields.length > 3 && '...'}
                 </span>
-                <button
+                <motion.button
                   onClick={() => router.push('/profile/edit')}
-                  className="text-xs text-blue-600 hover:underline font-medium"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors"
                 >
-                  Complete Profile →
-                </button>
+                  Complete Profile <span>→</span>
+                </motion.button>
               </div>
             )}
           </div>
@@ -1134,28 +1388,36 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
         title="Email Verification"
         description="Verify your email address to secure your account"
       >
-        <div className="py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="p-4 rounded-xl border border-gray-200/50 bg-gray-50/50 flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium text-gray-900">Email Status</div>
+            <div className="text-sm font-semibold text-gray-900">Email Status</div>
             <div className="text-xs text-gray-500 mt-1">{user?.email}</div>
           </div>
           <div className="flex items-center gap-3">
             {(user as any)?.email_confirmed_at ? (
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                ✓ Verified
+              <span className="px-3 py-1.5 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-xl text-sm font-semibold border border-green-200/50 shadow-sm">
+                <span className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4" />
+                  Verified
+                </span>
               </span>
             ) : (
               <>
-                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium">
-                  ⚠ Not Verified
+                <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-700 rounded-xl text-sm font-semibold border border-yellow-200/50 shadow-sm">
+                  <span className="flex items-center gap-1.5">
+                    <X className="w-4 h-4" />
+                    Not Verified
+                  </span>
                 </span>
-                <button
+                <motion.button
                   onClick={handleResendVerification}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
                 >
                   {loading ? 'Sending...' : 'Resend Verification'}
-                </button>
+                </motion.button>
               </>
             )}
           </div>
@@ -1232,12 +1494,14 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                 <div className="text-sm font-medium text-gray-900">Password</div>
                 <div className="text-xs text-gray-500 mt-1">Change your account password</div>
               </div>
-              <button
+              <motion.button
                 onClick={() => setShowChangePassword(!showChangePassword)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
               >
                 {showChangePassword ? 'Cancel' : 'Change Password'}
-              </button>
+              </motion.button>
             </div>
           {showChangePassword && (
             <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
@@ -1247,7 +1511,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   type="password"
                   value={passwordData.currentPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
                 />
               </div>
               <div>
@@ -1256,7 +1520,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   type="password"
                   value={passwordData.newPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
                 />
                 <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
               </div>
@@ -1266,16 +1530,18 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   type="password"
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
                 />
               </div>
-              <button
+              <motion.button
                 onClick={handleChangePassword}
                 disabled={loading}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                whileHover={{ scale: loading ? 1 : 1.02 }}
+                whileTap={{ scale: loading ? 1 : 0.98 }}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
               >
                 {loading ? 'Changing...' : 'Change Password'}
-              </button>
+              </motion.button>
             </div>
           )}
           </div>
@@ -1288,12 +1554,14 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
               <div className="text-sm font-medium text-gray-900">Email Address</div>
               <div className="text-xs text-gray-500 mt-1">Change your account email</div>
             </div>
-            <button
+            <motion.button
               onClick={() => setShowChangeEmail(!showChangeEmail)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
             >
               {showChangeEmail ? 'Cancel' : 'Change Email'}
-            </button>
+            </motion.button>
           </div>
           {showChangeEmail && (
             <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
@@ -1304,7 +1572,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   value={emailData.newEmail}
                   onChange={(e) => setEmailData({ ...emailData, newEmail: e.target.value })}
                   placeholder="new@example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
                 />
               </div>
               <button
@@ -2207,20 +2475,199 @@ function CommunitySettings({ settings, updateSetting }: { settings: UserSettings
 // Accessibility Settings
 function AccessibilitySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
   const t = useTranslations('settings')
+  const { effectiveTheme } = useTheme()
+  const currentTheme = settings.theme || 'SYSTEM'
+  
+  const themeOptions = [
+    {
+      value: 'LIGHT' as const,
+      label: t('light'),
+      icon: Sun,
+      gradient: 'from-yellow-400 via-orange-300 to-amber-200',
+      bgGradient: 'from-white via-blue-50/30 to-indigo-50/20',
+      previewBg: 'bg-white',
+      previewText: 'text-gray-900',
+      previewBorder: 'border-gray-200',
+      description: 'Bright and clean interface'
+    },
+    {
+      value: 'DARK' as const,
+      label: t('dark'),
+      icon: Moon,
+      gradient: 'from-indigo-600 via-purple-600 to-blue-800',
+      bgGradient: 'from-gray-900 via-slate-900 to-zinc-900',
+      previewBg: 'bg-gray-900',
+      previewText: 'text-gray-100',
+      previewBorder: 'border-gray-700',
+      description: 'Easy on the eyes'
+    },
+    {
+      value: 'SYSTEM' as const,
+      label: t('systemDefault'),
+      icon: Monitor,
+      gradient: 'from-gray-400 via-slate-500 to-gray-600',
+      bgGradient: 'from-gray-100 via-slate-100 to-gray-200',
+      previewBg: effectiveTheme === 'dark' ? 'bg-gray-900' : 'bg-white',
+      previewText: effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900',
+      previewBorder: effectiveTheme === 'dark' ? 'border-gray-700' : 'border-gray-200',
+      description: 'Follows system preference'
+    }
+  ]
+
   return (
     <>
       <SettingSection title={t('display')} description={t('customizeHowAppLooks')}>
-        <SelectSetting
-          label={t('theme')}
-          description={t('chooseColorScheme')}
-          value={settings.theme || 'SYSTEM'}
-          options={[
-            { value: 'LIGHT', label: t('light') },
-            { value: 'DARK', label: t('dark') },
-            { value: 'SYSTEM', label: t('systemDefault') },
-          ]}
-          onChange={(value) => updateSetting('theme', value)}
-        />
+        {/* Beautiful Theme Selector */}
+        <div className="mb-6">
+          <label className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
+            effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+          }`}>{t('theme')}</label>
+          <p className={`text-xs mb-4 leading-relaxed transition-colors duration-300 ${
+            effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`}>{t('chooseColorScheme')}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {themeOptions.map((option) => {
+              const Icon = option.icon
+              const isSelected = currentTheme === option.value
+              return (
+                <motion.button
+                  key={option.value}
+                  onClick={() => updateSetting('theme', option.value)}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`relative p-5 rounded-2xl border-2 transition-all duration-300 overflow-hidden group ${
+                    isSelected
+                      ? 'border-blue-500 shadow-lg shadow-blue-500/20 bg-gradient-to-br ' + option.bgGradient
+                      : effectiveTheme === 'dark'
+                      ? 'border-gray-700 hover:border-gray-600 bg-gray-800/50 hover:bg-gray-800'
+                      : 'border-gray-200 hover:border-gray-300 bg-white/50 hover:bg-white'
+                  }`}
+                >
+                  {/* Background gradient effect */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${option.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${isSelected ? 'opacity-20' : ''}`} />
+                  
+                  {/* Selection indicator */}
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute top-3 right-3 w-6 h-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg"
+                    >
+                      <Check className="w-4 h-4 text-white" />
+                    </motion.div>
+                  )}
+
+                  {/* Icon */}
+                  <div className={`relative mb-4 flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300 ${
+                    isSelected 
+                      ? 'bg-gradient-to-br ' + option.gradient + ' shadow-lg' 
+                      : effectiveTheme === 'dark'
+                      ? 'bg-gray-800 group-hover:bg-gray-700'
+                      : 'bg-gray-100 group-hover:bg-gray-200'
+                  }`}>
+                    <Icon className={`w-6 h-6 transition-colors duration-300 ${
+                      isSelected 
+                        ? 'text-white' 
+                        : effectiveTheme === 'dark'
+                        ? 'text-gray-400'
+                        : 'text-gray-600'
+                    }`} />
+                  </div>
+
+                  {/* Label */}
+                  <div className="relative mb-2">
+                    <h3 className={`font-semibold text-base transition-colors duration-300 ${
+                      isSelected 
+                        ? effectiveTheme === 'dark' ? 'text-white' : 'text-gray-900'
+                        : effectiveTheme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                    }`}>
+                      {option.label}
+                    </h3>
+                    <p className={`text-xs mt-1 transition-colors duration-300 ${
+                      isSelected 
+                        ? effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                        : effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      {option.description}
+                    </p>
+                  </div>
+
+                  {/* Preview - Mini UI Mockup */}
+                  <div className={`relative mt-4 p-3 rounded-lg border transition-all duration-300 ${
+                    option.value === 'LIGHT' 
+                      ? 'bg-white border-gray-200' 
+                      : option.value === 'DARK'
+                      ? 'bg-gray-900 border-gray-700'
+                      : effectiveTheme === 'dark'
+                      ? 'bg-gray-900 border-gray-700'
+                      : 'bg-white border-gray-200'
+                  }`}>
+                    {/* Window chrome */}
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        option.value === 'LIGHT' ? 'bg-red-400' : 
+                        option.value === 'DARK' ? 'bg-red-500' : 
+                        effectiveTheme === 'dark' ? 'bg-red-500' : 'bg-red-400'
+                      }`} />
+                      <div className={`w-2 h-2 rounded-full ${
+                        option.value === 'LIGHT' ? 'bg-yellow-400' : 
+                        option.value === 'DARK' ? 'bg-yellow-500' : 
+                        effectiveTheme === 'dark' ? 'bg-yellow-500' : 'bg-yellow-400'
+                      }`} />
+                      <div className={`w-2 h-2 rounded-full ${
+                        option.value === 'LIGHT' ? 'bg-green-400' : 
+                        option.value === 'DARK' ? 'bg-green-500' : 
+                        effectiveTheme === 'dark' ? 'bg-green-500' : 'bg-green-400'
+                      }`} />
+                      <div className={`flex-1 h-2 rounded ${
+                        option.value === 'LIGHT' ? 'bg-gray-100' : 
+                        option.value === 'DARK' ? 'bg-gray-800' : 
+                        effectiveTheme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'
+                      }`} />
+                    </div>
+                    
+                    {/* Content preview */}
+                    <div className={`space-y-2 ${
+                      option.value === 'LIGHT' ? 'text-gray-900' : 
+                      option.value === 'DARK' ? 'text-gray-100' : 
+                      effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+                    }`}>
+                      {/* Header bar */}
+                      <div className={`h-2 rounded ${
+                        option.value === 'LIGHT' ? 'bg-blue-100' : 
+                        option.value === 'DARK' ? 'bg-blue-900/50' : 
+                        effectiveTheme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-100'
+                      }`} style={{ width: '100%' }} />
+                      
+                      {/* Content lines */}
+                      <div className={`h-1.5 rounded ${
+                        option.value === 'LIGHT' ? 'bg-gray-200' : 
+                        option.value === 'DARK' ? 'bg-gray-700' : 
+                        effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                      }`} style={{ width: '85%' }} />
+                      <div className={`h-1.5 rounded ${
+                        option.value === 'LIGHT' ? 'bg-gray-200' : 
+                        option.value === 'DARK' ? 'bg-gray-700' : 
+                        effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                      }`} style={{ width: '70%' }} />
+                      
+                      {/* Button preview */}
+                      <div className={`mt-2 h-2.5 rounded ${
+                        option.value === 'LIGHT' 
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500' 
+                          : option.value === 'DARK'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                          : effectiveTheme === 'dark'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                      }`} style={{ width: '50%' }} />
+                    </div>
+                  </div>
+                </motion.button>
+              )
+            })}
+          </div>
+        </div>
         <SelectSetting
           label={t('fontSize')}
           description={t('adjustTextSize')}
