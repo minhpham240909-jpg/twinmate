@@ -81,7 +81,8 @@ export default function DashboardPage() {
     }
   }
 
-  const [unreadCount, setUnreadCount] = useState(() => getInitialCount('unreadCount'))
+  // Bell notification count managed by NotificationPanel (critical notifications only)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
   const [partnersCount, setPartnersCount] = useState(() => getInitialCount('partnersCount'))
   const [pendingInvitesCount, setPendingInvitesCount] = useState(() => getInitialCount('pendingInvitesCount'))

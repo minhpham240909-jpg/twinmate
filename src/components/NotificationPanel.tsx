@@ -134,6 +134,14 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
     return unsubscribe
   }, [user?.id, onUnreadCountChange])
 
+  // Fetch notifications on mount to set initial bell count
+  useEffect(() => {
+    if (user?.id) {
+      fetchNotifications()
+    }
+  }, [user?.id])
+
+  // Refresh notifications when panel is opened
   useEffect(() => {
     if (isOpen) {
       fetchNotifications()
