@@ -54,7 +54,18 @@ export default function CommunityPage() {
     if (typeof window === 'undefined') return []
     try {
       const cached = localStorage.getItem('community_posts')
-      return cached ? JSON.parse(cached) : []
+      if (!cached) return []
+
+      const posts: Post[] = JSON.parse(cached)
+
+      // Validate cache: if posts don't have connectionStatus field (old cache), return empty
+      // This ensures users see fresh data with Partner/Group badges
+      if (posts.length > 0 && posts[0].connectionStatus === undefined) {
+        localStorage.removeItem('community_posts') // Clear old cache
+        return []
+      }
+
+      return posts
     } catch (error) {
       console.error('Error loading cached posts:', error)
       return []
@@ -66,7 +77,17 @@ export default function CommunityPage() {
     if (typeof window === 'undefined') return []
     try {
       const cached = localStorage.getItem('community_popular_posts')
-      return cached ? JSON.parse(cached) : []
+      if (!cached) return []
+
+      const posts: Post[] = JSON.parse(cached)
+
+      // Validate cache: if posts don't have connectionStatus field (old cache), return empty
+      if (posts.length > 0 && posts[0].connectionStatus === undefined) {
+        localStorage.removeItem('community_popular_posts') // Clear old cache
+        return []
+      }
+
+      return posts
     } catch (error) {
       console.error('Error loading cached popular posts:', error)
       return []
