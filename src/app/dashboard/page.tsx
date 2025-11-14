@@ -143,8 +143,8 @@ export default function DashboardPage() {
     const fetchData = async () => {
       try {
         // Use allSettled to allow dashboard to load even if some APIs fail
+        // Note: Bell notification count is managed by NotificationPanel component
         const results = await Promise.allSettled([
-          fetch('/api/notifications').then(r => r.json()),
           fetch('/api/partners/count').then(r => r.json()),
           fetch('/api/study-sessions/pending-invites').then(r => r.json()),
           fetch('/api/connections?type=received').then(r => r.json()),
@@ -154,23 +154,20 @@ export default function DashboardPage() {
         ])
 
         // Extract values with fallbacks for failed requests
-        const notifs = results[0].status === 'fulfilled' ? results[0].value : { unreadCount: 0 }
-        const partners = results[1].status === 'fulfilled' ? results[1].value : { count: 0 }
-        const invites = results[2].status === 'fulfilled' ? results[2].value : { invites: [] }
-        const connections = results[3].status === 'fulfilled' ? results[3].value : { receivedCount: 0 }
-        const activePartners = results[4].status === 'fulfilled' ? results[4].value : { partners: [] }
-        const groupInvites = results[5].status === 'fulfilled' ? results[5].value : { count: 0 }
-        const communityPosts = results[6].status === 'fulfilled' ? results[6].value : { count: 0 }
+        const partners = results[0].status === 'fulfilled' ? results[0].value : { count: 0 }
+        const invites = results[1].status === 'fulfilled' ? results[1].value : { invites: [] }
+        const connections = results[2].status === 'fulfilled' ? results[2].value : { receivedCount: 0 }
+        const activePartners = results[3].status === 'fulfilled' ? results[3].value : { partners: [] }
+        const groupInvites = results[4].status === 'fulfilled' ? results[4].value : { count: 0 }
+        const communityPosts = results[5].status === 'fulfilled' ? results[5].value : { count: 0 }
 
-        const unread = notifs.unreadCount || 0
         const partners_count = partners.count || 0
         const pending = invites.invites?.length || 0
         const requests = connections.receivedCount || 0
         const groupInvitesCount = groupInvites.count || 0
         const communityPostsCount = communityPosts.count || 0
 
-        // Update state
-        setUnreadCount(unread)
+        // Update state (bell notification count managed by NotificationPanel)
         setPartnersCount(partners_count)
         setPendingInvitesCount(pending)
         setConnectionRequestsCount(requests)
@@ -193,8 +190,8 @@ export default function DashboardPage() {
         setLoadingOnlinePartners(false)
 
         // Cache to localStorage for next visit
+        // Note: Bell notification count (unreadCount) is cached by NotificationPanel component
         if (typeof window !== 'undefined') {
-          localStorage.setItem('dashboard_unreadCount', String(unread))
           localStorage.setItem('dashboard_partnersCount', String(partners_count))
           localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
           localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
@@ -450,9 +447,6 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             {tNav('chat')}
-            {unreadCount > 0 && (
-              <span className="ml-auto w-2 h-2 bg-red-600 rounded-full"></span>
-            )}
           </button>
 
           <button
