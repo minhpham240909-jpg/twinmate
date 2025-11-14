@@ -86,6 +86,8 @@ export default function DashboardPage() {
   const [partnersCount, setPartnersCount] = useState(() => getInitialCount('partnersCount'))
   const [pendingInvitesCount, setPendingInvitesCount] = useState(() => getInitialCount('pendingInvitesCount'))
   const [connectionRequestsCount, setConnectionRequestsCount] = useState(() => getInitialCount('connectionRequestsCount'))
+  const [groupInvitesCount, setGroupInvitesCount] = useState(() => getInitialCount('groupInvitesCount'))
+  const [newCommunityPostsCount, setNewCommunityPostsCount] = useState(() => getInitialCount('newCommunityPostsCount'))
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -146,7 +148,9 @@ export default function DashboardPage() {
           fetch('/api/partners/count').then(r => r.json()),
           fetch('/api/study-sessions/pending-invites').then(r => r.json()),
           fetch('/api/connections?type=received').then(r => r.json()),
-          fetch('/api/partners/active').then(r => r.json())
+          fetch('/api/partners/active').then(r => r.json()),
+          fetch('/api/groups/invites/pending').then(r => r.ok ? r.json() : { count: 0 }),
+          fetch('/api/community/new-posts-count').then(r => r.ok ? r.json() : { count: 0 })
         ])
 
         // Extract values with fallbacks for failed requests
@@ -155,17 +159,23 @@ export default function DashboardPage() {
         const invites = results[2].status === 'fulfilled' ? results[2].value : { invites: [] }
         const connections = results[3].status === 'fulfilled' ? results[3].value : { receivedCount: 0 }
         const activePartners = results[4].status === 'fulfilled' ? results[4].value : { partners: [] }
+        const groupInvites = results[5].status === 'fulfilled' ? results[5].value : { count: 0 }
+        const communityPosts = results[6].status === 'fulfilled' ? results[6].value : { count: 0 }
 
         const unread = notifs.unreadCount || 0
         const partners_count = partners.count || 0
         const pending = invites.invites?.length || 0
         const requests = connections.receivedCount || 0
+        const groupInvitesCount = groupInvites.count || 0
+        const communityPostsCount = communityPosts.count || 0
 
         // Update state
         setUnreadCount(unread)
         setPartnersCount(partners_count)
         setPendingInvitesCount(pending)
         setConnectionRequestsCount(requests)
+        setGroupInvitesCount(groupInvitesCount)
+        setNewCommunityPostsCount(communityPostsCount)
 
         // Filter and set online partners
         const online = activePartners.partners
@@ -188,6 +198,8 @@ export default function DashboardPage() {
           localStorage.setItem('dashboard_partnersCount', String(partners_count))
           localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
           localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
+          localStorage.setItem('dashboard_groupInvitesCount', String(groupInvitesCount))
+          localStorage.setItem('dashboard_newCommunityPostsCount', String(communityPostsCount))
           localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
           // Mark that we've loaded data at least once
           localStorage.setItem('dashboard_hasLoadedOnce', 'true')
@@ -470,22 +482,30 @@ export default function DashboardPage() {
 
           <button
             onClick={() => router.push('/groups')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium relative"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             {tNav('studyGroups')}
+            {groupInvitesCount > 0 && (
+              <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                {groupInvitesCount}
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => router.push('/community')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium relative"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             {tNav('community')}
+            {newCommunityPostsCount > 0 && (
+              <span className="ml-auto w-2 h-2 bg-blue-600 rounded-full"></span>
+            )}
           </button>
         </nav>
 

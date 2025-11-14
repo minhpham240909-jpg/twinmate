@@ -28,6 +28,7 @@ type Post = {
   }
   isLikedByUser?: boolean
   connectionStatus?: 'none' | 'pending' | 'connected'
+  sharedGroups?: Array<{ id: string; name: string }> // Groups that both user and poster are members of
 }
 
 type Comment = {
@@ -646,23 +647,33 @@ export default function CommunityPage() {
                     <p className="text-sm text-gray-500">
                       {new Date(post.createdAt).toLocaleString()}
                     </p>
-                    {/* Connect Button (only show for other users) */}
+                    {/* Partner/Group Label or Connect Button (only show for other users) */}
                     {post.user.id !== user.id && (
                       <>
                         <span className="text-sm text-gray-400">•</span>
                         {post.connectionStatus === 'connected' ? (
-                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-medium">
-                            ✓ {t('connected')}
+                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                            </svg>
+                            Partner
+                          </span>
+                        ) : post.sharedGroups && post.sharedGroups.length > 0 ? (
+                          <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                            </svg>
+                            Group Member • {post.sharedGroups[0].name}
                           </span>
                         ) : post.connectionStatus === 'pending' ? (
-                          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded font-medium">
+                          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium">
                             {t('pending')}
                           </span>
                         ) : (
                           <button
                             onClick={() => handleSendConnection(post.user.id, post.id)}
                             disabled={connectingPostIds.has(post.id)}
-                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {connectingPostIds.has(post.id) ? t('sending') : t('connect')}
                           </button>

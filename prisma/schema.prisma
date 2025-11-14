@@ -700,6 +700,8 @@ enum NotificationType {
   SESSION_ENDED
   SESSION_GOAL_COMPLETED
   INCOMING_CALL
+  ANNOUNCEMENT           // Critical app announcements
+  FOUNDER_MESSAGE        // Messages from founder
 }
 
 model Notification {

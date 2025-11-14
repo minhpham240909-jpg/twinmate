@@ -209,9 +209,58 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // Check if user has liked each post and add connection status
+    // Get current user's groups for finding shared groups
+    const userGroups = await prisma.groupMember.findMany({
+      where: {
+        userId: user.id,
+      },
+      select: {
+        groupId: true,
+        group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+    const userGroupIds = userGroups.map(g => g.groupId)
+
+    // Get all post authors' group memberships (batch query)
+    const postAuthorIds = Array.from(new Set(finalPosts.map((p: any) => p.userId))) as string[]
+    const authorGroupMemberships = await prisma.groupMember.findMany({
+      where: {
+        userId: { in: postAuthorIds },
+        groupId: { in: userGroupIds },
+      },
+      select: {
+        userId: true,
+        groupId: true,
+        group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    // Create map of userId -> shared groups
+    const sharedGroupsMap = new Map<string, Array<{ id: string; name: string }>>()
+    authorGroupMemberships.forEach(membership => {
+      if (!sharedGroupsMap.has(membership.userId)) {
+        sharedGroupsMap.set(membership.userId, [])
+      }
+      sharedGroupsMap.get(membership.userId)!.push({
+        id: membership.group.id,
+        name: membership.group.name,
+      })
+    })
+
+    // Check if user has liked each post and add connection status + shared groups
     const postsWithUserData = finalPosts.map((post: any) => {
       const connectionStatus = post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none')
+      const sharedGroups = post.user.id === user.id ? undefined : (sharedGroupsMap.get(post.user.id) || [])
       return {
         ...post,
         user: {
@@ -221,6 +270,7 @@ export async function GET(req: NextRequest) {
         isLikedByUser: post.likes.some((like: any) => like.userId === user.id),
         isRepostedByUser: post.reposts.some((repost: any) => repost.userId === user.id),
         connectionStatus,
+        sharedGroups, // Array of groups that both users are members of
       }
     })
 

@@ -40,16 +40,16 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
   const [loading, setLoading] = useState(false)
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set())
 
-  // Define which notification types should appear in the bell icon (system/critical only)
+  // Define which notification types should appear in the bell icon (CRITICAL ONLY)
   // Feature-specific notifications appear in their respective pages:
-  // - Connection notifications → /connections page
-  // - Session notifications → /study-sessions page
-  // - Group notifications → /groups page
-  // - Message notifications → /chat page (badges)
+  // - Connection notifications → /connections page (badge count)
+  // - Session notifications → /study-sessions page (badge count)
+  // - Group notifications → /groups page (badge count)
+  // - Message notifications → /chat page (badge count)
+  // - Community notifications → /community page (badge count)
   const BELL_NOTIFICATION_TYPES = [
-    'STUDY_REMINDER',      // System notification
-    'BADGE_EARNED',        // System notification
-    'STREAK_REMINDER',     // System notification
+    'ANNOUNCEMENT',        // Critical app announcements from team
+    'FOUNDER_MESSAGE',     // Important messages from founder
     'INCOMING_CALL'        // Critical - needs immediate attention
   ]
 
