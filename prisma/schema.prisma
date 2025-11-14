@@ -514,11 +514,6 @@ model StudySession {
   endedAt           DateTime?
   durationMinutes   Int?
 
-  // AI-generated summary
-  aiSummary   String?  @db.Text
-  aiKeyPoints String[] @default([])
-  aiTodos     String[] @default([])
-
   // Video/Audio room
   roomId       String?
   agoraChannel String? @unique

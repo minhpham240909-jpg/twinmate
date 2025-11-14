@@ -112,8 +112,6 @@ export async function GET(request: Request) {
         durationMinutes: session.durationMinutes,
         startedAt: session.startedAt,
         endedAt: session.endedAt,
-        aiSummary: session.aiSummary,
-        aiKeyPoints: session.aiKeyPoints,
         creator: session.creator,
         participants: session.participants?.map(p => p.user) || [],
       })),

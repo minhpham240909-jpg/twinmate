@@ -56,7 +56,7 @@ export default function HomePage() {
               transition={{ delay: 0.3, duration: 0.8 }}
               className="text-xl md:text-2xl text-slate-600 mb-12 font-light max-w-3xl mx-auto leading-relaxed"
             >
-              AI-powered matching connects you with compatible study partners.
+              Smart matching connects you with compatible study partners.
               <br className="hidden md:block" />
               Collaborate in real-time and achieve more together.
             </motion.p>
@@ -157,7 +157,7 @@ export default function HomePage() {
               {
                 step: '2',
                 title: 'Get Matched',
-                description: 'Our AI analyzes thousands of profiles to find your perfect study partners.',
+                description: 'Our matching system analyzes thousands of profiles to find your perfect study partners.',
                 color: '#8b5cf6',
                 gradient: 'from-indigo-500 to-purple-600',
               },
@@ -214,7 +214,7 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-purple-100 to-transparent rounded-full blur-3xl opacity-30" />
       </section>
 
-      {/* AI Matching Section */}
+      {/* Smart Matching Section */}
       <section className="py-32 bg-gradient-to-b from-white to-blue-50/50 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -226,10 +226,10 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
             >
               <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                AI-powered matching that <GradientText colors={['#3b82f6', '#8b5cf6', '#3b82f6']} animationSpeed={3} className="text-5xl md:text-6xl font-bold inline-block">actually works.</GradientText>
+                Smart matching that <GradientText colors={['#3b82f6', '#8b5cf6', '#3b82f6']} animationSpeed={3} className="text-5xl md:text-6xl font-bold inline-block">actually works.</GradientText>
               </h2>
               <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-                Our advanced AI analyzes your learning style, subject preferences, goals, and availability to find the most compatible study partners.
+                Our advanced matching system analyzes your learning style, subject preferences, goals, and availability to find the most compatible study partners.
               </p>
               <ul className="space-y-4">
                 {[
@@ -452,11 +452,11 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                title: 'AI-Powered Matching',
+                title: 'Smart Matching',
                 description: 'Find your perfect study partner with advanced compatibility algorithms.',
                 icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
                 gradient: 'from-blue-500 to-indigo-600',
-                href: '/features/ai-agent',
+                href: '/search',
               },
               {
                 title: 'Real-Time Collaboration',
@@ -612,8 +612,8 @@ export default function HomePage() {
           <div className="space-y-4">
             {[
               {
-                question: 'How does the AI matching work?',
-                answer: 'Our AI analyzes your profile including subjects, learning style, goals, availability, and preferences to find the most compatible study partners. We use advanced algorithms to ensure high-quality matches.',
+                question: 'How does the matching work?',
+                answer: 'Our matching system analyzes your profile including subjects, learning style, goals, availability, and preferences to find the most compatible study partners. We use advanced algorithms to ensure high-quality matches.',
               },
               {
                 question: 'Is Clerva free to use?',

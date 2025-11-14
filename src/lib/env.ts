@@ -31,9 +31,6 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
-  // OpenAI
-  OPENAI_API_KEY: z.string().optional(),
-
   // Agora (Video/Audio)
   NEXT_PUBLIC_AGORA_APP_ID: z.string().optional(),
   AGORA_APP_CERTIFICATE: z.string().optional(),
@@ -114,11 +111,6 @@ export const features = {
   agora: () => {
     const env = getEnv()
     return !!(env.NEXT_PUBLIC_AGORA_APP_ID && env.AGORA_APP_CERTIFICATE)
-  },
-
-  openai: () => {
-    const env = getEnv()
-    return !!env.OPENAI_API_KEY
   },
 
   redis: () => {

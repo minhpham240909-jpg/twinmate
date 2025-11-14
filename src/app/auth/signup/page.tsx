@@ -14,7 +14,7 @@ export default function SignUpPage() {
             Start your learning journey today
           </h2>
           <p className="text-lg text-gray-600 mb-8">
-            Join thousands of students finding study partners, collaborating in real-time, and achieving their goals with AI-powered insights.
+            Join thousands of students finding study partners, collaborating in real-time, and achieving their goals together.
           </p>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
@@ -46,7 +46,7 @@ export default function SignUpPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">AI Study Assistant</h3>
+                <h3 className="font-semibold text-gray-900">Study Tools</h3>
                 <p className="text-gray-600">Get personalized insights, quizzes, and study recommendations</p>
               </div>
             </div>
