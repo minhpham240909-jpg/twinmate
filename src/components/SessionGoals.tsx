@@ -2,8 +2,6 @@
 
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { Sparkles } from 'lucide-react'
-import { useAIAgent } from '@/hooks/useAIAgent'
 
 interface Goal {
   id: string
@@ -24,7 +22,6 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
   const [newGoalTitle, setNewGoalTitle] = useState('')
   const [newGoalDescription, setNewGoalDescription] = useState('')
   const [creating, setCreating] = useState(false)
-  const { openPanel, Panel } = useAIAgent()
 
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,18 +103,9 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
 
   return (
     <div>
-      {Panel}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Study Goals</h3>
         <div className="flex gap-2">
-          <button
-            onClick={() => openPanel('Help me create study goals for this session')}
-            className="px-3 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm rounded-lg hover:from-purple-700 hover:to-blue-700 transition flex items-center gap-1"
-            title="AI: Suggest goals"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            AI Suggest
-          </button>
           <button
             onClick={() => setShowAddGoal(!showAddGoal)}
             className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"

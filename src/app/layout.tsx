@@ -8,7 +8,6 @@ import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContex
 import SessionSyncWrapper from "@/components/SessionSyncWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import IncomingCallModal from "@/components/IncomingCallModal";
-import { AIAgentWrapper } from "@/components/providers/AIAgentWrapper";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { IntlProvider } from "@/contexts/IntlContext";
@@ -23,8 +22,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Clerva - Social Learning & Study Partners",
-  description: "Find study partners, collaborate in real-time, and supercharge your learning with AI-powered insights",
-  keywords: ["study partners", "learning", "collaboration", "education", "AI tutor"],
+  description: "Find study partners, collaborate in real-time, and supercharge your learning",
+  keywords: ["study partners", "learning", "collaboration", "education"],
   viewport: {
     width: 'device-width',
     initialScale: 1,
@@ -64,12 +63,10 @@ export default function RootLayout({
                 <IntlProvider>
                   <PresenceProvider>
                     <BackgroundSessionProvider>
-                      <AIAgentWrapper>
-                        {children}
-                        <FloatingSessionButton />
-                        <IncomingCallModal />
-                      </AIAgentWrapper>
-                        <Toaster
+                      {children}
+                      <FloatingSessionButton />
+                      <IncomingCallModal />
+                      <Toaster
                       position="top-right"
                       toastOptions={{
                         duration: 4000,

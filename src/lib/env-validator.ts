@@ -54,14 +54,6 @@ const ENV_SCHEMA: EnvConfig[] = [
     description: 'Google OAuth client secret',
   },
 
-  // OpenAI
-  {
-    name: 'OPENAI_API_KEY',
-    required: false, // Optional if AI features are disabled
-    description: 'OpenAI API key for AI agent',
-    validationFn: (v) => v.startsWith('sk-'),
-  },
-
   // Agora (Video/Audio)
   {
     name: 'NEXT_PUBLIC_AGORA_APP_ID',
@@ -188,7 +180,6 @@ export function getEnvironmentInfo() {
     nodeEnv: process.env.NODE_ENV,
     hasDatabase: !!process.env.DATABASE_URL,
     hasSupabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    hasOpenAI: !!process.env.OPENAI_API_KEY,
     hasAgora: !!process.env.NEXT_PUBLIC_AGORA_APP_ID,
     hasEmail: !!process.env.RESEND_API_KEY,
     hasRedis: !!process.env.UPSTASH_REDIS_REST_URL,

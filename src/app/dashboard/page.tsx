@@ -8,7 +8,6 @@ import NotificationPanel from '@/components/NotificationPanel'
 import AvatarDropdown from '@/components/AvatarDropdown'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { useUserSync } from '@/hooks/useUserSync'
-import { useAIAgent } from '@/components/providers/AIAgentProvider'
 import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 
@@ -54,7 +53,6 @@ export default function DashboardPage() {
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
   const tNav = useTranslations('navigation')
-  const { openPanel } = useAIAgent()
   const { requestPermission, hasBeenAsked, isGranted, isSupported } = useNotificationPermission()
   
   // Initialize states from localStorage cache to prevent flickering
@@ -554,35 +552,11 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
-          {/* Split Layout: Left = AI Card, Right = Study Partners Card */}
-          <div className="grid md:grid-cols-2 gap-8 mb-10">
-            {/* Left Half - AI Agent Featured Card */}
-            <button
-              onClick={() => openPanel()}
-              className="w-full h-full p-8 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-3xl text-white text-left relative overflow-hidden group hover:shadow-2xl hover:scale-[1.01] transition-all duration-300"
-            >
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-6">
-                  <div className="w-16 h-16 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <span className="px-3 py-1 bg-white/30 backdrop-blur-md text-xs font-bold rounded-full shadow-lg">
-                    {t('new')}
-                  </span>
-                </div>
-                <h2 className="text-2xl font-bold mb-2">{t('clervaAI')}</h2>
-                <p className="text-blue-100 text-base leading-relaxed">{t('clervaAIDesc')}</p>
-              </div>
-            </button>
-
-            {/* Right Half - Study Partners Card */}
+          {/* Study Partners Card */}
+          <div className="mb-10">
             <button
               onClick={() => router.push('/dashboard/partners')}
-              className="w-full h-full p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl text-white shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
+              className="w-full max-w-2xl mx-auto p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl text-white shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
             >
               <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
               <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
