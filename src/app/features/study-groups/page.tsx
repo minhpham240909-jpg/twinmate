@@ -374,7 +374,7 @@ export default function StudyGroupsPage() {
                 },
                 {
                   q: 'How do I find study groups to join?',
-                  a: 'Browse public study groups by subject, topic, or schedule. You can also get invited to private groups by members or receive AI recommendations based on your profile and interests.'
+                  a: 'Browse public study groups by subject, topic, or schedule. You can also get invited to private groups by members or discover recommended groups based on your profile and interests.'
                 },
                 {
                   q: 'Can I make my study group private?',

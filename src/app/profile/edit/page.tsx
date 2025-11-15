@@ -717,7 +717,7 @@ export default function ProfilePage() {
                     Add Tags
                   </label>
                   <p className="text-xs text-gray-600 mb-3">
-                    Add keywords that describe you (e.g., &quot;Startup&quot;, &quot;AI&quot;, &quot;Co-founder&quot;, &quot;React Developer&quot;)
+                    Add keywords that describe you (e.g., &quot;Startup&quot;, &quot;Tech&quot;, &quot;Co-founder&quot;, &quot;React Developer&quot;)
                   </p>
                   <div className="flex gap-2 mb-3">
                     <input
