@@ -5,12 +5,11 @@ import { motion } from 'framer-motion'
 
 export default function Footer() {
   const features = [
-    { name: 'Find Partners', href: '/search' },
-    { name: 'Real-Time Collaboration', href: '/features/real-time-collaboration' },
-    { name: 'Study Groups', href: '/features/study-groups' },
-    { name: 'Community Forums', href: '/features/community' },
-    { name: 'Progress Tracking', href: '/dashboard' },
-    { name: 'Smart Scheduling', href: '/dashboard' },
+    { name: 'Find Study Partners', href: '/auth/signup' },
+    { name: 'Study Groups', href: '/auth/signup' },
+    { name: 'Live Study Sessions', href: '/auth/signup' },
+    { name: 'Direct Messaging', href: '/auth/signup' },
+    { name: 'Community Feed', href: '/auth/signup' },
   ]
 
   const handleFAQClick = (e: React.MouseEvent<HTMLAnchorElement>) => {

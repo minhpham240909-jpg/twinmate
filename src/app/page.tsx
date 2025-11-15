@@ -452,46 +452,39 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                title: 'Partner Matching',
-                description: 'Find your perfect study partner by filtering profiles based on subjects, interests, and learning goals.',
+                title: 'Find Study Partners',
+                description: 'Search and filter through profiles by subjects, interests, and goals. View compatibility scores based on your learning preferences and send connection requests to find your perfect study match.',
                 icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
                 gradient: 'from-blue-500 to-indigo-600',
-                href: '/search',
-              },
-              {
-                title: 'Real-Time Collaboration',
-                description: 'Video calls, screen sharing, and collaborative whiteboards in one place.',
-                icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z',
-                gradient: 'from-indigo-500 to-purple-600',
-                href: '/features/real-time-collaboration',
+                href: '/auth/signup',
               },
               {
                 title: 'Study Groups',
-                description: 'Create and join study groups for collaborative learning.',
+                description: 'Create or join study groups with up to 50 members. Choose between public, private, or invite-only groups with role-based permissions for organized collaborative learning.',
                 icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
                 gradient: 'from-purple-500 to-pink-600',
-                href: '/features/study-groups',
+                href: '/auth/signup',
               },
               {
-                title: 'Community Forums',
-                description: 'Connect with thousands of students and share knowledge.',
-                icon: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z',
+                title: 'Live Study Sessions',
+                description: 'Start video calls with up to 10 participants. Collaborate with shared whiteboards, real-time notes, flashcards with spaced repetition, and built-in Pomodoro timers for focused study sessions.',
+                icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z',
+                gradient: 'from-indigo-500 to-purple-600',
+                href: '/auth/signup',
+              },
+              {
+                title: 'Direct Messaging',
+                description: 'Chat with study partners and groups in real-time. Send messages, share files, and make voice or video calls with typing indicators and read receipts to stay connected.',
+                icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
                 gradient: 'from-pink-500 to-red-600',
-                href: '/features/community',
+                href: '/auth/signup',
               },
               {
-                title: 'Progress Tracking',
-                description: 'Track your study sessions, goals, and achievements.',
-                icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+                title: 'Community Feed',
+                description: 'Share posts, like, and engage with thousands of students. Choose between recommended, chronological, or trending feeds with privacy controls for your content.',
+                icon: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z',
                 gradient: 'from-orange-500 to-yellow-600',
-                href: '/dashboard',
-              },
-              {
-                title: 'Schedule Management',
-                description: 'Coordinate study sessions with your partners using our built-in calendar and scheduling tools.',
-                icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-                gradient: 'from-green-500 to-teal-600',
-                href: '/dashboard',
+                href: '/auth/signup',
               },
             ].map((feature, index) => (
               <motion.div
@@ -612,24 +605,36 @@ export default function HomePage() {
           <div className="space-y-4">
             {[
               {
-                question: 'How does the matching work?',
-                answer: 'You can browse and filter study partners based on subjects, learning style, goals, availability, and preferences. Use our search and filter tools to find partners who match what you\'re looking for.',
+                question: 'How does partner matching work?',
+                answer: 'Browse through student profiles and filter by subjects, interests, learning goals, and study preferences. Each profile shows a compatibility score based on how well your preferences align. Send connection requests to partners you\'d like to study with.',
               },
               {
-                question: 'Is Clerva free to use?',
-                answer: 'Yes! Clerva is completely free for all students. We believe in making quality education accessible to everyone.',
+                question: 'How many people can join a study session?',
+                answer: 'Live study sessions support up to 10 participants with video calls, shared whiteboards, collaborative notes, and flashcards. Sessions include a 30-minute waiting lobby before they start, giving everyone time to prepare.',
               },
               {
-                question: 'Can I study with multiple partners?',
-                answer: 'Absolutely! You can connect with as many study partners as you like and create or join multiple study groups.',
+                question: 'What are the study group limits?',
+                answer: 'Each study group can have up to 50 members. You can create public groups (anyone can join), private groups (members must request to join), or invite-only groups. Group owners and moderators can manage roles and permissions.',
               },
               {
-                question: 'What subjects are supported?',
-                answer: 'We support all subjects and topics! From math and science to languages and humanities, you can find study partners for any subject.',
+                question: 'Is Clerva completely free?',
+                answer: 'Yes! Clerva is 100% free with no hidden fees or premium tiers. All features including video calls, messaging, study groups, and community access are available to every user at no cost.',
               },
               {
-                question: 'Do I need to download anything?',
-                answer: 'No downloads required! Clerva works entirely in your browser. Just sign up and start studying.',
+                question: 'How does the community feed work?',
+                answer: 'The community feed has three viewing modes: Recommended (shows posts from your study partners first), Chronological (newest posts first), and Trending (most popular posts). You can control who sees your posts with privacy settings for each post you share.',
+              },
+              {
+                question: 'Can I message study partners directly?',
+                answer: 'Yes! Once connected, you can chat with partners in real-time with typing indicators and read receipts. You can also send messages in group chats, share files, and make voice or video calls directly through the messaging feature.',
+              },
+              {
+                question: 'What study tools are available in sessions?',
+                answer: 'Study sessions include collaborative whiteboards, shared notes that everyone can edit in real-time, flashcards with spaced repetition (SM-2 algorithm), and Pomodoro timers to help you stay focused during study blocks.',
+              },
+              {
+                question: 'Is my data private and secure?',
+                answer: 'We take privacy seriously. Your data is stored securely, and you control who sees your profile information. Posts can be set to public, friends-only, or private. We never share your personal information with third parties.',
               },
             ].map((faq, index) => (
               <motion.div

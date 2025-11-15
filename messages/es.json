@@ -710,7 +710,7 @@
     "typicalHours": "Horas típicas (ej., '6-9 PM' o 'Mañanas')",
     "describeAvailability": "Describe tu disponibilidad en detalle (ej., 'Flexible los fines de semana, prefiero sesiones nocturnas entre semana')...",
     "addTag": "Agregar una etiqueta...",
-    "aboutYourselfPlaceholder": "Ejemplo: Estoy buscando un cofundador para construir una startup EdTech impulsada por IA. Tengo 5 años de experiencia en React y Python, y me apasiona hacer la educación accesible. También abierto a encontrar compañeros de estudio para cursos de aprendizaje automático...",
+    "aboutYourselfPlaceholder": "Ejemplo: Estoy buscando un cofundador para construir una startup EdTech. Tengo 5 años de experiencia en React y Python, y me apasiona hacer la educación accesible. También abierto a encontrar compañeros de estudio para cursos de aprendizaje automático...",
     "connectionRequestSent": "¡Solicitud de conexión enviada!",
     "connectionRequestCancelled": "Solicitud de conexión cancelada",
     "failedToCancelConnection": "Error al cancelar conexión",

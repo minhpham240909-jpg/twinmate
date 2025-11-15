@@ -714,7 +714,7 @@
     "typicalHours": "Typical hours (e.g., '6-9 PM' or 'Mornings')",
     "describeAvailability": "Describe your availability in detail (e.g., 'Flexible on weekends, prefer evening sessions during weekdays')...",
     "addTag": "Add a tag...",
-    "aboutYourselfPlaceholder": "Example: I'm looking for a co-founder to build an AI-powered EdTech startup. I have 5 years of experience in React and Python, and I'm passionate about making education accessible. Also open to finding study partners for machine learning courses...",
+    "aboutYourselfPlaceholder": "Example: I'm looking for a co-founder to build an EdTech startup. I have 5 years of experience in React and Python, and I'm passionate about making education accessible. Also open to finding study partners for machine learning courses...",
     "connectionRequestSent": "Connection request sent!",
     "connectionRequestCancelled": "Connection request cancelled",
     "failedToCancelConnection": "Failed to cancel connection",
