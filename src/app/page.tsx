@@ -521,13 +521,17 @@ export default function HomePage() {
                     <motion.div
                       animate={{ rotateY: isFlipped ? 180 : 0 }}
                       transition={{ duration: 0.6, type: 'spring', stiffness: 100 }}
-                      className="h-full w-full"
+                      className="h-full w-full relative"
                       style={{ transformStyle: 'preserve-3d' }}
                     >
                       {/* Front of Card */}
                       <div
                         className="absolute inset-0"
-                        style={{ backfaceVisibility: 'hidden' }}
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                          transform: 'rotateY(0deg)'
+                        }}
                       >
                         <WebGLBorder
                           color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
@@ -536,7 +540,7 @@ export default function HomePage() {
                           glowIntensity={1}
                           className="h-full rounded-3xl"
                         >
-                          <div className="bg-white rounded-3xl p-8 h-full flex flex-col items-center justify-center gpu-accelerated">
+                          <div className="bg-white rounded-3xl p-8 h-full flex flex-col items-center justify-center">
                             <div className={`w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
                               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
@@ -550,7 +554,11 @@ export default function HomePage() {
                       {/* Back of Card */}
                       <div
                         className="absolute inset-0"
-                        style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                          transform: 'rotateY(180deg)'
+                        }}
                       >
                         <WebGLBorder
                           color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
@@ -559,14 +567,14 @@ export default function HomePage() {
                           glowIntensity={1}
                           className="h-full rounded-3xl"
                         >
-                          <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl p-8 h-full flex flex-col justify-center gpu-accelerated">
+                          <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl p-8 h-full flex flex-col justify-center">
                             <div className={`w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-5 shadow-lg mx-auto`}>
                               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
                               </svg>
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">{feature.title}</h3>
-                            <p className="text-slate-700 leading-relaxed text-base text-center">{feature.description}</p>
+                            <p className="text-slate-700 leading-relaxed text-base text-center px-2">{feature.description}</p>
                           </div>
                         </WebGLBorder>
                       </div>
