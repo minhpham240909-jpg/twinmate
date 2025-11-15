@@ -552,109 +552,180 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
-          {/* Study Partners Card */}
-          <div className="mb-10">
-            <button
-              onClick={() => router.push('/dashboard/partners')}
-              className="w-full max-w-2xl mx-auto p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-3xl text-white shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
-            >
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-6">
-                  <div className="w-16 h-16 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          {/* Main Content Grid - Professional Layout */}
+          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+            {/* Study Partners Card - Takes 2 columns */}
+            <div className="lg:col-span-2">
+              <button
+                onClick={() => router.push('/dashboard/partners')}
+                className="w-full h-full p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl text-white shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
+              >
+                <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="w-16 h-16 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold mb-2">{t('studyPartners')}</h2>
+                    <p className="text-5xl font-black mb-3">{partnersCount}</p>
+                    <p className="text-blue-100 text-base leading-relaxed mb-6">Connect with study partners and collaborate on your learning journey</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-blue-200">
+                    <span className="text-sm font-medium">View all partners</span>
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold mb-2">{t('studyPartners')}</h2>
-                <p className="text-4xl font-black mb-2">{partnersCount}</p>
-                <p className="text-blue-100 text-base leading-relaxed">Connect with study partners and collaborate</p>
-                <div className="mt-6 flex items-center gap-2 text-blue-200">
-                  <span className="text-sm font-medium">View all partners</span>
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </button>
-          </div>
+              </button>
+            </div>
 
-          {/* Search Bar & Online Partners - Split 50/50 */}
-          <div className="mb-10 grid md:grid-cols-2 gap-6">
-            {/* Left Half - Search Bar */}
-            <div>
-              <div className="relative group">
-                {/* Animated gradient background on hover */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-10 blur-xl transition-all duration-500"></div>
-                
-                {/* Main search container */}
-                <div className="relative bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-3 group-hover:border-blue-200 group-hover:shadow-2xl transition-all duration-300">
-                  <div className="flex items-center gap-3">
-                    {/* Search icon with gradient background */}
-                    <div className="pl-2 pr-2">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
-                        <svg
-                          className="w-5 h-5 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                    
-                    {/* Search input */}
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={t('searchPlaceholder')}
-                      className="flex-1 px-2 py-3 text-base border-0 focus:ring-0 focus:outline-none text-gray-900 placeholder-gray-400 bg-transparent"
-                    />
-                    
-                    {/* Loading spinner */}
-                    {isSearching && (
-                      <div className="pr-3">
-                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    
-                    {/* Clear button (when there's text) */}
-                    {searchQuery && !isSearching && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="pr-3 p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+            {/* Online Partners Card - Takes 1 column */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 h-full flex flex-col">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-md">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900 text-lg">{t('onlinePartners')}</h3>
+                    {!loadingOnlinePartners && onlinePartners.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-0.5">{onlinePartners.length} {onlinePartners.length === 1 ? 'online' : 'online'}</p>
                     )}
                   </div>
+                  {!loadingOnlinePartners && onlinePartners.length > 0 && (
+                    <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                      {onlinePartners.length}
+                    </span>
+                  )}
                 </div>
-              </div>
 
-              {/* No Results Message */}
-              {searchQuery.trim().length >= 2 && !isSearching && searchResults.partners.length === 0 && searchResults.groups.length === 0 && (
-                <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
-                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                {/* Loading State */}
+                {loadingOnlinePartners ? (
+                  <div className="flex-1 flex flex-col items-center justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p className="text-sm text-gray-600">{tCommon('loading')}</p>
+                  </div>
+                ) : onlinePartners.length === 0 ? (
+                  /* Empty State */
+                  <div className="flex-1 flex flex-col items-center justify-center py-12">
+                    <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{tCommon('noResults')}</h3>
-                    <p className="text-gray-600 max-w-md mx-auto">{tCommon('noMatchingResults')}</p>
+                    <p className="text-gray-600 font-medium text-sm">{t('noPartnerOnline')}</p>
                   </div>
-                </div>
-              )}
+                ) : (
+                  /* Online Partners List */
+                  <div className="flex-1 space-y-2 overflow-y-auto max-h-[400px]">
+                    {onlinePartners.map((partner) => (
+                      <button
+                        key={partner.id}
+                        onClick={() => router.push(`/profile/${partner.id}`)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-xl transition-all duration-200 text-left group"
+                      >
+                        <PartnerAvatar
+                          avatarUrl={partner.avatarUrl}
+                          name={partner.name}
+                          size="md"
+                          onlineStatus={partner.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                          showStatus={true}
+                          className="ring-2 ring-gray-100 group-hover:ring-green-200 transition-all"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 truncate group-hover:text-green-600 transition-colors text-sm">{partner.name}</p>
+                        </div>
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
-              {/* Search Results */}
-              {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
-                <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300 min-w-[700px] md:min-w-[900px] relative z-10">
+          {/* Search Bar - Full Width */}
+          <div className="mb-8">
+            <div className="relative group">
+              {/* Animated gradient background on hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-10 blur-xl transition-all duration-500"></div>
+              
+              {/* Main search container */}
+              <div className="relative bg-white rounded-2xl shadow-lg border border-gray-100 p-4 group-hover:border-blue-200 group-hover:shadow-xl transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  {/* Search icon with gradient background */}
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
+                      <svg
+                        className="w-6 h-6 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  {/* Search input */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('searchPlaceholder')}
+                    className="flex-1 px-2 py-2 text-base border-0 focus:ring-0 focus:outline-none text-gray-900 placeholder-gray-400 bg-transparent"
+                  />
+                  
+                  {/* Loading spinner */}
+                  {isSearching && (
+                    <div className="flex-shrink-0 pr-2">
+                      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                  
+                  {/* Clear button (when there's text) */}
+                  {searchQuery && !isSearching && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* No Results Message */}
+            {searchQuery.trim().length >= 2 && !isSearching && searchResults.partners.length === 0 && searchResults.groups.length === 0 && (
+              <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                  <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{tCommon('noResults')}</h3>
+                  <p className="text-gray-600 max-w-md mx-auto">{tCommon('noMatchingResults')}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Search Results */}
+            {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
+              <div className="mt-6 grid lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300 relative z-10">
                   {/* Partners Results */}
                   {searchResults.partners.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
@@ -766,68 +837,6 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Right Half - Online Partners */}
-            <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-6 self-start h-fit">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-bold text-gray-900 text-lg">{t('onlinePartners')}</h3>
-                {!loadingOnlinePartners && onlinePartners.length > 0 && (
-                  <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                    {onlinePartners.length}
-                  </span>
-                )}
-              </div>
-
-              {/* Loading State */}
-              {loadingOnlinePartners ? (
-                <div className="py-12 text-center min-h-[280px] flex flex-col items-center justify-center">
-                  <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-600">{tCommon('loading')}</p>
-                </div>
-              ) : onlinePartners.length === 0 ? (
-                /* Empty State */
-                <div className="py-12 text-center min-h-[280px] flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-600 font-medium">{t('noPartnerOnline')}</p>
-                </div>
-              ) : (
-                /* Online Partners List */
-                <div className="space-y-2 max-h-96 overflow-y-auto min-h-[280px]">
-                  {onlinePartners.map((partner) => (
-                    <button
-                      key={partner.id}
-                      onClick={() => router.push(`/profile/${partner.id}`)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-xl transition-all duration-200 text-left group"
-                    >
-                      <PartnerAvatar
-                        avatarUrl={partner.avatarUrl}
-                        name={partner.name}
-                        size="md"
-                        onlineStatus={partner.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                        showStatus={true}
-                        className="ring-2 ring-gray-100 group-hover:ring-green-200 transition-all"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate group-hover:text-green-600 transition-colors">{partner.name}</p>
-                      </div>
-                      <svg className="w-5 h-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Complete Profile Banner */}

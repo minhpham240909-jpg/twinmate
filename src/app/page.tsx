@@ -56,7 +56,7 @@ export default function HomePage() {
               transition={{ delay: 0.3, duration: 0.8 }}
               className="text-xl md:text-2xl text-slate-600 mb-12 font-light max-w-3xl mx-auto leading-relaxed"
             >
-              Smart matching connects you with compatible study partners.
+              Connect with study partners who share your subjects, goals, and learning style.
               <br className="hidden md:block" />
               Collaborate in real-time and achieve more together.
             </motion.p>
@@ -157,7 +157,7 @@ export default function HomePage() {
               {
                 step: '2',
                 title: 'Get Matched',
-                description: 'Our matching system analyzes thousands of profiles to find your perfect study partners.',
+                description: 'Browse through thousands of profiles and connect with study partners who share your interests and goals.',
                 color: '#8b5cf6',
                 gradient: 'from-indigo-500 to-purple-600',
               },
@@ -214,7 +214,7 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-purple-100 to-transparent rounded-full blur-3xl opacity-30" />
       </section>
 
-      {/* Smart Matching Section */}
+      {/* Partner Matching Section */}
       <section className="py-32 bg-gradient-to-b from-white to-blue-50/50 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -226,17 +226,17 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
             >
               <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                Smart matching that <GradientText colors={['#3b82f6', '#8b5cf6', '#3b82f6']} animationSpeed={3} className="text-5xl md:text-6xl font-bold inline-block">actually works.</GradientText>
+                Find partners that <GradientText colors={['#3b82f6', '#8b5cf6', '#3b82f6']} animationSpeed={3} className="text-5xl md:text-6xl font-bold inline-block">fit your goals.</GradientText>
               </h2>
               <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-                Our advanced matching system analyzes your learning style, subject preferences, goals, and availability to find the most compatible study partners.
+                Search and filter profiles by subjects, learning preferences, goals, and availability. Find study partners who share your interests and help you succeed.
               </p>
               <ul className="space-y-4">
                 {[
-                  'Multidimensional compatibility scoring',
-                  'Real-time availability matching',
-                  'Shared interest discovery',
-                  'Learning style alignment',
+                  'Filter by subjects and interests',
+                  'Match by availability and timezone',
+                  'Discover shared learning goals',
+                  'Connect with compatible study styles',
                 ].map((feature, i) => (
                   <motion.li
                     key={i}
@@ -305,11 +305,11 @@ export default function HomePage() {
                     >
                       <div className="w-32 h-32 mx-auto bg-white/20 rounded-full backdrop-blur-sm flex items-center justify-center">
                         <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
                       </div>
                     </motion.div>
-                    <h3 className="text-3xl font-bold mb-4">Smart Matching</h3>
+                    <h3 className="text-3xl font-bold mb-4">Partner Matching</h3>
                     <p className="text-blue-100 text-lg">Connecting 10,000+ students worldwide</p>
                   </div>
                 </div>
@@ -452,9 +452,9 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                title: 'Smart Matching',
-                description: 'Find your perfect study partner with advanced compatibility algorithms.',
-                icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
+                title: 'Partner Matching',
+                description: 'Find your perfect study partner by filtering profiles based on subjects, interests, and learning goals.',
+                icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
                 gradient: 'from-blue-500 to-indigo-600',
                 href: '/search',
               },
@@ -487,8 +487,8 @@ export default function HomePage() {
                 href: '/dashboard',
               },
               {
-                title: 'Smart Scheduling',
-                description: 'Find the perfect time to study with automated schedule matching.',
+                title: 'Schedule Management',
+                description: 'Coordinate study sessions with your partners using our built-in calendar and scheduling tools.',
                 icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
                 gradient: 'from-green-500 to-teal-600',
                 href: '/dashboard',
@@ -613,7 +613,7 @@ export default function HomePage() {
             {[
               {
                 question: 'How does the matching work?',
-                answer: 'Our matching system analyzes your profile including subjects, learning style, goals, availability, and preferences to find the most compatible study partners. We use advanced algorithms to ensure high-quality matches.',
+                answer: 'You can browse and filter study partners based on subjects, learning style, goals, availability, and preferences. Use our search and filter tools to find partners who match what you\'re looking for.',
               },
               {
                 question: 'Is Clerva free to use?',

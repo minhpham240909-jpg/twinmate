@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 
 export default function Footer() {
   const features = [
-    { name: 'Smart Matching', href: '/search' },
+    { name: 'Find Partners', href: '/search' },
     { name: 'Real-Time Collaboration', href: '/features/real-time-collaboration' },
     { name: 'Study Groups', href: '/features/study-groups' },
     { name: 'Community Forums', href: '/features/community' },
@@ -38,7 +38,7 @@ export default function Footer() {
                 CLERVA
               </h3>
               <p className="text-slate-600 leading-relaxed">
-                Smart study partner matching platform. Find your perfect study partner and achieve more together.
+                Connect with study partners who share your goals. Collaborate in real-time and achieve academic success together.
               </p>
             </motion.div>
           </div>
