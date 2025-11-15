@@ -514,7 +514,8 @@ export default function HomePage() {
                 >
                   <motion.div
                     whileHover={{ y: -5 }}
-                    className="h-full relative"
+                    onClick={toggleFlip}
+                    className="h-full relative cursor-pointer"
                     style={{ transformStyle: 'preserve-3d' }}
                   >
                     <motion.div
@@ -525,7 +526,6 @@ export default function HomePage() {
                     >
                       {/* Front of Card */}
                       <div
-                        onClick={toggleFlip}
                         className="absolute inset-0"
                         style={{ backfaceVisibility: 'hidden' }}
                       >
@@ -536,7 +536,7 @@ export default function HomePage() {
                           glowIntensity={1}
                           className="h-full rounded-3xl"
                         >
-                          <div className="bg-white rounded-3xl p-8 h-full cursor-pointer flex flex-col items-center justify-center gpu-accelerated">
+                          <div className="bg-white rounded-3xl p-8 h-full flex flex-col items-center justify-center gpu-accelerated">
                             <div className={`w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
                               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
@@ -549,7 +549,6 @@ export default function HomePage() {
 
                       {/* Back of Card */}
                       <div
-                        onClick={toggleFlip}
                         className="absolute inset-0"
                         style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                       >
@@ -560,14 +559,14 @@ export default function HomePage() {
                           glowIntensity={1}
                           className="h-full rounded-3xl"
                         >
-                          <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl p-8 h-full cursor-pointer flex flex-col justify-center gpu-accelerated">
-                            <div className={`w-12 h-12 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-4 shadow-lg`}>
-                              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl p-8 h-full flex flex-col justify-center gpu-accelerated">
+                            <div className={`w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-5 shadow-lg mx-auto`}>
+                              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
                               </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                            <p className="text-slate-600 leading-relaxed text-sm">{feature.description}</p>
+                            <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">{feature.title}</h3>
+                            <p className="text-slate-700 leading-relaxed text-base text-center">{feature.description}</p>
                           </div>
                         </WebGLBorder>
                       </div>
