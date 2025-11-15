@@ -14,9 +14,7 @@ import {
   User,
   Lock,
   Bell,
-  BookOpen,
   MessageSquare,
-  Clock,
   Users,
   Globe,
   Accessibility,
@@ -51,7 +49,6 @@ type DeletedPost = {
 interface UserSettings {
   // Account & Profile
   language?: string
-  timezone?: string
   // Privacy & Visibility
   profileVisibility?: 'EVERYONE' | 'CONNECTIONS_ONLY' | 'PRIVATE'
   postPrivacy?: 'PUBLIC' | 'PARTNERS_ONLY'
@@ -80,12 +77,6 @@ interface UserSettings {
   doNotDisturbEnabled?: boolean
   doNotDisturbStart?: string | null
   doNotDisturbEnd?: string | null
-  // Study Preferences
-  defaultStudyDuration?: number
-  defaultBreakDuration?: number
-  preferredSessionLength?: number
-  autoGenerateQuizzes?: boolean
-  flashcardReviewFrequency?: 'DAILY' | 'WEEKLY' | 'CUSTOM'
   // Communication Settings
   messageReadReceipts?: boolean
   typingIndicators?: boolean
@@ -95,11 +86,6 @@ interface UserSettings {
   enableVirtualBackground?: boolean
   autoAnswerFromPartners?: boolean
   callRingtone?: string
-  // Study Session Settings
-  autoStartTimer?: boolean
-  breakReminders?: boolean
-  sessionHistoryRetention?: number
-  sessionInvitePrivacy?: 'EVERYONE' | 'CONNECTIONS' | 'NOBODY'
   // Group Settings
   defaultGroupPrivacy?: 'PUBLIC' | 'PRIVATE' | 'INVITE_ONLY'
   groupNotifications?: boolean
@@ -136,9 +122,7 @@ type TabId =
   | 'account'
   | 'privacy'
   | 'notifications'
-  | 'study'
   | 'communication'
-  | 'sessions'
   | 'groups'
   | 'community'
   | 'accessibility'
@@ -446,9 +430,7 @@ export default function SettingsPage() {
     { id: 'account', label: t('account'), icon: User, color: 'from-blue-500 to-cyan-500' },
     { id: 'privacy', label: t('privacy'), icon: Lock, color: 'from-purple-500 to-pink-500' },
     { id: 'notifications', label: t('notifications'), icon: Bell, color: 'from-orange-500 to-red-500' },
-    { id: 'study', label: t('study'), icon: BookOpen, color: 'from-green-500 to-emerald-500' },
     { id: 'communication', label: t('communication'), icon: MessageSquare, color: 'from-indigo-500 to-blue-500' },
-    { id: 'sessions', label: t('sessions'), icon: Clock, color: 'from-amber-500 to-yellow-500' },
     { id: 'groups', label: t('groups'), icon: Users, color: 'from-violet-500 to-purple-500' },
     { id: 'community', label: t('community'), icon: Globe, color: 'from-teal-500 to-cyan-500' },
     { id: 'accessibility', label: t('accessibility'), icon: Accessibility, color: 'from-rose-500 to-pink-500' },
@@ -647,19 +629,9 @@ export default function SettingsPage() {
                     <NotificationsSettings settings={settings} updateSetting={updateSetting} />
                   </motion.div>
                 )}
-                {activeTab === 'study' && (
-                  <motion.div key="study" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <StudySettings settings={settings} updateSetting={updateSetting} />
-                  </motion.div>
-                )}
                 {activeTab === 'communication' && (
                   <motion.div key="communication" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <CommunicationSettings settings={settings} updateSetting={updateSetting} />
-                  </motion.div>
-                )}
-                {activeTab === 'sessions' && (
-                  <motion.div key="sessions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <SessionsSettings settings={settings} updateSetting={updateSetting} />
                   </motion.div>
                 )}
                 {activeTab === 'groups' && (
@@ -1461,24 +1433,6 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
           ]}
           onChange={(value) => updateSetting('language', value)}
         />
-        <SelectSetting
-          label={t('timezone')}
-          description={t('setTimezone')}
-          value={settings.timezone || 'UTC'}
-          options={[
-            { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
-            { value: 'America/New_York', label: 'Eastern Time (US & Canada)' },
-            { value: 'America/Chicago', label: 'Central Time (US & Canada)' },
-            { value: 'America/Denver', label: 'Mountain Time (US & Canada)' },
-            { value: 'America/Los_Angeles', label: 'Pacific Time (US & Canada)' },
-            { value: 'Europe/London', label: 'London' },
-            { value: 'Europe/Paris', label: 'Paris' },
-            { value: 'Asia/Tokyo', label: 'Tokyo' },
-            { value: 'Asia/Shanghai', label: 'Shanghai' },
-            { value: 'Australia/Sydney', label: 'Sydney' },
-          ]}
-          onChange={(value) => updateSetting('timezone', value)}
-        />
       </SettingSection>
 
       {/* Change Password */}
@@ -2202,64 +2156,6 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
   )
 }
 
-// Study Settings
-function StudySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
-  const t = useTranslations('settings')
-  return (
-    <>
-      <SettingSection
-        title={t('study')}
-        description={t('customizeDefaultSettings')}
-      >
-        <NumberSetting
-          label={t('defaultStudyDuration')}
-          description={t('pomodoroWorkDuration')}
-          value={settings.defaultStudyDuration || 25}
-          min={5}
-          max={120}
-          suffix={t('minutes')}
-          onChange={(value) => updateSetting('defaultStudyDuration', value)}
-        />
-        <NumberSetting
-          label={t('defaultBreakDuration')}
-          description={t('pomodoroBreakDuration')}
-          value={settings.defaultBreakDuration || 5}
-          min={1}
-          max={60}
-          suffix={t('minutes')}
-          onChange={(value) => updateSetting('defaultBreakDuration', value)}
-        />
-        <NumberSetting
-          label={t('preferredSessionLength')}
-          description={t('howLongYouStudy')}
-          value={settings.preferredSessionLength || 60}
-          min={15}
-          max={480}
-          suffix={t('minutes')}
-          onChange={(value) => updateSetting('preferredSessionLength', value)}
-        />
-        <ToggleSetting
-          label={t('autoGenerateQuizzes')}
-          description={t('automaticallyCreateQuizzes')}
-          checked={settings.autoGenerateQuizzes ?? false}
-          onChange={(value) => updateSetting('autoGenerateQuizzes', value)}
-        />
-        <SelectSetting
-          label={t('flashcardReviewFrequency')}
-          description={t('howOftenReviewFlashcards')}
-          value={settings.flashcardReviewFrequency || 'DAILY'}
-          options={[
-            { value: 'DAILY', label: t('daily') },
-            { value: 'WEEKLY', label: t('weekly') },
-            { value: 'CUSTOM', label: t('custom') },
-          ]}
-          onChange={(value) => updateSetting('flashcardReviewFrequency', value)}
-        />
-      </SettingSection>
-    </>
-  )
-}
-
 // Communication Settings
 function CommunicationSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
   const t = useTranslations('settings')
@@ -2322,52 +2218,6 @@ function CommunicationSettings({ settings, updateSetting }: { settings: UserSett
           description={t('automaticallyAnswerCalls')}
           checked={settings.autoAnswerFromPartners ?? false}
           onChange={(value) => updateSetting('autoAnswerFromPartners', value)}
-        />
-      </SettingSection>
-    </>
-  )
-}
-
-// Sessions Settings
-function SessionsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
-  const t = useTranslations('settings')
-  return (
-    <>
-      <SettingSection
-        title={t('studySessionSettings')}
-        description={t('configureHowSessionsWork')}
-      >
-        <ToggleSetting
-          label={t('autoStartTimer')}
-          description={t('automaticallyStartTimer')}
-          checked={settings.autoStartTimer ?? false}
-          onChange={(value) => updateSetting('autoStartTimer', value)}
-        />
-        <ToggleSetting
-          label={t('breakReminders')}
-          description={t('getRemindedToTakeBreaks')}
-          checked={settings.breakReminders ?? true}
-          onChange={(value) => updateSetting('breakReminders', value)}
-        />
-        <NumberSetting
-          label={t('sessionHistoryRetention')}
-          description={t('howLongKeepHistory')}
-          value={settings.sessionHistoryRetention || 90}
-          min={1}
-          max={365}
-          suffix={t('days')}
-          onChange={(value) => updateSetting('sessionHistoryRetention', value)}
-        />
-        <SelectSetting
-          label={t('whoCanInviteYou')}
-          description={t('controlWhoCanSendInvites')}
-          value={settings.sessionInvitePrivacy || 'EVERYONE'}
-          options={[
-            { value: 'EVERYONE', label: t('everyone') },
-            { value: 'CONNECTIONS', label: t('connectionsOnly') },
-            { value: 'NOBODY', label: t('nobody') },
-          ]}
-          onChange={(value) => updateSetting('sessionInvitePrivacy', value)}
         />
       </SettingSection>
     </>

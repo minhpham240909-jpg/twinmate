@@ -1,16 +1,15 @@
 'use client'
 
-import Link from 'next/link'
 import { motion } from 'framer-motion'
 
 export default function Footer() {
-  const features = [
-    { name: 'Find Study Partners', href: '/auth/signup' },
-    { name: 'Study Groups', href: '/auth/signup' },
-    { name: 'Live Study Sessions', href: '/auth/signup' },
-    { name: 'Direct Messaging', href: '/auth/signup' },
-    { name: 'Community Feed', href: '/auth/signup' },
-  ]
+  const handleFeaturesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault()
+    const featuresSection = document.querySelector('section.py-32.bg-gradient-to-b')
+    if (featuresSection) {
+      featuresSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
 
   const handleFAQClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
@@ -24,7 +23,7 @@ export default function Footer() {
     <footer className="bg-gradient-to-b from-slate-50 to-slate-100 border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Brand */}
           <div>
             <motion.div
@@ -42,7 +41,7 @@ export default function Footer() {
             </motion.div>
           </div>
 
-          {/* Features Links */}
+          {/* Quick Links */}
           <div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -50,38 +49,7 @@ export default function Footer() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h4 className="text-lg font-bold text-slate-900 mb-6">Features</h4>
-              <ul className="space-y-3">
-                {features.map((feature, index) => (
-                  <motion.li
-                    key={feature.name}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.3, delay: 0.05 * index }}
-                  >
-                    <Link
-                      href={feature.href}
-                      className="text-slate-600 hover:text-blue-600 transition-colors duration-200 flex items-center gap-2 group"
-                    >
-                      <span className="w-1 h-1 rounded-full bg-slate-400 group-hover:bg-blue-600 transition-colors duration-200" />
-                      {feature.name}
-                    </Link>
-                  </motion.li>
-                ))}
-              </ul>
-            </motion.div>
-          </div>
-
-          {/* FAQ Link */}
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <h4 className="text-lg font-bold text-slate-900 mb-6">Resources</h4>
+              <h4 className="text-lg font-bold text-slate-900 mb-6">Quick Links</h4>
               <ul className="space-y-3">
                 <motion.li
                   initial={{ opacity: 0, x: -20 }}
@@ -90,12 +58,27 @@ export default function Footer() {
                   transition={{ duration: 0.3 }}
                 >
                   <a
+                    href="#features"
+                    onClick={handleFeaturesClick}
+                    className="text-slate-600 hover:text-blue-600 transition-colors duration-200 flex items-center gap-2 group cursor-pointer"
+                  >
+                    <span className="w-1 h-1 rounded-full bg-slate-400 group-hover:bg-blue-600 transition-colors duration-200" />
+                    Features
+                  </a>
+                </motion.li>
+                <motion.li
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                >
+                  <a
                     href="#faq"
                     onClick={handleFAQClick}
                     className="text-slate-600 hover:text-blue-600 transition-colors duration-200 flex items-center gap-2 group cursor-pointer"
                   >
                     <span className="w-1 h-1 rounded-full bg-slate-400 group-hover:bg-blue-600 transition-colors duration-200" />
-                    Frequently Asked Questions
+                    FAQ
                   </a>
                 </motion.li>
               </ul>

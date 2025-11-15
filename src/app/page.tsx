@@ -11,6 +11,7 @@ import Footer from '@/components/landing/Footer'
 
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set())
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/30 to-white">
@@ -71,7 +72,7 @@ export default function HomePage() {
                 href="/auth/signup"
                 className="group relative px-10 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-medium rounded-full hover:shadow-2xl hover:scale-105 transition-all duration-300 overflow-hidden"
               >
-                <span className="relative z-10">Get Started Free</span>
+                <span className="relative z-10">Get Started Now</span>
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   animate={{
@@ -432,7 +433,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Grid Section */}
-      <section className="py-32 bg-gradient-to-b from-white to-slate-50 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
+      <section id="features" className="py-32 bg-gradient-to-b from-white to-slate-50 relative overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -486,48 +487,95 @@ export default function HomePage() {
                 gradient: 'from-orange-500 to-yellow-600',
                 href: '/auth/signup',
               },
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-              >
-                <Link href={feature.href}>
-                  <motion.div whileHover={{ y: -5 }} className="h-full">
-                    <WebGLBorder
-                      color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                      speed={0.5 + index * 0.1}
-                      thickness={1.5}
-                      glowIntensity={1}
-                      className="h-full rounded-3xl"
+            ].map((feature, index) => {
+              const isFlipped = flippedCards.has(index)
+
+              const toggleFlip = () => {
+                setFlippedCards(prev => {
+                  const newSet = new Set(prev)
+                  if (newSet.has(index)) {
+                    newSet.delete(index)
+                  } else {
+                    newSet.add(index)
+                  }
+                  return newSet
+                })
+              }
+
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1, duration: 0.5 }}
+                  style={{ perspective: '1000px' }}
+                  className="h-full min-h-[320px]"
+                >
+                  <motion.div
+                    whileHover={{ y: -5 }}
+                    className="h-full relative"
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    <motion.div
+                      animate={{ rotateY: isFlipped ? 180 : 0 }}
+                      transition={{ duration: 0.6, type: 'spring', stiffness: 100 }}
+                      className="h-full w-full"
+                      style={{ transformStyle: 'preserve-3d' }}
                     >
-                      <div className="bg-white rounded-3xl p-8 h-full cursor-pointer flex flex-col gpu-accelerated">
-                        <div className={`w-16 h-16 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
-                          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
-                          </svg>
-                        </div>
-
-                        <h3 className="text-2xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                        <p className="text-slate-600 leading-relaxed mb-4 flex-grow">{feature.description}</p>
-
-                        <span className="text-blue-600 font-medium inline-flex items-center gap-2 group-hover:gap-3 transition-all">
-                          Learn more
-                          <motion.span
-                            animate={{ x: [0, 4, 0] }}
-                            transition={{ duration: 1.5, repeat: Infinity }}
-                          >
-                            →
-                          </motion.span>
-                        </span>
+                      {/* Front of Card */}
+                      <div
+                        onClick={toggleFlip}
+                        className="absolute inset-0"
+                        style={{ backfaceVisibility: 'hidden' }}
+                      >
+                        <WebGLBorder
+                          color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
+                          speed={0.5 + index * 0.1}
+                          thickness={1.5}
+                          glowIntensity={1}
+                          className="h-full rounded-3xl"
+                        >
+                          <div className="bg-white rounded-3xl p-8 h-full cursor-pointer flex flex-col items-center justify-center gpu-accelerated">
+                            <div className={`w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
+                              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
+                              </svg>
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-900 text-center">{feature.title}</h3>
+                          </div>
+                        </WebGLBorder>
                       </div>
-                    </WebGLBorder>
+
+                      {/* Back of Card */}
+                      <div
+                        onClick={toggleFlip}
+                        className="absolute inset-0"
+                        style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                      >
+                        <WebGLBorder
+                          color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
+                          speed={0.5 + index * 0.1}
+                          thickness={1.5}
+                          glowIntensity={1}
+                          className="h-full rounded-3xl"
+                        >
+                          <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl p-8 h-full cursor-pointer flex flex-col justify-center gpu-accelerated">
+                            <div className={`w-12 h-12 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-4 shadow-lg`}>
+                              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
+                              </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
+                            <p className="text-slate-600 leading-relaxed text-sm">{feature.description}</p>
+                          </div>
+                        </WebGLBorder>
+                      </div>
+                    </motion.div>
                   </motion.div>
-                </Link>
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -566,7 +614,7 @@ export default function HomePage() {
                 href="/auth/signup"
                 className="group px-12 py-6 bg-white text-blue-600 text-xl font-bold rounded-full hover:scale-105 hover:shadow-2xl transition-all duration-300"
               >
-                <span>Get Started Free</span>
+                <span>Get Started Now</span>
               </Link>
 
               <Link
