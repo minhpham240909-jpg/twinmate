@@ -6,9 +6,9 @@ import { useTranslations } from 'next-intl'
 import TimerSettings from './TimerSettings'
 import { useTimerSync } from '@/hooks/useTimerSync'
 import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
+import FastPulse from '@/components/ui/FastPulse'
+import FastFadeIn from '@/components/ui/FastFadeIn'
+import FastBounce from '@/components/ui/FastBounce'
 
 interface Timer {
   id: string
@@ -277,14 +277,14 @@ export default function SessionTimer({
           </p>
         ) : isHost ? (
           // Host can set up timer
-          <Bounce>
+          <FastBounce>
             <button
               onClick={() => setShowSettings(true)}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-medium shadow-lg"
             >
               {t('setUpTimer')}
             </button>
-          </Bounce>
+          </FastBounce>
         ) : (
           // Non-host participants wait
           <p className="text-gray-500">
@@ -314,7 +314,7 @@ export default function SessionTimer({
             style={{ borderRadius: 16 }}
           >
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-              <Pulse>
+              <FastPulse>
                 <div
                   className={`font-mono font-bold ${
                     isSmall ? 'text-2xl' : 'text-6xl'
@@ -322,26 +322,26 @@ export default function SessionTimer({
                 >
                   {formatTime(timer.timeRemaining)}
                 </div>
-              </Pulse>
+              </FastPulse>
               <div className={`${isSmall ? 'mt-2' : 'mt-2'} text-sm text-gray-600`}>
                 {timer.isBreakTime ? (
-                  <Bounce>
+                  <FastBounce>
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">
                       {t('breakNumber').replace('{number}', String(Math.ceil(timer.currentCycle / 2)))}
                     </span>
-                  </Bounce>
+                  </FastBounce>
                 ) : (
-                  <Bounce>
+                  <FastBounce>
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
                       {t('studySessionNumber').replace('{number}', String(timer.currentCycle))}
                     </span>
-                  </Bounce>
+                  </FastBounce>
                 )}
               </div>
             </div>
           </ElectricBorder>
         ) : (
-          <FadeIn>
+          <FastFadeIn>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-md border border-gray-200">
               <div
                 className={`font-mono font-bold ${
@@ -362,7 +362,7 @@ export default function SessionTimer({
                 )}
               </div>
             </div>
-          </FadeIn>
+          </FastFadeIn>
         )}
         {/* Show stats for small/display-only mode */}
         {isSmall && displayOnly && (
@@ -385,10 +385,10 @@ export default function SessionTimer({
 
       {/* Controls */}
       {!isSmall && !displayOnly && (
-        <FadeIn delay={0.1}>
+        <FastFadeIn delay={0.1}>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             {timer.state === 'IDLE' && (
-              <Bounce>
+              <FastBounce>
                 <button
                   onClick={() => controlTimer('start')}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all flex items-center gap-2 font-medium shadow-lg"
@@ -402,7 +402,7 @@ export default function SessionTimer({
                   </svg>
                   {t('timerStart')}
                 </button>
-              </Bounce>
+              </FastBounce>
             )}
 
             {(timer.state === 'RUNNING' || timer.state === 'BREAK') && (
@@ -492,31 +492,31 @@ export default function SessionTimer({
               </>
             )}
           </div>
-        </FadeIn>
+        </FastFadeIn>
       )}
 
       {/* Stats */}
       {!isSmall && !displayOnly && (
-        <FadeIn delay={0.2}>
+        <FastFadeIn delay={0.2}>
           <div className="flex items-center justify-center gap-6 text-sm text-gray-600">
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
               <span className="text-gray-500">{t('totalStudy')}</span>
-              <Pulse>
+              <FastPulse>
                 <span className="font-semibold text-blue-600">
                   {Math.floor(timer.totalStudyTime / 60)} min
                 </span>
-              </Pulse>
+              </FastPulse>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg">
               <span className="text-gray-500">{t('totalBreak')}</span>
-              <Pulse>
+              <FastPulse>
                 <span className="font-semibold text-green-600">
                   {Math.floor(timer.totalBreakTime / 60)} min
                 </span>
-              </Pulse>
+              </FastPulse>
             </div>
           </div>
-        </FadeIn>
+        </FastFadeIn>
       )}
 
       {/* Modals */}
@@ -532,7 +532,7 @@ export default function SessionTimer({
       {/* Break Options Modal */}
       {showBreakOptions && !displayOnly && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Bounce>
+          <FastBounce>
             <ElectricBorder color="#10b981" speed={1} chaos={0.4} thickness={2} style={{ borderRadius: 16 }}>
               <div className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">
@@ -542,23 +542,23 @@ export default function SessionTimer({
                   {t('greatJobNext')}
                 </p>
                 <div className="space-y-3">
-                  <Bounce delay={0.1}>
+                  <FastBounce delay={0.1}>
                     <button
                       onClick={handleStartBreak}
                       className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 hover:scale-105 transition-all font-medium shadow-lg"
                     >
                       {t('startMinBreak').replace('{minutes}', String(timer.breakDuration))}
                     </button>
-                  </Bounce>
-                  <Bounce delay={0.2}>
+                  </FastBounce>
+                  <FastBounce delay={0.2}>
                     <button
                       onClick={handleSkipBreak}
                       className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-medium shadow-lg"
                     >
                       {t('skipBreakNewSession')}
                     </button>
-                  </Bounce>
-                  <Bounce delay={0.3}>
+                  </FastBounce>
+                  <FastBounce delay={0.3}>
                     <button
                       onClick={() => {
                         controlTimer('stop')
@@ -568,18 +568,18 @@ export default function SessionTimer({
                     >
                       {t('endTimer')}
                     </button>
-                  </Bounce>
+                  </FastBounce>
                 </div>
               </div>
             </ElectricBorder>
-          </Bounce>
+          </FastBounce>
         </div>
       )}
 
       {/* Study Options Modal */}
       {showStudyOptions && !displayOnly && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Bounce>
+          <FastBounce>
             <ElectricBorder color="#3b82f6" speed={1} chaos={0.4} thickness={2} style={{ borderRadius: 16 }}>
               <div className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">
@@ -589,23 +589,23 @@ export default function SessionTimer({
                   {t('readyToContinue')}
                 </p>
                 <div className="space-y-3">
-                  <Bounce delay={0.1}>
+                  <FastBounce delay={0.1}>
                     <button
                       onClick={handleSameSettings}
                       className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-medium shadow-lg"
                     >
                       {t('sameSettings').replace('{study}', String(timer.studyDuration)).replace('{break}', String(timer.breakDuration))}
                     </button>
-                  </Bounce>
-                  <Bounce delay={0.2}>
+                  </FastBounce>
+                  <FastBounce delay={0.2}>
                     <button
                       onClick={handleNewSettings}
                       className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 hover:scale-105 transition-all font-medium shadow-lg"
                     >
                       {t('newSettings')}
                     </button>
-                  </Bounce>
-                  <Bounce delay={0.3}>
+                  </FastBounce>
+                  <FastBounce delay={0.3}>
                     <button
                       onClick={() => {
                         controlTimer('stop')
@@ -615,11 +615,11 @@ export default function SessionTimer({
                     >
                       {t('endTimer')}
                     </button>
-                  </Bounce>
+                  </FastBounce>
                 </div>
               </div>
             </ElectricBorder>
-          </Bounce>
+          </FastBounce>
         </div>
       )}
     </div>

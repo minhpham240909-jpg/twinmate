@@ -6,7 +6,7 @@ import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
 import WebGLDotGrid from '@/components/landing/WebGLDotGrid'
 import WebGLBorder from '@/components/landing/WebGLBorder'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import DarkVeil from '@/components/landing/DarkVeil'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 import Footer from '@/components/landing/Footer'
@@ -181,11 +181,11 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
               >
-                <ElectricBorder
+                <GlowBorder
                   color={item.color}
-                  speed={1}
-                  chaos={0.5}
-                  thickness={2}
+                  intensity="medium"
+                  animated={true}
+                  
                   style={{ borderRadius: 24 }}
                   className="h-full"
                 >
@@ -209,7 +209,7 @@ export default function HomePage() {
                     <h3 className="text-2xl font-bold text-slate-900 mb-4 text-center">{item.title}</h3>
                     <p className="text-slate-600 leading-relaxed text-center">{item.description}</p>
                   </motion.div>
-                </ElectricBorder>
+                </GlowBorder>
               </motion.div>
             ))}
           </div>
@@ -271,7 +271,7 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <ElectricBorder color="#6366f1" speed={1} chaos={0.5} thickness={3} style={{ borderRadius: 24 }}>
+              <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 24 }}>
                 <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 rounded-3xl p-12 relative overflow-hidden gpu-accelerated">
                   {/* Simplified background pattern */}
                   <div className="absolute inset-0 opacity-10">
@@ -319,7 +319,7 @@ export default function HomePage() {
                     <p className="text-blue-100 text-lg">Connecting 10,000+ students worldwide</p>
                   </div>
                 </div>
-              </ElectricBorder>
+              </GlowBorder>
             </motion.div>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="order-2 lg:order-1"
             >
-              <ElectricBorder color="#ec4899" speed={1} chaos={0.5} thickness={2} style={{ borderRadius: 24 }}>
+              <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 24 }}>
                 <div className="bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 rounded-3xl p-8 relative overflow-hidden gpu-accelerated">
                   {/* Video Grid Mockup */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
@@ -388,7 +388,7 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-              </ElectricBorder>
+              </GlowBorder>
             </motion.div>
 
             {/* Text Content */}
@@ -538,10 +538,10 @@ export default function HomePage() {
                           transform: 'rotateY(0deg)'
                         }}
                       >
-                        <ElectricBorder
+                        <GlowBorder
                           color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                          speed={1}
-                          chaos={0.5}
+                          intensity="medium"
+                          animated={true}
                           thickness={1.5}
                           style={{ borderRadius: 24 }}
                           className="h-full"
@@ -554,7 +554,7 @@ export default function HomePage() {
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 text-center">{feature.title}</h3>
                           </div>
-                        </ElectricBorder>
+                        </GlowBorder>
                       </div>
 
                       {/* Back of Card */}
@@ -566,10 +566,10 @@ export default function HomePage() {
                           transform: 'rotateY(180deg)'
                         }}
                       >
-                        <ElectricBorder
+                        <GlowBorder
                           color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                          speed={1}
-                          chaos={0.5}
+                          intensity="medium"
+                          animated={true}
                           thickness={1.5}
                           style={{ borderRadius: 24 }}
                           className="h-full"
@@ -583,7 +583,7 @@ export default function HomePage() {
                             <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">{feature.title}</h3>
                             <p className="text-slate-700 leading-relaxed text-base text-center px-2">{feature.description}</p>
                           </div>
-                        </ElectricBorder>
+                        </GlowBorder>
                       </div>
                     </motion.div>
                   </motion.div>
