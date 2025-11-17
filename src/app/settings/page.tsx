@@ -133,8 +133,6 @@ type TabId =
   | 'data'
   | 'history'
   | 'integrations'
-  | 'advanced'
-  | 'about'
 
 export default function SettingsPage() {
   const { user, loading, profile } = useAuth()
@@ -441,8 +439,6 @@ export default function SettingsPage() {
     { id: 'data', label: t('data'), icon: Database, color: 'from-slate-500 to-gray-500' },
     { id: 'history', label: 'History', icon: History, color: 'from-zinc-500 to-slate-500' },
     { id: 'integrations', label: t('integrations'), icon: Link2, color: 'from-cyan-500 to-blue-500' },
-    { id: 'advanced', label: t('advanced'), icon: SettingsIcon, color: 'from-gray-500 to-slate-500' },
-    { id: 'about', label: t('about'), icon: Info, color: 'from-blue-500 to-indigo-500' },
   ]
 
   const { effectiveTheme } = useTheme()
@@ -682,16 +678,6 @@ export default function SettingsPage() {
                 {activeTab === 'integrations' && (
                   <motion.div key="integrations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <IntegrationsSettings settings={settings} updateSetting={updateSetting} />
-                  </motion.div>
-                )}
-                {activeTab === 'advanced' && (
-                  <motion.div key="advanced" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <AdvancedSettings settings={settings} updateSetting={updateSetting} />
-                  </motion.div>
-                )}
-                {activeTab === 'about' && (
-                  <motion.div key="about" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <AboutSection />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -2710,45 +2696,6 @@ function IntegrationsSettings({ settings, updateSetting }: { settings: UserSetti
   )
 }
 
-// Advanced Settings
-function AdvancedSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
-  const t = useTranslations('settings')
-  return (
-    <>
-      <SettingSection title={t('advanced')} description={t('powerUserSettings')}>
-        <ToggleSetting
-          label={t('developerMode')}
-          description={t('enableDeveloperTools')}
-          checked={settings.developerMode ?? false}
-          onChange={(value) => updateSetting('developerMode', value)}
-        />
-        <ToggleSetting
-          label={t('betaFeatures')}
-          description={t('tryNewFeatures')}
-          checked={settings.betaFeatures ?? false}
-          onChange={(value) => updateSetting('betaFeatures', value)}
-        />
-        <SelectSetting
-          label={t('performanceMode')}
-          description={t('optimizeAppPerformance')}
-          value={settings.performanceMode || 'BALANCED'}
-          options={[
-            { value: 'LOW_POWER', label: t('lowPowerBatterySaver') },
-            { value: 'BALANCED', label: t('balancedRecommended') },
-            { value: 'PERFORMANCE', label: t('performanceBestExperience') },
-          ]}
-          onChange={(value) => updateSetting('performanceMode', value)}
-        />
-        <ToggleSetting
-          label={t('analytics')}
-          description={t('helpImproveClerva')}
-          checked={settings.analyticsEnabled ?? true}
-          onChange={(value) => updateSetting('analyticsEnabled', value)}
-        />
-      </SettingSection>
-    </>
-  )
-}
 
 // History Section
 function HistorySection() {
@@ -3738,47 +3685,3 @@ function CommunityActivityHistory() {
 }
 
 // About Section
-function AboutSection() {
-  const t = useTranslations('settings')
-  return (
-    <>
-      <SettingSection title={t('aboutClerva')} description={t('learnMoreAboutApp')}>
-        <div className="space-y-4">
-          <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Clerva</h3>
-            <p className="text-gray-600 mb-4">{t('socialLearningPlatform')}</p>
-            <p className="text-sm text-gray-500">{t('version')}</p>
-          </div>
-
-          <div className="space-y-3">
-            <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">{t('termsOfService')}</div>
-              <div className="text-sm text-gray-500">{t('readTermsAndConditions')}</div>
-            </button>
-            <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">{t('privacyPolicy')}</div>
-              <div className="text-sm text-gray-500">{t('howWeHandleData')}</div>
-            </button>
-            <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">{t('contactSupport')}</div>
-              <div className="text-sm text-gray-500">{t('getHelpWithClerva')}</div>
-            </button>
-            <button className="w-full px-4 py-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <div className="font-medium text-gray-900">{t('reportBug')}</div>
-              <div className="text-sm text-gray-500">{t('helpUsImprove')}</div>
-            </button>
-          </div>
-
-          <div className="pt-4 border-t border-gray-200">
-            <p className="text-center text-sm text-gray-500">
-              {t('allRightsReserved')}
-              <br />
-              {t('madeWithLove')}
-            </p>
-          </div>
-        </div>
-      </SettingSection>
-    </>
-  )
-}
-
