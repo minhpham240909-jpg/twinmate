@@ -22,10 +22,10 @@ export default function SignInPage() {
           </div>
 
           {/* Right side - Form */}
-          <div className="w-full lg:w-auto lg:flex-1 flex justify-center lg:justify-end">
-            <div className="w-full max-w-xl">
+          <div className="w-full lg:w-auto lg:flex-1 flex justify-center">
+            <div className="w-full max-w-md">
               <GlowBorder color="#3b82f6" intensity="medium" animated={false} style={{ borderRadius: 12 }}>
-                <Suspense fallback={<div className="w-full bg-white p-10 rounded-xl shadow-lg h-[500px]"></div>}>
+                <Suspense fallback={<div className="w-full bg-white p-8 rounded-xl h-[500px]"></div>}>
                   <SignInForm />
                 </Suspense>
               </GlowBorder>

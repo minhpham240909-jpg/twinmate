@@ -103,8 +103,8 @@ export default function SignInForm() {
   }
 
   return (
-    <div className="w-full max-w-md">
-      <div className="bg-white p-8 rounded-xl shadow-lg">
+    <div className="w-full">
+      <div className="bg-white p-8 rounded-xl">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Welcome Back</h2>
 
         {registered && (
