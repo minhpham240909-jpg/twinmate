@@ -6,10 +6,10 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
+import ElectricBorderOptimized from '@/components/landing/ElectricBorderOptimized'
+import PulseOptimized from '@/components/ui/PulseOptimized'
+import FadeInOptimized from '@/components/ui/FadeInOptimized'
+import BounceOptimized from '@/components/ui/BounceOptimized'
 
 interface Partner {
   id: string
@@ -683,14 +683,13 @@ export default function SearchPage() {
               )}
 
               {/* Partner Cards */}
-              <FadeIn delay={0.1}>
+              <FadeInOptimized delay={0.1}>
                 <div className="space-y-4">
                   {partners.length > 0 ? (
-                    partners.map((partner, index) => (
-                      <FadeIn key={partner.id} delay={index * 0.05}>
-                        <ElectricBorder color={partner.matchScore && partner.matchScore > 70 ? "#10b981" : "#3b82f6"} speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
-                          <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
-                      <div className="flex items-start justify-between">
+                    partners.map((partner, index) => {
+                      const cardContent = (
+                        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all border border-gray-200">
+                          <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
                           <PartnerAvatar
                             avatarUrl={partner.user.avatarUrl}
@@ -702,11 +701,11 @@ export default function SearchPage() {
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-gray-900">{partner.user.name}</h3>
                               {partner.matchScore && partner.matchScore > 0 && (
-                                <Pulse>
+                                <PulseOptimized onlyWhenVisible={true}>
                                   <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
                                     {partner.matchScore}% Match
                                   </span>
-                                </Pulse>
+                                </PulseOptimized>
                               )}
                             </div>
                             <p className="text-sm text-gray-600 mb-2">
@@ -715,20 +714,14 @@ export default function SearchPage() {
                             {partner.subjects.length > 0 && (
                               <div className="flex flex-wrap gap-2 mb-3">
                                 {partner.subjects.slice(0, 3).map((subject, idx) => (
-                                  <Bounce key={idx} delay={index * 0.1 + idx * 0.05}>
-                                    <Pulse>
-                                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full hover:scale-105 transition-all cursor-default">
-                                        {subject}
-                                      </span>
-                                    </Pulse>
-                                  </Bounce>
+                                  <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full hover:scale-105 transition-transform cursor-default">
+                                    {subject}
+                                  </span>
                                 ))}
                                 {partner.subjects.length > 3 && (
-                                  <Bounce delay={index * 0.1 + 0.15}>
-                                    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                      +{partner.subjects.length - 3} more
-                                    </span>
-                                  </Bounce>
+                                  <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                    +{partner.subjects.length - 3} more
+                                  </span>
                                 )}
                               </div>
                             )}
@@ -745,42 +738,48 @@ export default function SearchPage() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Bounce delay={index * 0.1 + 0.2}>
-                            <button
-                              onClick={() => router.push(`/profile/${partner.user.id}`)}
-                              className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 hover:scale-105 transition-all whitespace-nowrap shadow-sm"
-                            >
-                              {t('viewProfile')}
-                            </button>
-                          </Bounce>
+                          <button
+                            onClick={() => router.push(`/profile/${partner.user.id}`)}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 hover:scale-105 transition-all whitespace-nowrap shadow-sm"
+                          >
+                            {t('viewProfile')}
+                          </button>
                           {partner.isAlreadyPartner ? (
-                            <Bounce delay={index * 0.1 + 0.3}>
-                              <Pulse>
-                                <div className="px-4 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium whitespace-nowrap flex items-center gap-2 shadow-sm">
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                  </svg>
-                                  {t('alreadyPartners')}
-                                </div>
-                              </Pulse>
-                            </Bounce>
+                            <PulseOptimized onlyWhenVisible={true}>
+                              <div className="px-4 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium whitespace-nowrap flex items-center gap-2 shadow-sm">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                {t('alreadyPartners')}
+                              </div>
+                            </PulseOptimized>
                           ) : (
-                            <Bounce delay={index * 0.1 + 0.3}>
-                              <button
-                                onClick={() => handleConnect(partner.user.id)}
-                                disabled={sendingRequest === partner.user.id}
-                                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-md font-medium"
-                              >
-                                {sendingRequest === partner.user.id ? t('sending') : t('connect')}
-                              </button>
-                            </Bounce>
+                            <button
+                              onClick={() => handleConnect(partner.user.id)}
+                              disabled={sendingRequest === partner.user.id}
+                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-md font-medium"
+                            >
+                              {sendingRequest === partner.user.id ? t('sending') : t('connect')}
+                            </button>
                           )}
                         </div>
                       </div>
-                          </div>
-                        </ElectricBorder>
-                      </FadeIn>
-                    ))
+                        </div>
+                      )
+
+                      return (
+                        <FadeInOptimized key={partner.id} delay={Math.min(index * 0.03, 0.3)}>
+                          {/* Only use ElectricBorder on high match scores (>80) */}
+                          {partner.matchScore && partner.matchScore > 80 ? (
+                            <ElectricBorderOptimized color="#10b981" speed={0.8} chaos={0.2} thickness={2} style={{ borderRadius: 12 }} onlyWhenVisible={true}>
+                              {cardContent}
+                            </ElectricBorderOptimized>
+                          ) : (
+                            cardContent
+                          )}
+                        </FadeInOptimized>
+                      )
+                    })
                   ) : (
                   <div className="bg-gray-50 rounded-xl p-12 text-center">
                     <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -807,7 +806,7 @@ export default function SearchPage() {
                   </div>
                 )}
                 </div>
-              </FadeIn>
+              </FadeInOptimized>
             </div>
           </div>
         </div>

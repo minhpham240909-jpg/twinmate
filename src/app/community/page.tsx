@@ -8,9 +8,9 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { motion } from 'framer-motion'
-import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
+import ElectricBorderOptimized from '@/components/landing/ElectricBorderOptimized'
+import PulseOptimized from '@/components/ui/PulseOptimized'
+import FadeInOptimized from '@/components/ui/FadeInOptimized'
 
 type Post = {
   id: string
@@ -860,9 +860,9 @@ export default function CommunityPage() {
                     />
                   </svg>
                   {post._count.likes > 0 ? (
-                    <Pulse>
+                    <PulseOptimized onlyWhenVisible={true}>
                       <span className="text-sm font-medium">{post._count.likes}</span>
-                    </Pulse>
+                    </PulseOptimized>
                   ) : (
                     <span className="text-sm font-medium">{post._count.likes}</span>
                   )}
@@ -881,9 +881,9 @@ export default function CommunityPage() {
                     />
                   </svg>
                   {post._count.comments > 0 ? (
-                    <Pulse>
+                    <PulseOptimized onlyWhenVisible={true}>
                       <span className="text-sm font-medium">{post._count.comments}</span>
-                    </Pulse>
+                    </PulseOptimized>
                   ) : (
                     <span className="text-sm font-medium">{post._count.comments}</span>
                   )}
@@ -937,21 +937,24 @@ export default function CommunityPage() {
                 )
                 
                 return (
-                  <FadeIn key={post.id} delay={index * 0.05} direction="up">
-                    {isPopular || highEngagement ? (
-                      <ElectricBorder
+                  <FadeInOptimized key={post.id} delay={Math.min(index * 0.02, 0.2)} direction="up">
+                    {/* Only use ElectricBorder on very high engagement (>30 interactions) or in popular tab with >20 interactions */}
+                    {(highEngagement && (post._count.likes + post._count.comments + post._count.reposts) > 30) || 
+                     (isPopular && (post._count.likes + post._count.comments + post._count.reposts) > 20) ? (
+                      <ElectricBorderOptimized
                         color={highEngagement ? "#ec4899" : "#8b5cf6"}
-                        speed={1}
-                        chaos={highEngagement ? 0.6 : 0.4}
+                        speed={0.8}
+                        chaos={0.3}
                         thickness={2}
                         style={{ borderRadius: 16 }}
+                        onlyWhenVisible={true}
                       >
                         {postContent}
-                      </ElectricBorder>
+                      </ElectricBorderOptimized>
                     ) : (
                       postContent
                     )}
-                  </FadeIn>
+                  </FadeInOptimized>
                 )
               })}
 
