@@ -272,7 +272,7 @@ export default function StudySessionsPage() {
               <GlowBorder
                 color="#3b82f6"
                
-                animated={true}
+                animated={false}
                 
                 style={{ borderRadius: 12 }}
                 className="mb-6"
@@ -383,7 +383,7 @@ export default function StudySessionsPage() {
                   <GlowBorder
                     color={session.status === 'COMPLETED' ? '#10b981' : '#6b7280'}
                    
-                    animated={true}
+                    animated={false}
                     
                     style={{ borderRadius: 12 }}
                     className="h-full"

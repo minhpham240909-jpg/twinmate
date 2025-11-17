@@ -546,7 +546,7 @@ export default function SettingsPage() {
           {/* Sidebar Navigation */}
           <aside className="w-full lg:w-72 flex-shrink-0">
             <FadeIn delay={0.1}>
-              <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+              <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
                 <nav className={`backdrop-blur-lg rounded-2xl shadow-lg border p-3 sticky top-24 transition-colors duration-300 ${
                   effectiveTheme === 'dark'
                     ? 'bg-gray-900/80 border-gray-700/50'
@@ -614,7 +614,7 @@ export default function SettingsPage() {
           {/* Main Content */}
           <main className="flex-1 min-w-0">
             <FadeIn delay={0.2}>
-              <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+              <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
                 <motion.div
                   key={activeTab}
                   initial={{ opacity: 0, y: 20 }}

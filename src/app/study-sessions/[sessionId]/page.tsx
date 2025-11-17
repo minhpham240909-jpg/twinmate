@@ -381,7 +381,7 @@ export default function SessionRoomPage() {
             {/* Main Area */}
             <div className="col-span-2">
               <FadeIn delay={0.1}>
-                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                     {/* Tabs */}
                     <nav className="flex overflow-x-auto border-b border-gray-200">

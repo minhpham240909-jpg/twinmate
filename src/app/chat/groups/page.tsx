@@ -393,7 +393,7 @@ function GroupsChatContent() {
                 {conversations.map((conv, index) => (
                   <FastFadeIn key={conv.id} delay={index * 0.02}>
                     {conv.unreadCount > 0 ? (
-                      <GlowBorder color="#9333ea" intensity="medium" animated={true}>
+                      <GlowBorder color="#9333ea" intensity="medium" animated={false}>
                         <button
                           onClick={() => {
                             handleSelectConversation(conv)

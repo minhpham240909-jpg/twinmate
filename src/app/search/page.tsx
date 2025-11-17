@@ -771,7 +771,7 @@ export default function SearchPage() {
                         <FadeInOptimized key={partner.id} delay={Math.min(index * 0.03, 0.3)}>
                           {/* Only use ElectricBorder on high match scores (>80) */}
                           {partner.matchScore && partner.matchScore > 80 ? (
-                            <GlowBorderOptimized color="#10b981" animated={true}  style={{ borderRadius: 12 }} onlyWhenVisible={true}>
+                            <GlowBorderOptimized color="#10b981" animated={false}  style={{ borderRadius: 12 }} onlyWhenVisible={true}>
                               {cardContent}
                             </GlowBorderOptimized>
                           ) : (

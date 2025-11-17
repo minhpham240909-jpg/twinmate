@@ -609,10 +609,8 @@ export default function DashboardPage() {
               <GlowBorder
                 color="#3b82f6"
                 intensity="medium"
-                animated={true}
-                
+                animated={false}
                 style={{ borderRadius: 16 }}
-                className="h-full"
               >
                 <button
                   onClick={() => router.push('/dashboard/partners')}
@@ -649,10 +647,8 @@ export default function DashboardPage() {
               <GlowBorder
                 color="#10b981"
                 intensity="medium"
-                animated={true}
-                
+                animated={false}
                 style={{ borderRadius: 16 }}
-                className="h-full"
               >
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 h-full flex flex-col">
                 <div className="flex items-center gap-3 mb-6">
@@ -915,7 +911,7 @@ export default function DashboardPage() {
               <GlowBorder
                 color="#10b981"
                 intensity="medium"
-                animated={true}
+                animated={false}
                 
                 style={{ borderRadius: 16 }}
               >

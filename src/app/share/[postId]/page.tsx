@@ -126,7 +126,7 @@ export default function SharedPostPage() {
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Shared Post Card */}
         <FadeIn delay={0.1}>
-          <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+          <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           {/* Post Header */}
           <div className="flex items-start gap-3 mb-4">

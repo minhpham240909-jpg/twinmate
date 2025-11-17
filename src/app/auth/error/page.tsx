@@ -8,7 +8,7 @@ export default function AuthErrorPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
       <FastFadeIn delay={0.1}>
-        <GlowBorder color="#ef4444" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+        <GlowBorder color="#ef4444" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
           <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center">
             <FastBounce delay={0.1}>
               <FastPulse>

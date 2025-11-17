@@ -200,7 +200,7 @@ export default function ChatSelectionPage() {
               <GlowBorder
                 color={unreadCounts.group > 0 ? "#8b5cf6" : "#e5e7eb"}
                 intensity="medium"
-                animated={true}
+                animated={false}
                 
                 style={{ borderRadius: 16 }}
                 className="h-full"

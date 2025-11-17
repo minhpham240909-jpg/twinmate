@@ -396,7 +396,7 @@ function PartnersChatContent() {
                 {conversations.map((conv, index) => (
                   <FastFadeIn key={conv.id} delay={index * 0.02} direction="right">
                     {conv.unreadCount > 0 ? (
-                      <GlowBorder color="#3b82f6" intensity="medium" animated={true}>
+                      <GlowBorder color="#3b82f6" intensity="medium" animated={false}>
                         <button
                           onClick={() => {
                             handleSelectConversation(conv)

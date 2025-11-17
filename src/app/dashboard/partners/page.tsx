@@ -140,7 +140,7 @@ export default function PartnersPage() {
       <main className="max-w-7xl mx-auto px-8 py-10">
         {partners.length === 0 ? (
           <Bounce>
-            <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 24 }}>
+            <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 24 }}>
               <div className="bg-white rounded-3xl p-12 text-center shadow-lg">
                 <Bounce delay={0.1}>
                   <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -171,7 +171,7 @@ export default function PartnersPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {partners.map((partner, index) => (
                 <FadeIn key={partner.id} delay={index * 0.05}>
-                  <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+                  <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
                     <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-4">

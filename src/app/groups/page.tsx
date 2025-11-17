@@ -652,7 +652,7 @@ export default function GroupsPage() {
         <div className="max-w-6xl mx-auto">
           {/* Tabs */}
           <FadeIn delay={0.1}>
-            <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+            <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
               <div className="bg-white rounded-xl shadow-sm mb-6">
                 <div className="border-b border-gray-200">
                   <nav className="flex items-center justify-between">
@@ -750,7 +750,7 @@ export default function GroupsPage() {
                 ) : (
                   myGroups.map((group, index) => (
                   <FadeIn key={group.id} delay={index * 0.05}>
-                    <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                    <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                       <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -917,7 +917,7 @@ export default function GroupsPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {searchResults.map((group, index) => (
                     <FadeIn key={group.id} delay={index * 0.05}>
-                      <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                      <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                         <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">

@@ -314,7 +314,7 @@ export default function OnboardingPage() {
 
         {/* Form Card */}
         <FadeIn delay={0.1}>
-          <GlowBorder color="#6366f1" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+          <GlowBorder color="#6366f1" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <Bounce delay={0.1}>
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">{step.title}</h2>

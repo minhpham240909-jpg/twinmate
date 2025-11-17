@@ -514,7 +514,7 @@ export default function UserProfilePage() {
           <FadeIn delay={0.2}>
             <div className="flex gap-6 text-sm mb-4">
               {(profile?.subjects && profile.subjects.length > 0) && (
-                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-blue-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-blue-600">{profile.subjects.length}</span>
@@ -524,7 +524,7 @@ export default function UserProfilePage() {
                 </GlowBorder>
               )}
               {(profile?.interests && profile.interests.length > 0) && (
-                <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
+                <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-purple-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-purple-600">{profile.interests.length}</span>
@@ -534,7 +534,7 @@ export default function UserProfilePage() {
                 </GlowBorder>
               )}
               {profileData.matchScore > 0 && (
-                <GlowBorder color="#10b981" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
+                <GlowBorder color="#10b981" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-green-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-green-600">{profileData.matchScore}%</span>
@@ -559,7 +559,7 @@ export default function UserProfilePage() {
                     {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
                   </button>
                 ) : profileData.connectionStatus === 'connected' ? (
-                  <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 9999 }}>
+                  <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 9999 }}>
                     <button
                       onClick={handleMessage}
                       className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
@@ -775,7 +775,7 @@ export default function UserProfilePage() {
             {posts && posts.length > 0 ? (
               posts.map((post, index) => (
                 <FadeIn key={post.id} delay={index * 0.05}>
-                  <GlowBorder color="#e5e7eb" animated={true}  style={{ borderRadius: 12 }}>
+                  <GlowBorder color="#e5e7eb" animated={false}  style={{ borderRadius: 12 }}>
                     <div className="border-b border-gray-200 py-6 px-4 hover:bg-gray-50 transition-all cursor-pointer rounded-lg">
                   <p className="text-gray-900 mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
 

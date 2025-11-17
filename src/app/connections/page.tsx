@@ -227,7 +227,7 @@ export default function ConnectionsPage() {
                 ) : (
                   receivedRequests.map((request, index) => (
                     <FadeIn key={request.id} delay={index * 0.05}>
-                      <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                      <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                         <div className="bg-white rounded-xl p-6 shadow-sm">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4">
@@ -297,7 +297,7 @@ export default function ConnectionsPage() {
                 ) : (
                   sentRequests.map((request, index) => (
                     <FadeIn key={request.id} delay={index * 0.05}>
-                      <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                      <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                         <div className="bg-white rounded-xl p-6 shadow-sm">
                           <div className="flex items-start gap-4">
                             {request.receiver.avatarUrl ? (

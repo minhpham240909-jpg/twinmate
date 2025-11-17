@@ -74,7 +74,7 @@ export default function SignUpPage() {
         {/* Right side - Form */}
         <div className="flex-1 flex justify-center">
           <FastFadeIn delay={0.2}>
-            <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+            <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
               <SignUpForm />
             </GlowBorder>
           </FastFadeIn>

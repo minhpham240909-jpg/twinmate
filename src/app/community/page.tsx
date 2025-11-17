@@ -944,7 +944,7 @@ export default function CommunityPage() {
                       <GlowBorderOptimized
                         color={highEngagement ? "#ec4899" : "#8b5cf6"}
                        
-                        animated={true}
+                        animated={false}
                         
                         style={{ borderRadius: 16 }}
                         onlyWhenVisible={true}

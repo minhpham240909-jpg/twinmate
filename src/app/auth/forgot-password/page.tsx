@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
         <FastFadeIn delay={0.1}>
-          <GlowBorder color="#10b981" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+          <GlowBorder color="#10b981" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
               <div className="text-center">
                 <FastBounce delay={0.1}>
@@ -89,7 +89,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
       <FastFadeIn delay={0.1}>
-        <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+        <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>

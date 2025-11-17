@@ -44,7 +44,7 @@ export default function ConfirmEmailPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <FastFadeIn delay={0.1}>
-        <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+        <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
           <div className="w-full max-w-md">
             <div className="bg-white p-8 rounded-xl shadow-lg text-center">
               {/* Email Icon */}

@@ -560,7 +560,7 @@ export default function WaitingLobbyPage() {
             <div className="col-span-2 space-y-6">
               {/* Session Details Card */}
               <FadeIn delay={0.1}>
-                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">{t('sessionDetails')}</h2>
                 <div className="space-y-3">
@@ -657,7 +657,7 @@ export default function WaitingLobbyPage() {
             <div className="col-span-1 space-y-6">
               {/* Invite Button */}
               <FadeIn delay={0.2}>
-                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <Bounce>
                       <button
@@ -677,7 +677,7 @@ export default function WaitingLobbyPage() {
               {/* Start Button (only for creator) */}
               {isCreator && (
                 <FadeIn delay={0.3}>
-                  <GlowBorder color="#10b981" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                  <GlowBorder color="#10b981" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                     <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
                       <Bounce delay={0.1}>
                         <h3 className="text-lg font-bold mb-2">{t('readyToStart')}</h3>
@@ -701,7 +701,7 @@ export default function WaitingLobbyPage() {
 
               {/* Participants */}
               <FadeIn delay={0.4}>
-                <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+                <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <h3 className="text-lg font-semibold mb-4">
                       {t('participants')} {session.participants.length > 0 && (

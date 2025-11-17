@@ -210,7 +210,7 @@ export default function CreatePostPage() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <FadeIn delay={0.1}>
-          <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
+          <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

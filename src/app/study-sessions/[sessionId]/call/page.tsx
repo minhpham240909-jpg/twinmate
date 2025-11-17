@@ -431,7 +431,7 @@ export default function StudyCallPage() {
         {!activeFeature && (
           <Bounce>
             <div className="absolute top-20 right-4 z-10">
-              <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+              <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
                 <div className="bg-white rounded-lg shadow-lg p-2 space-y-2">
                   <Bounce delay={0}>
                     <button onClick={() => setActiveFeature('timer')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('timer')}>
@@ -503,7 +503,7 @@ function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: unkno
   }, [videoTrack, hasVideo])
 
   return (
-    <GlowBorder color={hasVideo ? "#3b82f6" : "#8b5cf6"} intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
+    <GlowBorder color={hasVideo ? "#3b82f6" : "#8b5cf6"} intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
       <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video">
         {hasVideo ? (
           <div ref={videoRef} className="w-full h-full" />
