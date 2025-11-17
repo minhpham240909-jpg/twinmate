@@ -938,6 +938,16 @@ export default function GroupsPage() {
                         {group.description && (
                           <p className="text-sm text-gray-600 mb-2">{group.description}</p>
                         )}
+                        {group.subjectCustomDescription && (
+                          <p className="text-xs text-gray-500 mb-1">
+                            <span className="font-medium">Subject: </span>{group.subjectCustomDescription}
+                          </p>
+                        )}
+                        {group.skillLevelCustomDescription && (
+                          <p className="text-xs text-gray-500 mb-1">
+                            <span className="font-medium">Skill Level: </span>{group.skillLevelCustomDescription}
+                          </p>
+                        )}
                       </div>
                     </div>
 

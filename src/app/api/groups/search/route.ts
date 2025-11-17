@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Search in custom descriptions and group description
+    // Search in custom descriptions and group description (improved fuzzy search)
     if (subjectCustomDescription || skillLevelCustomDescription || description) {
       const searchTerms: string[] = []
 
@@ -82,19 +82,22 @@ export async function POST(request: NextRequest) {
       if (skillLevelCustomDescription) searchTerms.push(skillLevelCustomDescription)
       if (description) searchTerms.push(description)
 
-      // Create OR conditions for each search term
-      const searchConditions = searchTerms.flatMap(term => {
-        const keywords = term.toLowerCase().split(/\s+/).filter(word => word.length > 2)
+      // Split all search terms into words for better partial matching
+      const keywords = searchTerms
+        .flatMap(term => term.toLowerCase().split(/\s+/))
+        .filter(word => word.length > 0) // Allow all words, even short ones
 
-        return keywords.map(keyword => ({
-          OR: [
-            { description: { contains: keyword, mode: 'insensitive' as const } },
-            { subjectCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
-            { skillLevelCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
-            { subject: { contains: keyword, mode: 'insensitive' as const } },
-          ],
-        }))
-      })
+      // Create OR conditions for each keyword searching in ALL group fields
+      const searchConditions = keywords.map(keyword => ({
+        OR: [
+          { name: { contains: keyword, mode: 'insensitive' as const } },
+          { description: { contains: keyword, mode: 'insensitive' as const } },
+          { subjectCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+          { skillLevelCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
+          { subject: { contains: keyword, mode: 'insensitive' as const } },
+          { skillLevel: { contains: keyword, mode: 'insensitive' as const } },
+        ],
+      }))
 
       if (searchConditions.length > 0) {
         whereConditions.AND.push({
@@ -153,11 +156,38 @@ export async function POST(request: NextRequest) {
     // Create map for O(1) lookups
     const ownerMap = new Map(owners.map(o => [o.id, o.name]))
 
-    // Get owner information for each group (no more async/await needed!)
+    // Get all search keywords for ranking
+    const allSearchKeywords: string[] = []
+    if (subject) allSearchKeywords.push(...subject.toLowerCase().split(/\s+/))
+    if (subjectCustomDescription) allSearchKeywords.push(...subjectCustomDescription.toLowerCase().split(/\s+/))
+    if (skillLevelCustomDescription) allSearchKeywords.push(...skillLevelCustomDescription.toLowerCase().split(/\s+/))
+    if (description) allSearchKeywords.push(...description.toLowerCase().split(/\s+/))
+    const uniqueKeywords = [...new Set(allSearchKeywords)].filter(w => w.length > 0)
+
+    // Get owner information and calculate match scores for ranking
     const groupsWithDetails = groups.map((group) => {
       // Check if current user is a member
       const isMember = group.members.some(member => member.userId === user.id)
       const isOwner = group.ownerId === user.id
+      const ownerName = ownerMap.get(group.ownerId) || 'Unknown'
+
+      // Calculate match score for ranking
+      let matchScore = 0
+      if (uniqueKeywords.length > 0) {
+        const groupText = [
+          group.name,
+          group.description,
+          group.subject,
+          group.subjectCustomDescription,
+          group.skillLevelCustomDescription,
+          group.skillLevel,
+          ownerName,
+        ].filter(Boolean).join(' ').toLowerCase()
+
+        uniqueKeywords.forEach(keyword => {
+          if (groupText.includes(keyword)) matchScore++
+        })
+      }
 
       return {
         id: group.id,
@@ -169,12 +199,21 @@ export async function POST(request: NextRequest) {
         skillLevelCustomDescription: group.skillLevelCustomDescription,
         maxMembers: group.maxMembers,
         memberCount: group.members.length,
-        ownerName: ownerMap.get(group.ownerId) || 'Unknown',
+        ownerName,
         ownerId: group.ownerId,
         isMember,
         isOwner,
         createdAt: group.createdAt,
+        matchScore,
       }
+    })
+
+    // Sort by match score (higher scores first), then by creation date
+    groupsWithDetails.sort((a, b) => {
+      if (b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
 
     return NextResponse.json({

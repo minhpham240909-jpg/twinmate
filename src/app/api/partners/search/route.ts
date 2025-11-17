@@ -219,34 +219,69 @@ export async function POST(request: NextRequest) {
       .eq('userId', user.id)
       .single()
 
-    // Filter profiles by searchQuery if provided (text search in memory)
+    // Filter profiles by searchQuery if provided (improved fuzzy search with ranking)
     let filteredProfiles = profiles || []
 
     if (searchQuery && searchQuery.trim().length > 0) {
-      const searchLower = searchQuery.toLowerCase().trim()
-      filteredProfiles = filteredProfiles.filter(profile => {
-        // Search in user name (handle both array and object cases)
+      // Split search query into words for partial matching
+      const searchWords = searchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0)
+
+      // Filter and rank results
+      const profilesWithMatches = filteredProfiles.map(profile => {
         const user = Array.isArray(profile.user) ? profile.user[0] : profile.user
-        const userName = user?.name?.toLowerCase() || ''
-        if (userName.includes(searchLower)) return true
+        let matchCount = 0
 
-        // Search in subjects
-        if (profile.subjects?.some((s: string) => s.toLowerCase().includes(searchLower))) return true
+        // Helper function to check if any search word matches a field
+        const matchesAnyWord = (field: string | null | undefined): number => {
+          if (!field) return 0
+          const fieldLower = field.toLowerCase()
+          return searchWords.filter(word => fieldLower.includes(word)).length
+        }
 
-        // Search in interests
-        if (profile.interests?.some((i: string) => i.toLowerCase().includes(searchLower))) return true
+        // Helper function to check if any search word matches array items
+        const matchesArrayItems = (items: string[] | null | undefined): number => {
+          if (!items || items.length === 0) return 0
+          let matches = 0
+          items.forEach(item => {
+            const itemLower = item.toLowerCase()
+            searchWords.forEach(word => {
+              if (itemLower.includes(word)) matches++
+            })
+          })
+          return matches
+        }
 
-        // Search in bio
-        if (profile.bio?.toLowerCase().includes(searchLower)) return true
+        // Search in ALL fields
+        matchCount += matchesAnyWord(user?.name)
+        matchCount += matchesAnyWord(user?.email)
+        matchCount += matchesAnyWord(profile.bio)
+        matchCount += matchesAnyWord(profile.school)
+        matchCount += matchesAnyWord(profile.languages)
+        matchCount += matchesAnyWord(profile.aboutYourself)
+        matchCount += matchesAnyWord(profile.skillLevel)
+        matchCount += matchesAnyWord(profile.studyStyle)
+        matchCount += matchesAnyWord(profile.subjectCustomDescription)
+        matchCount += matchesAnyWord(profile.skillLevelCustomDescription)
+        matchCount += matchesAnyWord(profile.studyStyleCustomDescription)
+        matchCount += matchesAnyWord(profile.interestsCustomDescription)
+        matchCount += matchesAnyWord(profile.availabilityCustomDescription)
 
-        // Search in school
-        if (profile.school?.toLowerCase().includes(searchLower)) return true
+        // Search in array fields
+        matchCount += matchesArrayItems(profile.subjects)
+        matchCount += matchesArrayItems(profile.interests)
+        matchCount += matchesArrayItems(profile.goals)
+        matchCount += matchesArrayItems(profile.availableDays)
+        matchCount += matchesArrayItems(profile.availableHours)
+        matchCount += matchesArrayItems(profile.aboutYourselfItems)
 
-        // Search in languages
-        if (profile.languages?.toLowerCase().includes(searchLower)) return true
-
-        return false
+        return { profile, matchCount }
       })
+
+      // Only keep profiles with at least 1 match and sort by match count
+      filteredProfiles = profilesWithMatches
+        .filter(({ matchCount }) => matchCount > 0)
+        .sort((a, b) => b.matchCount - a.matchCount)
+        .map(({ profile }) => profile)
     }
 
     // Calculate match scores
