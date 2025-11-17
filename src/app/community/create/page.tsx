@@ -7,6 +7,10 @@ import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 export default function CreatePostPage() {
   const t = useTranslations('community')
@@ -205,12 +209,14 @@ export default function CreatePostPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
-        >
+        <FadeIn delay={0.1}>
+          <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            >
           {/* User Info */}
           <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
             <div className="flex items-center gap-3">
@@ -507,27 +513,31 @@ export default function CreatePostPage() {
             >
               Cancel
             </button>
-            <button
-              onClick={handleCreatePost}
-              disabled={(!content.trim() && selectedImages.length === 0 && !postUrl.trim()) || isPosting || isUploadingImages}
-              className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl disabled:shadow-none flex items-center gap-2"
-            >
-              {isPosting || isUploadingImages ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  {isUploadingImages ? 'Uploading...' : 'Posting...'}
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Post
-                </>
-              )}
-            </button>
+            <Bounce>
+              <button
+                onClick={handleCreatePost}
+                disabled={(!content.trim() && selectedImages.length === 0 && !postUrl.trim()) || isPosting || isUploadingImages}
+                className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:shadow-none disabled:hover:scale-100 flex items-center gap-2"
+              >
+                {isPosting || isUploadingImages ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    {isUploadingImages ? 'Uploading...' : 'Posting...'}
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Post
+                  </>
+                )}
+              </button>
+            </Bounce>
           </div>
-        </motion.div>
+            </motion.div>
+          </ElectricBorder>
+        </FadeIn>
       </main>
     </div>
   )

@@ -10,6 +10,10 @@ import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
 import { motion, AnimatePresence } from 'framer-motion'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 import {
   User,
   Lock,
@@ -507,25 +511,29 @@ export default function SettingsPage() {
                     <RotateCcw className="w-4 h-4" />
                     {tCommon('cancel')}
                   </motion.button>
-                  <motion.button
-                    onClick={handleSave}
-                    disabled={saving}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium shadow-md"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        {tCommon('loading')}
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        {tCommon('save')}
-                      </>
-                    )}
-                  </motion.button>
+                  <Bounce>
+                    <Pulse>
+                      <motion.button
+                        onClick={handleSave}
+                        disabled={saving}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium shadow-md"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            {tCommon('loading')}
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            {tCommon('save')}
+                          </>
+                        )}
+                      </motion.button>
+                    </Pulse>
+                  </Bounce>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -537,11 +545,13 @@ export default function SettingsPage() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 max-w-7xl mx-auto">
           {/* Sidebar Navigation */}
           <aside className="w-full lg:w-72 flex-shrink-0">
-            <nav className={`backdrop-blur-lg rounded-2xl shadow-lg border p-3 sticky top-24 transition-colors duration-300 ${
-              effectiveTheme === 'dark'
-                ? 'bg-gray-900/80 border-gray-700/50'
-                : 'bg-white/80 border-gray-200/50'
-            }`}>
+            <FadeIn delay={0.1}>
+              <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+                <nav className={`backdrop-blur-lg rounded-2xl shadow-lg border p-3 sticky top-24 transition-colors duration-300 ${
+                  effectiveTheme === 'dark'
+                    ? 'bg-gray-900/80 border-gray-700/50'
+                    : 'bg-white/80 border-gray-200/50'
+                }`}>
               <div className="space-y-1">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
@@ -596,23 +606,27 @@ export default function SettingsPage() {
                   )
                 })}
               </div>
-            </nav>
+                </nav>
+              </ElectricBorder>
+            </FadeIn>
           </aside>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-              className={`backdrop-blur-lg rounded-2xl shadow-lg border p-6 sm:p-8 lg:p-10 transition-colors duration-300 ${
-                effectiveTheme === 'dark'
-                  ? 'bg-gray-900/80 border-gray-700/50'
-                  : 'bg-white/80 border-gray-200/50'
-              }`}
-            >
+            <FadeIn delay={0.2}>
+              <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className={`backdrop-blur-lg rounded-2xl shadow-lg border p-6 sm:p-8 lg:p-10 transition-colors duration-300 ${
+                    effectiveTheme === 'dark'
+                      ? 'bg-gray-900/80 border-gray-700/50'
+                      : 'bg-white/80 border-gray-200/50'
+                  }`}
+                >
               <AnimatePresence mode="wait">
                 {activeTab === 'account' && (
                   <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -681,7 +695,9 @@ export default function SettingsPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+                </motion.div>
+              </ElectricBorder>
+            </FadeIn>
           </main>
         </div>
       </div>
@@ -695,25 +711,29 @@ export default function SettingsPage() {
             exit={{ opacity: 0, y: 100 }}
             className="fixed bottom-6 right-6 md:hidden z-50"
           >
-            <motion.button
-              onClick={handleSave}
-              disabled={saving}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium"
-            >
-              {saving ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  {t('saving')}
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  {t('save')}
-                </>
-              )}
-            </motion.button>
+            <Bounce>
+              <Pulse>
+                <motion.button
+                  onClick={handleSave}
+                  disabled={saving}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium"
+                >
+                  {saving ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      {t('saving')}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      {t('save')}
+                    </>
+                  )}
+                </motion.button>
+              </Pulse>
+            </Bounce>
           </motion.div>
         )}
       </AnimatePresence>

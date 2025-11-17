@@ -10,6 +10,11 @@ import PartnerAvatar from '@/components/PartnerAvatar'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
+import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import Bounce from '@/components/ui/Bounce'
+import FadeIn from '@/components/ui/FadeIn'
 
 interface Partner {
   id: string
@@ -87,6 +92,7 @@ export default function DashboardPage() {
   const [connectionRequestsCount, setConnectionRequestsCount] = useState(() => getInitialCount('connectionRequestsCount'))
   const [groupInvitesCount, setGroupInvitesCount] = useState(() => getInitialCount('groupInvitesCount'))
   const [newCommunityPostsCount, setNewCommunityPostsCount] = useState(() => getInitialCount('newCommunityPostsCount'))
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(() => getInitialCount('unreadMessagesCount'))
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -149,7 +155,8 @@ export default function DashboardPage() {
           fetch('/api/connections?type=received').then(r => r.json()),
           fetch('/api/partners/active').then(r => r.json()),
           fetch('/api/groups/invites/pending').then(r => r.ok ? r.json() : { count: 0 }),
-          fetch('/api/community/new-posts-count').then(r => r.ok ? r.json() : { count: 0 })
+          fetch('/api/community/new-posts-count').then(r => r.ok ? r.json() : { count: 0 }),
+          fetch('/api/messages/unread-counts').then(r => r.ok ? r.json() : { total: 0 })
         ])
 
         // Extract values with fallbacks for failed requests
@@ -159,12 +166,14 @@ export default function DashboardPage() {
         const activePartners = results[3].status === 'fulfilled' ? results[3].value : { partners: [] }
         const groupInvites = results[4].status === 'fulfilled' ? results[4].value : { count: 0 }
         const communityPosts = results[5].status === 'fulfilled' ? results[5].value : { count: 0 }
+        const unreadMessages = results[6].status === 'fulfilled' ? results[6].value : { total: 0 }
 
         const partners_count = partners.count || 0
         const pending = invites.invites?.length || 0
         const requests = connections.receivedCount || 0
         const groupInvitesCount = groupInvites.count || 0
         const communityPostsCount = communityPosts.count || 0
+        const unreadMessagesTotal = unreadMessages.total || 0
 
         // Update state (bell notification count managed by NotificationPanel)
         setPartnersCount(partners_count)
@@ -172,6 +181,7 @@ export default function DashboardPage() {
         setConnectionRequestsCount(requests)
         setGroupInvitesCount(groupInvitesCount)
         setNewCommunityPostsCount(communityPostsCount)
+        setUnreadMessagesCount(unreadMessagesTotal)
 
         // Filter and set online partners
         const online = activePartners.partners
@@ -196,6 +206,7 @@ export default function DashboardPage() {
           localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
           localStorage.setItem('dashboard_groupInvitesCount', String(groupInvitesCount))
           localStorage.setItem('dashboard_newCommunityPostsCount', String(communityPostsCount))
+          localStorage.setItem('dashboard_unreadMessagesCount', String(unreadMessagesTotal))
           localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
           // Mark that we've loaded data at least once
           localStorage.setItem('dashboard_hasLoadedOnce', 'true')
@@ -214,6 +225,30 @@ export default function DashboardPage() {
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
   }, [user, loading])
+
+  // Real-time subscription for unread message updates
+  useEffect(() => {
+    if (!user) return
+
+    const refreshUnreadCounts = async () => {
+      try {
+        const response = await fetch('/api/messages/unread-counts')
+        if (response.ok) {
+          const data = await response.json()
+          const total = data.total || 0
+          setUnreadMessagesCount(total)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('dashboard_unreadMessagesCount', String(total))
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing unread counts:', error)
+      }
+    }
+
+    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts)
+    return cleanup
+  }, [user])
 
   // Request notification permission on first visit after signup/login
   useEffect(() => {
@@ -432,20 +467,29 @@ export default function DashboardPage() {
             </svg>
             {tNav('studyWithPartner')}
             {pendingInvitesCount > 0 && (
-              <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                {pendingInvitesCount}
-              </span>
+              <Pulse>
+                <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                  {pendingInvitesCount}
+                </span>
+              </Pulse>
             )}
           </button>
 
           <button
             onClick={() => router.push('/chat')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition text-left font-medium relative"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             {tNav('chat')}
+            {unreadMessagesCount > 0 && (
+              <Pulse>
+                <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                  {unreadMessagesCount}
+                </span>
+              </Pulse>
+            )}
           </button>
 
           <button
@@ -457,9 +501,11 @@ export default function DashboardPage() {
             </svg>
             {t('connectionRequests')}
             {connectionRequestsCount > 0 && (
-              <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                {connectionRequestsCount}
-              </span>
+              <Pulse>
+                <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                  {connectionRequestsCount}
+                </span>
+              </Pulse>
             )}
           </button>
 
@@ -482,9 +528,11 @@ export default function DashboardPage() {
             </svg>
             {tNav('studyGroups')}
             {groupInvitesCount > 0 && (
-              <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                {groupInvitesCount}
-              </span>
+              <Pulse>
+                <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                  {groupInvitesCount}
+                </span>
+              </Pulse>
             )}
           </button>
 
@@ -543,9 +591,11 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+                <Pulse>
+                  <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                </Pulse>
               )}
             </button>
           </div>
@@ -556,10 +606,18 @@ export default function DashboardPage() {
           <div className="grid lg:grid-cols-3 gap-6 mb-8">
             {/* Study Partners Card - Takes 2 columns */}
             <div className="lg:col-span-2">
-              <button
-                onClick={() => router.push('/dashboard/partners')}
-                className="w-full h-full p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl text-white shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
+              <ElectricBorder
+                color="#3b82f6"
+                speed={1}
+                chaos={0.3}
+                thickness={2}
+                style={{ borderRadius: 16 }}
+                className="h-full"
               >
+                <button
+                  onClick={() => router.push('/dashboard/partners')}
+                  className="w-full h-full p-8 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl text-white shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden group cursor-pointer text-left"
+                >
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
                 <div className="relative z-10 flex flex-col h-full">
@@ -582,12 +640,21 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                 </div>
-              </button>
+                </button>
+              </ElectricBorder>
             </div>
 
             {/* Online Partners Card - Takes 1 column */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 h-full flex flex-col">
+              <ElectricBorder
+                color="#10b981"
+                speed={1}
+                chaos={0.3}
+                thickness={2}
+                style={{ borderRadius: 16 }}
+                className="h-full"
+              >
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 h-full flex flex-col">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-md">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -650,7 +717,8 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 )}
-              </div>
+                </div>
+              </ElectricBorder>
             </div>
           </div>
 
@@ -725,7 +793,8 @@ export default function DashboardPage() {
 
             {/* Search Results */}
             {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
-              <div className="mt-6 grid lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300 relative z-10">
+              <FadeIn delay={0.1} direction="up">
+                <div className="mt-6 grid lg:grid-cols-2 gap-6 relative z-10">
                   {/* Partners Results */}
                   {searchResults.partners.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
@@ -836,12 +905,21 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
+              </FadeIn>
               )}
           </div>
 
           {/* Complete Profile Banner */}
           {showCompleteProfileBanner && (
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
+            <Bounce delay={0.2}>
+              <ElectricBorder
+                color="#10b981"
+                speed={1}
+                chaos={0.4}
+                thickness={2}
+                style={{ borderRadius: 16 }}
+              >
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
               <div className="flex items-center gap-4">
                 <div className="text-4xl">🎯</div>
                 <div className="flex-1">
@@ -855,7 +933,9 @@ export default function DashboardPage() {
                   {t('completeProfile')}
                 </button>
               </div>
-            </div>
+              </div>
+              </ElectricBorder>
+            </Bounce>
           )}
         </div>
       </main>

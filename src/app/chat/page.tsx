@@ -2,21 +2,68 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
+import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
 
 export default function ChatSelectionPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const t = useTranslations('chat')
   const tCommon = useTranslations('common')
+  const [unreadCounts, setUnreadCounts] = useState({ partner: 0, group: 0 })
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/signin')
     }
   }, [user, loading, router])
+
+  // Fetch unread message counts
+  useEffect(() => {
+    if (!user) return
+
+    const fetchUnreadCounts = async () => {
+      try {
+        const response = await fetch('/api/messages/unread-counts')
+        if (response.ok) {
+          const data = await response.json()
+          setUnreadCounts({ partner: data.partner || 0, group: data.group || 0 })
+        }
+      } catch (error) {
+        console.error('Error fetching unread counts:', error)
+      }
+    }
+
+    fetchUnreadCounts()
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCounts, 30000)
+    return () => clearInterval(interval)
+  }, [user])
+
+  // Real-time subscription for unread count updates
+  useEffect(() => {
+    if (!user) return
+
+    const refreshUnreadCounts = async () => {
+      try {
+        const response = await fetch('/api/messages/unread-counts')
+        if (response.ok) {
+          const data = await response.json()
+          setUnreadCounts({ partner: data.partner || 0, group: data.group || 0 })
+        }
+      } catch (error) {
+        console.error('Error refreshing unread counts:', error)
+      }
+    }
+
+    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts)
+    return cleanup
+  }, [user])
 
   if (loading) {
     return (
@@ -70,17 +117,27 @@ export default function ChatSelectionPage() {
           {/* Selection Cards */}
           <div className="grid md:grid-cols-2 gap-8">
             {/* Partner Chat Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <button
-                onClick={() => router.push('/chat/partners')}
-                className="w-full bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border-2 border-transparent hover:border-blue-200"
+            <FadeIn delay={0} direction="up">
+              <ElectricBorder
+                color={unreadCounts.partner > 0 ? "#3b82f6" : "#e5e7eb"}
+                speed={1}
+                chaos={unreadCounts.partner > 0 ? 0.5 : 0.2}
+                thickness={2}
+                style={{ borderRadius: 16 }}
+                className="h-full"
               >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="h-full"
+                >
+                  <button
+                    onClick={() => router.push('/chat/partners')}
+                    className="w-full h-full bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border-2 border-transparent hover:border-blue-200"
+                  >
                 <div className="relative h-48 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                   <div className="absolute top-6 right-6 w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -88,6 +145,13 @@ export default function ChatSelectionPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                   </div>
+                  {unreadCounts.partner > 0 && (
+                    <Pulse>
+                      <div className="absolute top-4 left-6 bg-red-600 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-lg z-10">
+                        {unreadCounts.partner}
+                      </div>
+                    </Pulse>
+                  )}
                   <div className="absolute bottom-6 left-6">
                     <h3 className="text-2xl font-bold text-white mb-2">{t('partnerChat')}</h3>
                     <p className="text-blue-100 text-sm">{t('oneOnOneConversations')}</p>
@@ -127,21 +191,33 @@ export default function ChatSelectionPage() {
                     </svg>
                   </div>
                 </div>
-              </button>
-            </motion.div>
+                  </button>
+                </motion.div>
+              </ElectricBorder>
+            </FadeIn>
 
             {/* Group Chat Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <button
-                onClick={() => router.push('/chat/groups')}
-                className="w-full bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border-2 border-transparent hover:border-purple-200"
+            <FadeIn delay={0.1} direction="up">
+              <ElectricBorder
+                color={unreadCounts.group > 0 ? "#8b5cf6" : "#e5e7eb"}
+                speed={1}
+                chaos={unreadCounts.group > 0 ? 0.5 : 0.2}
+                thickness={2}
+                style={{ borderRadius: 16 }}
+                className="h-full"
               >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="h-full"
+                >
+                  <button
+                    onClick={() => router.push('/chat/groups')}
+                    className="w-full h-full bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border-2 border-transparent hover:border-purple-200"
+                  >
                 <div className="relative h-48 bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                   <div className="absolute top-6 right-6 w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -149,6 +225,13 @@ export default function ChatSelectionPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
+                  {unreadCounts.group > 0 && (
+                    <Pulse>
+                      <div className="absolute top-4 left-6 bg-red-600 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-lg z-10">
+                        {unreadCounts.group}
+                      </div>
+                    </Pulse>
+                  )}
                   <div className="absolute bottom-6 left-6">
                     <h3 className="text-2xl font-bold text-white mb-2">{t('groupChat')}</h3>
                     <p className="text-purple-100 text-sm">{t('groupConversations')}</p>
@@ -188,8 +271,10 @@ export default function ChatSelectionPage() {
                     </svg>
                   </div>
                 </div>
-              </button>
-            </motion.div>
+                  </button>
+                </motion.div>
+              </ElectricBorder>
+            </FadeIn>
           </div>
         </div>
       </main>

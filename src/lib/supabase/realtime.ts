@@ -303,3 +303,54 @@ export function subscribeToPresence(
     supabase.removeChannel(channel)
   }
 }
+
+/**
+ * Subscribe to new messages for unread count updates
+ * Listens to DM messages where user is the recipient
+ */
+export function subscribeToUnreadMessages(
+  userId: string,
+  onNewMessage: () => void
+): () => void {
+  const supabase = createClient()
+
+  const channel = supabase
+    .channel(`unread:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'Message',
+        filter: `recipientId=eq.${userId}`,
+      },
+      () => {
+        // New DM received
+        onNewMessage()
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'Message',
+        filter: `recipientId=eq.${userId}`,
+      },
+      () => {
+        // DM marked as read/unread
+        onNewMessage()
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`✅ Unread messages channel subscribed for user: ${userId}`)
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error(`❌ Unread messages channel error for user: ${userId}`)
+      }
+    })
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}

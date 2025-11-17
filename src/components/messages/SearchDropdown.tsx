@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { MagnifyingGlassIcon, UserIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
-import { useTranslation } from 'react-i18next'
+import { useTranslations } from 'next-intl'
 
 interface ConversationResult {
   id: string
@@ -39,7 +39,8 @@ export default function SearchDropdown({
   onConversationSelect,
   onMessageSelect,
 }: SearchDropdownProps) {
-  const { t } = useTranslation()
+  const tCommon = useTranslations('common')
+  const tMessages = useTranslations('messages')
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<SearchResults>({ conversations: [], messages: [] })
   const [isSearching, setIsSearching] = useState(false)
@@ -127,10 +128,10 @@ export default function SearchDropdown({
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
+    if (diffMins < 1) return tCommon('justNow')
+    if (diffMins < 60) return tCommon('minutesAgo').replace('{count}', String(diffMins))
+    if (diffHours < 24) return tCommon('hoursAgo').replace('{count}', String(diffHours))
+    if (diffDays < 7) return tCommon('daysAgo').replace('{count}', String(diffDays))
     return date.toLocaleDateString()
   }
 
@@ -148,7 +149,7 @@ export default function SearchDropdown({
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
         <input
           type="text"
-          placeholder={t('searchConversationsAndMessages') || 'Search conversations and messages...'}
+          placeholder={tMessages('searchConversationsAndMessages')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

@@ -8,6 +8,9 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { motion } from 'framer-motion'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
 
 type Post = {
   id: string
@@ -635,14 +638,14 @@ export default function CommunityPage() {
             {/* Posts Feed */}
             {!isLoadingPopular && (
             <div className="space-y-6">
-              {displayPosts.map((post) => (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all"
-                >
+              {displayPosts.map((post, index) => {
+                // Determine if post is trending/popular (high engagement or in popular tab)
+                const isPopular = activeTab === 'popular' || (post._count.likes + post._count.comments + post._count.reposts) > 10
+                const highEngagement = (post._count.likes + post._count.comments + post._count.reposts) > 20
+                
+                // Post content JSX (shared between wrapped and unwrapped versions)
+                const postContent = (
+                  <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all">
               {/* Post Header */}
               <div className="flex items-start gap-3 mb-4">
                 {/* Clickable Avatar */}
@@ -694,7 +697,7 @@ export default function CommunityPage() {
                           <button
                             onClick={() => handleSendConnection(post.user.id, post.id)}
                             disabled={connectingPostIds.has(post.id)}
-                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 hover:scale-105 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {connectingPostIds.has(post.id) ? t('sending') : t('connect')}
                           </button>
@@ -839,9 +842,9 @@ export default function CommunityPage() {
               <div className="flex items-center gap-6 pt-4 border-t border-gray-100">
                 <button
                   onClick={() => handleLike(post.id, post.isLikedByUser || false)}
-                  className={`flex items-center gap-2 ${
+                  className={`flex items-center gap-2 hover:scale-110 transition-transform ${
                     post.isLikedByUser ? 'text-red-600' : 'text-gray-600'
-                  } hover:text-red-600 transition`}
+                  } hover:text-red-600`}
                 >
                   <svg
                     className="w-5 h-5"
@@ -856,12 +859,18 @@ export default function CommunityPage() {
                       d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                     />
                   </svg>
-                  <span className="text-sm font-medium">{post._count.likes}</span>
+                  {post._count.likes > 0 ? (
+                    <Pulse>
+                      <span className="text-sm font-medium">{post._count.likes}</span>
+                    </Pulse>
+                  ) : (
+                    <span className="text-sm font-medium">{post._count.likes}</span>
+                  )}
                 </button>
 
                 <button
                   onClick={() => toggleComments(post.id)}
-                  className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition"
+                  className="flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:scale-110 transition-all"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -871,7 +880,13 @@ export default function CommunityPage() {
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                     />
                   </svg>
-                  <span className="text-sm font-medium">{post._count.comments}</span>
+                  {post._count.comments > 0 ? (
+                    <Pulse>
+                      <span className="text-sm font-medium">{post._count.comments}</span>
+                    </Pulse>
+                  ) : (
+                    <span className="text-sm font-medium">{post._count.comments}</span>
+                  )}
                 </button>
               </div>
 
@@ -911,15 +926,34 @@ export default function CommunityPage() {
                     <button
                       onClick={() => handleComment(post.id)}
                       disabled={!newComment.trim()}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 transition"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 disabled:bg-gray-300 transition-all"
                     >
                       {tCommon('send')}
                     </button>
                   </div>
                 </div>
                 )}
-              </motion.div>
-            ))}
+                  </div>
+                )
+                
+                return (
+                  <FadeIn key={post.id} delay={index * 0.05} direction="up">
+                    {isPopular || highEngagement ? (
+                      <ElectricBorder
+                        color={highEngagement ? "#ec4899" : "#8b5cf6"}
+                        speed={1}
+                        chaos={highEngagement ? 0.6 : 0.4}
+                        thickness={2}
+                        style={{ borderRadius: 16 }}
+                      >
+                        {postContent}
+                      </ElectricBorder>
+                    ) : (
+                      postContent
+                    )}
+                  </FadeIn>
+                )
+              })}
 
             {displayPosts.length === 0 && (
               <div className="text-center py-16 bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50">
@@ -934,7 +968,7 @@ export default function CommunityPage() {
                 {!isSearching && (
                   <button
                     onClick={() => router.push('/community/create')}
-                    className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+                    className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg"
                   >
                     {t('createFirstPost')}
                   </button>
@@ -990,7 +1024,7 @@ export default function CommunityPage() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => router.push('/community/create')}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center z-50 transition-all group"
+        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 hover:scale-110 flex items-center justify-center z-50 transition-all group"
         aria-label={t('createNewPost')}
       >
         <svg className="w-8 h-8 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

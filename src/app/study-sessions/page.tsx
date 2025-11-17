@@ -8,6 +8,10 @@ import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import Bounce from '@/components/ui/Bounce'
+import FadeIn from '@/components/ui/FadeIn'
 
 interface Session {
   id: string
@@ -248,12 +252,14 @@ export default function StudySessionsPage() {
             </button>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('title')}</h1>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            {t('newSession')}
-          </button>
+          <Bounce delay={0.1}>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-medium shadow-md"
+            >
+              {t('newSession')}
+            </button>
+          </Bounce>
         </div>
       </header>
 
@@ -262,16 +268,30 @@ export default function StudySessionsPage() {
         <div className="max-w-6xl mx-auto">
           {/* Pending Invites Section */}
           {pendingInvites.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {t('pendingInvitations')} ({pendingInvites.length})
-              </h2>
-              <div className="space-y-3">
-                {pendingInvites.map((invite) => (
-                  <div
-                    key={invite.sessionId}
-                    className="bg-white rounded-lg p-4 flex items-start justify-between gap-4"
-                  >
+            <Bounce delay={0.1}>
+              <ElectricBorder
+                color="#3b82f6"
+                speed={1.2}
+                chaos={0.6}
+                thickness={2}
+                style={{ borderRadius: 12 }}
+                className="mb-6"
+              >
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {t('pendingInvitations')}
+                    </h2>
+                    <Pulse>
+                      <span className="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
+                        {pendingInvites.length}
+                      </span>
+                    </Pulse>
+                  </div>
+                  <div className="space-y-3">
+                    {pendingInvites.map((invite, index) => (
+                      <FadeIn key={invite.sessionId} delay={index * 0.1} direction="up">
+                        <div className="bg-white rounded-lg p-4 flex items-start justify-between gap-4 hover:shadow-md transition-shadow">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <PartnerAvatar
@@ -304,26 +324,29 @@ export default function StudySessionsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAcceptInvite(invite.sessionId)}
-                        disabled={processingInvite === invite.sessionId}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                      >
-                        {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
-                      </button>
-                      <button
-                        onClick={() => handleDeclineInvite(invite.sessionId)}
-                        disabled={processingInvite === invite.sessionId}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
-                      >
-                        {processingInvite === invite.sessionId ? t('declining') : t('decline')}
-                      </button>
-                    </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAcceptInvite(invite.sessionId)}
+                              disabled={processingInvite === invite.sessionId}
+                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all disabled:opacity-50 font-medium"
+                            >
+                              {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
+                            </button>
+                            <button
+                              onClick={() => handleDeclineInvite(invite.sessionId)}
+                              disabled={processingInvite === invite.sessionId}
+                              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all disabled:opacity-50 font-medium"
+                            >
+                              {processingInvite === invite.sessionId ? t('declining') : t('decline')}
+                            </button>
+                          </div>
+                        </div>
+                      </FadeIn>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              </ElectricBorder>
+            </Bounce>
           )}
 
           {/* Header for History */}
@@ -355,8 +378,17 @@ export default function StudySessionsPage() {
                 </button>
               </div>
             ) : (
-              filteredSessions.map((session) => (
-                <div key={session.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+              filteredSessions.map((session, index) => (
+                <FadeIn key={session.id} delay={index * 0.1} direction="up">
+                  <ElectricBorder
+                    color={session.status === 'COMPLETED' ? '#10b981' : '#6b7280'}
+                    speed={0.8}
+                    chaos={0.3}
+                    thickness={1.5}
+                    style={{ borderRadius: 12 }}
+                    className="h-full"
+                  >
+                    <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition h-full">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
@@ -401,7 +433,9 @@ export default function StudySessionsPage() {
                       {deletingSession === session.id ? t('removing') : t('remove')}
                     </button>
                   </div>
-                </div>
+                    </div>
+                  </ElectricBorder>
+                </FadeIn>
               ))
             )}
           </div>

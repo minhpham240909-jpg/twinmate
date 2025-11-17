@@ -6,6 +6,8 @@ import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
 import WebGLDotGrid from '@/components/landing/WebGLDotGrid'
 import WebGLBorder from '@/components/landing/WebGLBorder'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import DarkVeil from '@/components/landing/DarkVeil'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 import Footer from '@/components/landing/Footer'
 
@@ -18,20 +20,22 @@ export default function HomePage() {
       {/* Floating Signup Button - Only on main page */}
       <FloatingSignupButton />
 
-      {/* Hero Section with DotGrid Background */}
+      {/* Hero Section with DarkVeil Background */}
       <section className="relative pt-32 pb-48 overflow-hidden gpu-accelerated" style={{ contain: 'layout style paint' }}>
-        {/* WebGL DotGrid Background */}
-        <div className="absolute inset-0 opacity-40">
-          <WebGLDotGrid
-            dotSize={3}
-            gap={40}
-            baseColor="#3b82f6"
-            activeColor="#6366f1"
-            proximity={120}
-            shockRadius={200}
-            shockStrength={4}
+        {/* DarkVeil Background */}
+        <div className="absolute inset-0" style={{ width: '100%', height: '100%' }}>
+          <DarkVeil 
+            hueShift={0}
+            noiseIntensity={0}
+            scanlineIntensity={0}
+            speed={0.5}
+            scanlineFrequency={0}
+            warpAmount={0}
+            resolutionScale={1}
           />
         </div>
+        {/* Overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-blue-900/30 to-transparent" />
 
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <motion.div
@@ -177,12 +181,13 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15, duration: 0.6 }}
               >
-                <WebGLBorder
+                <ElectricBorder
                   color={item.color}
-                  speed={0.8}
+                  speed={1}
+                  chaos={0.5}
                   thickness={2}
-                  glowIntensity={1.2}
-                  className="h-full rounded-3xl"
+                  style={{ borderRadius: 24 }}
+                  className="h-full"
                 >
                   <motion.div
                     whileHover={{ y: -5 }}
@@ -204,7 +209,7 @@ export default function HomePage() {
                     <h3 className="text-2xl font-bold text-slate-900 mb-4 text-center">{item.title}</h3>
                     <p className="text-slate-600 leading-relaxed text-center">{item.description}</p>
                   </motion.div>
-                </WebGLBorder>
+                </ElectricBorder>
               </motion.div>
             ))}
           </div>
@@ -266,7 +271,7 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <WebGLBorder color="#6366f1" speed={0.6} thickness={3} glowIntensity={1.5} className="rounded-3xl">
+              <ElectricBorder color="#6366f1" speed={1} chaos={0.5} thickness={3} style={{ borderRadius: 24 }}>
                 <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 rounded-3xl p-12 relative overflow-hidden gpu-accelerated">
                   {/* Simplified background pattern */}
                   <div className="absolute inset-0 opacity-10">
@@ -314,7 +319,7 @@ export default function HomePage() {
                     <p className="text-blue-100 text-lg">Connecting 10,000+ students worldwide</p>
                   </div>
                 </div>
-              </WebGLBorder>
+              </ElectricBorder>
             </motion.div>
           </div>
         </div>
@@ -332,7 +337,7 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="order-2 lg:order-1"
             >
-              <WebGLBorder color="#ec4899" speed={0.7} thickness={2} glowIntensity={1.3} className="rounded-3xl">
+              <ElectricBorder color="#ec4899" speed={1} chaos={0.5} thickness={2} style={{ borderRadius: 24 }}>
                 <div className="bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 rounded-3xl p-8 relative overflow-hidden gpu-accelerated">
                   {/* Video Grid Mockup */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
@@ -383,7 +388,7 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-              </WebGLBorder>
+              </ElectricBorder>
             </motion.div>
 
             {/* Text Content */}
@@ -533,12 +538,13 @@ export default function HomePage() {
                           transform: 'rotateY(0deg)'
                         }}
                       >
-                        <WebGLBorder
+                        <ElectricBorder
                           color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                          speed={0.5 + index * 0.1}
+                          speed={1}
+                          chaos={0.5}
                           thickness={1.5}
-                          glowIntensity={1}
-                          className="h-full rounded-3xl"
+                          style={{ borderRadius: 24 }}
+                          className="h-full"
                         >
                           <div className="bg-white rounded-3xl p-8 h-full flex flex-col items-center justify-center">
                             <div className={`w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
@@ -548,7 +554,7 @@ export default function HomePage() {
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 text-center">{feature.title}</h3>
                           </div>
-                        </WebGLBorder>
+                        </ElectricBorder>
                       </div>
 
                       {/* Back of Card */}
@@ -560,12 +566,13 @@ export default function HomePage() {
                           transform: 'rotateY(180deg)'
                         }}
                       >
-                        <WebGLBorder
+                        <ElectricBorder
                           color={index % 3 === 0 ? '#3b82f6' : index % 3 === 1 ? '#8b5cf6' : '#ec4899'}
-                          speed={0.5 + index * 0.1}
+                          speed={1}
+                          chaos={0.5}
                           thickness={1.5}
-                          glowIntensity={1}
-                          className="h-full rounded-3xl"
+                          style={{ borderRadius: 24 }}
+                          className="h-full"
                         >
                           <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl p-8 h-full flex flex-col justify-center">
                             <div className={`w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-5 shadow-lg mx-auto`}>
@@ -576,7 +583,7 @@ export default function HomePage() {
                             <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">{feature.title}</h3>
                             <p className="text-slate-700 leading-relaxed text-base text-center px-2">{feature.description}</p>
                           </div>
-                        </WebGLBorder>
+                        </ElectricBorder>
                       </div>
                     </motion.div>
                   </motion.div>

@@ -16,6 +16,10 @@ import VideoCall from '@/components/study-sessions/VideoCallDynamic'
 import SessionFlashcards from '@/components/session/SessionFlashcards'
 import SessionNotes from '@/components/session/SessionNotes'
 import SessionWhiteboard from '@/components/session/SessionWhiteboard'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 interface Participant {
   id: string
@@ -376,19 +380,21 @@ export default function SessionRoomPage() {
           <div className="grid grid-cols-3 gap-6">
             {/* Main Area */}
             <div className="col-span-2">
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                {/* Tabs */}
-                <nav className="flex overflow-x-auto border-b border-gray-200">
-                  <button
-                    onClick={() => setActiveTab('timer')}
-                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
-                      activeTab === 'timer'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    ⏱️ {t('timer')}
-                  </button>
+              <FadeIn delay={0.1}>
+                <ElectricBorder color="#3b82f6" speed={1} chaos={0.2} thickness={2} style={{ borderRadius: 12 }}>
+                  <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                    {/* Tabs */}
+                    <nav className="flex overflow-x-auto border-b border-gray-200">
+                      <button
+                        onClick={() => setActiveTab('timer')}
+                        className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all hover:scale-105 ${
+                          activeTab === 'timer'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        ⏱️ {t('timer')}
+                      </button>
                   <button
                     onClick={() => setActiveTab('chat')}
                     className={`px-6 py-4 text-sm font-medium relative whitespace-nowrap flex-shrink-0 ${
@@ -399,9 +405,11 @@ export default function SessionRoomPage() {
                   >
                     💬 {t('chat')}
                     {unreadMessageCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                        {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
-                      </span>
+                      <Pulse>
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                          {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                        </span>
+                      </Pulse>
                     )}
                   </button>
                   <button
@@ -527,7 +535,9 @@ export default function SessionRoomPage() {
                     <SessionWhiteboard sessionId={sessionId} />
                   )}
                 </div>
-              </div>
+                  </div>
+                </ElectricBorder>
+              </FadeIn>
             </div>
 
             {/* Sidebar */}

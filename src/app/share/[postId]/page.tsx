@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 type SharedPost = {
   id: string
@@ -121,7 +125,9 @@ export default function SharedPostPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Shared Post Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <FadeIn delay={0.1}>
+          <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           {/* Post Header */}
           <div className="flex items-start gap-3 mb-4">
             {post.user.avatarUrl ? (
@@ -175,34 +181,48 @@ export default function SharedPostPage() {
 
           {/* Post Stats */}
           <div className="flex items-center gap-6 pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-2 text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-              <span className="text-sm font-medium">{post.likesCount} likes</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span className="text-sm font-medium">{post.commentsCount} comments</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <span className="text-sm font-medium">{post.repostsCount} reposts</span>
-            </div>
+            {post.likesCount > 0 && (
+              <Pulse>
+                <div className="flex items-center gap-2 text-gray-600 hover:text-red-500 hover:scale-110 transition-all cursor-default">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  <span className="text-sm font-medium">{post.likesCount} likes</span>
+                </div>
+              </Pulse>
+            )}
+            {post.commentsCount > 0 && (
+              <Pulse>
+                <div className="flex items-center gap-2 text-gray-600 hover:text-blue-500 hover:scale-110 transition-all cursor-default">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <span className="text-sm font-medium">{post.commentsCount} comments</span>
+                </div>
+              </Pulse>
+            )}
+            {post.repostsCount > 0 && (
+              <Pulse>
+                <div className="flex items-center gap-2 text-gray-600 hover:text-green-500 hover:scale-110 transition-all cursor-default">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span className="text-sm font-medium">{post.repostsCount} reposts</span>
+                </div>
+              </Pulse>
+            )}
           </div>
 
           {/* Sign in to interact */}
           <div className="mt-4 pt-4 border-t border-gray-100">
-            <Link
-              href="/auth/signin"
-              className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-            >
-              Sign in to like and comment
-            </Link>
+            <Bounce>
+              <Link
+                href="/auth/signin"
+                className="w-full block text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-semibold shadow-lg"
+              >
+                Sign in to like and comment
+              </Link>
+            </Bounce>
           </div>
         </div>
 
@@ -260,7 +280,9 @@ export default function SharedPostPage() {
               Sign In
             </Link>
           </div>
-        </div>
+            </div>
+          </ElectricBorder>
+        </FadeIn>
       </main>
     </div>
   )

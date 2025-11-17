@@ -7,6 +7,10 @@ import toast from 'react-hot-toast'
 import { uploadGroupAvatar } from '@/lib/supabase/storage'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 interface Group {
   id: string
@@ -611,22 +615,28 @@ export default function GroupsPage() {
           </div>
           <div className="flex gap-2">
             {groupInvites.length > 0 && (
-              <button
-                onClick={() => setShowInvitesModal(true)}
-                className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition relative"
-              >
-                Invites
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {groupInvites.length}
-                </span>
-              </button>
+              <Bounce>
+                <Pulse>
+                  <button
+                    onClick={() => setShowInvitesModal(true)}
+                    className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 hover:scale-105 transition-all relative shadow-lg"
+                  >
+                    Invites
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {groupInvites.length}
+                    </span>
+                  </button>
+                </Pulse>
+              </Bounce>
             )}
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
-            >
-              {t('createGroup')}
-            </button>
+            <Bounce>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-lg font-medium"
+              >
+                {t('createGroup')}
+              </button>
+            </Bounce>
             <button
               onClick={() => router.push('/dashboard')}
               className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
@@ -641,31 +651,37 @@ export default function GroupsPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Tabs */}
-          <div className="bg-white rounded-xl shadow-sm mb-6">
-            <div className="border-b border-gray-200">
-              <nav className="flex items-center justify-between">
-                <div className="flex">
-                  <button
-                    onClick={() => setActiveTab('my-groups')}
-                    className={`px-6 py-4 text-sm font-medium ${
-                      activeTab === 'my-groups'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {t('myGroups')}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('find-groups')}
-                    className={`px-6 py-4 text-sm font-medium ${
-                      activeTab === 'find-groups'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {t('findGroups')}
-                  </button>
-                </div>
+          <FadeIn delay={0.1}>
+            <ElectricBorder color="#3b82f6" speed={1} chaos={0.2} thickness={2} style={{ borderRadius: 12 }}>
+              <div className="bg-white rounded-xl shadow-sm mb-6">
+                <div className="border-b border-gray-200">
+                  <nav className="flex items-center justify-between">
+                    <div className="flex">
+                      <button
+                        onClick={() => setActiveTab('my-groups')}
+                        className={`px-6 py-4 text-sm font-medium transition-all hover:scale-105 ${
+                          activeTab === 'my-groups'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        {t('myGroups')} {myGroups.length > 0 && (
+                          <Pulse>
+                            <span className="ml-1 text-blue-600">({myGroups.length})</span>
+                          </Pulse>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('find-groups')}
+                        className={`px-6 py-4 text-sm font-medium transition-all hover:scale-105 ${
+                          activeTab === 'find-groups'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        {t('findGroups')}
+                      </button>
+                    </div>
                 {activeTab === 'my-groups' && myGroups.length > 0 && (
                   <button
                     onClick={handleForceDeleteAll}
@@ -689,42 +705,53 @@ export default function GroupsPage() {
                 )}
               </nav>
             </div>
-          </div>
+              </div>
+            </ElectricBorder>
+          </FadeIn>
 
           {/* My Groups Tab */}
           {activeTab === 'my-groups' && (
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {myGroups.length === 0 ? (
-                <div className="col-span-2 bg-white rounded-xl shadow-sm p-12 text-center">
-                  <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {t('noGroups')}
-                  </h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    {t('noGroupsDesc')}
-                  </p>
-                  <div className="flex gap-4 justify-center">
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                    >
-                      {t('createGroup')}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('find-groups')}
-                      className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition"
-                    >
-                      {t('findGroups')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                myGroups.map((group) => (
-                <div key={group.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+            <FadeIn delay={0.2}>
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                {myGroups.length === 0 ? (
+                  <Bounce>
+                    <div className="col-span-2 bg-white rounded-xl shadow-sm p-12 text-center">
+                      <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {t('noGroups')}
+                      </h3>
+                      <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                        {t('noGroupsDesc')}
+                      </p>
+                      <div className="flex gap-4 justify-center">
+                        <Bounce delay={0.1}>
+                          <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 hover:scale-105 transition-all shadow-lg"
+                          >
+                            {t('createGroup')}
+                          </button>
+                        </Bounce>
+                        <Bounce delay={0.2}>
+                          <button
+                            onClick={() => setActiveTab('find-groups')}
+                            className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 hover:scale-105 transition-all shadow-lg"
+                          >
+                            {t('findGroups')}
+                          </button>
+                        </Bounce>
+                      </div>
+                    </div>
+                  </Bounce>
+                ) : (
+                  myGroups.map((group, index) => (
+                  <FadeIn key={group.id} delay={index * 0.05}>
+                    <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                      <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">{group.name}</h3>
@@ -735,65 +762,84 @@ export default function GroupsPage() {
                           </svg>
                           {group.memberCount} {t('members')}
                         </span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                          {group.subject}
-                        </span>
+                        <Pulse>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                            {group.subject}
+                          </span>
+                        </Pulse>
                       </div>
                     </div>
-                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                      {group.avatarUrl ? (
-                        <img src={group.avatarUrl} alt={group.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-xl">
-                          {group.name[0]}
-                        </div>
-                      )}
-                    </div>
+                    <Bounce delay={index * 0.1}>
+                      <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                        {group.avatarUrl ? (
+                          <img src={group.avatarUrl} alt={group.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Pulse>
+                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-xl">
+                              {group.name[0]}
+                            </div>
+                          </Pulse>
+                        )}
+                      </div>
+                    </Bounce>
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
                     {group.isMember && (
-                      <button
-                        onClick={() => router.push(`/chat/groups?conversation=${group.id}`)}
-                        className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
-                      >
-                        {t('openChat')}
-                      </button>
+                      <Bounce delay={index * 0.1 + 0.1}>
+                        <button
+                          onClick={() => router.push(`/chat/groups?conversation=${group.id}`)}
+                          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 hover:scale-105 transition-all shadow-md font-medium"
+                        >
+                          {t('openChat')}
+                        </button>
+                      </Bounce>
                     )}
                     {group.isMember ? (
-                      <button
-                        onClick={() => handleLeaveGroup(group.id)}
-                        className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
-                      >
-                        {t('leaveGroup')}
-                      </button>
+                      <Bounce delay={index * 0.1 + 0.2}>
+                        <button
+                          onClick={() => handleLeaveGroup(group.id)}
+                          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 hover:scale-105 transition-all shadow-md font-medium"
+                        >
+                          {t('leaveGroup')}
+                        </button>
+                      </Bounce>
                     ) : (
-                      <button
-                        onClick={() => handleJoinGroup(group.id)}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
-                      >
-                        {t('joinGroup')}
-                      </button>
+                      <Bounce delay={index * 0.1 + 0.2}>
+                        <button
+                          onClick={() => handleJoinGroup(group.id)}
+                          className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-md font-medium"
+                        >
+                          {t('joinGroup')}
+                        </button>
+                      </Bounce>
                     )}
-                    <button
-                      onClick={() => handleShowDetails(group)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition"
-                    >
-                      {t('viewDetails')}
-                    </button>
-                    {group.isOwner && (
+                    <Bounce delay={index * 0.1 + 0.3}>
                       <button
-                        onClick={() => handleShowManage(group)}
-                        className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition"
+                        onClick={() => handleShowDetails(group)}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all font-medium"
                       >
-                        {t('manage')}
+                        {t('viewDetails')}
                       </button>
+                    </Bounce>
+                    {group.isOwner && (
+                      <Bounce delay={index * 0.1 + 0.4}>
+                        <button
+                          onClick={() => handleShowManage(group)}
+                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 hover:scale-105 transition-all shadow-md font-medium"
+                        >
+                          {t('manage')}
+                        </button>
+                      </Bounce>
                     )}
                   </div>
-                </div>
-              ))
-              )}
-            </div>
+                      </div>
+                    </ElectricBorder>
+                  </FadeIn>
+                ))
+                )}
+              </div>
+            </FadeIn>
           )}
 
           {/* Find Groups Tab */}
@@ -867,9 +913,12 @@ export default function GroupsPage() {
               </div>
 
               {/* Search Results */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {searchResults.map((group) => (
-                  <div key={group.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+              <FadeIn delay={0.2}>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {searchResults.map((group, index) => (
+                    <FadeIn key={group.id} delay={index * 0.05}>
+                      <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">{group.name}</h3>
@@ -880,9 +929,11 @@ export default function GroupsPage() {
                             </svg>
                             {group.memberCount}/{group.maxMembers} {t('members')}
                           </span>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                            {group.subject}
-                          </span>
+                          <Pulse>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                              {group.subject}
+                            </span>
+                          </Pulse>
                         </div>
                         {group.description && (
                           <p className="text-sm text-gray-600 mb-2">{group.description}</p>
@@ -892,30 +943,39 @@ export default function GroupsPage() {
 
                     <div className="flex gap-2">
                       {group.isMember ? (
-                        <button
-                          onClick={() => handleLeaveGroup(group.id)}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
-                        >
-                          {t('leaveGroup')}
-                        </button>
+                        <Bounce delay={index * 0.1 + 0.1}>
+                          <button
+                            onClick={() => handleLeaveGroup(group.id)}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 hover:scale-105 transition-all shadow-md font-medium"
+                          >
+                            {t('leaveGroup')}
+                          </button>
+                        </Bounce>
                       ) : (
-                        <button
-                          onClick={() => handleJoinGroup(group.id)}
-                          className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
-                        >
-                          {t('joinGroup')}
-                        </button>
+                        <Bounce delay={index * 0.1 + 0.1}>
+                          <button
+                            onClick={() => handleJoinGroup(group.id)}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-md font-medium"
+                          >
+                            {t('joinGroup')}
+                          </button>
+                        </Bounce>
                       )}
-                      <button
-                        onClick={() => handleShowDetails(group)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition"
-                      >
-                        {t('viewDetails')}
-                      </button>
+                      <Bounce delay={index * 0.1 + 0.2}>
+                        <button
+                          onClick={() => handleShowDetails(group)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all font-medium"
+                        >
+                          {t('viewDetails')}
+                        </button>
+                      </Bounce>
                     </div>
-                  </div>
-                ))}
-              </div>
+                        </div>
+                      </ElectricBorder>
+                    </FadeIn>
+                  ))}
+                </div>
+              </FadeIn>
             </div>
           )}
         </div>

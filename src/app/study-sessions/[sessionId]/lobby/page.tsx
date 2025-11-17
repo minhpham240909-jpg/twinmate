@@ -8,6 +8,10 @@ import { createClient } from '@/lib/supabase/client'
 import InviteModal from '@/components/study-sessions/InviteModal'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 interface Participant {
   id: string
@@ -555,8 +559,10 @@ export default function WaitingLobbyPage() {
             {/* Left Column - Session Info */}
             <div className="col-span-2 space-y-6">
               {/* Session Details Card */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">{t('sessionDetails')}</h2>
+              <FadeIn delay={0.1}>
+                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">{t('sessionDetails')}</h2>
                 <div className="space-y-3">
                   {session.description && (
                     <div>
@@ -596,7 +602,9 @@ export default function WaitingLobbyPage() {
                     </div>
                   )}
                 </div>
-              </div>
+                  </div>
+                </ElectricBorder>
+              </FadeIn>
 
               {/* Chat */}
               <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col h-[400px]">
@@ -648,41 +656,64 @@ export default function WaitingLobbyPage() {
             {/* Right Column - Participants & Actions */}
             <div className="col-span-1 space-y-6">
               {/* Invite Button */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <button
-                  onClick={() => setShowInviteModal(true)}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                  {t('invitePartnersOrMembers')}
-                </button>
-              </div>
+              <FadeIn delay={0.2}>
+                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <Bounce>
+                      <button
+                        onClick={() => setShowInviteModal(true)}
+                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-lg"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        {t('invitePartnersOrMembers')}
+                      </button>
+                    </Bounce>
+                  </div>
+                </ElectricBorder>
+              </FadeIn>
 
               {/* Start Button (only for creator) */}
               {isCreator && (
-                <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-                  <h3 className="text-lg font-bold mb-2">{t('readyToStart')}</h3>
-                  <p className="text-sm opacity-90 mb-4">{t('startNotification')}</p>
-                  <button
-                    onClick={handleStartSession}
-                    disabled={starting}
-                    className="w-full px-6 py-3 bg-white text-green-600 rounded-lg font-bold hover:bg-gray-100 transition disabled:opacity-50"
-                  >
-                    {starting ? t('starting') : t('startStudying')}
-                  </button>
-                </div>
+                <FadeIn delay={0.3}>
+                  <ElectricBorder color="#10b981" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                    <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+                      <Bounce delay={0.1}>
+                        <h3 className="text-lg font-bold mb-2">{t('readyToStart')}</h3>
+                      </Bounce>
+                      <Bounce delay={0.2}>
+                        <p className="text-sm opacity-90 mb-4">{t('startNotification')}</p>
+                      </Bounce>
+                      <Bounce delay={0.3}>
+                        <button
+                          onClick={handleStartSession}
+                          disabled={starting}
+                          className="w-full px-6 py-3 bg-white text-green-600 rounded-lg font-bold hover:bg-gray-100 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
+                        >
+                          {starting ? t('starting') : t('startStudying')}
+                        </button>
+                      </Bounce>
+                    </div>
+                  </ElectricBorder>
+                </FadeIn>
               )}
 
               {/* Participants */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">
-                  {t('participants')} ({session.participants.length}/{session.maxParticipants})
-                </h3>
-                <div className="space-y-3">
-                  {session.participants.map((participant) => (
-                    <div key={participant.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <FadeIn delay={0.4}>
+                <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-semibold mb-4">
+                      {t('participants')} {session.participants.length > 0 && (
+                        <Pulse>
+                          <span className="text-blue-600">({session.participants.length}/{session.maxParticipants})</span>
+                        </Pulse>
+                      )}
+                    </h3>
+                    <div className="space-y-3">
+                      {session.participants.map((participant, index) => (
+                        <FadeIn key={participant.id} delay={index * 0.05}>
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                       <PartnerAvatar
                         avatarUrl={participant.avatarUrl}
                         name={participant.name}
@@ -693,17 +724,24 @@ export default function WaitingLobbyPage() {
                         <h4 className="font-medium text-gray-900">{participant.name}</h4>
                         <p className="text-xs text-gray-500">{participant.role}</p>
                       </div>
-                      {onlineUsers.has(participant.userId) ? (
-                        <span className="w-2 h-2 bg-green-500 rounded-full" title={t('online')}></span>
-                      ) : participant.status === 'JOINED' ? (
-                        <span className="w-2 h-2 bg-yellow-500 rounded-full" title={t('joined')}></span>
-                      ) : (
-                        <span className="w-2 h-2 bg-gray-300 rounded-full" title={t('invited')}></span>
-                      )}
+                            {onlineUsers.has(participant.userId) ? (
+                              <Pulse>
+                                <span className="w-2 h-2 bg-green-500 rounded-full" title={t('online')}></span>
+                              </Pulse>
+                            ) : participant.status === 'JOINED' ? (
+                              <Pulse>
+                                <span className="w-2 h-2 bg-yellow-500 rounded-full" title={t('joined')}></span>
+                              </Pulse>
+                            ) : (
+                              <span className="w-2 h-2 bg-gray-300 rounded-full" title={t('invited')}></span>
+                            )}
+                          </div>
+                        </FadeIn>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                </ElectricBorder>
+              </FadeIn>
 
               {/* Info Notice */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

@@ -4,6 +4,10 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { sanitizeInput } from '@/lib/security'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 interface OnboardingStep {
   title: string
@@ -309,9 +313,15 @@ export default function OnboardingPage() {
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">{step.title}</h2>
-          <p className="text-gray-600 mb-8">{step.description}</p>
+        <FadeIn delay={0.1}>
+          <ElectricBorder color="#6366f1" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <Bounce delay={0.1}>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">{step.title}</h2>
+              </Bounce>
+              <Bounce delay={0.2}>
+                <p className="text-gray-600 mb-8">{step.description}</p>
+              </Bounce>
 
           <div className="space-y-6">
             {step.fields.map((field) => (
@@ -425,24 +435,28 @@ export default function OnboardingPage() {
               Back
             </button>
 
-            <button
-              onClick={handleNext}
-              disabled={saving}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Saving...
-                </>
-              ) : currentStep === ONBOARDING_STEPS.length - 1 ? (
-                'Complete Setup'
-              ) : (
-                'Next'
-              )}
-            </button>
+            <Bounce>
+              <button
+                onClick={handleNext}
+                disabled={saving}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Saving...
+                  </>
+                ) : currentStep === ONBOARDING_STEPS.length - 1 ? (
+                  'Complete Setup'
+                ) : (
+                  'Next'
+                )}
+              </button>
+            </Bounce>
           </div>
-        </div>
+            </div>
+          </ElectricBorder>
+        </FadeIn>
 
         {/* Skip option */}
         <div className="mt-6 text-center">

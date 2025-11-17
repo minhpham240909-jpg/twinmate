@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { subscribeToNotifications } from '@/lib/supabase/realtime'
 import { useAuth } from '@/lib/auth/context'
+import { useTranslations } from 'next-intl'
 import {
   notifyConnectionRequest,
   notifyConnectionAccepted,
@@ -36,6 +37,7 @@ interface NotificationPanelProps {
 export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange }: NotificationPanelProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const t = useTranslations('common')
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set())
@@ -264,10 +266,10 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
     const now = new Date()
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-    if (seconds < 60) return 'Just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`
+    if (seconds < 60) return t('justNow')
+    if (seconds < 3600) return t('minutesAgo').replace('{count}', String(Math.floor(seconds / 60)))
+    if (seconds < 86400) return t('hoursAgo').replace('{count}', String(Math.floor(seconds / 3600)))
+    if (seconds < 604800) return t('daysAgo').replace('{count}', String(Math.floor(seconds / 86400)))
     return date.toLocaleDateString()
   }
 

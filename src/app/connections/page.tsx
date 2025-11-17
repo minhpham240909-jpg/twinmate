@@ -6,6 +6,11 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 interface ConnectionRequest {
   id: string
@@ -178,115 +183,155 @@ export default function ConnectionsPage() {
         )}
         <div className="max-w-4xl mx-auto">
           {/* Tabs */}
-          <div className="flex gap-4 mb-6 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('received')}
-              className={`pb-3 px-4 font-medium transition ${
-                activeTab === 'received'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t('received')} ({receivedRequests.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('sent')}
-              className={`pb-3 px-4 font-medium transition ${
-                activeTab === 'sent'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t('sent')} ({sentRequests.length})
-            </button>
-          </div>
+          <FadeIn delay={0.1}>
+            <div className="flex gap-4 mb-6 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('received')}
+                className={`pb-3 px-4 font-medium transition-all hover:scale-105 ${
+                  activeTab === 'received'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {t('received')} {receivedRequests.length > 0 && (
+                  <Pulse>
+                    <span className="ml-1 text-blue-600">({receivedRequests.length})</span>
+                  </Pulse>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('sent')}
+                className={`pb-3 px-4 font-medium transition-all hover:scale-105 ${
+                  activeTab === 'sent'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {t('sent')} {sentRequests.length > 0 && (
+                  <Pulse>
+                    <span className="ml-1 text-blue-600">({sentRequests.length})</span>
+                  </Pulse>
+                )}
+              </button>
+            </div>
+          </FadeIn>
 
           {/* Received Requests */}
           {activeTab === 'received' && (
-            <div className="space-y-4">
-              {receivedRequests.length === 0 ? (
-                <div className="bg-white rounded-xl p-12 text-center">
-                  <p className="text-gray-600">{t('noPending')}</p>
-                </div>
-              ) : (
-                receivedRequests.map((request) => (
-                  <div key={request.id} className="bg-white rounded-xl p-6 shadow-sm">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4">
-                        {request.sender.avatarUrl ? (
-                          <img
-                            src={request.sender.avatarUrl}
-                            alt={request.sender.name}
-                            className="w-12 h-12 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                            {getInitials(request.sender.name)}
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{request.sender.name}</h3>
-                          <p className="text-sm text-gray-600">{request.sender.email}</p>
-                          {request.message && (
-                            <p className="text-sm text-gray-700 mt-2">{request.message}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleAccept(request.id)}
-                          disabled={processingRequest === request.id}
-                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {processingRequest === request.id ? t('processing') : t('accept')}
-                        </button>
-                        <button
-                          onClick={() => handleDecline(request.id)}
-                          disabled={processingRequest === request.id}
-                          className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {processingRequest === request.id ? t('processing') : t('decline')}
-                        </button>
-                      </div>
-                    </div>
+            <FadeIn delay={0.2}>
+              <div className="space-y-4">
+                {receivedRequests.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <p className="text-gray-600">{t('noPending')}</p>
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  receivedRequests.map((request, index) => (
+                    <FadeIn key={request.id} delay={index * 0.05}>
+                      <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-4">
+                              {request.sender.avatarUrl ? (
+                                <Bounce delay={index * 0.1}>
+                                  <img
+                                    src={request.sender.avatarUrl}
+                                    alt={request.sender.name}
+                                    className="w-12 h-12 rounded-full"
+                                  />
+                                </Bounce>
+                              ) : (
+                                <Bounce delay={index * 0.1}>
+                                  <Pulse>
+                                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                      {getInitials(request.sender.name)}
+                                    </div>
+                                  </Pulse>
+                                </Bounce>
+                              )}
+                              <div>
+                                <h3 className="font-semibold text-gray-900">{request.sender.name}</h3>
+                                <p className="text-sm text-gray-600">{request.sender.email}</p>
+                                {request.message && (
+                                  <p className="text-sm text-gray-700 mt-2">{request.message}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Bounce delay={index * 0.1 + 0.1}>
+                                <button
+                                  onClick={() => handleAccept(request.id)}
+                                  disabled={processingRequest === request.id}
+                                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
+                                >
+                                  {processingRequest === request.id ? t('processing') : t('accept')}
+                                </button>
+                              </Bounce>
+                              <Bounce delay={index * 0.1 + 0.2}>
+                                <button
+                                  onClick={() => handleDecline(request.id)}
+                                  disabled={processingRequest === request.id}
+                                  className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                >
+                                  {processingRequest === request.id ? t('processing') : t('decline')}
+                                </button>
+                              </Bounce>
+                            </div>
+                          </div>
+                        </div>
+                      </ElectricBorder>
+                    </FadeIn>
+                  ))
+                )}
+              </div>
+            </FadeIn>
           )}
 
           {/* Sent Requests */}
           {activeTab === 'sent' && (
-            <div className="space-y-4">
-              {sentRequests.length === 0 ? (
-                <div className="bg-white rounded-xl p-12 text-center">
-                  <p className="text-gray-600">{t('noSent')}</p>
-                </div>
-              ) : (
-                sentRequests.map((request) => (
-                  <div key={request.id} className="bg-white rounded-xl p-6 shadow-sm">
-                    <div className="flex items-start gap-4">
-                      {request.receiver.avatarUrl ? (
-                        <img
-                          src={request.receiver.avatarUrl}
-                          alt={request.receiver.name}
-                          className="w-12 h-12 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {getInitials(request.receiver.name)}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{request.receiver.name}</h3>
-                        <p className="text-sm text-gray-600">{request.receiver.email}</p>
-                        <p className="text-sm text-yellow-600 mt-2">{t('pendingResponse')}</p>
-                      </div>
-                    </div>
+            <FadeIn delay={0.2}>
+              <div className="space-y-4">
+                {sentRequests.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <p className="text-gray-600">{t('noSent')}</p>
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  sentRequests.map((request, index) => (
+                    <FadeIn key={request.id} delay={index * 0.05}>
+                      <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                          <div className="flex items-start gap-4">
+                            {request.receiver.avatarUrl ? (
+                              <Bounce delay={index * 0.1}>
+                                <img
+                                  src={request.receiver.avatarUrl}
+                                  alt={request.receiver.name}
+                                  className="w-12 h-12 rounded-full"
+                                />
+                              </Bounce>
+                            ) : (
+                              <Bounce delay={index * 0.1}>
+                                <Pulse>
+                                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    {getInitials(request.receiver.name)}
+                                  </div>
+                                </Pulse>
+                              </Bounce>
+                            )}
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900">{request.receiver.name}</h3>
+                              <p className="text-sm text-gray-600">{request.receiver.email}</p>
+                              <Pulse>
+                                <p className="text-sm text-yellow-600 mt-2 font-medium">{t('pendingResponse')}</p>
+                              </Pulse>
+                            </div>
+                          </div>
+                        </div>
+                      </ElectricBorder>
+                    </FadeIn>
+                  ))
+                )}
+              </div>
+            </FadeIn>
           )}
         </div>
       </main>

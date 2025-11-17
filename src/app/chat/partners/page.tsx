@@ -8,6 +8,9 @@ import MessageVideoCall from '@/components/messages/MessageVideoCall'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { useTranslations } from 'next-intl'
 import PartnerSearchBar from '@/components/chat/PartnerSearchBar'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
 
 interface Conversation {
   id: string
@@ -142,6 +145,16 @@ function PartnersChatContent() {
       if (data.success) {
         setMessages(data.messages)
         localStorage.setItem(cacheKey, JSON.stringify(data.messages))
+
+        // Mark all messages in this conversation as read
+        fetch('/api/messages/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationType: 'partner',
+            conversationId: conversation.id
+          })
+        }).catch(err => console.error('Error marking messages as read:', err))
       }
     } catch (error) {
       console.error('Error fetching messages:', error)
@@ -313,10 +326,10 @@ function PartnersChatContent() {
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
 
-    if (minutes < 1) return tChat('justNow')
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return `${days}d ago`
+    if (minutes < 1) return tCommon('justNow')
+    if (minutes < 60) return tCommon('minutesAgo').replace('{count}', String(minutes))
+    if (hours < 24) return tCommon('hoursAgo').replace('{count}', String(hours))
+    return tCommon('daysAgo').replace('{count}', String(days))
   }
 
   if (loading) {
@@ -380,13 +393,22 @@ function PartnersChatContent() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {conversations.map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => {
-                      handleSelectConversation(conv)
-                      router.push(`/chat/partners?conversation=${conv.id}`)
-                    }}
+                {conversations.map((conv, index) => (
+                  <FadeIn key={conv.id} delay={index * 0.05} direction="right">
+                    {conv.unreadCount > 0 ? (
+                      <ElectricBorder
+                        color="#3b82f6"
+                        speed={1}
+                        chaos={0.4}
+                        thickness={1.5}
+                        style={{ borderRadius: 0 }}
+                        className="w-full"
+                      >
+                        <button
+                          onClick={() => {
+                            handleSelectConversation(conv)
+                            router.push(`/chat/partners?conversation=${conv.id}`)
+                          }}
                     className={`w-full p-4 text-left hover:bg-gray-50 transition ${
                       selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
                     }`}
@@ -407,14 +429,48 @@ function PartnersChatContent() {
                         <div className="flex items-center justify-between">
                           <p className="text-sm text-gray-600 truncate">{conv.lastMessage || t('noMessages')}</p>
                           {conv.unreadCount > 0 && (
-                            <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
-                              {conv.unreadCount}
-                            </span>
+                            <Pulse>
+                              <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-bold">
+                                {conv.unreadCount}
+                              </span>
+                            </Pulse>
                           )}
                         </div>
                       </div>
                     </div>
-                  </button>
+                        </button>
+                      </ElectricBorder>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          handleSelectConversation(conv)
+                          router.push(`/chat/partners?conversation=${conv.id}`)
+                        }}
+                        className={`w-full p-4 text-left hover:bg-gray-50 transition ${
+                          selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <PartnerAvatar
+                            avatarUrl={conv.avatarUrl}
+                            name={conv.name}
+                            size="md"
+                            onlineStatus={conv.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                            showStatus={true}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
+                              <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm text-gray-600 truncate">{conv.lastMessage || t('noMessages')}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </FadeIn>
                 ))}
               </div>
             )}

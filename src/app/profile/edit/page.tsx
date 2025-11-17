@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { LocationForm } from '@/components/profile/LocationForm'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 export default function ProfilePage() {
   const { user, profile, loading, refreshUser } = useAuth()
@@ -321,9 +325,18 @@ export default function ProfilePage() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? (
+              <span className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving...
+              </span>
+            ) : (
+              <Bounce>
+                <span>Save</span>
+              </Bounce>
+            )}
           </button>
         </div>
       </header>
@@ -422,16 +435,20 @@ export default function ProfilePage() {
                   </button>
                 ))}
                 {formData.subjects.filter(s => !allSubjects.includes(s)).map((subject) => (
-                  <span key={subject} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-medium">
-                    {subject}
-                    <button
-                      type="button"
-                      onClick={() => removeCustomItem('subjects', subject)}
-                      className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
-                    >
-                      ×
-                    </button>
-                  </span>
+                  <Bounce key={subject} delay={formData.subjects.indexOf(subject) * 0.05}>
+                    <Pulse>
+                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-medium hover:scale-105 transition-all cursor-default">
+                        {subject}
+                        <button
+                          type="button"
+                          onClick={() => removeCustomItem('subjects', subject)}
+                          className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    </Pulse>
+                  </Bounce>
                 ))}
               </div>
               <div className="flex gap-2">

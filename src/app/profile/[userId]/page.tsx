@@ -5,6 +5,10 @@ import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 type UserProfile = {
   user: {
@@ -462,14 +466,16 @@ export default function UserProfilePage() {
 
           {/* Action Buttons - Edit Profile for own profile */}
           {isOwnProfile && (
-            <div className="absolute right-0 top-4 flex gap-3">
-              <button
-                onClick={() => router.push('/profile/edit')}
-                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm"
-              >
-                Edit profile
-              </button>
-            </div>
+            <Bounce delay={0.1}>
+              <div className="absolute right-0 top-4 flex gap-3">
+                <button
+                  onClick={() => router.push('/profile/edit')}
+                  className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm shadow-lg"
+                >
+                  Edit profile
+                </button>
+              </div>
+            </Bounce>
           )}
         </div>
 
@@ -505,58 +511,78 @@ export default function UserProfilePage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="flex gap-6 text-sm mb-4">
-            {(profile?.subjects && profile.subjects.length > 0) && (
-              <div>
-                <span className="font-semibold text-gray-900">{profile.subjects.length}</span>
-                <span className="text-gray-500 ml-1">{profile.subjects.length === 1 ? 'subject' : 'subjects'}</span>
-              </div>
-            )}
-            {(profile?.interests && profile.interests.length > 0) && (
-              <div>
-                <span className="font-semibold text-gray-900">{profile.interests.length}</span>
-                <span className="text-gray-500 ml-1">{profile.interests.length === 1 ? 'interest' : 'interests'}</span>
-              </div>
-            )}
-            {profileData.matchScore > 0 && (
-              <div>
-                <span className="font-semibold text-gray-900">{profileData.matchScore}%</span>
-                <span className="text-gray-500 ml-1">match</span>
-              </div>
-            )}
-          </div>
+          <FadeIn delay={0.2}>
+            <div className="flex gap-6 text-sm mb-4">
+              {(profile?.subjects && profile.subjects.length > 0) && (
+                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                  <div className="px-4 py-2 bg-blue-50 rounded-lg">
+                    <Pulse>
+                      <span className="font-semibold text-blue-600">{profile.subjects.length}</span>
+                    </Pulse>
+                    <span className="text-gray-500 ml-1">{profile.subjects.length === 1 ? 'subject' : 'subjects'}</span>
+                  </div>
+                </ElectricBorder>
+              )}
+              {(profile?.interests && profile.interests.length > 0) && (
+                <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                  <div className="px-4 py-2 bg-purple-50 rounded-lg">
+                    <Pulse>
+                      <span className="font-semibold text-purple-600">{profile.interests.length}</span>
+                    </Pulse>
+                    <span className="text-gray-500 ml-1">{profile.interests.length === 1 ? 'interest' : 'interests'}</span>
+                  </div>
+                </ElectricBorder>
+              )}
+              {profileData.matchScore > 0 && (
+                <ElectricBorder color="#10b981" speed={1} chaos={0.4} thickness={2} style={{ borderRadius: 8 }}>
+                  <div className="px-4 py-2 bg-green-50 rounded-lg">
+                    <Pulse>
+                      <span className="font-semibold text-green-600">{profileData.matchScore}%</span>
+                    </Pulse>
+                    <span className="text-gray-500 ml-1">match</span>
+                  </div>
+                </ElectricBorder>
+              )}
+            </div>
+          </FadeIn>
 
           {/* Connect/Message Buttons - Below Profile Info */}
           {!isOwnProfile && (
-            <div className="mb-4 flex gap-3">
-              {profileData.connectionStatus === 'pending' ? (
-                <button
-                  onClick={handleCancelConnection}
-                  disabled={sendingConnection}
-                  className="px-6 py-2.5 bg-gray-200 text-gray-900 rounded-full font-semibold hover:bg-gray-300 transition-colors text-sm disabled:opacity-50"
-                >
-                  {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
-                </button>
-              ) : profileData.connectionStatus === 'connected' ? (
-                <button
-                  onClick={handleMessage}
-                  className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  Message
-                </button>
-              ) : (
-                <button
-                  onClick={handleSendConnection}
-                  disabled={sendingConnection}
-                  className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors text-sm disabled:opacity-50"
-                >
-                  {sendingConnection ? 'Connecting...' : tCommon('connect')}
-                </button>
-              )}
-            </div>
+            <Bounce delay={0.3}>
+              <div className="mb-4 flex gap-3">
+                {profileData.connectionStatus === 'pending' ? (
+                  <button
+                    onClick={handleCancelConnection}
+                    disabled={sendingConnection}
+                    className="px-6 py-2.5 bg-gray-200 text-gray-900 rounded-full font-semibold hover:bg-gray-300 hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-md"
+                  >
+                    {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
+                  </button>
+                ) : profileData.connectionStatus === 'connected' ? (
+                  <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 9999 }}>
+                    <button
+                      onClick={handleMessage}
+                      className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      Message
+                    </button>
+                  </ElectricBorder>
+                ) : (
+                  <Bounce>
+                    <button
+                      onClick={handleSendConnection}
+                      disabled={sendingConnection}
+                      className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-lg"
+                    >
+                      {sendingConnection ? 'Connecting...' : tCommon('connect')}
+                    </button>
+                  </Bounce>
+                )}
+              </div>
+            </Bounce>
           )}
         </div>
 
@@ -565,7 +591,7 @@ export default function UserProfilePage() {
           <div className="flex">
             <button
               onClick={() => setActiveTab('about')}
-              className={`px-4 py-4 font-semibold text-sm relative transition-colors ${
+              className={`px-4 py-4 font-semibold text-sm relative transition-all hover:scale-105 ${
                 activeTab === 'about'
                   ? 'text-gray-900'
                   : 'text-gray-500 hover:text-gray-700'
@@ -578,13 +604,17 @@ export default function UserProfilePage() {
             </button>
             <button
               onClick={() => setActiveTab('posts')}
-              className={`px-4 py-4 font-semibold text-sm relative transition-colors ${
+              className={`px-4 py-4 font-semibold text-sm relative transition-all hover:scale-105 ${
                 activeTab === 'posts'
                   ? 'text-gray-900'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t('posts')}
+              {t('posts')} {posts.length > 0 && (
+                <Pulse>
+                  <span className="ml-1 text-blue-600">({posts.length})</span>
+                </Pulse>
+              )}
               {activeTab === 'posts' && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t-full"></div>
               )}
@@ -607,44 +637,56 @@ export default function UserProfilePage() {
 
             {/* About Yourself Items/Tags */}
             {profile?.aboutYourselfItems && profile.aboutYourselfItems.length > 0 && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Tags</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profile.aboutYourselfItems.map((item, index) => (
-                    <span key={index} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
-                      {item}
-                    </span>
-                  ))}
+              <FadeIn delay={0.1}>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.aboutYourselfItems.map((item, index) => (
+                      <Bounce key={index} delay={index * 0.05}>
+                        <span className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 hover:scale-105 transition-all cursor-default">
+                          {item}
+                        </span>
+                      </Bounce>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </FadeIn>
             )}
 
             {/* Subjects */}
             {profile?.subjects && profile.subjects.length > 0 && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{t('subjects')}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profile.subjects.map((subject, index) => (
-                    <span key={index} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-100 transition-colors">
-                      {subject}
-                    </span>
-                  ))}
+              <FadeIn delay={0.1}>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">{t('subjects')}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.subjects.map((subject, index) => (
+                      <Bounce key={index} delay={index * 0.05}>
+                        <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-100 hover:scale-105 transition-all cursor-default">
+                          {subject}
+                        </span>
+                      </Bounce>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </FadeIn>
             )}
 
             {/* Interests */}
             {profile?.interests && profile.interests.length > 0 && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{t('interests')}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profile.interests.map((interest, index) => (
-                    <span key={index} className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-100 transition-colors">
-                      {interest}
-                    </span>
-                  ))}
+              <FadeIn delay={0.2}>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">{t('interests')}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.interests.map((interest, index) => (
+                      <Bounce key={index} delay={index * 0.05}>
+                        <span className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-100 hover:scale-105 transition-all cursor-default">
+                          {interest}
+                        </span>
+                      </Bounce>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </FadeIn>
             )}
 
             {/* Languages */}
@@ -731,8 +773,10 @@ export default function UserProfilePage() {
         ) : (
           <div className="space-y-0">
             {posts && posts.length > 0 ? (
-              posts.map((post) => (
-                <div key={post.id} className="border-b border-gray-200 py-6 hover:bg-gray-50 transition-colors cursor-pointer">
+              posts.map((post, index) => (
+                <FadeIn key={post.id} delay={index * 0.05}>
+                  <ElectricBorder color="#e5e7eb" speed={0.8} chaos={0.2} thickness={1} style={{ borderRadius: 12 }}>
+                    <div className="border-b border-gray-200 py-6 px-4 hover:bg-gray-50 transition-all cursor-pointer rounded-lg">
                   <p className="text-gray-900 mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
 
                   {/* Post Images */}
@@ -752,29 +796,64 @@ export default function UserProfilePage() {
 
                   {/* Post Stats */}
                   <div className="flex items-center gap-6 text-sm text-gray-500">
-                    <span className="flex items-center gap-2 hover:text-red-500 transition-colors cursor-pointer">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                      {post._count.likes}
-                    </span>
-                    <span className="flex items-center gap-2 hover:text-blue-500 transition-colors cursor-pointer">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      {post._count.comments}
-                    </span>
-                    <span className="flex items-center gap-2 hover:text-green-500 transition-colors cursor-pointer">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      {post._count.reposts}
-                    </span>
+                    {post._count.likes > 0 ? (
+                      <Pulse>
+                        <span className="flex items-center gap-2 hover:text-red-500 hover:scale-110 transition-all cursor-pointer">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                          {post._count.likes}
+                        </span>
+                      </Pulse>
+                    ) : (
+                      <span className="flex items-center gap-2 hover:text-red-500 hover:scale-110 transition-all cursor-pointer">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                        {post._count.likes}
+                      </span>
+                    )}
+                    {post._count.comments > 0 ? (
+                      <Pulse>
+                        <span className="flex items-center gap-2 hover:text-blue-500 hover:scale-110 transition-all cursor-pointer">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          {post._count.comments}
+                        </span>
+                      </Pulse>
+                    ) : (
+                      <span className="flex items-center gap-2 hover:text-blue-500 hover:scale-110 transition-all cursor-pointer">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        {post._count.comments}
+                      </span>
+                    )}
+                    {post._count.reposts > 0 ? (
+                      <Pulse>
+                        <span className="flex items-center gap-2 hover:text-green-500 hover:scale-110 transition-all cursor-pointer">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          {post._count.reposts}
+                        </span>
+                      </Pulse>
+                    ) : (
+                      <span className="flex items-center gap-2 hover:text-green-500 hover:scale-110 transition-all cursor-pointer">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        {post._count.reposts}
+                      </span>
+                    )}
                     <span className="ml-auto text-xs text-gray-400">
                       {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                   </div>
-                </div>
+                    </div>
+                  </ElectricBorder>
+                </FadeIn>
               ))
             ) : (
               <div className="text-center py-16">

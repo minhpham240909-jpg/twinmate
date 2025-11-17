@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import ElectricBorder from '@/components/landing/ElectricBorder'
+import Pulse from '@/components/ui/Pulse'
+import FadeIn from '@/components/ui/FadeIn'
+import Bounce from '@/components/ui/Bounce'
 
 type UserPost = {
   id: string
@@ -460,20 +464,30 @@ export default function MyProfilePage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="flex gap-6 text-sm mb-4">
-            {((profile as any)?.subjects && (profile as any).subjects.length > 0) && (
-              <div>
-                <span className="font-semibold text-gray-900">{(profile as any).subjects.length}</span>
-                <span className="text-gray-500 ml-1">{(profile as any).subjects.length === 1 ? 'subject' : 'subjects'}</span>
-              </div>
-            )}
-            {((profile as any)?.interests && (profile as any).interests.length > 0) && (
-              <div>
-                <span className="font-semibold text-gray-900">{(profile as any).interests.length}</span>
-                <span className="text-gray-500 ml-1">{(profile as any).interests.length === 1 ? 'interest' : 'interests'}</span>
-              </div>
-            )}
-          </div>
+          <FadeIn delay={0.2}>
+            <div className="flex gap-6 text-sm mb-4">
+              {((profile as any)?.subjects && (profile as any).subjects.length > 0) && (
+                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                  <div className="px-4 py-2 bg-blue-50 rounded-lg">
+                    <Pulse>
+                      <span className="font-semibold text-blue-600">{(profile as any).subjects.length}</span>
+                    </Pulse>
+                    <span className="text-gray-500 ml-1">{(profile as any).subjects.length === 1 ? 'subject' : 'subjects'}</span>
+                  </div>
+                </ElectricBorder>
+              )}
+              {((profile as any)?.interests && (profile as any).interests.length > 0) && (
+                <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                  <div className="px-4 py-2 bg-purple-50 rounded-lg">
+                    <Pulse>
+                      <span className="font-semibold text-purple-600">{(profile as any).interests.length}</span>
+                    </Pulse>
+                    <span className="text-gray-500 ml-1">{(profile as any).interests.length === 1 ? 'interest' : 'interests'}</span>
+                  </div>
+                </ElectricBorder>
+              )}
+            </div>
+          </FadeIn>
         </div>
       </div>
 
@@ -483,7 +497,7 @@ export default function MyProfilePage() {
           <div className="flex">
             <button
               onClick={() => setActiveTab('about')}
-              className={`flex-1 py-4 text-center font-semibold transition ${
+              className={`flex-1 py-4 text-center font-semibold transition-all hover:scale-105 ${
                 activeTab === 'about'
                   ? 'text-gray-900 border-b-2 border-gray-900'
                   : 'text-gray-500 hover:text-gray-700'
@@ -493,13 +507,17 @@ export default function MyProfilePage() {
             </button>
             <button
               onClick={() => setActiveTab('posts')}
-              className={`flex-1 py-4 text-center font-semibold transition ${
+              className={`flex-1 py-4 text-center font-semibold transition-all hover:scale-105 ${
                 activeTab === 'posts'
                   ? 'text-gray-900 border-b-2 border-gray-900'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t('posts')}
+              {t('posts')} {posts.length > 0 && (
+                <Pulse>
+                  <span className="ml-1 text-blue-600">({posts.length})</span>
+                </Pulse>
+              )}
             </button>
           </div>
         </div>
@@ -525,15 +543,19 @@ export default function MyProfilePage() {
 
             {/* About Yourself Items/Tags */}
             {(profile as any)?.aboutYourselfItems && (profile as any).aboutYourselfItems.length > 0 && (
-              <div>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {(profile as any).aboutYourselfItems.map((item: string, index: number) => (
-                    <span key={index} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                      {item}
-                    </span>
-                  ))}
+              <FadeIn delay={0.1}>
+                <div>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {(profile as any).aboutYourselfItems.map((item: string, index: number) => (
+                      <Bounce key={index} delay={index * 0.05}>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:scale-105 transition-all cursor-default">
+                          {item}
+                        </span>
+                      </Bounce>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </FadeIn>
             )}
 
             {/* Additional Info */}
@@ -541,30 +563,38 @@ export default function MyProfilePage() {
               <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
                 {/* Subjects */}
                 {(profile as any).subjects?.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{t('subjects')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(profile as any).subjects.map((subject: string, index: number) => (
-                        <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                          {subject}
-                        </span>
-                      ))}
+                  <FadeIn delay={0.1}>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">{t('subjects')}</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {(profile as any).subjects.map((subject: string, index: number) => (
+                          <Bounce key={index} delay={index * 0.05}>
+                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:scale-105 transition-all cursor-default">
+                              {subject}
+                            </span>
+                          </Bounce>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </FadeIn>
                 )}
 
                 {/* Interests */}
                 {(profile as any).interests?.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{t('interests')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(profile as any).interests.map((interest: string, index: number) => (
-                        <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                          {interest}
-                        </span>
-                      ))}
+                  <FadeIn delay={0.2}>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">{t('interests')}</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {(profile as any).interests.map((interest: string, index: number) => (
+                          <Bounce key={index} delay={index * 0.05}>
+                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:scale-105 transition-all cursor-default">
+                              {interest}
+                            </span>
+                          </Bounce>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </FadeIn>
                 )}
 
                 {/* Languages */}
@@ -597,8 +627,10 @@ export default function MyProfilePage() {
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
               </div>
             ) : posts && posts.length > 0 ? (
-              posts.map((post) => (
-                <div key={post.id} className="border border-gray-200 rounded-lg p-4">
+              posts.map((post, index) => (
+                <FadeIn key={post.id} delay={index * 0.05}>
+                  <ElectricBorder color="#e5e7eb" speed={0.8} chaos={0.2} thickness={1} style={{ borderRadius: 12 }}>
+                    <div className="border border-gray-200 rounded-lg p-4 bg-white">
                   {/* Post Header with Three-Dot Menu */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -744,12 +776,32 @@ export default function MyProfilePage() {
 
                   {/* Post Stats */}
                   <div className="flex items-center gap-4 text-sm text-gray-500 pt-3 border-t border-gray-100">
-                    <span>❤️ {post._count.likes}</span>
-                    <span>💬 {post._count.comments}</span>
-                    <span>🔁 {post._count.reposts}</span>
+                    {post._count.likes > 0 ? (
+                      <Pulse>
+                        <span>❤️ {post._count.likes}</span>
+                      </Pulse>
+                    ) : (
+                      <span>❤️ {post._count.likes}</span>
+                    )}
+                    {post._count.comments > 0 ? (
+                      <Pulse>
+                        <span>💬 {post._count.comments}</span>
+                      </Pulse>
+                    ) : (
+                      <span>💬 {post._count.comments}</span>
+                    )}
+                    {post._count.reposts > 0 ? (
+                      <Pulse>
+                        <span>🔁 {post._count.reposts}</span>
+                      </Pulse>
+                    ) : (
+                      <span>🔁 {post._count.reposts}</span>
+                    )}
                     <span className="ml-auto text-xs">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
-                </div>
+                    </div>
+                  </ElectricBorder>
+                </FadeIn>
               ))
             ) : (
               <div className="text-center py-8">
