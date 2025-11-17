@@ -6,9 +6,9 @@ import GlowBorder from '@/components/ui/GlowBorder'
 export default function SignInPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-7xl flex gap-8 items-center">
+      <div className="w-full max-w-7xl flex gap-8 items-center justify-between">
         {/* Left side - Branding */}
-        <div className="hidden lg:block flex-1">
+        <div className="hidden lg:flex flex-1 flex-col">
           <Link href="/" className="inline-block mb-8">
             <h1 className="text-4xl font-bold text-blue-600">← Clerva</h1>
           </Link>
@@ -21,7 +21,7 @@ export default function SignInPage() {
         </div>
 
         {/* Right side - Form */}
-        <div className="flex-1 flex justify-center">
+        <div className="w-full lg:flex-1 flex items-center justify-center">
           <div className="w-full max-w-xl">
             <GlowBorder color="#3b82f6" intensity="medium" animated={false} style={{ borderRadius: 12 }}>
               <Suspense fallback={<div className="w-full bg-white p-10 rounded-xl shadow-lg h-[500px]"></div>}>

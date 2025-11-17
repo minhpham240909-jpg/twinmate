@@ -271,6 +271,11 @@ export default function DashboardPage() {
 
     setIsSearching(true)
     try {
+      // Detect search intent from keywords
+      const queryLower = query.toLowerCase()
+      const hasGroupKeyword = queryLower.includes('group')
+      const hasPartnerKeyword = queryLower.includes('partner') || queryLower.includes('study partner')
+
       const [partnersRes, groupsRes] = await Promise.all([
         fetch('/api/partners/search', {
           method: 'POST',
@@ -288,9 +293,22 @@ export default function DashboardPage() {
         }).then(r => r.json()).catch(() => ({ groups: [] }))
       ])
 
+      // Smart filtering based on detected intent
+      let partners = partnersRes.profiles || []
+      let groups = groupsRes.groups || []
+
+      if (hasGroupKeyword && !hasPartnerKeyword) {
+        // User wants groups only
+        partners = []
+      } else if (hasPartnerKeyword && !hasGroupKeyword) {
+        // User wants partners only
+        groups = []
+      }
+      // If both or neither keywords present, show both results
+
       setSearchResults({
-        partners: partnersRes.profiles || [],
-        groups: groupsRes.groups || []
+        partners,
+        groups
       })
     } catch (error) {
       console.error('Search error:', error)
