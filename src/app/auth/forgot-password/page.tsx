@@ -6,9 +6,9 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
 import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
+import FastPulse from '@/components/ui/FastPulse'
+import FastFadeIn from '@/components/ui/FastFadeIn'
+import FastBounce from '@/components/ui/FastBounce'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -53,42 +53,42 @@ export default function ForgotPasswordPage() {
   if (emailSent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
-        <FadeIn delay={0.1}>
+        <FastFadeIn delay={0.1}>
           <ElectricBorder color="#10b981" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
               <div className="text-center">
-                <Bounce delay={0.1}>
-                  <Pulse>
+                <FastBounce delay={0.1}>
+                  <FastPulse>
                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
                       </svg>
                     </div>
-                  </Pulse>
-                </Bounce>
+                  </FastPulse>
+                </FastBounce>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
                 <p className="text-gray-600 mb-6">
                   If an account with <span className="font-semibold">{email}</span> exists, we've sent a password reset link. Please check your inbox and spam folder.
                 </p>
-                <Bounce delay={0.2}>
+                <FastBounce delay={0.2}>
                   <Link
                     href="/auth/signin"
                     className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 hover:scale-105 text-white font-semibold rounded-lg transition-all shadow-lg"
                   >
                     Back to Sign In
                   </Link>
-                </Bounce>
+                </FastBounce>
               </div>
             </div>
           </ElectricBorder>
-        </FadeIn>
+        </FastFadeIn>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
-      <FadeIn delay={0.1}>
+      <FastFadeIn delay={0.1}>
         <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
@@ -115,7 +115,7 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
-            <Bounce>
+            <FastBounce>
               <button
                 type="submit"
                 disabled={isLoading}
@@ -133,7 +133,7 @@ export default function ForgotPasswordPage() {
                   'Send Reset Link'
                 )}
               </button>
-            </Bounce>
+            </FastBounce>
           </form>
 
           <div className="mt-6 text-center">
@@ -146,7 +146,7 @@ export default function ForgotPasswordPage() {
           </div>
           </div>
         </ElectricBorder>
-      </FadeIn>
+      </FastFadeIn>
     </div>
   )
 }

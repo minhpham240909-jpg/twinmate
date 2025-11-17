@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
+import FastPulse from '@/components/ui/FastPulse'
+import FastFadeIn from '@/components/ui/FastFadeIn'
+import FastBounce from '@/components/ui/FastBounce'
 
 export default function ConfirmEmailPage() {
   const searchParams = useSearchParams()
@@ -43,13 +43,13 @@ export default function ConfirmEmailPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <FadeIn delay={0.1}>
+      <FastFadeIn delay={0.1}>
         <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
           <div className="w-full max-w-md">
             <div className="bg-white p-8 rounded-xl shadow-lg text-center">
               {/* Email Icon */}
-              <Bounce delay={0.1}>
-                <Pulse>
+              <FastBounce delay={0.1}>
+                <FastPulse>
                   <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                     <svg
                       className="w-8 h-8 text-blue-600"
@@ -65,8 +65,8 @@ export default function ConfirmEmailPage() {
                       />
                     </svg>
                   </div>
-                </Pulse>
-              </Bounce>
+                </FastPulse>
+              </FastBounce>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
 
@@ -98,7 +98,7 @@ export default function ConfirmEmailPage() {
             </div>
           )}
 
-              <Bounce delay={0.2}>
+              <FastBounce delay={0.2}>
                 <button
                   onClick={handleResendEmail}
                   disabled={resending || !email}
@@ -106,7 +106,7 @@ export default function ConfirmEmailPage() {
                 >
                   {resending ? 'Sending...' : 'Resend Confirmation Email'}
                 </button>
-              </Bounce>
+              </FastBounce>
 
               <Link
                 href="/auth/signin"
@@ -117,7 +117,7 @@ export default function ConfirmEmailPage() {
             </div>
           </div>
         </ElectricBorder>
-      </FadeIn>
+      </FastFadeIn>
     </div>
   )
 }

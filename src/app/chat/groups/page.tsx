@@ -9,9 +9,9 @@ import { useTranslations } from 'next-intl'
 import GroupSearchBar from '@/components/chat/GroupSearchBar'
 import GroupMembersModal from '@/components/chat/GroupMembersModal'
 import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
+import GlowBorder from '@/components/ui/GlowBorder'
+import FastPulse from '@/components/ui/FastPulse'
+import FastFadeIn from '@/components/ui/FastFadeIn'
 
 interface Conversation {
   id: string
@@ -390,53 +390,11 @@ function GroupsChatContent() {
                 <p className="text-sm text-gray-600">{t('noConversationsYet')}</p>
               </div>
             ) : (
-              <FadeIn delay={0.1}>
-                <div className="divide-y divide-gray-100">
-                  {conversations.map((conv, index) => (
-                    <FadeIn key={conv.id} delay={index * 0.03}>
-                      {conv.unreadCount > 0 ? (
-                        <ElectricBorder color="#9333ea" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 8 }}>
-                          <button
-                            onClick={() => {
-                              handleSelectConversation(conv)
-                              router.push(`/chat/groups?conversation=${conv.id}`)
-                            }}
-                            className={`w-full p-4 text-left hover:bg-gray-50 transition-all ${
-                              selectedConversation?.id === conv.id ? 'bg-purple-50 border-l-4 border-purple-600' : ''
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <Bounce delay={index * 0.05}>
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                                  {conv.avatarUrl ? (
-                                    <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
-                                  ) : (
-                                    conv.name[0].toUpperCase()
-                                  )}
-                                </div>
-                              </Bounce>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
-                                  <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <p className="text-sm text-gray-600 truncate">
-                                    {conv.lastMessage || `${conv.memberCount || 0} ${t('members')}`}
-                                  </p>
-                                  {conv.unreadCount > 0 && (
-                                    <Pulse>
-                                      <span className="ml-2 px-2 py-1 bg-purple-600 text-white text-xs rounded-full font-bold">
-                                        {conv.unreadCount}
-                                      </span>
-                                    </Pulse>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        </ElectricBorder>
-                      ) : (
+              <div className="divide-y divide-gray-100">
+                {conversations.map((conv, index) => (
+                  <FastFadeIn key={conv.id} delay={index * 0.02}>
+                    {conv.unreadCount > 0 ? (
+                      <GlowBorder color="#9333ea" intensity="medium" animated={true}>
                         <button
                           onClick={() => {
                             handleSelectConversation(conv)
@@ -447,15 +405,13 @@ function GroupsChatContent() {
                           }`}
                         >
                           <div className="flex items-start gap-3">
-                            <Bounce delay={index * 0.05}>
-                              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                                {conv.avatarUrl ? (
-                                  <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
-                                ) : (
-                                  conv.name[0].toUpperCase()
-                                )}
-                              </div>
-                            </Bounce>
+                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                              {conv.avatarUrl ? (
+                                <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
+                              ) : (
+                                conv.name[0].toUpperCase()
+                              )}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
                                 <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
@@ -465,15 +421,53 @@ function GroupsChatContent() {
                                 <p className="text-sm text-gray-600 truncate">
                                   {conv.lastMessage || `${conv.memberCount || 0} ${t('members')}`}
                                 </p>
+                                {conv.unreadCount > 0 && (
+                                  <FastPulse>
+                                    <span className="ml-2 px-2 py-1 bg-purple-600 text-white text-xs rounded-full font-bold">
+                                      {conv.unreadCount}
+                                    </span>
+                                  </FastPulse>
+                                )}
                               </div>
                             </div>
                           </div>
                         </button>
-                      )}
-                    </FadeIn>
-                  ))}
-                </div>
-              </FadeIn>
+                      </GlowBorder>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          handleSelectConversation(conv)
+                          router.push(`/chat/groups?conversation=${conv.id}`)
+                        }}
+                        className={`w-full p-4 text-left hover:bg-gray-50 transition-all ${
+                          selectedConversation?.id === conv.id ? 'bg-purple-50 border-l-4 border-purple-600' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                            {conv.avatarUrl ? (
+                              <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
+                            ) : (
+                              conv.name[0].toUpperCase()
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
+                              <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm text-gray-600 truncate">
+                                {conv.lastMessage || `${conv.memberCount || 0} ${t('members')}`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </FastFadeIn>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -498,43 +492,35 @@ function GroupsChatContent() {
                   </div>
                 </div>
                 {!isInCall && (
-                  <Bounce delay={0.1}>
-                    <div className="flex gap-2">
-                      <Bounce delay={0.1}>
-                        <button
-                          onClick={() => setShowMembersModal(true)}
-                          className="p-2 text-gray-600 hover:bg-gray-100 hover:scale-110 rounded-lg transition-all"
-                          title={tChat('viewMembers')}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        </button>
-                      </Bounce>
-                      <Bounce delay={0.2}>
-                        <button
-                          onClick={() => startCall('AUDIO')}
-                          className="p-2 text-gray-600 hover:bg-gray-100 hover:scale-110 rounded-lg transition-all"
-                          title={t('audioCall')}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                          </svg>
-                        </button>
-                      </Bounce>
-                      <Bounce delay={0.3}>
-                        <button
-                          onClick={() => startCall('VIDEO')}
-                          className="p-2 text-gray-600 hover:bg-gray-100 hover:scale-110 rounded-lg transition-all"
-                          title={t('videoCall')}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                      </Bounce>
-                    </div>
-                  </Bounce>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowMembersModal(true)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 hover:scale-110 rounded-lg transition-all"
+                      title={tChat('viewMembers')}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => startCall('AUDIO')}
+                      className="p-2 text-gray-600 hover:bg-gray-100 hover:scale-110 rounded-lg transition-all"
+                      title={t('audioCall')}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => startCall('VIDEO')}
+                      className="p-2 text-gray-600 hover:bg-gray-100 hover:scale-110 rounded-lg transition-all"
+                      title={t('videoCall')}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
 

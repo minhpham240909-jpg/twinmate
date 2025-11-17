@@ -9,8 +9,9 @@ import PartnerAvatar from '@/components/PartnerAvatar'
 import { useTranslations } from 'next-intl'
 import PartnerSearchBar from '@/components/chat/PartnerSearchBar'
 import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
+import GlowBorder from '@/components/ui/GlowBorder'
+import FastPulse from '@/components/ui/FastPulse'
+import FastFadeIn from '@/components/ui/FastFadeIn'
 
 interface Conversation {
   id: string
@@ -394,52 +395,45 @@ function PartnersChatContent() {
             ) : (
               <div className="divide-y divide-gray-100">
                 {conversations.map((conv, index) => (
-                  <FadeIn key={conv.id} delay={index * 0.05} direction="right">
+                  <FastFadeIn key={conv.id} delay={index * 0.02} direction="right">
                     {conv.unreadCount > 0 ? (
-                      <ElectricBorder
-                        color="#3b82f6"
-                        speed={1}
-                        chaos={0.4}
-                        thickness={1.5}
-                        style={{ borderRadius: 0 }}
-                        className="w-full"
-                      >
+                      <GlowBorder color="#3b82f6" intensity="medium" animated={true}>
                         <button
                           onClick={() => {
                             handleSelectConversation(conv)
                             router.push(`/chat/partners?conversation=${conv.id}`)
                           }}
-                    className={`w-full p-4 text-left hover:bg-gray-50 transition ${
-                      selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <PartnerAvatar
-                        avatarUrl={conv.avatarUrl}
-                        name={conv.name}
-                        size="md"
-                        onlineStatus={conv.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                        showStatus={true}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
-                          <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-600 truncate">{conv.lastMessage || t('noMessages')}</p>
-                          {conv.unreadCount > 0 && (
-                            <Pulse>
-                              <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-bold">
-                                {conv.unreadCount}
-                              </span>
-                            </Pulse>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                          className={`w-full p-4 text-left hover:bg-gray-50 transition ${
+                            selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <PartnerAvatar
+                              avatarUrl={conv.avatarUrl}
+                              name={conv.name}
+                              size="md"
+                              onlineStatus={conv.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                              showStatus={true}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
+                                <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-600 truncate">{conv.lastMessage || t('noMessages')}</p>
+                                {conv.unreadCount > 0 && (
+                                  <FastPulse>
+                                    <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-bold">
+                                      {conv.unreadCount}
+                                    </span>
+                                  </FastPulse>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </button>
-                      </ElectricBorder>
+                      </GlowBorder>
                     ) : (
                       <button
                         onClick={() => {
@@ -470,7 +464,7 @@ function PartnersChatContent() {
                         </div>
                       </button>
                     )}
-                  </FadeIn>
+                  </FastFadeIn>
                 ))}
               </div>
             )}

@@ -6,9 +6,9 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
 import ElectricBorder from '@/components/landing/ElectricBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
+import FastPulse from '@/components/ui/FastPulse'
+import FastFadeIn from '@/components/ui/FastFadeIn'
+import FastBounce from '@/components/ui/FastBounce'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -61,19 +61,19 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
-      <FadeIn delay={0.1}>
+      <FastFadeIn delay={0.1}>
         <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
-              <Bounce delay={0.1}>
-                <Pulse>
+              <FastBounce delay={0.1}>
+                <FastPulse>
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
-                </Pulse>
-              </Bounce>
+                </FastPulse>
+              </FastBounce>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Set New Password</h1>
               <p className="text-gray-600">
                 Choose a strong password to protect your account
@@ -134,7 +134,7 @@ export default function ResetPasswordPage() {
             />
           </div>
 
-            <Bounce>
+            <FastBounce>
               <button
                 type="submit"
                 disabled={isLoading}
@@ -152,7 +152,7 @@ export default function ResetPasswordPage() {
                   'Update Password'
                 )}
               </button>
-            </Bounce>
+            </FastBounce>
           </form>
 
           <div className="mt-6 text-center">
@@ -165,7 +165,7 @@ export default function ResetPasswordPage() {
           </div>
           </div>
         </ElectricBorder>
-      </FadeIn>
+      </FastFadeIn>
     </div>
   )
 }
