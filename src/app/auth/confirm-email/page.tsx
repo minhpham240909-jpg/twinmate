@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
@@ -44,7 +44,7 @@ export default function ConfirmEmailPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <FastFadeIn delay={0.1}>
-        <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+        <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
           <div className="w-full max-w-md">
             <div className="bg-white p-8 rounded-xl shadow-lg text-center">
               {/* Email Icon */}
@@ -116,7 +116,7 @@ export default function ConfirmEmailPage() {
               </Link>
             </div>
           </div>
-        </ElectricBorder>
+        </GlowBorder>
       </FastFadeIn>
     </div>
   )

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
 import TimerSettings from './TimerSettings'
 import { useTimerSync } from '@/hooks/useTimerSync'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
@@ -306,11 +306,11 @@ export default function SessionTimer({
       {/* Timer Display */}
       <div className={isSmall ? '' : 'text-center'}>
         {(timer.state === 'RUNNING' || timer.state === 'BREAK') ? (
-          <ElectricBorder
+          <GlowBorder
             color={timer.isBreakTime ? "#10b981" : "#3b82f6"}
-            speed={1}
-            chaos={0.5}
-            thickness={2}
+            intensity="medium"
+            animated={true}
+            
             style={{ borderRadius: 16 }}
           >
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -339,7 +339,7 @@ export default function SessionTimer({
                 )}
               </div>
             </div>
-          </ElectricBorder>
+          </GlowBorder>
         ) : (
           <FastFadeIn>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-md border border-gray-200">
@@ -533,7 +533,7 @@ export default function SessionTimer({
       {showBreakOptions && !displayOnly && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <FastBounce>
-            <ElectricBorder color="#10b981" speed={1} chaos={0.4} thickness={2} style={{ borderRadius: 16 }}>
+            <GlowBorder color="#10b981" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
               <div className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                   {t('studySessionCompleteTitle')} 🎉
@@ -571,7 +571,7 @@ export default function SessionTimer({
                   </FastBounce>
                 </div>
               </div>
-            </ElectricBorder>
+            </GlowBorder>
           </FastBounce>
         </div>
       )}
@@ -580,7 +580,7 @@ export default function SessionTimer({
       {showStudyOptions && !displayOnly && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <FastBounce>
-            <ElectricBorder color="#3b82f6" speed={1} chaos={0.4} thickness={2} style={{ borderRadius: 16 }}>
+            <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
               <div className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">
                   {t('breakOverTitle')} 🎯
@@ -618,7 +618,7 @@ export default function SessionTimer({
                   </FastBounce>
                 </div>
               </div>
-            </ElectricBorder>
+            </GlowBorder>
           </FastBounce>
         </div>
       )}

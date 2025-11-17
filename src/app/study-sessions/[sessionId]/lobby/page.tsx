@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import InviteModal from '@/components/study-sessions/InviteModal'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -560,7 +560,7 @@ export default function WaitingLobbyPage() {
             <div className="col-span-2 space-y-6">
               {/* Session Details Card */}
               <FadeIn delay={0.1}>
-                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">{t('sessionDetails')}</h2>
                 <div className="space-y-3">
@@ -603,7 +603,7 @@ export default function WaitingLobbyPage() {
                   )}
                 </div>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               </FadeIn>
 
               {/* Chat */}
@@ -657,7 +657,7 @@ export default function WaitingLobbyPage() {
             <div className="col-span-1 space-y-6">
               {/* Invite Button */}
               <FadeIn delay={0.2}>
-                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <Bounce>
                       <button
@@ -671,13 +671,13 @@ export default function WaitingLobbyPage() {
                       </button>
                     </Bounce>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               </FadeIn>
 
               {/* Start Button (only for creator) */}
               {isCreator && (
                 <FadeIn delay={0.3}>
-                  <ElectricBorder color="#10b981" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                  <GlowBorder color="#10b981" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                     <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
                       <Bounce delay={0.1}>
                         <h3 className="text-lg font-bold mb-2">{t('readyToStart')}</h3>
@@ -695,13 +695,13 @@ export default function WaitingLobbyPage() {
                         </button>
                       </Bounce>
                     </div>
-                  </ElectricBorder>
+                  </GlowBorder>
                 </FadeIn>
               )}
 
               {/* Participants */}
               <FadeIn delay={0.4}>
-                <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm p-6">
                     <h3 className="text-lg font-semibold mb-4">
                       {t('participants')} {session.participants.length > 0 && (
@@ -740,7 +740,7 @@ export default function WaitingLobbyPage() {
                       ))}
                     </div>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               </FadeIn>
 
               {/* Info Notice */}

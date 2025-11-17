@@ -10,7 +10,7 @@ import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
 import { motion, AnimatePresence } from 'framer-motion'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -546,7 +546,7 @@ export default function SettingsPage() {
           {/* Sidebar Navigation */}
           <aside className="w-full lg:w-72 flex-shrink-0">
             <FadeIn delay={0.1}>
-              <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+              <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
                 <nav className={`backdrop-blur-lg rounded-2xl shadow-lg border p-3 sticky top-24 transition-colors duration-300 ${
                   effectiveTheme === 'dark'
                     ? 'bg-gray-900/80 border-gray-700/50'
@@ -607,14 +607,14 @@ export default function SettingsPage() {
                 })}
               </div>
                 </nav>
-              </ElectricBorder>
+              </GlowBorder>
             </FadeIn>
           </aside>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
             <FadeIn delay={0.2}>
-              <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+              <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
                 <motion.div
                   key={activeTab}
                   initial={{ opacity: 0, y: 20 }}
@@ -696,7 +696,7 @@ export default function SettingsPage() {
                 )}
               </AnimatePresence>
                 </motion.div>
-              </ElectricBorder>
+              </GlowBorder>
             </FadeIn>
           </main>
         </div>

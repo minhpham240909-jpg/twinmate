@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
@@ -8,7 +8,7 @@ export default function AuthErrorPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
       <FastFadeIn delay={0.1}>
-        <ElectricBorder color="#ef4444" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+        <GlowBorder color="#ef4444" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
           <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center">
             <FastBounce delay={0.1}>
               <FastPulse>
@@ -42,7 +42,7 @@ export default function AuthErrorPage() {
               </FastBounce>
             </div>
           </div>
-        </ElectricBorder>
+        </GlowBorder>
       </FastFadeIn>
     </div>
   )

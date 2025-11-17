@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -210,7 +210,7 @@ export default function CreatePostPage() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <FadeIn delay={0.1}>
-          <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+          <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -536,7 +536,7 @@ export default function CreatePostPage() {
             </Bounce>
           </div>
             </motion.div>
-          </ElectricBorder>
+          </GlowBorder>
         </FadeIn>
       </main>
     </div>

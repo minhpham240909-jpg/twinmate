@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { uploadGroupAvatar } from '@/lib/supabase/storage'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -652,7 +652,7 @@ export default function GroupsPage() {
         <div className="max-w-6xl mx-auto">
           {/* Tabs */}
           <FadeIn delay={0.1}>
-            <ElectricBorder color="#3b82f6" speed={1} chaos={0.2} thickness={2} style={{ borderRadius: 12 }}>
+            <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
               <div className="bg-white rounded-xl shadow-sm mb-6">
                 <div className="border-b border-gray-200">
                   <nav className="flex items-center justify-between">
@@ -706,7 +706,7 @@ export default function GroupsPage() {
               </nav>
             </div>
               </div>
-            </ElectricBorder>
+            </GlowBorder>
           </FadeIn>
 
           {/* My Groups Tab */}
@@ -750,7 +750,7 @@ export default function GroupsPage() {
                 ) : (
                   myGroups.map((group, index) => (
                   <FadeIn key={group.id} delay={index * 0.05}>
-                    <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                    <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                       <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -834,7 +834,7 @@ export default function GroupsPage() {
                     )}
                   </div>
                       </div>
-                    </ElectricBorder>
+                    </GlowBorder>
                   </FadeIn>
                 ))
                 )}
@@ -917,7 +917,7 @@ export default function GroupsPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {searchResults.map((group, index) => (
                     <FadeIn key={group.id} delay={index * 0.05}>
-                      <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                      <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                         <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -971,7 +971,7 @@ export default function GroupsPage() {
                       </Bounce>
                     </div>
                         </div>
-                      </ElectricBorder>
+                      </GlowBorder>
                     </FadeIn>
                   ))}
                 </div>

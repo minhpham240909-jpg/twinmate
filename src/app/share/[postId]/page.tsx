@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -126,7 +126,7 @@ export default function SharedPostPage() {
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Shared Post Card */}
         <FadeIn delay={0.1}>
-          <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+          <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           {/* Post Header */}
           <div className="flex items-start gap-3 mb-4">
@@ -281,7 +281,7 @@ export default function SharedPostPage() {
             </Link>
           </div>
             </div>
-          </ElectricBorder>
+          </GlowBorder>
         </FadeIn>
       </main>
     </div>

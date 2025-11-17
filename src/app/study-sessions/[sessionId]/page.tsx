@@ -16,7 +16,7 @@ import VideoCall from '@/components/study-sessions/VideoCallDynamic'
 import SessionFlashcards from '@/components/session/SessionFlashcards'
 import SessionNotes from '@/components/session/SessionNotes'
 import SessionWhiteboard from '@/components/session/SessionWhiteboard'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -381,7 +381,7 @@ export default function SessionRoomPage() {
             {/* Main Area */}
             <div className="col-span-2">
               <FadeIn delay={0.1}>
-                <ElectricBorder color="#3b82f6" speed={1} chaos={0.2} thickness={2} style={{ borderRadius: 12 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                   <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                     {/* Tabs */}
                     <nav className="flex overflow-x-auto border-b border-gray-200">
@@ -536,7 +536,7 @@ export default function SessionRoomPage() {
                   )}
                 </div>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               </FadeIn>
             </div>
 

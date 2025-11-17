@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { motion } from 'framer-motion'
-import ElectricBorderOptimized from '@/components/landing/ElectricBorderOptimized'
+import GlowBorderOptimized from '@/components/ui/GlowBorderOptimized'
 import PulseOptimized from '@/components/ui/PulseOptimized'
 import FadeInOptimized from '@/components/ui/FadeInOptimized'
 
@@ -941,16 +941,16 @@ export default function CommunityPage() {
                     {/* Only use ElectricBorder on very high engagement (>30 interactions) or in popular tab with >20 interactions */}
                     {(highEngagement && (post._count.likes + post._count.comments + post._count.reposts) > 30) || 
                      (isPopular && (post._count.likes + post._count.comments + post._count.reposts) > 20) ? (
-                      <ElectricBorderOptimized
+                      <GlowBorderOptimized
                         color={highEngagement ? "#ec4899" : "#8b5cf6"}
-                        speed={0.8}
-                        chaos={0.3}
-                        thickness={2}
+                       
+                        animated={true}
+                        
                         style={{ borderRadius: 16 }}
                         onlyWhenVisible={true}
                       >
                         {postContent}
-                      </ElectricBorderOptimized>
+                      </GlowBorderOptimized>
                     ) : (
                       postContent
                     )}

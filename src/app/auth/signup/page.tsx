@@ -1,6 +1,6 @@
 import SignUpForm from '@/components/auth/SignUpForm'
 import Link from 'next/link'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
@@ -74,9 +74,9 @@ export default function SignUpPage() {
         {/* Right side - Form */}
         <div className="flex-1 flex justify-center">
           <FastFadeIn delay={0.2}>
-            <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+            <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
               <SignUpForm />
-            </ElectricBorder>
+            </GlowBorder>
           </FastFadeIn>
         </div>
       </div>

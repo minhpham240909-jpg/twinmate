@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -467,24 +467,24 @@ export default function MyProfilePage() {
           <FadeIn delay={0.2}>
             <div className="flex gap-6 text-sm mb-4">
               {((profile as any)?.subjects && (profile as any).subjects.length > 0) && (
-                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-blue-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-blue-600">{(profile as any).subjects.length}</span>
                     </Pulse>
                     <span className="text-gray-500 ml-1">{(profile as any).subjects.length === 1 ? 'subject' : 'subjects'}</span>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               )}
               {((profile as any)?.interests && (profile as any).interests.length > 0) && (
-                <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-purple-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-purple-600">{(profile as any).interests.length}</span>
                     </Pulse>
                     <span className="text-gray-500 ml-1">{(profile as any).interests.length === 1 ? 'interest' : 'interests'}</span>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               )}
             </div>
           </FadeIn>
@@ -629,7 +629,7 @@ export default function MyProfilePage() {
             ) : posts && posts.length > 0 ? (
               posts.map((post, index) => (
                 <FadeIn key={post.id} delay={index * 0.05}>
-                  <ElectricBorder color="#e5e7eb" speed={0.8} chaos={0.2} thickness={1} style={{ borderRadius: 12 }}>
+                  <GlowBorder color="#e5e7eb" animated={true}  style={{ borderRadius: 12 }}>
                     <div className="border border-gray-200 rounded-lg p-4 bg-white">
                   {/* Post Header with Three-Dot Menu */}
                   <div className="flex items-center justify-between mb-3">
@@ -800,7 +800,7 @@ export default function MyProfilePage() {
                     <span className="ml-auto text-xs">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
                     </div>
-                  </ElectricBorder>
+                  </GlowBorder>
                 </FadeIn>
               ))
             ) : (

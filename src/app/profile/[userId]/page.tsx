@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -514,34 +514,34 @@ export default function UserProfilePage() {
           <FadeIn delay={0.2}>
             <div className="flex gap-6 text-sm mb-4">
               {(profile?.subjects && profile.subjects.length > 0) && (
-                <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-blue-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-blue-600">{profile.subjects.length}</span>
                     </Pulse>
                     <span className="text-gray-500 ml-1">{profile.subjects.length === 1 ? 'subject' : 'subjects'}</span>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               )}
               {(profile?.interests && profile.interests.length > 0) && (
-                <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={1} style={{ borderRadius: 8 }}>
+                <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-purple-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-purple-600">{profile.interests.length}</span>
                     </Pulse>
                     <span className="text-gray-500 ml-1">{profile.interests.length === 1 ? 'interest' : 'interests'}</span>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               )}
               {profileData.matchScore > 0 && (
-                <ElectricBorder color="#10b981" speed={1} chaos={0.4} thickness={2} style={{ borderRadius: 8 }}>
+                <GlowBorder color="#10b981" intensity="medium" animated={true}  style={{ borderRadius: 8 }}>
                   <div className="px-4 py-2 bg-green-50 rounded-lg">
                     <Pulse>
                       <span className="font-semibold text-green-600">{profileData.matchScore}%</span>
                     </Pulse>
                     <span className="text-gray-500 ml-1">match</span>
                   </div>
-                </ElectricBorder>
+                </GlowBorder>
               )}
             </div>
           </FadeIn>
@@ -559,7 +559,7 @@ export default function UserProfilePage() {
                     {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
                   </button>
                 ) : profileData.connectionStatus === 'connected' ? (
-                  <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 9999 }}>
+                  <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 9999 }}>
                     <button
                       onClick={handleMessage}
                       className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
@@ -569,7 +569,7 @@ export default function UserProfilePage() {
                       </svg>
                       Message
                     </button>
-                  </ElectricBorder>
+                  </GlowBorder>
                 ) : (
                   <Bounce>
                     <button
@@ -775,7 +775,7 @@ export default function UserProfilePage() {
             {posts && posts.length > 0 ? (
               posts.map((post, index) => (
                 <FadeIn key={post.id} delay={index * 0.05}>
-                  <ElectricBorder color="#e5e7eb" speed={0.8} chaos={0.2} thickness={1} style={{ borderRadius: 12 }}>
+                  <GlowBorder color="#e5e7eb" animated={true}  style={{ borderRadius: 12 }}>
                     <div className="border-b border-gray-200 py-6 px-4 hover:bg-gray-50 transition-all cursor-pointer rounded-lg">
                   <p className="text-gray-900 mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
 
@@ -852,7 +852,7 @@ export default function UserProfilePage() {
                     </span>
                   </div>
                     </div>
-                  </ElectricBorder>
+                  </GlowBorder>
                 </FadeIn>
               ))
             ) : (

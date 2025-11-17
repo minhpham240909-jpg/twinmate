@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorderOptimized from '@/components/landing/ElectricBorderOptimized'
+import GlowBorderOptimized from '@/components/ui/GlowBorderOptimized'
 import PulseOptimized from '@/components/ui/PulseOptimized'
 import FadeInOptimized from '@/components/ui/FadeInOptimized'
 import BounceOptimized from '@/components/ui/BounceOptimized'
@@ -771,9 +771,9 @@ export default function SearchPage() {
                         <FadeInOptimized key={partner.id} delay={Math.min(index * 0.03, 0.3)}>
                           {/* Only use ElectricBorder on high match scores (>80) */}
                           {partner.matchScore && partner.matchScore > 80 ? (
-                            <ElectricBorderOptimized color="#10b981" speed={0.8} chaos={0.2} thickness={2} style={{ borderRadius: 12 }} onlyWhenVisible={true}>
+                            <GlowBorderOptimized color="#10b981" animated={true}  style={{ borderRadius: 12 }} onlyWhenVisible={true}>
                               {cardContent}
-                            </ElectricBorderOptimized>
+                            </GlowBorderOptimized>
                           ) : (
                             cardContent
                           )}

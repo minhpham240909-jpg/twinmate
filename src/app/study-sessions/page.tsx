@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import Bounce from '@/components/ui/Bounce'
 import FadeIn from '@/components/ui/FadeIn'
@@ -269,11 +269,11 @@ export default function StudySessionsPage() {
           {/* Pending Invites Section */}
           {pendingInvites.length > 0 && (
             <Bounce delay={0.1}>
-              <ElectricBorder
+              <GlowBorder
                 color="#3b82f6"
-                speed={1.2}
-                chaos={0.6}
-                thickness={2}
+               
+                animated={true}
+                
                 style={{ borderRadius: 12 }}
                 className="mb-6"
               >
@@ -345,7 +345,7 @@ export default function StudySessionsPage() {
                     ))}
                   </div>
                 </div>
-              </ElectricBorder>
+              </GlowBorder>
             </Bounce>
           )}
 
@@ -380,11 +380,11 @@ export default function StudySessionsPage() {
             ) : (
               filteredSessions.map((session, index) => (
                 <FadeIn key={session.id} delay={index * 0.1} direction="up">
-                  <ElectricBorder
+                  <GlowBorder
                     color={session.status === 'COMPLETED' ? '#10b981' : '#6b7280'}
-                    speed={0.8}
-                    chaos={0.3}
-                    thickness={1.5}
+                   
+                    animated={true}
+                    
                     style={{ borderRadius: 12 }}
                     className="h-full"
                   >
@@ -434,7 +434,7 @@ export default function StudySessionsPage() {
                     </button>
                   </div>
                     </div>
-                  </ElectricBorder>
+                  </GlowBorder>
                 </FadeIn>
               ))
             )}

@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -227,7 +227,7 @@ export default function ConnectionsPage() {
                 ) : (
                   receivedRequests.map((request, index) => (
                     <FadeIn key={request.id} delay={index * 0.05}>
-                      <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                      <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                         <div className="bg-white rounded-xl p-6 shadow-sm">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4">
@@ -278,7 +278,7 @@ export default function ConnectionsPage() {
                             </div>
                           </div>
                         </div>
-                      </ElectricBorder>
+                      </GlowBorder>
                     </FadeIn>
                   ))
                 )}
@@ -297,7 +297,7 @@ export default function ConnectionsPage() {
                 ) : (
                   sentRequests.map((request, index) => (
                     <FadeIn key={request.id} delay={index * 0.05}>
-                      <ElectricBorder color="#8b5cf6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+                      <GlowBorder color="#8b5cf6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
                         <div className="bg-white rounded-xl p-6 shadow-sm">
                           <div className="flex items-start gap-4">
                             {request.receiver.avatarUrl ? (
@@ -326,7 +326,7 @@ export default function ConnectionsPage() {
                             </div>
                           </div>
                         </div>
-                      </ElectricBorder>
+                      </GlowBorder>
                     </FadeIn>
                   ))
                 )}

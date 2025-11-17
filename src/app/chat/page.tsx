@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 
@@ -118,11 +118,10 @@ export default function ChatSelectionPage() {
           <div className="grid md:grid-cols-2 gap-8">
             {/* Partner Chat Card */}
             <FadeIn delay={0} direction="up">
-              <ElectricBorder
+              <GlowBorder
                 color={unreadCounts.partner > 0 ? "#3b82f6" : "#e5e7eb"}
-                speed={1}
-                chaos={unreadCounts.partner > 0 ? 0.5 : 0.2}
-                thickness={2}
+                intensity="medium"
+                animated={unreadCounts.partner > 0}
                 style={{ borderRadius: 16 }}
                 className="h-full"
               >
@@ -193,16 +192,16 @@ export default function ChatSelectionPage() {
                 </div>
                   </button>
                 </motion.div>
-              </ElectricBorder>
+              </GlowBorder>
             </FadeIn>
 
             {/* Group Chat Card */}
             <FadeIn delay={0.1} direction="up">
-              <ElectricBorder
+              <GlowBorder
                 color={unreadCounts.group > 0 ? "#8b5cf6" : "#e5e7eb"}
-                speed={1}
-                chaos={unreadCounts.group > 0 ? 0.5 : 0.2}
-                thickness={2}
+                intensity="medium"
+                animated={true}
+                
                 style={{ borderRadius: 16 }}
                 className="h-full"
               >
@@ -273,7 +272,7 @@ export default function ChatSelectionPage() {
                 </div>
                   </button>
                 </motion.div>
-              </ElectricBorder>
+              </GlowBorder>
             </FadeIn>
           </div>
         </div>

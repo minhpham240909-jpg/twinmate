@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
@@ -62,7 +62,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
       <FastFadeIn delay={0.1}>
-        <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 16 }}>
+        <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 16 }}>
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
               <FastBounce delay={0.1}>
@@ -164,7 +164,7 @@ export default function ResetPasswordPage() {
             </Link>
           </div>
           </div>
-        </ElectricBorder>
+        </GlowBorder>
       </FastFadeIn>
     </div>
   )

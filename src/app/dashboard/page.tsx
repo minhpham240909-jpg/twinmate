@@ -11,7 +11,7 @@ import { useUserSync } from '@/hooks/useUserSync'
 import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import Bounce from '@/components/ui/Bounce'
 import FadeIn from '@/components/ui/FadeIn'
@@ -606,11 +606,11 @@ export default function DashboardPage() {
           <div className="grid lg:grid-cols-3 gap-6 mb-8">
             {/* Study Partners Card - Takes 2 columns */}
             <div className="lg:col-span-2">
-              <ElectricBorder
+              <GlowBorder
                 color="#3b82f6"
-                speed={1}
-                chaos={0.3}
-                thickness={2}
+                intensity="medium"
+                animated={true}
+                
                 style={{ borderRadius: 16 }}
                 className="h-full"
               >
@@ -641,16 +641,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 </button>
-              </ElectricBorder>
+              </GlowBorder>
             </div>
 
             {/* Online Partners Card - Takes 1 column */}
             <div className="lg:col-span-1">
-              <ElectricBorder
+              <GlowBorder
                 color="#10b981"
-                speed={1}
-                chaos={0.3}
-                thickness={2}
+                intensity="medium"
+                animated={true}
+                
                 style={{ borderRadius: 16 }}
                 className="h-full"
               >
@@ -718,7 +718,7 @@ export default function DashboardPage() {
                   </div>
                 )}
                 </div>
-              </ElectricBorder>
+              </GlowBorder>
             </div>
           </div>
 
@@ -912,11 +912,11 @@ export default function DashboardPage() {
           {/* Complete Profile Banner */}
           {showCompleteProfileBanner && (
             <Bounce delay={0.2}>
-              <ElectricBorder
+              <GlowBorder
                 color="#10b981"
-                speed={1}
-                chaos={0.4}
-                thickness={2}
+                intensity="medium"
+                animated={true}
+                
                 style={{ borderRadius: 16 }}
               >
                 <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
@@ -934,7 +934,7 @@ export default function DashboardPage() {
                 </button>
               </div>
               </div>
-              </ElectricBorder>
+              </GlowBorder>
             </Bounce>
           )}
         </div>

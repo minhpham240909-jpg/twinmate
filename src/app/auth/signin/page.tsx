@@ -1,7 +1,6 @@
 import SignInForm from '@/components/auth/SignInForm'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import ElectricBorder from '@/components/landing/ElectricBorder'
 import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
@@ -27,11 +26,11 @@ export default function SignInPage() {
         {/* Right side - Form */}
         <div className="flex-1 flex justify-center">
           <FastFadeIn delay={0.2}>
-            <ElectricBorder color="#3b82f6" speed={1} chaos={0.3} thickness={2} style={{ borderRadius: 12 }}>
+            <GlowBorder color="#3b82f6" intensity="medium" animated={true}  style={{ borderRadius: 12 }}>
               <Suspense fallback={<div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg animate-pulse h-96"></div>}>
                 <SignInForm />
               </Suspense>
-            </ElectricBorder>
+            </GlowBorder>
           </FastFadeIn>
         </div>
       </div>

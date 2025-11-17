@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/context'
 import Image from 'next/image'
-import ElectricBorder from '@/components/landing/ElectricBorder'
+import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import Bounce from '@/components/ui/Bounce'
 
@@ -156,7 +156,7 @@ export default function IncomingCallModal() {
       <div className="fixed inset-0 bg-black bg-opacity-75 z-[9999] flex items-center justify-center">
         {/* Modal */}
         <Bounce>
-          <ElectricBorder color="#3b82f6" speed={1.5} chaos={0.6} thickness={3} style={{ borderRadius: 16 }}>
+          <GlowBorder color="#3b82f6" animated={true}  style={{ borderRadius: 16 }}>
             <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
               {/* Caller Avatar */}
               <div className="flex flex-col items-center mb-6">
@@ -232,7 +232,7 @@ export default function IncomingCallModal() {
                 Call will timeout in 30 seconds
               </p>
             </div>
-          </ElectricBorder>
+          </GlowBorder>
         </Bounce>
       </div>
     </>
