@@ -271,24 +271,38 @@ export default function DashboardPage() {
 
     setIsSearching(true)
     try {
-      // Detect search intent from keywords
+      // Detect search intent from keywords and remove them from search query
       const queryLower = query.toLowerCase()
       const hasGroupKeyword = queryLower.includes('group')
-      const hasPartnerKeyword = queryLower.includes('partner') || queryLower.includes('study partner')
+      const hasPartnerKeyword = queryLower.includes('partner')
+
+      // Clean the search query by removing intent keywords
+      let cleanedQuery = query
+      if (hasGroupKeyword) {
+        cleanedQuery = cleanedQuery.replace(/\bgroups?\b/gi, '').trim()
+      }
+      if (hasPartnerKeyword) {
+        cleanedQuery = cleanedQuery.replace(/\bpartners?\b/gi, '').replace(/\bstudy\s+partner\b/gi, '').trim()
+      }
+
+      // If cleaned query is empty after removing keywords, use original query
+      if (!cleanedQuery || cleanedQuery.length < 2) {
+        cleanedQuery = query
+      }
 
       const [partnersRes, groupsRes] = await Promise.all([
         fetch('/api/partners/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ searchQuery: query }),
+          body: JSON.stringify({ searchQuery: cleanedQuery }),
         }).then(r => r.json()).catch(() => ({ profiles: [] })),
         fetch('/api/groups/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            description: query,
-            subject: query,
-            subjectCustomDescription: query
+            description: cleanedQuery,
+            subject: cleanedQuery,
+            subjectCustomDescription: cleanedQuery
           }),
         }).then(r => r.json()).catch(() => ({ groups: [] }))
       ])
