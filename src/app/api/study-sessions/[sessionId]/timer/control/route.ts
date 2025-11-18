@@ -21,17 +21,32 @@ export async function POST(
     const body = await request.json()
     const { action } = body // start, pause, resume, stop, reset, skip
 
-    // Check if user is a participant
+    // SECURITY: Only HOST can control the timer
     const participant = await prisma.sessionParticipant.findFirst({
       where: {
         sessionId,
         userId: user.id,
+      },
+      select: {
+        role: true,
+        status: true,
       },
     })
 
     if (!participant) {
       return NextResponse.json(
         { error: 'Not a participant of this session' },
+        { status: 403 }
+      )
+    }
+
+    // SECURITY: Only HOST can control timer
+    if (participant.role !== 'HOST') {
+      console.warn(
+        `[Timer Control] User ${user.id} attempted to control timer in session ${sessionId} but is not HOST`
+      )
+      return NextResponse.json(
+        { error: 'Only the session host can control the timer' },
         { status: 403 }
       )
     }

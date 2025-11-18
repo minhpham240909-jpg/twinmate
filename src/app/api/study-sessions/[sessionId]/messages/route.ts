@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+
+// SECURITY: Validation schema for session messages
+const createMessageSchema = z.object({
+  content: z.string().min(1, 'Message required').max(5000, 'Message too long'),
+  type: z.enum(['TEXT', 'IMAGE', 'FILE']).default('TEXT'),
+})
 
 // GET - Fetch messages for a session
 export async function GET(
@@ -19,11 +27,12 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const afterTimestamp = searchParams.get('after')
 
-    // Verify user is a participant
+    // SECURITY: Verify user is a JOINED participant (not just INVITED)
     const participant = await prisma.sessionParticipant.findFirst({
       where: {
         sessionId,
         userId: user.id,
+        status: 'JOINED', // Only JOINED participants can view messages
       },
     })
 
@@ -76,6 +85,18 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  // SECURITY: Rate limiting to prevent message spam (30 messages per minute)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many messages. Please slow down.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers
+      }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -85,11 +106,21 @@ export async function POST(
     }
 
     const { sessionId } = await params
-    const { content, type = 'TEXT' } = await request.json()
+    const body = await request.json()
 
-    if (!content || !content.trim()) {
-      return NextResponse.json({ error: 'Message content required' }, { status: 400 })
+    // SECURITY: Validate message content and type to prevent type confusion attacks
+    const validation = createMessageSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid message data',
+          details: validation.error.format()
+        },
+        { status: 400 }
+      )
     }
+
+    const { content, type } = validation.data
 
     // Verify user is a participant
     const participant = await prisma.sessionParticipant.findFirst({
@@ -109,8 +140,8 @@ export async function POST(
       data: {
         sessionId,
         senderId: user.id,
-        content: content.trim(),
-        type,
+        content: content.trim(), // Trim whitespace from validated content
+        type, // Already validated as one of: TEXT, IMAGE, FILE
       },
       include: {
         sender: {

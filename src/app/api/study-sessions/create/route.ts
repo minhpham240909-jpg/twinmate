@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Rate limiting to prevent session spam (10 sessions per minute)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many session creation requests. Please slow down.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers
+      }
+    )
+  }
+
   try {
     // Authenticate user
     const supabase = await createClient()
@@ -62,11 +75,41 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Invite other users if provided
+    // SECURITY: Validate and invite other users if provided
+    // Only accepted partners can be invited to sessions
     let invitesSent = 0
-    if (inviteUserIds && Array.isArray(inviteUserIds)) {
+    const inviteErrors: string[] = []
+
+    if (inviteUserIds && Array.isArray(inviteUserIds) && inviteUserIds.length > 0) {
+      // Get all accepted partners for the current user
+      const acceptedMatches = await prisma.match.findMany({
+        where: {
+          OR: [
+            { senderId: user.id, status: 'ACCEPTED' },
+            { receiverId: user.id, status: 'ACCEPTED' }
+          ]
+        },
+        select: {
+          senderId: true,
+          receiverId: true
+        }
+      })
+
+      const acceptedPartnerIds = new Set(
+        acceptedMatches.map(match =>
+          match.senderId === user.id ? match.receiverId : match.senderId
+        )
+      )
+
       for (const inviteeId of inviteUserIds) {
         try {
+          // SECURITY: Verify invitee is an accepted partner
+          if (!acceptedPartnerIds.has(inviteeId)) {
+            inviteErrors.push(`User ${inviteeId}: Not an accepted partner`)
+            console.warn(`[Study Session] User ${user.id} attempted to invite non-partner ${inviteeId}`)
+            continue
+          }
+
           await prisma.sessionParticipant.create({
             data: {
               sessionId: session.id,
@@ -97,6 +140,7 @@ export async function POST(request: NextRequest) {
           invitesSent++
         } catch (error) {
           console.error('Error inviting user:', error)
+          inviteErrors.push(`User ${inviteeId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
       }
     }
@@ -111,6 +155,7 @@ export async function POST(request: NextRequest) {
         createdAt: session.createdAt,
       },
       invitesSent,
+      inviteErrors: inviteErrors.length > 0 ? inviteErrors : undefined,
     })
   } catch (error) {
     console.error('Error creating session:', error)

@@ -39,7 +39,10 @@ export async function GET() {
                   goals: true,
                   skillLevel: true,
                   studyStyle: true,
-                  location: true,
+                  location_city: true,
+                  location_state: true,
+                  location_country: true,
+                  location_visibility: true,
                   timezone: true,
                   availableDays: true,
                   availableHours: true,
@@ -63,7 +66,10 @@ export async function GET() {
                   goals: true,
                   skillLevel: true,
                   studyStyle: true,
-                  location: true,
+                  location_city: true,
+                  location_state: true,
+                  location_country: true,
+                  location_visibility: true,
                   timezone: true,
                   availableDays: true,
                   availableHours: true,
@@ -124,6 +130,26 @@ export async function GET() {
         onlineStatus = presence.status === 'online' ? 'ONLINE' : 'OFFLINE'
       }
 
+      // SECURITY: Sanitize location data based on privacy settings
+      // For accepted partners, respect location_visibility:
+      // - 'public': show location to everyone
+      // - 'match-only': show location to accepted partners (like this endpoint)
+      // - 'private': hide location even from accepted partners
+      let locationCity = null
+      let locationState = null
+      let locationCountry = null
+
+      if (partner.profile) {
+        const locationVisibility = (partner.profile as any).location_visibility || 'private'
+
+        // Show location if public OR if match-only (since these are accepted partners)
+        if (locationVisibility === 'public' || locationVisibility === 'match-only') {
+          locationCity = (partner.profile as any).location_city
+          locationState = (partner.profile as any).location_state
+          locationCountry = (partner.profile as any).location_country
+        }
+      }
+
       return {
         matchId: match.id,
         id: partner.id,
@@ -139,7 +165,9 @@ export async function GET() {
           skillLevel: partner.profile.skillLevel,
           studyStyle: partner.profile.studyStyle,
           onlineStatus,
-          location: partner.profile.location,
+          locationCity,
+          locationState,
+          locationCountry,
           timezone: partner.profile.timezone,
           availableDays: partner.profile.availableDays,
           availableHours: partner.profile.availableHours,

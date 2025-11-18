@@ -53,10 +53,21 @@ export default function SearchPage() {
   const [skillLevelCustomDescription, setSkillLevelCustomDescription] = useState('')
   const [studyStyleCustomDescription, setStudyStyleCustomDescription] = useState('')
   const [interestsCustomDescription, setInterestsCustomDescription] = useState('')
-  const [availabilityCustomDescription, setAvailabilityCustomDescription] = useState('')
   // NEW: School and Languages filters
   const [schoolFilter, setSchoolFilter] = useState('')
   const [languagesFilter, setLanguagesFilter] = useState('')
+  // NEW: Age Range, Role, and Goals filters
+  const [selectedAgeRange, setSelectedAgeRange] = useState<string>('')
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([])
+  const [showGoalsDescription, setShowGoalsDescription] = useState(false)
+  const [showRoleDescription, setShowRoleDescription] = useState(false)
+  const [showAgeDescription, setShowAgeDescription] = useState(false)
+  // NEW: Location filters
+  const [locationCity, setLocationCity] = useState('')
+  const [locationState, setLocationState] = useState('')
+  const [locationCountry, setLocationCountry] = useState('')
+  const [showLocationDescription, setShowLocationDescription] = useState(false)
   const [showFilters, setShowFilters] = useState(() => {
     // Load filter visibility from localStorage
     if (typeof window !== 'undefined') {
@@ -69,6 +80,8 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [sendingRequest, setSendingRequest] = useState<string | null>(null)
+  const [isLoadingRandom, setIsLoadingRandom] = useState(false)
+  const [randomError, setRandomError] = useState('')
 
   // Ref to track abort controller for cancelling in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -95,6 +108,7 @@ export default function SearchPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           searchQuery: searchQuery,
+          searchType: 'full', // Search all fields including location
         }),
         signal: abortController.signal,
       })
@@ -127,16 +141,36 @@ export default function SearchPage() {
     }
   }, [searchQuery])
 
-  // Function to load random partners
+  // Function to load random partners with error handling
   const loadRandomPartners = useCallback(async () => {
+    setIsLoadingRandom(true)
+    setRandomError('')
+    setSearchError('') // Clear search errors when loading random
+
     try {
       const response = await fetch('/api/partners/random')
-      if (response.ok) {
+
+      if (!response.ok) {
         const data = await response.json()
-        setPartners(data.partners || [])
+        throw new Error(data.error || 'Failed to load random partners')
+      }
+
+      const data = await response.json()
+      setPartners(data.partners || [])
+
+      // Show success message if partners found
+      if (data.partners && data.partners.length > 0) {
+        toast.success(`Found ${data.partners.length} study partner${data.partners.length !== 1 ? 's' : ''} for you!`)
+      } else {
+        setRandomError('No partners available at the moment. Try again later.')
       }
     } catch (error) {
       console.error('Error loading random partners:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load random partners. Please try again.'
+      setRandomError(errorMessage)
+      setPartners([]) // Clear partners on error
+    } finally {
+      setIsLoadingRandom(false)
     }
   }, [])
 
@@ -255,9 +289,14 @@ export default function SearchPage() {
       skillLevelCustomDescription.trim() !== '' ||
       studyStyleCustomDescription.trim() !== '' ||
       interestsCustomDescription.trim() !== '' ||
-      availabilityCustomDescription.trim() !== '' ||
       schoolFilter.trim() !== '' ||
-      languagesFilter.trim() !== ''
+      languagesFilter.trim() !== '' ||
+      selectedAgeRange !== '' ||
+      selectedRoles.length > 0 ||
+      selectedGoals.length > 0 ||
+      locationCity.trim() !== '' ||
+      locationState.trim() !== '' ||
+      locationCountry.trim() !== ''
 
     if (!hasFilters) {
       setSearchError('Please select at least one filter to find partners.')
@@ -281,9 +320,14 @@ export default function SearchPage() {
           skillLevelCustomDescription,
           studyStyleCustomDescription,
           interestsCustomDescription,
-          availabilityCustomDescription,
           school: schoolFilter,
           languages: languagesFilter,
+          ageRange: selectedAgeRange,
+          role: selectedRoles,
+          goals: selectedGoals,
+          locationCity,
+          locationState,
+          locationCountry,
         }),
       })
 
@@ -310,6 +354,15 @@ export default function SearchPage() {
   const studyStyles = ['COLLABORATIVE', 'INDEPENDENT', 'MIXED']
   const interests = ['Group Study', 'One-on-One', 'Video Calls', 'Text Chat', 'Problem Solving', 'Project-Based', 'Exam Prep', 'Research']
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const ageRanges = [
+    { value: 'under-18', label: 'Under 18' },
+    { value: '18-24', label: '18-24 (College)' },
+    { value: '25-34', label: '25-34 (Young Professional)' },
+    { value: '35-44', label: '35-44 (Mid-Career)' },
+    { value: '45+', label: '45+ (Mature Learner)' }
+  ]
+  const roles = ['Student', 'Teacher', 'Professional', 'Self-Learner', 'Other']
+  const allGoals = ['Pass Exam', 'Learn New Skill', 'Career Change', 'Academic Research', 'Personal Growth', 'Certification']
 
   const toggleSubject = (subject: string) => {
     setSelectedSubjects(prev =>
@@ -326,6 +379,18 @@ export default function SearchPage() {
   const toggleAvailability = (day: string) => {
     setSelectedAvailability(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
+  }
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+    )
+  }
+
+  const toggleGoal = (goal: string) => {
+    setSelectedGoals(prev =>
+      prev.includes(goal) ? prev.filter(g => g !== goal) : [...prev, goal]
     )
   }
 
@@ -370,7 +435,7 @@ export default function SearchPage() {
           <div className="mb-6">
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick Search</h2>
-              <p className="text-sm text-gray-600 mb-4">Search by name, interest, or subject</p>
+              <p className="text-sm text-gray-600 mb-4">Search by name, location, interests, subjects, or any profile field</p>
               <div className="relative">
                 <input
                   type="text"
@@ -597,13 +662,6 @@ export default function SearchPage() {
                       </label>
                     ))}
                   </div>
-                  <textarea
-                    value={availabilityCustomDescription}
-                    onChange={(e) => setAvailabilityCustomDescription(e.target.value)}
-                    placeholder={t('availabilityCustomDescPlaceholder')}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-xs"
-                  />
                 </div>
 
                 {/* School Filter */}
@@ -636,6 +694,148 @@ export default function SearchPage() {
                   <p className="text-xs text-gray-500 mt-1">Find partners who speak these languages</p>
                 </div>
 
+                {/* Goals Filter - NEW */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Learning Goals
+                    </label>
+                    <button
+                      onClick={() => setShowGoalsDescription(!showGoalsDescription)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {showGoalsDescription ? t('hideInfo') : t('showInfo')}
+                    </button>
+                  </div>
+                  {showGoalsDescription && (
+                    <p className="text-xs text-gray-600 mb-2 p-2 bg-orange-50 rounded">
+                      Find partners with aligned learning goals. Select goals that match your objectives to find motivated study partners.
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {allGoals.map((goal) => (
+                      <label key={goal} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedGoals.includes(goal)}
+                          onChange={() => toggleGoal(goal)}
+                          className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">{goal}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Age Range Filter - NEW */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Age Range
+                    </label>
+                    <button
+                      onClick={() => setShowAgeDescription(!showAgeDescription)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {showAgeDescription ? t('hideInfo') : t('showInfo')}
+                    </button>
+                  </div>
+                  {showAgeDescription && (
+                    <p className="text-xs text-gray-600 mb-2 p-2 bg-teal-50 rounded">
+                      Filter by age group to find partners in similar life stages. Choose an age range that fits your preference.
+                    </p>
+                  )}
+                  <select
+                    value={selectedAgeRange}
+                    onChange={(e) => setSelectedAgeRange(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  >
+                    <option value="">All Ages</option>
+                    {ageRanges.map((range) => (
+                      <option key={range.value} value={range.value}>
+                        {range.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Role Filter - NEW */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Role
+                    </label>
+                    <button
+                      onClick={() => setShowRoleDescription(!showRoleDescription)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {showRoleDescription ? t('hideInfo') : t('showInfo')}
+                    </button>
+                  </div>
+                  {showRoleDescription && (
+                    <p className="text-xs text-gray-600 mb-2 p-2 bg-pink-50 rounded">
+                      Find partners with similar roles. Students can connect with other students, teachers with educators, etc.
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {roles.map((role) => (
+                      <label key={role} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRoles.includes(role)}
+                          onChange={() => toggleRole(role)}
+                          className="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">{role}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Location Filter - NEW */}
+                <div className="mb-6 pb-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Location
+                    </label>
+                    <button
+                      onClick={() => setShowLocationDescription(!showLocationDescription)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {showLocationDescription ? t('hideInfo') : t('showInfo')}
+                    </button>
+                  </div>
+                  {showLocationDescription && (
+                    <p className="text-xs text-gray-600 mb-3 p-2 bg-cyan-50 rounded">
+                      Find study partners in your city, state, or country. Great for finding local partners or those in similar time zones.
+                    </p>
+                  )}
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={locationCity}
+                      onChange={(e) => setLocationCity(e.target.value)}
+                      placeholder="City (e.g., Boston, London, Tokyo)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={locationState}
+                      onChange={(e) => setLocationState(e.target.value)}
+                      placeholder="State/Province (e.g., California, Ontario)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={locationCountry}
+                      onChange={(e) => setLocationCountry(e.target.value)}
+                      placeholder="Country (e.g., USA, Canada, UK)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Filter by city, state, or country to find nearby study partners</p>
+                </div>
+
                 <button
                   onClick={handleFindPartner}
                   disabled={isSearching}
@@ -656,13 +856,14 @@ export default function SearchPage() {
                   </h2>
                   <button
                     onClick={loadRandomPartners}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    disabled={isLoadingRandom}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t('loadNewRandomPartners')}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 ${isLoadingRandom ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    {t('refresh')}
+                    {isLoadingRandom ? 'Loading...' : t('refresh')}
                   </button>
                 </div>
                 <p className="text-sm text-gray-600">
@@ -670,7 +871,7 @@ export default function SearchPage() {
                 </p>
               </div>
 
-              {/* Error Message */}
+              {/* Error Messages */}
               {searchError && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
                   <div className="flex items-center gap-2">
@@ -682,7 +883,58 @@ export default function SearchPage() {
                 </div>
               )}
 
+              {randomError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm text-red-700">{randomError}</p>
+                    </div>
+                    <button
+                      onClick={loadRandomPartners}
+                      disabled={isLoadingRandom}
+                      className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoadingRandom ? 'Retrying...' : 'Retry'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Loading Skeleton */}
+              {isLoadingRandom && (
+                <div className="space-y-4 mb-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 animate-pulse">
+                      <div className="flex items-start gap-4">
+                        <div className="w-16 h-16 bg-gray-200 rounded-full flex-shrink-0"></div>
+                        <div className="flex-1">
+                          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+                          <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                          <div className="flex gap-2 mb-3">
+                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                          </div>
+                          <div className="h-4 bg-gray-200 rounded w-full"></div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="w-20 h-10 bg-gray-200 rounded-lg"></div>
+                          <div className="w-20 h-10 bg-gray-200 rounded-lg"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-600">Finding study partners for you...</p>
+                  </div>
+                </div>
+              )}
+
               {/* Partner Cards */}
+              {!isLoadingRandom && (
               <FadeInOptimized delay={0.1}>
                 <div className="space-y-4">
                   {partners.length > 0 ? (
@@ -807,6 +1059,7 @@ export default function SearchPage() {
                 )}
                 </div>
               </FadeInOptimized>
+              )}
             </div>
           </div>
         </div>

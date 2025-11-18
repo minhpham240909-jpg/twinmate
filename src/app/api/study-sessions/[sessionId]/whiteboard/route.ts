@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+
+// SECURITY: Validation schema for whiteboard updates
+const updateWhiteboardSchema = z.object({
+  snapshotUrl: z.string().url('Invalid snapshot URL').max(2048, 'Snapshot URL too long').optional().nullable(),
+  thumbnailUrl: z.string().url('Invalid thumbnail URL').max(2048, 'Thumbnail URL too long').optional().nullable(),
+})
 
 export async function GET(
   req: NextRequest,
@@ -112,7 +119,20 @@ export async function PUT(
     }
 
     const body = await req.json()
-    const { snapshotUrl, thumbnailUrl } = body
+
+    // SECURITY: Validate URLs to prevent XSS/SSRF attacks
+    const validation = updateWhiteboardSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid whiteboard data',
+          details: validation.error.format()
+        },
+        { status: 400 }
+      )
+    }
+
+    const { snapshotUrl, thumbnailUrl } = validation.data
 
     // Update whiteboard with new snapshot
     const whiteboard = await prisma.sessionWhiteboard.update({

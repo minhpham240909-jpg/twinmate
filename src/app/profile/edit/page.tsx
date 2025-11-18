@@ -30,7 +30,6 @@ export default function ProfilePage() {
     studyStyleDescription: '',
     availableDays: [] as string[],
     availableHours: '',
-    availabilityDescription: '',
     aboutYourselfItems: [] as string[],
     aboutYourself: '',
     school: '',
@@ -73,7 +72,6 @@ export default function ProfilePage() {
         studyStyleDescription: profile.studyStyleCustomDescription || '',
         availableDays: profile.availableDays || [],
         availableHours: (Array.isArray(profile.availableHours) && profile.availableHours.length > 0) ? profile.availableHours[0] : '',
-        availabilityDescription: profile.availabilityCustomDescription || '',
         aboutYourselfItems: (profile as { aboutYourselfItems?: string[] }).aboutYourselfItems || [],
         aboutYourself: (profile as { aboutYourself?: string }).aboutYourself || '',
         school: (profile as { school?: string }).school || '',
@@ -184,7 +182,6 @@ export default function ProfilePage() {
         studyStyleCustomDescription: formData.studyStyleDescription || undefined,
         availableDays: formData.availableDays,
         availableHours: formData.availableHours || undefined,
-        availabilityCustomDescription: formData.availabilityDescription || undefined,
         aboutYourselfItems: formData.aboutYourselfItems,
         aboutYourself: formData.aboutYourself || undefined,
         school: formData.school || undefined,
@@ -701,14 +698,7 @@ export default function ProfilePage() {
                 value={formData.availableHours}
                 onChange={(e) => setFormData({ ...formData, availableHours: e.target.value })}
                 placeholder={t('typicalHours')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm mb-3 bg-white"
-              />
-              <textarea
-                value={formData.availabilityDescription}
-                onChange={(e) => setFormData({ ...formData, availabilityDescription: e.target.value })}
-                placeholder={t('describeAvailability')}
-                rows={2}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-sm bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-white"
               />
             </div>
           </div>

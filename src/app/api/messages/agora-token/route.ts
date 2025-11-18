@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { RtcTokenBuilder, RtcRole } from 'agora-token'
 import { createClient } from '@/lib/supabase/server'
 import { corsHeaders, handleCorsPreFlight } from '@/lib/cors'
+import { prisma } from '@/lib/prisma'
 
 // Handle CORS preflight
 export async function OPTIONS(req: NextRequest) {
@@ -42,6 +43,40 @@ export async function POST(req: NextRequest) {
         { status: 400, headers }
       )
     }
+
+    // SECURITY: Verify user is a participant in the study session
+    // Find the session by Agora channel name
+    const session = await prisma.studySession.findFirst({
+      where: { agoraChannel: channelName },
+      select: { id: true, status: true }
+    })
+
+    if (!session) {
+      console.warn(`[Agora Token] Session not found for channel: ${channelName}`)
+      return NextResponse.json(
+        { error: 'Study session not found' },
+        { status: 404, headers }
+      )
+    }
+
+    // SECURITY: Verify user is a JOINED participant (not just invited)
+    const participant = await prisma.sessionParticipant.findFirst({
+      where: {
+        sessionId: session.id,
+        userId: user.id,
+        status: 'JOINED' // Only JOINED participants can get tokens
+      }
+    })
+
+    if (!participant) {
+      console.warn(`[Agora Token] User ${user.id} is not a joined participant in session ${session.id}`)
+      return NextResponse.json(
+        { error: 'You are not authorized to join this study session' },
+        { status: 403, headers }
+      )
+    }
+
+    console.log('[Agora Token] Participant validation passed:', { sessionId: session.id, userId: user.id })
 
     // Get Agora credentials from environment variables
     // Sanitize to remove any newlines or whitespace that might cause token generation to fail

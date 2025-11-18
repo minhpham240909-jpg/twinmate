@@ -31,6 +31,49 @@ export async function POST(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
+    // SECURITY: Verify user has permission to join this session
+    const isHost = session.createdBy === user.id
+
+    if (!isHost) {
+      // Check if user was invited
+      const invitation = await prisma.sessionParticipant.findUnique({
+        where: {
+          sessionId_userId: {
+            sessionId,
+            userId: user.id,
+          },
+        },
+        select: {
+          status: true,
+        },
+      })
+
+      // If there's an existing participant record, they must have been INVITED
+      const wasInvited = invitation?.status === 'INVITED'
+
+      // If not invited and session is private, verify they're an accepted partner
+      if (!wasInvited && !session.isPublic) {
+        const isAcceptedPartner = await prisma.match.findFirst({
+          where: {
+            OR: [
+              { senderId: user.id, receiverId: session.createdBy, status: 'ACCEPTED' },
+              { senderId: session.createdBy, receiverId: user.id, status: 'ACCEPTED' },
+            ],
+          },
+        })
+
+        if (!isAcceptedPartner) {
+          console.warn(
+            `[Join Session] User ${user.id} attempted to join session ${sessionId} without invitation or partner relationship`
+          )
+          return NextResponse.json(
+            { error: 'You must be invited or be an accepted partner to join this session' },
+            { status: 403 }
+          )
+        }
+      }
+    }
+
     // Atomically check capacity and add participant to prevent race conditions
     await prisma.$transaction(async (tx) => {
       // Re-check capacity inside transaction

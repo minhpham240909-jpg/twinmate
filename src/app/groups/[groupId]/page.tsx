@@ -245,41 +245,10 @@ export default function ViewGroupPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          {!groupData.isMember ? (
-            <div className="absolute right-0 top-4 flex gap-3">
-              <button
-                onClick={handleJoinGroup}
-                disabled={actionLoading || groupData.memberCount >= groupData.maxMembers}
-                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading ? 'Joining...' : groupData.memberCount >= groupData.maxMembers ? 'Group Full' : 'Join Group'}
-              </button>
-            </div>
-          ) : (
-            <div className="absolute right-0 top-4 flex gap-3">
-              <button
-                onClick={handleMessage}
-                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm shadow-lg flex items-center gap-2"
-              >
-                <MessageCircle size={16} />
-                Message
-              </button>
-              {!groupData.isOwner && (
-                <button
-                  onClick={handleLeaveGroup}
-                  disabled={actionLoading}
-                  className="px-6 py-2.5 border border-gray-300 text-gray-900 rounded-full font-semibold hover:bg-gray-50 hover:scale-105 transition-all text-sm shadow disabled:opacity-50"
-                >
-                  {actionLoading ? 'Leaving...' : 'Leave Group'}
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Group Info */}
-        <div className="mb-4">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">{groupData.name}</h1>
 
           {groupData.description && (
@@ -296,6 +265,38 @@ export default function ViewGroupPage() {
               <span>Created {new Date(groupData.createdAt).toLocaleDateString()}</span>
             </div>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mb-6">
+          {!groupData.isMember ? (
+            <button
+              onClick={handleJoinGroup}
+              disabled={actionLoading || groupData.memberCount >= groupData.maxMembers}
+              className="w-full md:w-auto px-8 py-3 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {actionLoading ? 'Joining...' : groupData.memberCount >= groupData.maxMembers ? 'Group Full' : 'Join Group'}
+            </button>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleMessage}
+                className="flex-1 md:flex-none px-8 py-3 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <MessageCircle size={18} />
+                Message
+              </button>
+              {!groupData.isOwner && (
+                <button
+                  onClick={handleLeaveGroup}
+                  disabled={actionLoading}
+                  className="flex-1 md:flex-none px-8 py-3 border-2 border-gray-300 text-gray-900 rounded-full font-semibold hover:bg-gray-50 hover:scale-105 transition-all shadow disabled:opacity-50"
+                >
+                  {actionLoading ? 'Leaving...' : 'Leave Group'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}

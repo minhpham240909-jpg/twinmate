@@ -79,12 +79,16 @@ export async function GET(
       )
     }
 
-    // Ensure profile exists - create if missing (safety check for data integrity)
+    // SECURITY: Ensure profile exists - use upsert to handle race conditions
     if (!dbUser.profile) {
       try {
-        await prisma.profile.create({
-          data: { userId: dbUser.id },
+        // Use upsert to safely handle concurrent profile creation attempts
+        await prisma.profile.upsert({
+          where: { userId: dbUser.id },
+          create: { userId: dbUser.id },
+          update: {}, // No updates needed if it already exists
         })
+
         // Refetch user with profile
         const updatedUser = await prisma.user.findUnique({
           where: { id: userId },
@@ -108,8 +112,20 @@ export async function GET(
           dbUser = updatedUser
         }
       } catch (error) {
-        // Profile might already exist (race condition), continue with null profile
-        console.warn('Could not create profile (may already exist):', error)
+        // Upsert failed - log for debugging but continue
+        console.error('Profile upsert error:', error)
+        // Try to fetch profile one more time in case it was created by another request
+        try {
+          const refetchedUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { profile: true }
+          })
+          if (refetchedUser?.profile) {
+            dbUser.profile = refetchedUser.profile
+          }
+        } catch (refetchError) {
+          console.error('Profile refetch error:', refetchError)
+        }
       }
     }
 
@@ -175,47 +191,96 @@ export async function GET(
       }
     }
 
-    // Calculate match score (subjects + interests + study style)
+    // Calculate match score with detailed breakdown (aligned with search API logic)
     let matchScore = 0
     const matchDetails = {
-      subjects: 0,
-      interests: 0,
-      studyStyle: false,
+      subjects: {
+        count: 0,
+        items: [] as string[],
+        score: 0,
+      },
+      interests: {
+        count: 0,
+        items: [] as string[],
+        score: 0,
+      },
+      goals: {
+        count: 0,
+        items: [] as string[],
+      },
+      skillLevel: {
+        matches: false,
+        value: null as string | null,
+      },
+      studyStyle: {
+        matches: false,
+        value: null as string | null,
+      },
     }
 
     if (user.id !== userId && dbUser.profile) {
       try {
-        // Get current user's profile
+        // Get current user's profile - secure query using Prisma with authenticated user
         const currentUserProfile = await prisma.profile.findUnique({
           where: { userId: user.id },
         })
 
         if (currentUserProfile && dbUser.profile) {
-          // Match subjects - ensure arrays exist
+          // Match subjects - ensure arrays exist and sanitize
           const profileSubjects = Array.isArray(dbUser.profile.subjects) ? dbUser.profile.subjects : []
           const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
           const commonSubjects = profileSubjects.filter((subject: string) =>
             currentSubjects.includes(subject)
           )
-          matchDetails.subjects = commonSubjects.length
+          matchDetails.subjects.count = commonSubjects.length
+          matchDetails.subjects.items = commonSubjects
+          matchDetails.subjects.score = commonSubjects.length * 20 // 20 points per subject
 
-          // Match interests - ensure arrays exist
+          // Match interests - ensure arrays exist and sanitize
           const profileInterests = Array.isArray(dbUser.profile.interests) ? dbUser.profile.interests : []
           const currentInterests = Array.isArray(currentUserProfile.interests) ? currentUserProfile.interests : []
           const commonInterests = profileInterests.filter((interest: string) =>
             currentInterests.includes(interest)
           )
-          matchDetails.interests = commonInterests.length
+          matchDetails.interests.count = commonInterests.length
+          matchDetails.interests.items = commonInterests
+          matchDetails.interests.score = commonInterests.length * 15 // 15 points per interest
 
-          // Match study style
-          matchDetails.studyStyle = dbUser.profile.studyStyle === currentUserProfile.studyStyle
+          // Match goals - informational only, not scored
+          const profileGoals = Array.isArray(dbUser.profile.goals) ? dbUser.profile.goals : []
+          const currentGoals = Array.isArray(currentUserProfile.goals) ? currentUserProfile.goals : []
+          const commonGoals = profileGoals.filter((goal: string) =>
+            currentGoals.includes(goal)
+          )
+          matchDetails.goals.count = commonGoals.length
+          matchDetails.goals.items = commonGoals
 
-          // Calculate total match score (out of 100)
-          const subjectScore = Math.min((matchDetails.subjects / 5) * 40, 40) // Max 40 points
-          const interestScore = Math.min((matchDetails.interests / 5) * 40, 40) // Max 40 points
-          const styleScore = matchDetails.studyStyle ? 20 : 0 // 20 points
+          // Match skill level - 10 points if matches
+          matchDetails.skillLevel.matches = Boolean(
+            currentUserProfile.skillLevel &&
+            dbUser.profile.skillLevel &&
+            dbUser.profile.skillLevel === currentUserProfile.skillLevel
+          )
+          matchDetails.skillLevel.value = dbUser.profile.skillLevel
+          const skillScore = matchDetails.skillLevel.matches ? 10 : 0
 
-          matchScore = Math.round(subjectScore + interestScore + styleScore)
+          // Match study style - 10 points if matches
+          matchDetails.studyStyle.matches = Boolean(
+            currentUserProfile.studyStyle &&
+            dbUser.profile.studyStyle &&
+            dbUser.profile.studyStyle === currentUserProfile.studyStyle
+          )
+          matchDetails.studyStyle.value = dbUser.profile.studyStyle
+          const styleScore = matchDetails.studyStyle.matches ? 10 : 0
+
+          // Calculate total match score (out of 100) - cap at 100
+          matchScore = Math.min(
+            matchDetails.subjects.score +
+            matchDetails.interests.score +
+            skillScore +
+            styleScore,
+            100
+          )
         }
       } catch (error) {
         console.warn('Error calculating match score:', error)
@@ -233,6 +298,32 @@ export async function GET(
       console.warn('Error getting online status:', error)
     }
 
+    // SECURITY: Sanitize location data based on privacy settings
+    let sanitizedProfile = dbUser.profile
+    if (dbUser.profile && user.id !== userId) {
+      const locationVisibility = (dbUser.profile as any).location_visibility || 'private'
+
+      // If location is private, always hide it
+      if (locationVisibility === 'private') {
+        sanitizedProfile = {
+          ...dbUser.profile,
+          location_city: null,
+          location_state: null,
+          location_country: null,
+        }
+      }
+
+      // If location is match-only, only show to accepted partners
+      if (locationVisibility === 'match-only' && connectionStatus !== 'connected') {
+        sanitizedProfile = {
+          ...dbUser.profile,
+          location_city: null,
+          location_state: null,
+          location_country: null,
+        }
+      }
+    }
+
     return NextResponse.json({
       user: {
         id: dbUser.id,
@@ -243,7 +334,7 @@ export async function GET(
         role: dbUser.role,
         onlineStatus,
       },
-      profile: dbUser.profile || null,
+      profile: sanitizedProfile || null,
       posts: userPosts || [],
       connectionStatus,
       connectionId,

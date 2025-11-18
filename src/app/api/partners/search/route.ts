@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
@@ -14,15 +15,32 @@ const searchSchema = z.object({
   skillLevelCustomDescription: z.string().optional(),
   studyStyleCustomDescription: z.string().optional(),
   interestsCustomDescription: z.string().optional(),
-  availabilityCustomDescription: z.string().optional(),
   aboutYourselfSearch: z.string().optional(),
   school: z.string().optional(),
   languages: z.string().optional(),
+  ageRange: z.string().optional(), // NEW: Age range filter
+  role: z.array(z.string()).optional(), // NEW: Role filter (can select multiple)
+  goals: z.array(z.string()).optional(), // NEW: Goals filter
+  locationCity: z.string().optional(), // NEW: Location filter - city
+  locationState: z.string().optional(), // NEW: Location filter - state
+  locationCountry: z.string().optional(), // NEW: Location filter - country
   page: z.number().optional().default(1),
   limit: z.number().optional().default(20),
 })
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 30 searches per minute to prevent abuse
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many search requests. Please slow down.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers
+      }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()
@@ -69,10 +87,15 @@ export async function POST(request: NextRequest) {
       skillLevelCustomDescription,
       studyStyleCustomDescription,
       interestsCustomDescription,
-      availabilityCustomDescription,
       aboutYourselfSearch,
       school,
       languages,
+      ageRange,
+      role,
+      goals,
+      locationCity,
+      locationState,
+      locationCountry,
       page,
       limit,
     } = validation.data
@@ -89,10 +112,15 @@ export async function POST(request: NextRequest) {
       (skillLevelCustomDescription && skillLevelCustomDescription.trim().length > 0) ||
       (studyStyleCustomDescription && studyStyleCustomDescription.trim().length > 0) ||
       (interestsCustomDescription && interestsCustomDescription.trim().length > 0) ||
-      (availabilityCustomDescription && availabilityCustomDescription.trim().length > 0) ||
       (aboutYourselfSearch && aboutYourselfSearch.trim().length > 0) ||
       (school && school.trim().length > 0) ||
-      (languages && languages.trim().length > 0)
+      (languages && languages.trim().length > 0) ||
+      (ageRange && ageRange !== '') ||
+      (role && role.length > 0) ||
+      (goals && goals.length > 0) ||
+      (locationCity && locationCity.trim().length > 0) ||
+      (locationState && locationState.trim().length > 0) ||
+      (locationCountry && locationCountry.trim().length > 0)
 
     if (!hasSearchCriteria) {
       return NextResponse.json(
@@ -124,6 +152,8 @@ export async function POST(request: NextRequest) {
       .from('Profile')
       .select(`
         userId,
+        age,
+        role,
         subjects,
         interests,
         goals,
@@ -141,6 +171,10 @@ export async function POST(request: NextRequest) {
         studyStyleCustomDescription,
         interestsCustomDescription,
         availabilityCustomDescription,
+        location_city,
+        location_state,
+        location_country,
+        location_visibility,
         updatedAt,
         user:User!inner(
           id,
@@ -183,9 +217,57 @@ export async function POST(request: NextRequest) {
       query = query.overlaps('availableDays', availability)
     }
 
+    // Filter by goals
+    if (goals && goals.length > 0) {
+      query = query.overlaps('goals', goals)
+    }
+
+    // Filter by role
+    if (role && role.length > 0) {
+      query = query.in('role', role)
+    }
+
+    // Filter by age range
+    if (ageRange && ageRange !== '') {
+      // Parse age range and filter accordingly
+      const ageRanges: Record<string, { min: number; max: number }> = {
+        'under-18': { min: 0, max: 17 },
+        '18-24': { min: 18, max: 24 },
+        '25-34': { min: 25, max: 34 },
+        '35-44': { min: 35, max: 44 },
+        '45+': { min: 45, max: 999 }
+      }
+
+      const range = ageRanges[ageRange]
+      if (range) {
+        query = query.gte('age', range.min).lte('age', range.max)
+      }
+    }
+
+    // Filter by location - case-insensitive partial match
+    // SECURITY: Only filter users whose location visibility is PUBLIC
+    // Users with 'private' or 'match-only' location settings should not be searchable by location
+    if (locationCity && locationCity.trim() !== '') {
+      query = query
+        .ilike('location_city', `%${locationCity.trim()}%`)
+        .eq('location_visibility', 'public')
+    }
+
+    if (locationState && locationState.trim() !== '') {
+      query = query
+        .ilike('location_state', `%${locationState.trim()}%`)
+        .eq('location_visibility', 'public')
+    }
+
+    if (locationCountry && locationCountry.trim() !== '') {
+      query = query
+        .ilike('location_country', `%${locationCountry.trim()}%`)
+        .eq('location_visibility', 'public')
+    }
+
     // Text search across multiple fields
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
-        studyStyleCustomDescription || interestsCustomDescription || availabilityCustomDescription ||
+        studyStyleCustomDescription || interestsCustomDescription ||
         aboutYourselfSearch || school || languages) {
 
       const searchTerms: string[] = []
@@ -194,7 +276,6 @@ export async function POST(request: NextRequest) {
       if (skillLevelCustomDescription) searchTerms.push(skillLevelCustomDescription)
       if (studyStyleCustomDescription) searchTerms.push(studyStyleCustomDescription)
       if (interestsCustomDescription) searchTerms.push(interestsCustomDescription)
-      if (availabilityCustomDescription) searchTerms.push(availabilityCustomDescription)
       if (aboutYourselfSearch) searchTerms.push(aboutYourselfSearch)
       if (school) searchTerms.push(school)
       if (languages) searchTerms.push(languages)
@@ -214,6 +295,35 @@ export async function POST(request: NextRequest) {
       throw new Error(`Search failed: ${profileError.message}`)
     }
 
+    // SECURITY: Sanitize location data based on privacy settings
+    // Hide location for users who have set their location to private or match-only (if not matched)
+    const sanitizedProfiles = (profiles || []).map(profile => {
+      const locationVisibility = profile.location_visibility || 'private'
+
+      // If location is private, always hide it
+      if (locationVisibility === 'private') {
+        return {
+          ...profile,
+          location_city: null,
+          location_state: null,
+          location_country: null,
+        }
+      }
+
+      // If location is match-only, only show to accepted partners
+      if (locationVisibility === 'match-only' && !acceptedPartnerIds.has(profile.userId)) {
+        return {
+          ...profile,
+          location_city: null,
+          location_state: null,
+          location_country: null,
+        }
+      }
+
+      // Location is public or user is matched partner - show location
+      return profile
+    })
+
     // Get current user's profile for compatibility scoring
     const { data: myProfile } = await supabase
       .from('Profile')
@@ -222,7 +332,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     // Filter profiles by searchQuery if provided (improved fuzzy search with ranking)
-    let filteredProfiles = profiles || []
+    let filteredProfiles = sanitizedProfiles
 
     if (searchQuery && searchQuery.trim().length > 0) {
       // Split search query into words for partial matching
@@ -267,6 +377,7 @@ export async function POST(request: NextRequest) {
           matchCount += matchesAnyWord(profile.bio)
           matchCount += matchesAnyWord(profile.school)
           matchCount += matchesAnyWord(profile.languages)
+          matchCount += matchesAnyWord(profile.role)
           matchCount += matchesAnyWord(profile.aboutYourself)
           matchCount += matchesAnyWord(profile.skillLevel)
           matchCount += matchesAnyWord(profile.studyStyle)
@@ -275,6 +386,10 @@ export async function POST(request: NextRequest) {
           matchCount += matchesAnyWord(profile.studyStyleCustomDescription)
           matchCount += matchesAnyWord(profile.interestsCustomDescription)
           matchCount += matchesAnyWord(profile.availabilityCustomDescription)
+          // Location fields for text search
+          matchCount += matchesAnyWord(profile.location_city)
+          matchCount += matchesAnyWord(profile.location_state)
+          matchCount += matchesAnyWord(profile.location_country)
 
           // Search in array fields
           matchCount += matchesArrayItems(profile.subjects)

@@ -874,7 +874,7 @@ export default function GroupsPage() {
                     </select>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('subjectDescription')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject Description</label>
                     <input
                       type="text"
                       value={searchSubjectDesc}
@@ -884,7 +884,7 @@ export default function GroupsPage() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('skillLevelDescription')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Description</label>
                     <input
                       type="text"
                       value={searchSkillLevelDesc}

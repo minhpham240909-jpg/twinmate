@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+
+// SECURITY: Validation schema for invite requests
+const inviteSchema = z.object({
+  inviteUserIds: z.array(z.string().uuid('Invalid user ID format')).min(1, 'At least one user ID required').max(50, 'Cannot invite more than 50 users at once'),
+})
 
 export async function POST(
   request: NextRequest,
@@ -16,14 +22,20 @@ export async function POST(
 
     const { sessionId } = await params
     const body = await request.json()
-    const { inviteUserIds } = body
 
-    if (!Array.isArray(inviteUserIds) || inviteUserIds.length === 0) {
+    // SECURITY: Validate invite user IDs are valid UUIDs
+    const validation = inviteSchema.safeParse(body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Missing required field: inviteUserIds' },
+        {
+          error: 'Invalid invite data',
+          details: validation.error.format()
+        },
         { status: 400 }
       )
     }
+
+    const { inviteUserIds } = validation.data
 
     // Verify user is the host of the session
     const session = await prisma.studySession.findUnique({

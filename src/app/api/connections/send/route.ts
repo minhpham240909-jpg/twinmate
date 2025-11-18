@@ -51,102 +51,105 @@ export async function POST(request: NextRequest) {
     console.log('Current user ID:', user.id, 'Receiver ID:', receiverId)
 
     // Use transaction to prevent race conditions
-    const match = await prisma.$transaction(async (tx) => {
-      // Check if request already exists
-      const existingMatch = await tx.match.findUnique({
-        where: {
-          senderId_receiverId: {
-            senderId: user.id,
-            receiverId: receiverId
-          }
-        }
-      })
-      console.log('Existing match check result:', existingMatch ? 'FOUND' : 'NOT FOUND')
-
-      if (existingMatch) {
-        console.log('Existing match found:', existingMatch.id, 'status:', existingMatch.status)
-
-        // If there's a PENDING request, don't allow duplicate
-        if (existingMatch.status === 'PENDING') {
-          throw new Error('REQUEST_ALREADY_SENT')
-        }
-
-        // If there's an ACCEPTED connection, they're already connected
-        if (existingMatch.status === 'ACCEPTED') {
-          throw new Error('ALREADY_CONNECTED')
-        }
-
-        // If REJECTED or CANCELLED, update the existing match back to PENDING
-        return await tx.match.update({
-          where: { id: existingMatch.id },
-          data: {
-            status: 'PENDING',
-            message: message || null,
-            updatedAt: new Date(),
-            respondedAt: null
+    let match
+    try {
+      match = await prisma.$transaction(async (tx) => {
+        // Check if request already exists
+        const existingMatch = await tx.match.findUnique({
+          where: {
+            senderId_receiverId: {
+              senderId: user.id,
+              receiverId: receiverId
+            }
           }
         })
-      }
+        console.log('Existing match check result:', existingMatch ? 'FOUND' : 'NOT FOUND')
 
-      // Check if reverse request exists
-      const reverseMatch = await tx.match.findUnique({
-        where: {
-          senderId_receiverId: {
-            senderId: receiverId,
-            receiverId: user.id
+        if (existingMatch) {
+          console.log('Existing match found:', existingMatch.id, 'status:', existingMatch.status)
+
+          // If there's a PENDING request, don't allow duplicate
+          if (existingMatch.status === 'PENDING') {
+            throw new Error('REQUEST_ALREADY_SENT')
+          }
+
+          // If there's an ACCEPTED connection, they're already connected
+          if (existingMatch.status === 'ACCEPTED') {
+            throw new Error('ALREADY_CONNECTED')
+          }
+
+          // If REJECTED or CANCELLED, update the existing match back to PENDING
+          return await tx.match.update({
+            where: { id: existingMatch.id },
+            data: {
+              status: 'PENDING',
+              message: message || null,
+              updatedAt: new Date(),
+              respondedAt: null
+            }
+          })
+        }
+
+        // Check if reverse request exists
+        const reverseMatch = await tx.match.findUnique({
+          where: {
+            senderId_receiverId: {
+              senderId: receiverId,
+              receiverId: user.id
+            }
+          }
+        })
+        console.log('Reverse match check result:', reverseMatch ? 'FOUND' : 'NOT FOUND')
+
+        if (reverseMatch) {
+          console.log('Reverse match found:', reverseMatch.id, 'status:', reverseMatch.status)
+
+          // Only block if there's a PENDING request from the other user
+          if (reverseMatch.status === 'PENDING') {
+            throw new Error('REVERSE_REQUEST_EXISTS')
+          }
+
+          // If ACCEPTED, they're already connected
+          if (reverseMatch.status === 'ACCEPTED') {
+            throw new Error('ALREADY_CONNECTED')
           }
         }
+
+        // Create new match request
+        return await tx.match.create({
+          data: {
+            senderId: user.id,
+            receiverId: receiverId,
+            status: 'PENDING',
+            message: message || null
+          }
+        })
       })
-      console.log('Reverse match check result:', reverseMatch ? 'FOUND' : 'NOT FOUND')
-
-      if (reverseMatch) {
-        console.log('Reverse match found:', reverseMatch.id, 'status:', reverseMatch.status)
-
-        // Only block if there's a PENDING request from the other user
-        if (reverseMatch.status === 'PENDING') {
-          throw new Error('REVERSE_REQUEST_EXISTS')
+    } catch (txError) {
+      // SECURITY: Handle transaction errors properly outside the transaction
+      // This ensures reliable error reporting to users
+      if (txError instanceof Error) {
+        if (txError.message === 'REQUEST_ALREADY_SENT') {
+          return NextResponse.json(
+            { error: 'Connection request already sent' },
+            { status: 400 }
+          )
         }
-
-        // If ACCEPTED, they're already connected
-        if (reverseMatch.status === 'ACCEPTED') {
-          throw new Error('ALREADY_CONNECTED')
+        if (txError.message === 'ALREADY_CONNECTED') {
+          return NextResponse.json(
+            { error: 'You are already connected with this user' },
+            { status: 400 }
+          )
+        }
+        if (txError.message === 'REVERSE_REQUEST_EXISTS') {
+          return NextResponse.json(
+            { error: 'This user has already sent you a request' },
+            { status: 400 }
+          )
         }
       }
-
-      // Create new match request
-      return await tx.match.create({
-        data: {
-          senderId: user.id,
-          receiverId: receiverId,
-          status: 'PENDING',
-          message: message || null
-        }
-      })
-    }).catch((txError: Error) => {
-      if (txError.message === 'REQUEST_ALREADY_SENT') {
-        return NextResponse.json(
-          { error: 'Connection request already sent' },
-          { status: 400 }
-        )
-      }
-      if (txError.message === 'ALREADY_CONNECTED') {
-        return NextResponse.json(
-          { error: 'You are already connected with this user' },
-          { status: 400 }
-        )
-      }
-      if (txError.message === 'REVERSE_REQUEST_EXISTS') {
-        return NextResponse.json(
-          { error: 'This user has already sent you a request' },
-          { status: 400 }
-        )
-      }
+      // Re-throw unexpected errors to be caught by outer try-catch
       throw txError
-    })
-
-    // If error response was returned from transaction, return it
-    if (match instanceof NextResponse) {
-      return match
     }
 
     // Get sender info for notification

@@ -73,6 +73,7 @@ function GroupsChatContent() {
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const callMessageId = useRef<string | null>(null)
   const callStartTime = useRef<number>(0)
   const currentCallType = useRef<'VIDEO' | 'AUDIO'>('VIDEO')
@@ -303,6 +304,36 @@ function GroupsChatContent() {
     setIsInCall(false)
     callMessageId.current = null
     callStartTime.current = 0
+  }
+
+  // Delete message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message?')) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/messages/${messageId}/delete`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        // Update the message in the UI to show as deleted
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId ? { ...msg, deletedAt: new Date().toISOString() } : msg
+          )
+        )
+        setSelectedMessageId(null)
+      } else {
+        alert(data.error || 'Failed to delete message')
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error)
+      alert('Failed to delete message')
+    }
   }
 
   // Handle search group select
@@ -581,6 +612,7 @@ function GroupsChatContent() {
                             }
 
                             const isDeleted = !!msg.deletedAt
+                            const canDelete = isOwnMessage
 
                             return (
                               <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
@@ -594,19 +626,43 @@ function GroupsChatContent() {
                                     {!isOwnMessage && (
                                       <p className="text-xs text-gray-500 mb-1 px-1">{msg.sender.name}</p>
                                     )}
-                                    <div className={`rounded-2xl px-4 py-2 ${
-                                      isDeleted
-                                        ? 'bg-gray-200 text-gray-500 italic'
-                                        : isOwnMessage
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-gray-100 text-gray-900'
-                                    }`}>
-                                      <p className="text-sm whitespace-pre-wrap break-words">
-                                        {isDeleted ? t('messageDeleted') : msg.content}
-                                      </p>
-                                      <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-purple-200' : 'text-gray-500'}`}>
-                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                      </span>
+                                    <div className="relative">
+                                      <div
+                                        className={`rounded-2xl px-4 py-2 ${
+                                          isDeleted
+                                            ? 'bg-gray-200 text-gray-500 italic'
+                                            : isOwnMessage
+                                            ? 'bg-purple-600 text-white'
+                                            : 'bg-gray-100 text-gray-900'
+                                        } ${!isDeleted && canDelete ? 'cursor-pointer' : ''}`}
+                                        onClick={() => {
+                                          if (!isDeleted && canDelete) {
+                                            setSelectedMessageId(msg.id === selectedMessageId ? null : msg.id)
+                                          }
+                                        }}
+                                      >
+                                        <p className="text-sm whitespace-pre-wrap break-words">
+                                          {isDeleted ? t('messageDeleted') : msg.content}
+                                        </p>
+                                        <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-purple-200' : 'text-gray-500'}`}>
+                                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+
+                                        {/* Delete button - shows on click */}
+                                        {!isDeleted && canDelete && selectedMessageId === msg.id && (
+                                          <div className="absolute -top-1 -right-1 z-10">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleDeleteMessage(msg.id)
+                                              }}
+                                              className="px-2 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition whitespace-nowrap shadow-lg"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

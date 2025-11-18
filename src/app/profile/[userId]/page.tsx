@@ -50,9 +50,28 @@ type UserProfile = {
   connectionId: string | null
   matchScore: number
   matchDetails: {
-    subjects: number
-    interests: number
-    studyStyle: boolean
+    subjects: {
+      count: number
+      items: string[]
+      score: number
+    }
+    interests: {
+      count: number
+      items: string[]
+      score: number
+    }
+    goals: {
+      count: number
+      items: string[]
+    }
+    skillLevel: {
+      matches: boolean
+      value: string | null
+    }
+    studyStyle: {
+      matches: boolean
+      value: string | null
+    }
   }
 }
 
@@ -77,6 +96,7 @@ export default function UserProfilePage() {
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null)
+  const [showMatchDetails, setShowMatchDetails] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -545,6 +565,183 @@ export default function UserProfilePage() {
               )}
             </div>
           </FadeIn>
+
+          {/* Match Details - Expandable Section */}
+          {!isOwnProfile && profileData.matchScore > 0 && (
+            <FadeIn delay={0.3}>
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowMatchDetails(!showMatchDetails)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 rounded-xl transition-all duration-200 group border border-green-200/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <span className="font-semibold text-gray-900">Match Details</span>
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showMatchDetails ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Expandable Content */}
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    showMatchDetails ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div className="p-5 space-y-4">
+                      {/* Subjects Match */}
+                      {profileData.matchDetails.subjects.count > 0 && (
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-semibold text-gray-900">
+                                {profileData.matchDetails.subjects.count} Shared Subject{profileData.matchDetails.subjects.count !== 1 ? 's' : ''}
+                              </span>
+                              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                                +{profileData.matchDetails.subjects.score} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {profileData.matchDetails.subjects.items.map((subject, idx) => (
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">
+                                  {subject}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Interests Match */}
+                      {profileData.matchDetails.interests.count > 0 && (
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-semibold text-gray-900">
+                                {profileData.matchDetails.interests.count} Shared Interest{profileData.matchDetails.interests.count !== 1 ? 's' : ''}
+                              </span>
+                              <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                                +{profileData.matchDetails.interests.score} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {profileData.matchDetails.interests.items.map((interest, idx) => (
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full font-medium">
+                                  {interest}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Goals Match */}
+                      {profileData.matchDetails.goals.count > 0 && (
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                          <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-semibold text-gray-900">
+                                {profileData.matchDetails.goals.count} Shared Goal{profileData.matchDetails.goals.count !== 1 ? 's' : ''}
+                              </span>
+                              <span className="text-xs text-gray-500 italic">Informational</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {profileData.matchDetails.goals.items.map((goal, idx) => (
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-medium">
+                                  {goal}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Skill Level Match */}
+                      {profileData.matchDetails.skillLevel.matches && (
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                          <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-semibold text-gray-900">Same Skill Level</span>
+                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                                +10 pts
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              Both at <span className="font-semibold text-emerald-700">{profileData.matchDetails.skillLevel.value}</span> level
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Study Style Match */}
+                      {profileData.matchDetails.studyStyle.matches && (
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                          <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-semibold text-gray-900">Same Study Style</span>
+                              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+                                +10 pts
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              Both prefer <span className="font-semibold text-indigo-700">{profileData.matchDetails.studyStyle.value}</span> style
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No matches found */}
+                      {profileData.matchDetails.subjects.count === 0 &&
+                        profileData.matchDetails.interests.count === 0 &&
+                        profileData.matchDetails.goals.count === 0 &&
+                        !profileData.matchDetails.skillLevel.matches &&
+                        !profileData.matchDetails.studyStyle.matches && (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-gray-500">No specific matches found</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+          )}
 
           {/* Connect/Message Buttons - Below Profile Info */}
           {!isOwnProfile && (

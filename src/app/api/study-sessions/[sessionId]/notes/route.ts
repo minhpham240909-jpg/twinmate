@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
+// SECURITY: Enforce reasonable content size limits to prevent memory exhaustion
 const updateNoteSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200).optional(),
-  content: z.string().max(65000).optional(), // Store in DB if < 64KB
+  content: z.string().max(50000, 'Note content too large (max 50KB)').optional(),
 })
 
 // GET /api/study-sessions/[sessionId]/notes

@@ -31,11 +31,12 @@ export async function GET(
       )
     }
 
-    // Verify user is a participant in the session
+    // SECURITY: Verify user is a JOINED participant (not just INVITED)
     const participant = await prisma.sessionParticipant.findFirst({
       where: {
         sessionId,
         userId: user.id,
+        status: 'JOINED', // Only JOINED participants can view flashcards
       },
     })
 

@@ -15,8 +15,36 @@ export async function GET(request: NextRequest) {
 
     // Get query params
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
-    const type = searchParams.get('type')
+    const statusParam = searchParams.get('status')
+    const typeParam = searchParams.get('type')
+
+    // SECURITY: Validate enum values to prevent DoS attacks
+    const validStatuses: SessionStatus[] = ['WAITING', 'ACTIVE', 'SCHEDULED', 'COMPLETED', 'CANCELLED']
+    const validTypes: SessionType[] = ['SOLO', 'ONE_ON_ONE', 'GROUP']
+
+    // Validate status parameter
+    let status: SessionStatus | undefined
+    if (statusParam) {
+      if (!validStatuses.includes(statusParam as SessionStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status filter. Valid values: ${validStatuses.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      status = statusParam as SessionStatus
+    }
+
+    // Validate type parameter
+    let type: SessionType | undefined
+    if (typeParam) {
+      if (!validTypes.includes(typeParam as SessionType)) {
+        return NextResponse.json(
+          { error: `Invalid type filter. Valid values: ${validTypes.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      type = typeParam as SessionType
+    }
 
     // Find sessions where user is a participant (only JOINED, not INVITED)
     const participantRecords = await prisma.sessionParticipant.findMany({
