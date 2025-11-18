@@ -4,8 +4,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import GlowBorder from '@/components/ui/GlowBorder'
-import { UserCircle, Users, Book, TrendingUp, Calendar } from 'lucide-react'
+import { UserCircle, Users, Book, TrendingUp, Calendar, MessageCircle } from 'lucide-react'
 
 type GroupMember = {
   id: string
@@ -152,9 +151,9 @@ export default function ViewGroupPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading group...</p>
         </div>
       </div>
@@ -163,13 +162,18 @@ export default function ViewGroupPage() {
 
   if (error || !groupData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error</h2>
-          <p className="text-gray-600 mb-6">{error || 'Group not found'}</p>
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-200">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Group Not Found</h1>
+          <p className="text-gray-600 mb-6">{error || 'This group could not be found.'}</p>
           <button
             onClick={() => router.push('/groups')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="inline-block px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition font-semibold"
           >
             Back to Groups
           </button>
@@ -190,168 +194,218 @@ export default function ViewGroupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header Section */}
-        <div className="mb-6">
+    <div className="min-h-screen bg-white">
+      {/* Header Navigation */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
           <button
             onClick={() => router.push('/groups')}
-            className="text-blue-600 hover:text-blue-700 mb-4 flex items-center gap-2"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors -ml-2"
           >
-            ← Back to Groups
+            <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
+          <div className="ml-4">
+            <h1 className="text-xl font-bold text-gray-900">{groupData.name}</h1>
+            <p className="text-sm text-gray-500">{groupData.memberCount} {groupData.memberCount === 1 ? 'member' : 'members'}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* Banner */}
+      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+        {groupData.avatarUrl && (
+          <img
+            src={groupData.avatarUrl}
+            alt={groupData.name}
+            className="w-full h-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-black/5"></div>
+      </div>
+
+      {/* Group Header */}
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="relative -mt-24 mb-4">
+          {/* Group Avatar */}
+          <div className="inline-block relative">
+            <div className="w-40 h-40 rounded-full bg-white p-1 shadow-xl">
+              {groupData.avatarUrl ? (
+                <img
+                  src={groupData.avatarUrl}
+                  alt={groupData.name}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white">
+                  <Users size={64} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {!groupData.isMember ? (
+            <div className="absolute right-0 top-4 flex gap-3">
+              <button
+                onClick={handleJoinGroup}
+                disabled={actionLoading || groupData.memberCount >= groupData.maxMembers}
+                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? 'Joining...' : groupData.memberCount >= groupData.maxMembers ? 'Group Full' : 'Join Group'}
+              </button>
+            </div>
+          ) : (
+            <div className="absolute right-0 top-4 flex gap-3">
+              <button
+                onClick={handleMessage}
+                className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm shadow-lg flex items-center gap-2"
+              >
+                <MessageCircle size={16} />
+                Message
+              </button>
+              {!groupData.isOwner && (
+                <button
+                  onClick={handleLeaveGroup}
+                  disabled={actionLoading}
+                  className="px-6 py-2.5 border border-gray-300 text-gray-900 rounded-full font-semibold hover:bg-gray-50 hover:scale-105 transition-all text-sm shadow disabled:opacity-50"
+                >
+                  {actionLoading ? 'Leaving...' : 'Leave Group'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Group Info Card */}
-        <GlowBorder color="#3b82f6" intensity="medium" animated={false} style={{ borderRadius: 16 }}>
-          <div className="bg-white p-8 rounded-2xl">
-            {/* Group Header */}
-            <div className="flex items-start gap-6 mb-6">
-              {/* Group Avatar */}
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white flex-shrink-0">
-                {groupData.avatarUrl ? (
-                  <img src={groupData.avatarUrl} alt={groupData.name} className="w-full h-full object-cover rounded-xl" />
-                ) : (
-                  <Users size={48} />
-                )}
-              </div>
+        {/* Group Info */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">{groupData.name}</h1>
 
-              {/* Group Info */}
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{groupData.name}</h1>
-                <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                  <span className="flex items-center gap-1">
-                    <Users size={16} />
-                    {groupData.memberCount}/{groupData.maxMembers} members
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar size={16} />
-                    Created {new Date(groupData.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
+          {groupData.description && (
+            <p className="text-gray-900 mb-3 whitespace-pre-wrap leading-relaxed">{groupData.description}</p>
+          )}
 
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  {!groupData.isMember ? (
-                    <button
-                      onClick={handleJoinGroup}
-                      disabled={actionLoading || groupData.memberCount >= groupData.maxMembers}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                    >
-                      {actionLoading ? 'Joining...' : groupData.memberCount >= groupData.maxMembers ? 'Group Full' : 'Join Group'}
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleMessage}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
-                      >
-                        Message
-                      </button>
-                      {!groupData.isOwner && (
-                        <button
-                          onClick={handleLeaveGroup}
-                          disabled={actionLoading}
-                          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-semibold"
-                        >
-                          {actionLoading ? 'Leaving...' : 'Leave Group'}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
+            <div className="flex items-center gap-1">
+              <Users size={16} />
+              <span>{groupData.memberCount}/{groupData.maxMembers} members</span>
             </div>
-
-            {/* Group Description */}
-            {groupData.description && (
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">About</h2>
-                <p className="text-gray-700">{groupData.description}</p>
-              </div>
-            )}
-
-            {/* Group Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Subject */}
-              <div>
-                <div className="flex items-center gap-2 text-gray-700 font-medium mb-1">
-                  <Book size={18} className="text-blue-600" />
-                  Subject
-                </div>
-                <p className="text-gray-900">{groupData.subject}</p>
-                {groupData.subjectCustomDescription && (
-                  <p className="text-sm text-gray-600 mt-1">{groupData.subjectCustomDescription}</p>
-                )}
-              </div>
-
-              {/* Skill Level */}
-              <div>
-                <div className="flex items-center gap-2 text-gray-700 font-medium mb-1">
-                  <TrendingUp size={18} className="text-green-600" />
-                  Skill Level
-                </div>
-                <p className="text-gray-900">{groupData.skillLevel}</p>
-                {groupData.skillLevelCustomDescription && (
-                  <p className="text-sm text-gray-600 mt-1">{groupData.skillLevelCustomDescription}</p>
-                )}
-              </div>
-
-              {/* Owner */}
-              <div>
-                <div className="flex items-center gap-2 text-gray-700 font-medium mb-1">
-                  <UserCircle size={18} className="text-purple-600" />
-                  Group Owner
-                </div>
-                <div className="flex items-center gap-2">
-                  {groupData.owner.avatarUrl ? (
-                    <img src={groupData.owner.avatarUrl} alt={groupData.owner.name} className="w-8 h-8 rounded-full" />
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <UserCircle size={20} className="text-gray-600" />
-                    </div>
-                  )}
-                  <span className="text-gray-900">{groupData.owner.name}</span>
-                </div>
-              </div>
+            <div className="flex items-center gap-1">
+              <Calendar size={16} />
+              <span>Created {new Date(groupData.createdAt).toLocaleDateString()}</span>
             </div>
+          </div>
+        </div>
 
-            {/* Members Section */}
+        {/* Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex gap-8">
+            <button className="pb-3 border-b-2 border-black font-semibold text-sm">
+              About
+            </button>
+          </nav>
+        </div>
+
+        {/* About Content */}
+        <div className="pb-8">
+          {/* Group Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Subject */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Members ({groupData.memberCount})
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {groupData.members.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer"
-                    onClick={() => router.push(`/profile/${member.id}`)}
-                  >
-                    <div className="relative">
-                      {member.avatarUrl ? (
-                        <img src={member.avatarUrl} alt={member.name} className="w-12 h-12 rounded-full" />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                          <UserCircle size={24} className="text-gray-600" />
-                        </div>
-                      )}
-                      {member.onlineStatus === 'ONLINE' && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{member.name}</p>
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
+              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
+                <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
+                  <Book size={20} className="text-blue-600" />
+                </div>
+                <span>Subject</span>
+              </div>
+              <p className="text-gray-900 ml-12">{groupData.subject}</p>
+              {groupData.subjectCustomDescription && (
+                <p className="text-sm text-gray-600 ml-12 mt-1">{groupData.subjectCustomDescription}</p>
+              )}
+            </div>
+
+            {/* Skill Level */}
+            <div>
+              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
+                <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
+                  <TrendingUp size={20} className="text-green-600" />
+                </div>
+                <span>Skill Level</span>
+              </div>
+              <p className="text-gray-900 ml-12">{groupData.skillLevel}</p>
+              {groupData.skillLevelCustomDescription && (
+                <p className="text-sm text-gray-600 ml-12 mt-1">{groupData.skillLevelCustomDescription}</p>
+              )}
+            </div>
+
+            {/* Owner */}
+            <div>
+              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
+                <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">
+                  <UserCircle size={20} className="text-purple-600" />
+                </div>
+                <span>Group Owner</span>
+              </div>
+              <button
+                onClick={() => router.push(`/profile/${groupData.owner.id}`)}
+                className="flex items-center gap-3 ml-12 hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors"
+              >
+                {groupData.owner.avatarUrl ? (
+                  <img src={groupData.owner.avatarUrl} alt={groupData.owner.name} className="w-10 h-10 rounded-full" />
+                ) : (
+                  <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                    <UserCircle size={24} className="text-gray-600" />
+                  </div>
+                )}
+                <span className="text-gray-900 font-medium">{groupData.owner.name}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Members Section */}
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Members <span className="text-gray-500 font-normal">({groupData.memberCount})</span>
+            </h2>
+            <div className="space-y-2">
+              {groupData.members.map((member) => (
+                <button
+                  key={member.id}
+                  onClick={() => router.push(`/profile/${member.id}`)}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
+                >
+                  <div className="relative">
+                    {member.avatarUrl ? (
+                      <img src={member.avatarUrl} alt={member.name} className="w-12 h-12 rounded-full" />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                        <UserCircle size={24} className="text-gray-600" />
+                      </div>
+                    )}
+                    {member.onlineStatus === 'ONLINE' && (
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900 truncate">{member.name}</p>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
                         {member.role}
                       </span>
                     </div>
+                    <p className="text-xs text-gray-500">
+                      Joined {new Date(member.joinedAt).toLocaleDateString()}
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ))}
             </div>
           </div>
-        </GlowBorder>
+        </div>
       </div>
     </div>
   )

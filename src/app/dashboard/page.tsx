@@ -294,7 +294,7 @@ export default function DashboardPage() {
         fetch('/api/partners/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ searchQuery: cleanedQuery }),
+          body: JSON.stringify({ searchQuery: cleanedQuery, searchType: 'simple' }),
         }).then(r => r.json()).catch(() => ({ profiles: [] })),
         fetch('/api/groups/search', {
           method: 'POST',

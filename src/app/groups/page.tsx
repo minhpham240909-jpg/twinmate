@@ -976,7 +976,7 @@ export default function GroupsPage() {
                           onClick={() => router.push(`/groups/${group.id}`)}
                           className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all font-medium"
                         >
-                          {t('viewGroup')}
+                          View Group
                         </button>
                       </Bounce>
                     </div>

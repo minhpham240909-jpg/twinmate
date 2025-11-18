@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
+  searchType: z.enum(['simple', 'full']).optional().default('full'),
   subjects: z.array(z.string()).optional(),
   skillLevel: z.string().optional(),
   studyStyle: z.string().optional(),
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
 
     const {
       searchQuery,
+      searchType,
       subjects,
       skillLevel,
       studyStyle,
@@ -251,28 +253,37 @@ export async function POST(request: NextRequest) {
           return matches
         }
 
-        // Search in ALL fields
-        matchCount += matchesAnyWord(user?.name)
-        matchCount += matchesAnyWord(user?.email)
-        matchCount += matchesAnyWord(profile.bio)
-        matchCount += matchesAnyWord(profile.school)
-        matchCount += matchesAnyWord(profile.languages)
-        matchCount += matchesAnyWord(profile.aboutYourself)
-        matchCount += matchesAnyWord(profile.skillLevel)
-        matchCount += matchesAnyWord(profile.studyStyle)
-        matchCount += matchesAnyWord(profile.subjectCustomDescription)
-        matchCount += matchesAnyWord(profile.skillLevelCustomDescription)
-        matchCount += matchesAnyWord(profile.studyStyleCustomDescription)
-        matchCount += matchesAnyWord(profile.interestsCustomDescription)
-        matchCount += matchesAnyWord(profile.availabilityCustomDescription)
+        // Search in fields based on search type
+        if (searchType === 'simple') {
+          // Dashboard search: only name, email, subjects, subject description
+          matchCount += matchesAnyWord(user?.name)
+          matchCount += matchesAnyWord(user?.email)
+          matchCount += matchesAnyWord(profile.subjectCustomDescription)
+          matchCount += matchesArrayItems(profile.subjects)
+        } else {
+          // Full search: all fields (Find Partner page)
+          matchCount += matchesAnyWord(user?.name)
+          matchCount += matchesAnyWord(user?.email)
+          matchCount += matchesAnyWord(profile.bio)
+          matchCount += matchesAnyWord(profile.school)
+          matchCount += matchesAnyWord(profile.languages)
+          matchCount += matchesAnyWord(profile.aboutYourself)
+          matchCount += matchesAnyWord(profile.skillLevel)
+          matchCount += matchesAnyWord(profile.studyStyle)
+          matchCount += matchesAnyWord(profile.subjectCustomDescription)
+          matchCount += matchesAnyWord(profile.skillLevelCustomDescription)
+          matchCount += matchesAnyWord(profile.studyStyleCustomDescription)
+          matchCount += matchesAnyWord(profile.interestsCustomDescription)
+          matchCount += matchesAnyWord(profile.availabilityCustomDescription)
 
-        // Search in array fields
-        matchCount += matchesArrayItems(profile.subjects)
-        matchCount += matchesArrayItems(profile.interests)
-        matchCount += matchesArrayItems(profile.goals)
-        matchCount += matchesArrayItems(profile.availableDays)
-        matchCount += matchesArrayItems(profile.availableHours)
-        matchCount += matchesArrayItems(profile.aboutYourselfItems)
+          // Search in array fields
+          matchCount += matchesArrayItems(profile.subjects)
+          matchCount += matchesArrayItems(profile.interests)
+          matchCount += matchesArrayItems(profile.goals)
+          matchCount += matchesArrayItems(profile.availableDays)
+          matchCount += matchesArrayItems(profile.availableHours)
+          matchCount += matchesArrayItems(profile.aboutYourselfItems)
+        }
 
         return { profile, matchCount }
       })

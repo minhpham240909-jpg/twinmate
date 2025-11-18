@@ -609,7 +609,7 @@ export default function SearchPage() {
                 {/* School Filter */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('schoolUniversity')}
+                    School/University
                   </label>
                   <textarea
                     value={schoolFilter}
@@ -618,7 +618,7 @@ export default function SearchPage() {
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
                   />
-                  <p className="text-xs text-gray-500 mt-1">{t('findPartnersFromSameSchool')}</p>
+                  <p className="text-xs text-gray-500 mt-1">Find partners from the same school</p>
                 </div>
 
                 {/* Languages Filter */}
@@ -633,7 +633,7 @@ export default function SearchPage() {
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
                   />
-                  <p className="text-xs text-gray-500 mt-1">{t('findPartnersWhoSpeak')}</p>
+                  <p className="text-xs text-gray-500 mt-1">Find partners who speak these languages</p>
                 </div>
 
                 <button
