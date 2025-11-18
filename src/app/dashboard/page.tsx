@@ -900,7 +900,7 @@ export default function DashboardPage() {
                           return (
                             <button
                               key={group.id}
-                              onClick={() => router.push('/groups')}
+                              onClick={() => router.push(`/groups/${group.id}`)}
                               className="w-full flex items-start gap-3 p-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 rounded-xl transition-all duration-200 text-left group"
                             >
                               <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
