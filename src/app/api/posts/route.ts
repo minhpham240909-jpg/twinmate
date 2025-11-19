@@ -94,8 +94,7 @@ export async function GET(req: NextRequest) {
             },
             presence: {
               select: {
-                // @ts-ignore - Prisma type inference issue
-                onlineStatus: true,
+                status: true,
               },
             },
           },
@@ -270,7 +269,7 @@ export async function GET(req: NextRequest) {
         ...post,
         user: {
           ...post.user,
-          onlineStatus: connectionStatus === 'connected' ? post.user.presence?.onlineStatus : null,
+          onlineStatus: connectionStatus === 'connected' ? (post.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE') : null,
         },
         isLikedByUser: post.likes.some((like: any) => like.userId === user.id),
         isRepostedByUser: post.reposts.some((repost: any) => repost.userId === user.id),
@@ -350,8 +349,7 @@ export async function POST(req: NextRequest) {
             },
             presence: {
               select: {
-                // @ts-ignore - Prisma type inference issue
-                onlineStatus: true,
+                status: true,
               },
             },
           },
