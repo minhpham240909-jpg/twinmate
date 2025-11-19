@@ -27,7 +27,7 @@ interface Group {
   isMember: boolean
   isOwner: boolean
   avatarUrl?: string
-  membersList?: { id: string; name: string; avatarUrl?: string; role?: string }[]
+  membersList?: { id: string; name: string; avatarUrl?: string; role?: string; onlineStatus?: string }[]
 }
 
 interface GroupInvite {
@@ -1379,20 +1379,41 @@ export default function GroupsPage() {
               <div className="space-y-2">
                 {selectedGroup.membersList?.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <PartnerAvatar
-                        avatarUrl={member.avatarUrl || null}
-                        name={member.name}
-                        size="sm"
-                        showStatus={false}
-                      />
-                      <div>
+                    <button
+                      onClick={() => {
+                        setShowManageModal(false)
+                        setTimeout(() => {
+                          // Navigate to own profile or other user's profile
+                          if (user && member.id === user.id) {
+                            router.push('/profile')
+                          } else {
+                            router.push(`/profile/${member.id}`)
+                          }
+                        }, 100)
+                      }}
+                      className="flex items-center gap-3 hover:bg-gray-100 rounded-lg p-1 -m-1 transition-colors"
+                    >
+                      <div className="relative">
+                        <PartnerAvatar
+                          avatarUrl={member.avatarUrl || null}
+                          name={member.name}
+                          size="sm"
+                          showStatus={false}
+                        />
+                        {/* Online/Offline indicator */}
+                        {member.onlineStatus === 'ONLINE' ? (
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                        ) : (
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
+                        )}
+                      </div>
+                      <div className="text-left">
                         <span className="text-gray-900 font-medium">{member.name}</span>
                         {member.role === 'OWNER' && (
                           <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Owner</span>
                         )}
                       </div>
-                    </div>
+                    </button>
                     {member.role !== 'OWNER' && (
                       <button
                         onClick={() => handleKickMember(member.id)}

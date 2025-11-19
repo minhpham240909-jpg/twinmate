@@ -16,12 +16,35 @@ export default function ChatSelectionPage() {
   const t = useTranslations('chat')
   const tCommon = useTranslations('common')
   const [unreadCounts, setUnreadCounts] = useState({ partner: 0, group: 0 })
+  const [groupIds, setGroupIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/signin')
     }
   }, [user, loading, router])
+
+  // Fetch user's group IDs for real-time subscription
+  useEffect(() => {
+    if (!user) return
+
+    const fetchGroupIds = async () => {
+      try {
+        const response = await fetch('/api/groups/my-groups')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.groups) {
+            const ids = data.groups.map((g: { id: string }) => g.id)
+            setGroupIds(ids)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching group IDs:', error)
+      }
+    }
+
+    fetchGroupIds()
+  }, [user])
 
   // Fetch unread message counts
   useEffect(() => {
@@ -61,9 +84,10 @@ export default function ChatSelectionPage() {
       }
     }
 
-    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts)
+    // Pass groupIds to enable real-time group message updates
+    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts, groupIds.length > 0 ? groupIds : undefined)
     return cleanup
-  }, [user])
+  }, [user, groupIds])
 
   if (loading) {
     return (

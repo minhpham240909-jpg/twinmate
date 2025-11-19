@@ -194,7 +194,10 @@ export default function CommunityPage() {
   }
 
   const fetchPopularPosts = async () => {
-    setIsLoadingPopular(true)
+    // Only show loading spinner if there are no cached posts
+    if (popularPosts.length === 0) {
+      setIsLoadingPopular(true)
+    }
     try {
       const response = await fetch('/api/posts/popular?limit=20&days=7')
       if (response.ok) {
@@ -273,9 +276,9 @@ export default function CommunityPage() {
       const response = await fetch(`/api/posts/${postId}/like`, { method })
 
       if (response.ok) {
-        // Update local state immediately
-        setPosts(prev => {
-          const updated = prev.map(post =>
+        // Helper to update like state
+        const updateLikeState = (posts: Post[]) =>
+          posts.map(post =>
             post.id === postId
               ? {
                   ...post,
@@ -288,6 +291,9 @@ export default function CommunityPage() {
               : post
           )
 
+        // Update all post states
+        setPosts(prev => {
+          const updated = updateLikeState(prev)
           // Update cache
           if (typeof window !== 'undefined') {
             try {
@@ -296,7 +302,21 @@ export default function CommunityPage() {
               console.error('Error updating cache:', error)
             }
           }
+          return updated
+        })
 
+        // Also update search results and popular posts
+        setSearchResults(prev => updateLikeState(prev))
+        setPopularPosts(prev => {
+          const updated = updateLikeState(prev)
+          // Update popular posts cache
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('community_popular_posts', JSON.stringify(updated))
+            } catch (error) {
+              console.error('Error updating popular cache:', error)
+            }
+          }
           return updated
         })
       }
@@ -353,27 +373,42 @@ export default function CommunityPage() {
   const handleComment = async (postId: string) => {
     if (!newComment.trim()) return
 
+    const commentContent = newComment
+    setNewComment('') // Clear input immediately for better UX
+
     try {
       const response = await fetch(`/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newComment }),
+        body: JSON.stringify({ content: commentContent }),
       })
 
       if (response.ok) {
-        setNewComment('')
         await fetchComments(postId)
-        // Update comment count
-        setPosts(prev =>
-          prev.map(post =>
+
+        // Helper to update comment count
+        const updateCommentCount = (posts: Post[]) =>
+          posts.map(post =>
             post.id === postId
               ? { ...post, _count: { ...post._count, comments: post._count.comments + 1 } }
               : post
           )
-        )
+
+        // Update all post states for consistency
+        setPosts(prev => updateCommentCount(prev))
+        setSearchResults(prev => updateCommentCount(prev))
+        setPopularPosts(prev => updateCommentCount(prev))
+      } else {
+        // Restore comment on error
+        setNewComment(commentContent)
+        const error = await response.json()
+        alert(error.error || 'Failed to add comment. Please try again.')
       }
     } catch (error) {
       console.error('Error commenting:', error)
+      // Restore comment on error
+      setNewComment(commentContent)
+      alert('Failed to add comment. Please try again.')
     }
   }
 
@@ -400,12 +435,18 @@ export default function CommunityPage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Update post in local state
-        setPosts(prev =>
-          prev.map(post =>
+
+        // Helper to update post content
+        const updatePostContent = (posts: Post[]) =>
+          posts.map(post =>
             post.id === postId ? { ...post, content: data.post.content } : post
           )
-        )
+
+        // Update all post states
+        setPosts(prev => updatePostContent(prev))
+        setSearchResults(prev => updatePostContent(prev))
+        setPopularPosts(prev => updatePostContent(prev))
+
         setEditingPostId(null)
         setEditContent('')
       } else {
@@ -628,15 +669,15 @@ export default function CommunityPage() {
               </div>
             </div>
 
-        {/* Loading state for popular posts */}
-        {isLoadingPopular && (
+        {/* Loading state for popular posts - only show when no cached posts */}
+        {isLoadingPopular && popularPosts.length === 0 && (
           <div className="flex justify-center py-8">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
 
-            {/* Posts Feed */}
-            {!isLoadingPopular && (
+            {/* Posts Feed - show immediately if we have cached posts */}
+            {(!isLoadingPopular || popularPosts.length > 0) && (
             <div className="space-y-6">
               {displayPosts.map((post, index) => {
                 // Determine if post is trending/popular (high engagement or in popular tab)

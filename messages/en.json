@@ -787,7 +787,8 @@
     "videoCall": "Video Call",
     "messageDeleted": "This message was deleted",
     "justNow": "Just now",
-    "scrollToBottom": "Scroll to bottom"
+    "scrollToBottom": "Scroll to bottom",
+    "loadMore": "Load older messages"
   },
   "chat": {
     "title": "Chat",

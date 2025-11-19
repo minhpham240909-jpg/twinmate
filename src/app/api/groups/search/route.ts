@@ -52,8 +52,9 @@ export async function POST(request: NextRequest) {
       AND: Array<Record<string, unknown>>
     } = {
       AND: [
-        // Only show PUBLIC groups
+        // Only show PUBLIC groups that are not deleted
         { privacy: 'PUBLIC' },
+        { isDeleted: false },
       ],
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // GET /api/posts - Get feed posts
 export async function GET(req: NextRequest) {
@@ -295,6 +296,15 @@ export async function GET(req: NextRequest) {
 // POST /api/posts - Create new post
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 20 posts per minute
+    const rateLimitResult = await rateLimit(req, { ...RateLimitPresets.moderate, keyPrefix: 'posts' })
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many posts. Please wait a moment.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

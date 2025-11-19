@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // GET /api/posts/[postId]/comments - Get comments for a post
 export async function GET(
@@ -82,6 +83,15 @@ export async function POST(
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
+    // Rate limit: 20 comments per minute
+    const rateLimitResult = await rateLimit(req, { ...RateLimitPresets.moderate, keyPrefix: 'comments' })
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many comments. Please wait a moment.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

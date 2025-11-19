@@ -98,6 +98,9 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ partners: Partner[]; groups: Group[] }>({ partners: [], groups: [] })
   const [isSearching, setIsSearching] = useState(false)
+
+  // Group IDs for real-time subscription
+  const [groupIds, setGroupIds] = useState<string[]>([])
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Online partners state - initialize from cache
@@ -226,6 +229,28 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [user, loading])
 
+  // Fetch user's group IDs for real-time subscription
+  useEffect(() => {
+    if (!user) return
+
+    const fetchGroupIds = async () => {
+      try {
+        const response = await fetch('/api/groups/my-groups')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.groups) {
+            const ids = data.groups.map((g: { id: string }) => g.id)
+            setGroupIds(ids)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching group IDs:', error)
+      }
+    }
+
+    fetchGroupIds()
+  }, [user])
+
   // Real-time subscription for unread message updates
   useEffect(() => {
     if (!user) return
@@ -246,9 +271,10 @@ export default function DashboardPage() {
       }
     }
 
-    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts)
+    // Pass groupIds to enable real-time group message updates
+    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts, groupIds.length > 0 ? groupIds : undefined)
     return cleanup
-  }, [user])
+  }, [user, groupIds])
 
   // Request notification permission on first visit after signup/login
   useEffect(() => {

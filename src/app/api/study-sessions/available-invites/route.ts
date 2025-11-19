@@ -21,10 +21,13 @@ export async function GET() {
       },
     })
 
-    // Get user details for partners
+    // Get user details for partners with presence status
     const partnerIds = matches.map((match) =>
       match.senderId === user.id ? match.receiverId : match.senderId
     )
+
+    // Create a Set for O(1) partner lookup
+    const partnerIdSet = new Set(partnerIds)
 
     const partnerUsers = await prisma.user.findMany({
       where: {
@@ -37,61 +40,74 @@ export async function GET() {
         avatarUrl: true,
         presence: {
           select: {
-            // @ts-ignore - Prisma type inference issue
-            onlineStatus: true,
-          },
-        },
-      },
-    }) as any
-
-    // Map to include onlineStatus at top level
-    const partnersWithStatus = partnerUsers.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      email: p.email,
-      avatarUrl: p.avatarUrl,
-      onlineStatus: p.presence?.onlineStatus || null,
-    }))
-
-    // Get group members
-    const groupMembers = await prisma.groupMember.findMany({
-      where: {
-        userId: user.id,
-      },
-      include: {
-        group: {
-          include: {
-            members: {
-              where: {
-                userId: { not: user.id }, // Exclude current user
-              },
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    avatarUrl: true,
-                  },
-                },
-              },
-            },
+            status: true,
           },
         },
       },
     })
 
-    // Extract unique group member users
-    const groupMemberUsers = groupMembers.flatMap((gm) =>
-      gm.group.members.map((m) => m.user)
-    )
+    // Map to include onlineStatus at top level
+    const partnersWithStatus = partnerUsers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      avatarUrl: p.avatarUrl,
+      onlineStatus: p.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
+    }))
 
-    // Remove duplicates (user might be both partner and group member)
-    const uniqueGroupMembers = groupMemberUsers.filter(
-      (gUser, index, self) =>
-        index === self.findIndex((u) => u.id === gUser.id) &&
-        !partnersWithStatus.some((p: any) => p.id === gUser.id)
-    )
+    // Get all group IDs the user belongs to first (single query)
+    const userGroupMemberships = await prisma.groupMember.findMany({
+      where: { userId: user.id },
+      select: { groupId: true },
+    })
+
+    const groupIds = userGroupMemberships.map(gm => gm.groupId)
+
+    // Get all members from those groups in a single query (excluding current user)
+    const allGroupMembers = groupIds.length > 0
+      ? await prisma.groupMember.findMany({
+          where: {
+            groupId: { in: groupIds },
+            userId: { not: user.id },
+          },
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true,
+                presence: {
+                  select: {
+                    status: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : []
+
+    // Deduplicate using Map for O(n) instead of O(n²)
+    const uniqueGroupMembersMap = new Map<string, typeof allGroupMembers[0]['user'] & { onlineStatus: string }>()
+
+    for (const gm of allGroupMembers) {
+      // Skip if already a partner or already added
+      if (!partnerIdSet.has(gm.user.id) && !uniqueGroupMembersMap.has(gm.user.id)) {
+        uniqueGroupMembersMap.set(gm.user.id, {
+          ...gm.user,
+          onlineStatus: gm.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
+        })
+      }
+    }
+
+    const uniqueGroupMembers = Array.from(uniqueGroupMembersMap.values()).map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      avatarUrl: u.avatarUrl,
+      onlineStatus: u.onlineStatus,
+    }))
 
     return NextResponse.json({
       success: true,

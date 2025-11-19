@@ -247,25 +247,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Filter by location - case-insensitive partial match
+    // Filter by location - case-insensitive partial match with OR logic
     // SECURITY: Only filter users whose location visibility is PUBLIC
     // Users with 'private' or 'match-only' location settings should not be searchable by location
+    const locationFilters: string[] = []
+
     if (locationCity && locationCity.trim() !== '') {
-      query = query
-        .ilike('location_city', `%${locationCity.trim()}%`)
-        .eq('location_visibility', 'public')
+      locationFilters.push(`location_city.ilike.%${locationCity.trim()}%`)
     }
 
     if (locationState && locationState.trim() !== '') {
-      query = query
-        .ilike('location_state', `%${locationState.trim()}%`)
-        .eq('location_visibility', 'public')
+      locationFilters.push(`location_state.ilike.%${locationState.trim()}%`)
     }
 
     if (locationCountry && locationCountry.trim() !== '') {
+      locationFilters.push(`location_country.ilike.%${locationCountry.trim()}%`)
+    }
+
+    // Apply location filters with OR logic (match any location field)
+    if (locationFilters.length > 0) {
       query = query
-        .ilike('location_country', `%${locationCountry.trim()}%`)
         .eq('location_visibility', 'public')
+        .or(locationFilters.join(','))
     }
 
     // Text search across multiple fields
@@ -335,12 +338,32 @@ export async function POST(request: NextRequest) {
       .eq('userId', user.id)
       .single()
 
-    // Filter profiles by searchQuery if provided (improved fuzzy search with ranking)
+    // Filter profiles by searchQuery and custom descriptions if provided (improved fuzzy search with ranking)
     let filteredProfiles = sanitizedProfiles
 
-    if (searchQuery && searchQuery.trim().length > 0) {
+    // Check if we have any text search filters
+    const hasTextSearch = searchQuery && searchQuery.trim().length > 0
+    const hasCustomDescFilters = subjectCustomDescription || skillLevelCustomDescription ||
+        studyStyleCustomDescription || interestsCustomDescription ||
+        aboutYourselfSearch || school || languages || availableHours
+
+    if (hasTextSearch || hasCustomDescFilters) {
       // Split search query into words for partial matching
-      const searchWords = searchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0)
+      const searchWords = searchQuery ? searchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0) : []
+
+      // Also add custom description search terms
+      const customDescWords: string[] = []
+      if (subjectCustomDescription) customDescWords.push(...subjectCustomDescription.toLowerCase().split(/\s+/))
+      if (skillLevelCustomDescription) customDescWords.push(...skillLevelCustomDescription.toLowerCase().split(/\s+/))
+      if (studyStyleCustomDescription) customDescWords.push(...studyStyleCustomDescription.toLowerCase().split(/\s+/))
+      if (interestsCustomDescription) customDescWords.push(...interestsCustomDescription.toLowerCase().split(/\s+/))
+      if (aboutYourselfSearch) customDescWords.push(...aboutYourselfSearch.toLowerCase().split(/\s+/))
+      if (school) customDescWords.push(...school.toLowerCase().split(/\s+/))
+      if (languages) customDescWords.push(...languages.toLowerCase().split(/\s+/))
+      if (availableHours) customDescWords.push(...availableHours.toLowerCase().split(/\s+/))
+
+      // Combine all search words
+      const allSearchWords = [...searchWords, ...customDescWords].filter(w => w.length > 0)
 
       // Filter and rank results
       const profilesWithMatches = filteredProfiles.map(profile => {
@@ -351,7 +374,7 @@ export async function POST(request: NextRequest) {
         const matchesAnyWord = (field: string | null | undefined): number => {
           if (!field) return 0
           const fieldLower = field.toLowerCase()
-          return searchWords.filter(word => fieldLower.includes(word)).length
+          return allSearchWords.filter(word => fieldLower.includes(word)).length
         }
 
         // Helper function to check if any search word matches array items
@@ -360,7 +383,7 @@ export async function POST(request: NextRequest) {
           let matches = 0
           items.forEach(item => {
             const itemLower = item.toLowerCase()
-            searchWords.forEach(word => {
+            allSearchWords.forEach(word => {
               if (itemLower.includes(word)) matches++
             })
           })

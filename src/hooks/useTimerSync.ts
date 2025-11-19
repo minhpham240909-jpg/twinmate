@@ -57,10 +57,10 @@ export function useTimerSync(sessionId: string) {
     // Initial fetch
     fetchTimer()
 
-    // Set up polling as fallback (every 2 seconds)
+    // Set up polling as fallback (every 30 seconds) - real-time handles most updates
     pollingInterval = setInterval(() => {
       fetchTimer()
-    }, 2000)
+    }, 30000)
 
     // Subscribe to real-time updates on SessionTimer table
     const channel = supabase

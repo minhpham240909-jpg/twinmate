@@ -31,9 +31,9 @@ export async function GET(
                 id: true,
                 name: true,
                 avatarUrl: true,
-                profile: {
+                presence: {
                   select: {
-                    onlineStatus: true
+                    status: true
                   }
                 }
               }
@@ -47,7 +47,7 @@ export async function GET(
       }
     })
 
-    if (!group) {
+    if (!group || group.isDeleted) {
       return NextResponse.json(
         { error: 'Group not found' },
         { status: 404 }
@@ -75,7 +75,7 @@ export async function GET(
       name: m.user.name,
       avatarUrl: m.user.avatarUrl,
       role: m.role,
-      onlineStatus: m.user.profile?.onlineStatus || 'OFFLINE',
+      onlineStatus: m.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
       joinedAt: m.joinedAt
     }))
 

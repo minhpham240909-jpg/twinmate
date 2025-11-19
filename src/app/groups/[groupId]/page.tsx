@@ -387,7 +387,14 @@ export default function ViewGroupPage() {
               {groupData.members.map((member) => (
                 <button
                   key={member.id}
-                  onClick={() => router.push(`/profile/${member.id}`)}
+                  onClick={() => {
+                    // Navigate to own profile or other user's profile
+                    if (currentUser && member.id === currentUser.id) {
+                      router.push('/profile')
+                    } else {
+                      router.push(`/profile/${member.id}`)
+                    }
+                  }}
                   className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
                 >
                   <div className="relative">

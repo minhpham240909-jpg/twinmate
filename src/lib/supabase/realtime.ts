@@ -221,13 +221,16 @@ export function subscribeToMatches(
 }
 
 /**
- * Subscribe to notifications
+ * Subscribe to notifications with error handling and retry logic
  */
 export function subscribeToNotifications(
   userId: string,
-  onNotification: MessageHandler
+  onNotification: MessageHandler,
+  onError?: (error: string) => void
 ): () => void {
   const supabase = createClient()
+  let retryCount = 0
+  const maxRetries = 3
 
   const channel = supabase
     .channel(`notifications:${userId}`)
@@ -243,7 +246,29 @@ export function subscribeToNotifications(
         onNotification(payload.new)
       }
     )
-    .subscribe()
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`✅ Notifications channel subscribed for user: ${userId}`)
+        retryCount = 0 // Reset retry count on success
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error(`❌ Notifications channel error for user: ${userId}`)
+        if (retryCount < maxRetries) {
+          retryCount++
+          console.log(`🔄 Retrying notification subscription (${retryCount}/${maxRetries})...`)
+          setTimeout(() => {
+            supabase.removeChannel(channel)
+            subscribeToNotifications(userId, onNotification, onError)
+          }, 2000 * retryCount)
+        } else {
+          onError?.('Failed to connect to notifications after multiple attempts')
+        }
+      } else if (status === 'TIMED_OUT') {
+        console.error(`⏱️ Notifications channel timed out for user: ${userId}`)
+        onError?.('Notification connection timed out')
+      } else if (status === 'CLOSED') {
+        console.log(`🔒 Notifications channel closed for user: ${userId}`)
+      }
+    })
 
   return () => {
     supabase.removeChannel(channel)
@@ -306,11 +331,12 @@ export function subscribeToPresence(
 
 /**
  * Subscribe to new messages for unread count updates
- * Listens to DM messages where user is the recipient
+ * Listens to DM messages where user is the recipient and group messages
  */
 export function subscribeToUnreadMessages(
   userId: string,
-  onNewMessage: () => void
+  onNewMessage: () => void,
+  groupIds?: string[]
 ): () => void {
   const supabase = createClient()
 
@@ -350,7 +376,41 @@ export function subscribeToUnreadMessages(
       }
     })
 
+  // Subscribe to group messages if groupIds provided
+  let groupChannel: ReturnType<typeof supabase.channel> | null = null
+  if (groupIds && groupIds.length > 0) {
+    groupChannel = supabase
+      .channel(`unread-groups:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Message',
+        },
+        (payload) => {
+          // Check if message is from one of user's groups and not from the user
+          const message = payload.new as { groupId?: string; senderId?: string }
+          if (message.groupId &&
+              groupIds.includes(message.groupId) &&
+              message.senderId !== userId) {
+            onNewMessage()
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ Group unread messages channel subscribed for user: ${userId}`)
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`❌ Group unread messages channel error for user: ${userId}`)
+        }
+      })
+  }
+
   return () => {
     supabase.removeChannel(channel)
+    if (groupChannel) {
+      supabase.removeChannel(groupChannel)
+    }
   }
 }

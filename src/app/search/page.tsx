@@ -916,7 +916,18 @@ export default function SearchPage() {
               {(
               <FadeInOptimized delay={0.1}>
                 <div className="space-y-4">
-                  {partners.length > 0 ? (
+                  {/* Show loading state when initially loading */}
+                  {isLoadingRandom && partners.length === 0 ? (
+                    <div className="bg-gray-50 rounded-xl p-12 text-center">
+                      <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Loading Partners...
+                      </h3>
+                      <p className="text-gray-600">
+                        Finding study partners for you
+                      </p>
+                    </div>
+                  ) : partners.length > 0 ? (
                     partners.map((partner, index) => {
                       const cardContent = (
                         <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all border border-gray-200">

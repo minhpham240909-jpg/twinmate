@@ -67,6 +67,9 @@ function GroupsChatContent() {
   const [message, setMessage] = useState('')
   const [loadingConversations, setLoadingConversations] = useState(false)
   const [loadingMessages, setLoadingMessages] = useState(false)
+  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [isInCall, setIsInCall] = useState(false)
@@ -123,6 +126,8 @@ function GroupsChatContent() {
   // Fetch messages for selected conversation
   const handleSelectConversation = async (conversation: Conversation) => {
     setSelectedConversation(conversation)
+    setHasMoreMessages(false)
+    setNextCursor(null)
     const cacheKey = `chatMessages_group_${conversation.id}`
 
     if (typeof window !== 'undefined') {
@@ -146,6 +151,8 @@ function GroupsChatContent() {
 
       if (data.success) {
         setMessages(data.messages)
+        setHasMoreMessages(data.pagination?.hasMore || false)
+        setNextCursor(data.pagination?.nextCursor || null)
         localStorage.setItem(cacheKey, JSON.stringify(data.messages))
 
         // Mark all messages in this conversation as read
@@ -162,6 +169,48 @@ function GroupsChatContent() {
       console.error('Error fetching messages:', error)
     } finally {
       setLoadingMessages(false)
+    }
+  }
+
+  // Load more messages (older messages)
+  const loadMoreMessages = async () => {
+    if (!selectedConversation || !nextCursor || loadingMoreMessages) return
+
+    setLoadingMoreMessages(true)
+    const container = messagesContainerRef.current
+    const previousScrollHeight = container?.scrollHeight || 0
+
+    try {
+      const res = await fetch(
+        `/api/messages/${selectedConversation.id}?type=group&limit=50&cursor=${nextCursor}`
+      )
+      const data = await res.json()
+
+      if (data.success) {
+        // Prepend older messages
+        setMessages(prev => [...data.messages, ...prev])
+        setHasMoreMessages(data.pagination?.hasMore || false)
+        setNextCursor(data.pagination?.nextCursor || null)
+
+        // Maintain scroll position after loading older messages
+        requestAnimationFrame(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight
+            container.scrollTop = newScrollHeight - previousScrollHeight
+          }
+        })
+
+        // Update cache with all messages
+        const cacheKey = `chatMessages_group_${selectedConversation.id}`
+        setMessages(prev => {
+          localStorage.setItem(cacheKey, JSON.stringify(prev))
+          return prev
+        })
+      }
+    } catch (error) {
+      console.error('Error loading more messages:', error)
+    } finally {
+      setLoadingMoreMessages(false)
     }
   }
 
@@ -586,6 +635,30 @@ function GroupsChatContent() {
                         </div>
                       ) : (
                         <div className="space-y-4">
+                          {/* Load More Button */}
+                          {hasMoreMessages && (
+                            <div className="flex justify-center pb-2">
+                              <button
+                                onClick={loadMoreMessages}
+                                disabled={loadingMoreMessages}
+                                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                              >
+                                {loadingMoreMessages ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                    {tCommon('loading')}
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                    {t('loadMore')}
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
                           {messages.map((msg) => {
                             const isOwnMessage = msg.senderId === user.id
 

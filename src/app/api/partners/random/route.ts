@@ -157,8 +157,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Shuffle and take 3-5 random partners
-    const shuffled = partnersWithScores.sort(() => 0.5 - Math.random())
+    // Fisher-Yates shuffle for unbiased randomization
+    const shuffled = [...partnersWithScores]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
     const randomCount = Math.min(Math.max(3, Math.floor(Math.random() * 3) + 3), shuffled.length, 5)
     const selectedPartners = shuffled.slice(0, randomCount)
 

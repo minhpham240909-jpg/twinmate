@@ -15,10 +15,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Find all groups where user is a member
+    // Find all groups where user is a member (exclude deleted groups)
     const memberships = await prisma.groupMember.findMany({
       where: {
         userId: user.id,
+        group: {
+          isDeleted: false,
+        },
       },
       include: {
         group: {
@@ -30,6 +33,11 @@ export async function GET(request: NextRequest) {
                     id: true,
                     name: true,
                     avatarUrl: true,
+                    presence: {
+                      select: {
+                        status: true
+                      }
+                    }
                   },
                 },
               },
@@ -79,6 +87,7 @@ export async function GET(request: NextRequest) {
           name: m.user.name,
           avatarUrl: m.user.avatarUrl,
           role: m.role,
+          onlineStatus: m.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
         })),
         createdAt: group.createdAt,
       }
