@@ -11,6 +11,7 @@ const searchSchema = z.object({
   studyStyle: z.string().optional(),
   interests: z.array(z.string()).optional(),
   availability: z.array(z.string()).optional(),
+  availableHours: z.string().optional(), // NEW: Filter by available hours
   subjectCustomDescription: z.string().optional(),
   skillLevelCustomDescription: z.string().optional(),
   studyStyleCustomDescription: z.string().optional(),
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
       studyStyle,
       interests,
       availability,
+      availableHours,
       subjectCustomDescription,
       skillLevelCustomDescription,
       studyStyleCustomDescription,
@@ -108,6 +110,7 @@ export async function POST(request: NextRequest) {
       (studyStyle && studyStyle !== '') ||
       (interests && interests.length > 0) ||
       (availability && availability.length > 0) ||
+      (availableHours && availableHours.trim().length > 0) ||
       (subjectCustomDescription && subjectCustomDescription.trim().length > 0) ||
       (skillLevelCustomDescription && skillLevelCustomDescription.trim().length > 0) ||
       (studyStyleCustomDescription && studyStyleCustomDescription.trim().length > 0) ||
@@ -268,7 +271,7 @@ export async function POST(request: NextRequest) {
     // Text search across multiple fields
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
         studyStyleCustomDescription || interestsCustomDescription ||
-        aboutYourselfSearch || school || languages) {
+        aboutYourselfSearch || school || languages || availableHours) {
 
       const searchTerms: string[] = []
       if (searchQuery) searchTerms.push(searchQuery)
@@ -279,6 +282,7 @@ export async function POST(request: NextRequest) {
       if (aboutYourselfSearch) searchTerms.push(aboutYourselfSearch)
       if (school) searchTerms.push(school)
       if (languages) searchTerms.push(languages)
+      if (availableHours) searchTerms.push(availableHours)
 
       // For Supabase, we'll do text search differently - fetch all and filter in memory
       // This is less ideal but works with the pooler

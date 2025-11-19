@@ -37,7 +37,7 @@ export async function GET(
       )
     }
 
-    // Get all members with their user and profile info
+    // Get all members with their user and presence info
     const members = await prisma.groupMember.findMany({
       where: {
         groupId
@@ -48,9 +48,9 @@ export async function GET(
             id: true,
             name: true,
             avatarUrl: true,
-            profile: {
+            presence: {
               select: {
-                onlineStatus: true
+                status: true
               }
             }
           }
@@ -62,13 +62,13 @@ export async function GET(
       ]
     })
 
-    // Format the response
+    // Format the response - use UserPresence.status for accurate online status
     const formattedMembers = members.map(member => ({
       id: member.user.id,
       name: member.user.name,
       avatarUrl: member.user.avatarUrl,
       role: member.role,
-      onlineStatus: member.user.profile?.onlineStatus || 'OFFLINE'
+      onlineStatus: member.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE'
     }))
 
     return NextResponse.json({

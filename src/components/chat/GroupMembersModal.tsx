@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import { useAuth } from '@/lib/auth/context'
 
 interface Member {
   id: string
@@ -24,6 +25,7 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { user } = useAuth()
   const t = useTranslations('chat')
   const tCommon = useTranslations('common')
 
@@ -53,7 +55,12 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
     onClose()
     // Use setTimeout to ensure modal closes before navigation
     setTimeout(() => {
-      router.push(`/profile/${userId}`)
+      // If viewing own profile, go to /profile, otherwise go to /profile/[userId]
+      if (user && userId === user.id) {
+        router.push('/profile')
+      } else {
+        router.push(`/profile/${userId}`)
+      }
     }, 100)
   }
 

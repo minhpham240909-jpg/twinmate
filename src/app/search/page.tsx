@@ -44,6 +44,7 @@ export default function SearchPage() {
   const [selectedStudyStyle, setSelectedStudyStyle] = useState<string>('')
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>([])
+  const [availableHoursFilter, setAvailableHoursFilter] = useState('')
   const [showSubjectDescription, setShowSubjectDescription] = useState(false)
   const [showSkillLevelDescription, setShowSkillLevelDescription] = useState(false)
   const [showStudyStyleDescription, setShowStudyStyleDescription] = useState(false)
@@ -158,10 +159,8 @@ export default function SearchPage() {
       const data = await response.json()
       setPartners(data.partners || [])
 
-      // Show success message if partners found
-      if (data.partners && data.partners.length > 0) {
-        toast.success(`Found ${data.partners.length} study partner${data.partners.length !== 1 ? 's' : ''} for you!`)
-      } else {
+      // Set error only if no partners found
+      if (!data.partners || data.partners.length === 0) {
         setRandomError('No partners available at the moment. Try again later.')
       }
     } catch (error) {
@@ -285,6 +284,7 @@ export default function SearchPage() {
       selectedStudyStyle !== '' ||
       selectedInterests.length > 0 ||
       selectedAvailability.length > 0 ||
+      availableHoursFilter.trim() !== '' ||
       subjectCustomDescription.trim() !== '' ||
       skillLevelCustomDescription.trim() !== '' ||
       studyStyleCustomDescription.trim() !== '' ||
@@ -316,6 +316,7 @@ export default function SearchPage() {
           studyStyle: selectedStudyStyle,
           interests: selectedInterests,
           availability: selectedAvailability,
+          availableHours: availableHoursFilter,
           subjectCustomDescription,
           skillLevelCustomDescription,
           studyStyleCustomDescription,
@@ -649,7 +650,7 @@ export default function SearchPage() {
                       Filter partners by the days they&apos;re available to study. Select the days that work best for you to find partners with matching schedules.
                     </p>
                   )}
-                  <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
                     {daysOfWeek.map((day) => (
                       <label key={day} className="flex items-center">
                         <input
@@ -662,6 +663,14 @@ export default function SearchPage() {
                       </label>
                     ))}
                   </div>
+                  <input
+                    type="text"
+                    value={availableHoursFilter}
+                    onChange={(e) => setAvailableHoursFilter(e.target.value)}
+                    placeholder="e.g., Morning, Evening, 9am-5pm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Filter by preferred study hours</p>
                 </div>
 
                 {/* School Filter */}
@@ -903,38 +912,8 @@ export default function SearchPage() {
                 </div>
               )}
 
-              {/* Loading Skeleton */}
-              {isLoadingRandom && (
-                <div className="space-y-4 mb-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 animate-pulse">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gray-200 rounded-full flex-shrink-0"></div>
-                        <div className="flex-1">
-                          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
-                          <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                          <div className="flex gap-2 mb-3">
-                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-                          </div>
-                          <div className="h-4 bg-gray-200 rounded w-full"></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="w-20 h-10 bg-gray-200 rounded-lg"></div>
-                          <div className="w-20 h-10 bg-gray-200 rounded-lg"></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <div className="text-center py-4">
-                    <p className="text-sm text-gray-600">Finding study partners for you...</p>
-                  </div>
-                </div>
-              )}
-
               {/* Partner Cards */}
-              {!isLoadingRandom && (
+              {(
               <FadeInOptimized delay={0.1}>
                 <div className="space-y-4">
                   {partners.length > 0 ? (
