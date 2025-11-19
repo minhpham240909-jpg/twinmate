@@ -206,9 +206,23 @@ export default function ViewGroupPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="ml-4">
-            <h1 className="text-xl font-bold text-gray-900">{groupData.name}</h1>
-            <p className="text-sm text-gray-500">{groupData.memberCount} {groupData.memberCount === 1 ? 'member' : 'members'}</p>
+          {/* Group Avatar in Header */}
+          <div className="ml-3 w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+            {groupData.avatarUrl ? (
+              <img
+                src={groupData.avatarUrl}
+                alt={groupData.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                {groupData.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div className="ml-3">
+            <h1 className="text-lg font-bold text-gray-900">{groupData.name}</h1>
+            <p className="text-xs text-gray-500">{groupData.memberCount} {groupData.memberCount === 1 ? 'member' : 'members'}</p>
           </div>
         </div>
       </header>

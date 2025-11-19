@@ -81,7 +81,7 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [sendingRequest, setSendingRequest] = useState<string | null>(null)
-  const [isLoadingRandom, setIsLoadingRandom] = useState(false)
+  const [isLoadingRandom, setIsLoadingRandom] = useState(true)
   const [randomError, setRandomError] = useState('')
 
   // Ref to track abort controller for cancelling in-flight requests

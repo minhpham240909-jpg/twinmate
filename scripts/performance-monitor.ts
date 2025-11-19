@@ -44,7 +44,6 @@ const ROUTES_TO_TEST = [
   '/dashboard',
   '/study-sessions',
   '/chat',
-  '/features/ai-agent',
 ];
 
 const PERFORMANCE_THRESHOLDS = {
