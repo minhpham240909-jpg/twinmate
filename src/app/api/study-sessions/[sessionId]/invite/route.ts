@@ -64,56 +64,55 @@ export async function POST(
       select: { name: true },
     })
 
-    // Invite users
-    let invitesSent = 0
-    for (const inviteeId of inviteUserIds) {
-      try {
-        // Check if user is already a participant
-        const existingParticipant = await prisma.sessionParticipant.findUnique({
-          where: {
-            sessionId_userId: {
-              sessionId,
-              userId: inviteeId,
-            },
-          },
-        })
+    // PERFORMANCE: Batch query - get all existing participants in one query
+    const existingParticipants = await prisma.sessionParticipant.findMany({
+      where: {
+        sessionId,
+        userId: { in: inviteUserIds },
+      },
+      select: { userId: true },
+    })
 
-        if (existingParticipant) {
-          // Skip if already invited or joined
-          continue
-        }
+    // Create a Set of existing participant IDs for O(1) lookup
+    const existingUserIds = new Set(existingParticipants.map(p => p.userId))
 
-        // Create participant invitation
-        await prisma.sessionParticipant.create({
-          data: {
-            sessionId,
-            userId: inviteeId,
-            role: 'PARTICIPANT',
-            status: 'INVITED',
-          },
-        })
+    // Filter out users who are already participants
+    const newInviteeIds = inviteUserIds.filter(id => !existingUserIds.has(id))
 
-        // Create notification
-        await prisma.notification.create({
-          data: {
-            userId: inviteeId,
-            type: 'SESSION_INVITE',
-            title: 'Study Session Invite',
-            message: `${inviter?.name || 'Someone'} invited you to "${session.title}"`,
-            actionUrl: `/study-sessions`,
-            relatedUserId: user.id,
-          },
-        })
-
-        invitesSent++
-      } catch (error) {
-        console.error('Error inviting user:', error)
-      }
+    if (newInviteeIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        invitesSent: 0,
+        message: 'All users are already invited',
+      })
     }
+
+    // PERFORMANCE: Batch create - create all participants in one query
+    await prisma.sessionParticipant.createMany({
+      data: newInviteeIds.map(inviteeId => ({
+        sessionId,
+        userId: inviteeId,
+        role: 'PARTICIPANT',
+        status: 'INVITED',
+      })),
+      skipDuplicates: true, // Extra safety for race conditions
+    })
+
+    // PERFORMANCE: Batch create - create all notifications in one query
+    await prisma.notification.createMany({
+      data: newInviteeIds.map(inviteeId => ({
+        userId: inviteeId,
+        type: 'SESSION_INVITE',
+        title: 'Study Session Invite',
+        message: `${inviter?.name || 'Someone'} invited you to "${session.title}"`,
+        actionUrl: `/study-sessions`,
+        relatedUserId: user.id,
+      })),
+    })
 
     return NextResponse.json({
       success: true,
-      invitesSent,
+      invitesSent: newInviteeIds.length,
     })
   } catch (error) {
     console.error('Error inviting partners:', error)

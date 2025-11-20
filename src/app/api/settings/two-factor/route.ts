@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
 import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 
 const twoFactorSchema = z.object({
   action: z.enum(['enable', 'disable', 'verify']),
@@ -12,22 +13,35 @@ const twoFactorSchema = z.object({
 })
 
 // Encryption helpers (basic encryption - in production use a proper KMS)
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-32-character-secret-key-here!'
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
 const ALGORITHM = 'aes-256-cbc'
 
+// Validate encryption key at startup
+function getEncryptionKey(): Buffer {
+  if (!ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY environment variable is required for 2FA')
+  }
+  if (ENCRYPTION_KEY === 'your-32-character-secret-key-here!' || ENCRYPTION_KEY.length < 32) {
+    throw new Error('ENCRYPTION_KEY must be at least 32 characters and not the default value')
+  }
+  return Buffer.from(ENCRYPTION_KEY).slice(0, 32)
+}
+
 function encrypt(text: string): string {
+  const key = getEncryptionKey()
   const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY).slice(0, 32), iv)
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
   let encrypted = cipher.update(text)
   encrypted = Buffer.concat([encrypted, cipher.final()])
   return iv.toString('hex') + ':' + encrypted.toString('hex')
 }
 
 function decrypt(text: string): string {
+  const key = getEncryptionKey()
   const parts = text.split(':')
   const iv = Buffer.from(parts.shift()!, 'hex')
   const encryptedText = Buffer.from(parts.join(':'), 'hex')
-  const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY).slice(0, 32), iv)
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
   let decrypted = decipher.update(encryptedText)
   decrypted = Buffer.concat([decrypted, decipher.final()])
   return decrypted.toString()
@@ -154,19 +168,24 @@ export async function POST(request: NextRequest) {
       // Generate backup codes
       const backupCodes = generateBackupCodes(8)
 
-      // Enable 2FA and store backup codes
+      // Hash backup codes before storing (like passwords)
+      const hashedBackupCodes = await Promise.all(
+        backupCodes.map(code => bcrypt.hash(code, 10))
+      )
+
+      // Enable 2FA and store hashed backup codes
       await prisma.user.update({
         where: { id: user.id },
         data: {
           twoFactorEnabled: true,
-          twoFactorBackupCodes: backupCodes, // Store plaintext backup codes
+          twoFactorBackupCodes: hashedBackupCodes,
         },
       })
 
       return NextResponse.json({
         success: true,
         message: '2FA enabled successfully! Please save your backup codes in a safe place.',
-        backupCodes: backupCodes,
+        backupCodes: backupCodes, // Return plaintext codes only once for user to save
       })
     } else if (action === 'disable') {
       // Verify with code before disabling
@@ -193,8 +212,22 @@ export async function POST(request: NextRequest) {
         secret: decryptedSecret,
       })
 
-      // Check if code is a backup code
-      const isBackupCode = dbUser.twoFactorBackupCodes.includes(code.toUpperCase())
+      // Check if code is a backup code by comparing hashes
+      let matchedBackupCodeIndex = -1
+      if (!isValidTOTP) {
+        for (let i = 0; i < dbUser.twoFactorBackupCodes.length; i++) {
+          const isMatch = await bcrypt.compare(
+            code.toUpperCase(),
+            dbUser.twoFactorBackupCodes[i]
+          )
+          if (isMatch) {
+            matchedBackupCodeIndex = i
+            break
+          }
+        }
+      }
+
+      const isBackupCode = matchedBackupCodeIndex !== -1
 
       if (!isValidTOTP && !isBackupCode) {
         return NextResponse.json(
@@ -207,7 +240,7 @@ export async function POST(request: NextRequest) {
       let updatedBackupCodes = dbUser.twoFactorBackupCodes
       if (isBackupCode) {
         updatedBackupCodes = dbUser.twoFactorBackupCodes.filter(
-          (c) => c !== code.toUpperCase()
+          (_, index) => index !== matchedBackupCodeIndex
         )
       }
 

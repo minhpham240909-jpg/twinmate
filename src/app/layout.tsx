@@ -5,7 +5,6 @@ import { AuthProvider } from "@/lib/auth/context";
 import { Toaster } from "react-hot-toast";
 import FloatingSessionButton from "@/components/FloatingSessionButton";
 import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
-import SessionSyncWrapper from "@/components/SessionSyncWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import IncomingCallModal from "@/components/IncomingCallModal";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -56,7 +55,6 @@ export default function RootLayout({
         <WebVitalsReporter />
         <GlobalErrorHandler />
         <ErrorBoundary>
-          <SessionSyncWrapper />
           <ThemeProvider>
             <AuthProvider>
               <SettingsProvider>

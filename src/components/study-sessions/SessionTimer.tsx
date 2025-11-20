@@ -65,7 +65,7 @@ export default function SessionTimer({
     }
   }, [])
 
-  // Countdown logic
+  // Countdown logic - local only, realtime sync handles updates across clients
   useEffect(() => {
     if (!timer) return
 
@@ -82,11 +82,8 @@ export default function SessionTimer({
             return prev
           }
 
-          // Update server every 5 seconds
-          if (newTimeRemaining % 5 === 0) {
-            updateTimeRemaining(newTimeRemaining)
-          }
-
+          // Just update local state - realtime subscription syncs across clients
+          // Server updates only happen on control actions (start/pause/resume)
           return {
             ...prev,
             timeRemaining: newTimeRemaining,
@@ -107,20 +104,6 @@ export default function SessionTimer({
     }
   }, [timer?.state])
 
-  const updateTimeRemaining = async (timeRemaining: number) => {
-    try {
-      await fetch(`/api/study-sessions/${sessionId}/timer/control`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_time',
-          timeRemaining,
-        }),
-      })
-    } catch (error) {
-      console.error('Error updating time:', error)
-    }
-  }
 
   const handleTimerComplete = (wasBreakTime: boolean) => {
     // Use setTimeout to avoid setState during render

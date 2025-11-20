@@ -271,27 +271,62 @@ export async function POST(request: NextRequest) {
         .or(locationFilters.join(','))
     }
 
-    // Text search across multiple fields
+    // Text search across multiple fields using ilike for case-insensitive substring matching
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
         studyStyleCustomDescription || interestsCustomDescription ||
         aboutYourselfSearch || school || languages || availableHours) {
 
-      const searchTerms: string[] = []
-      if (searchQuery) searchTerms.push(searchQuery)
-      if (subjectCustomDescription) searchTerms.push(subjectCustomDescription)
-      if (skillLevelCustomDescription) searchTerms.push(skillLevelCustomDescription)
-      if (studyStyleCustomDescription) searchTerms.push(studyStyleCustomDescription)
-      if (interestsCustomDescription) searchTerms.push(interestsCustomDescription)
-      if (aboutYourselfSearch) searchTerms.push(aboutYourselfSearch)
-      if (school) searchTerms.push(school)
-      if (languages) searchTerms.push(languages)
-      if (availableHours) searchTerms.push(availableHours)
+      const searchFilters: string[] = []
+      
+      if (searchQuery) {
+        const term = searchQuery.trim()
+        searchFilters.push(`bio.ilike.%${term}%`)
+        searchFilters.push(`school.ilike.%${term}%`)
+        searchFilters.push(`languages.ilike.%${term}%`)
+        searchFilters.push(`aboutYourself.ilike.%${term}%`)
+      }
+      if (subjectCustomDescription) {
+        searchFilters.push(`subjectCustomDescription.ilike.%${subjectCustomDescription.trim()}%`)
+      }
+      if (skillLevelCustomDescription) {
+        searchFilters.push(`skillLevelCustomDescription.ilike.%${skillLevelCustomDescription.trim()}%`)
+      }
+      if (studyStyleCustomDescription) {
+        searchFilters.push(`studyStyleCustomDescription.ilike.%${studyStyleCustomDescription.trim()}%`)
+      }
+      if (interestsCustomDescription) {
+        searchFilters.push(`interestsCustomDescription.ilike.%${interestsCustomDescription.trim()}%`)
+      }
+      if (aboutYourselfSearch) {
+        searchFilters.push(`aboutYourself.ilike.%${aboutYourselfSearch.trim()}%`)
+      }
+      if (school) {
+        searchFilters.push(`school.ilike.%${school.trim()}%`)
+      }
+      if (languages) {
+        searchFilters.push(`languages.ilike.%${languages.trim()}%`)
+      }
+      if (availableHours) {
+        searchFilters.push(`availabilityCustomDescription.ilike.%${availableHours.trim()}%`)
+      }
 
-      // For Supabase, we'll do text search differently - fetch all and filter in memory
-      // This is less ideal but works with the pooler
+      // Apply OR logic for text search (match any field)
+      if (searchFilters.length > 0) {
+        query = query.or(searchFilters.join(','))
+      }
     }
 
-    // Apply pagination
+    // First get total count WITHOUT pagination
+    const { count: totalCount, error: countError } = await supabase
+      .from('Profile')
+      .select('userId', { count: 'exact', head: true })
+      .neq('userId', user.id)
+
+    if (countError) {
+      console.error('Count query error:', countError)
+    }
+
+    // Apply pagination to main query
     const skip = (page - 1) * limit
     query = query.range(skip, skip + limit - 1).order('updatedAt', { ascending: false })
 
@@ -338,104 +373,8 @@ export async function POST(request: NextRequest) {
       .eq('userId', user.id)
       .single()
 
-    // Filter profiles by searchQuery and custom descriptions if provided (improved fuzzy search with ranking)
-    let filteredProfiles = sanitizedProfiles
-
-    // Check if we have any text search filters
-    const hasTextSearch = searchQuery && searchQuery.trim().length > 0
-    const hasCustomDescFilters = subjectCustomDescription || skillLevelCustomDescription ||
-        studyStyleCustomDescription || interestsCustomDescription ||
-        aboutYourselfSearch || school || languages || availableHours
-
-    if (hasTextSearch || hasCustomDescFilters) {
-      // Split search query into words for partial matching
-      const searchWords = searchQuery ? searchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0) : []
-
-      // Also add custom description search terms
-      const customDescWords: string[] = []
-      if (subjectCustomDescription) customDescWords.push(...subjectCustomDescription.toLowerCase().split(/\s+/))
-      if (skillLevelCustomDescription) customDescWords.push(...skillLevelCustomDescription.toLowerCase().split(/\s+/))
-      if (studyStyleCustomDescription) customDescWords.push(...studyStyleCustomDescription.toLowerCase().split(/\s+/))
-      if (interestsCustomDescription) customDescWords.push(...interestsCustomDescription.toLowerCase().split(/\s+/))
-      if (aboutYourselfSearch) customDescWords.push(...aboutYourselfSearch.toLowerCase().split(/\s+/))
-      if (school) customDescWords.push(...school.toLowerCase().split(/\s+/))
-      if (languages) customDescWords.push(...languages.toLowerCase().split(/\s+/))
-      if (availableHours) customDescWords.push(...availableHours.toLowerCase().split(/\s+/))
-
-      // Combine all search words
-      const allSearchWords = [...searchWords, ...customDescWords].filter(w => w.length > 0)
-
-      // Filter and rank results
-      const profilesWithMatches = filteredProfiles.map(profile => {
-        const user = Array.isArray(profile.user) ? profile.user[0] : profile.user
-        let matchCount = 0
-
-        // Helper function to check if any search word matches a field
-        const matchesAnyWord = (field: string | null | undefined): number => {
-          if (!field) return 0
-          const fieldLower = field.toLowerCase()
-          return allSearchWords.filter(word => fieldLower.includes(word)).length
-        }
-
-        // Helper function to check if any search word matches array items
-        const matchesArrayItems = (items: string[] | null | undefined): number => {
-          if (!items || items.length === 0) return 0
-          let matches = 0
-          items.forEach(item => {
-            const itemLower = item.toLowerCase()
-            allSearchWords.forEach(word => {
-              if (itemLower.includes(word)) matches++
-            })
-          })
-          return matches
-        }
-
-        // Search in fields based on search type
-        if (searchType === 'simple') {
-          // Dashboard search: only name, email, subjects, subject description
-          matchCount += matchesAnyWord(user?.name)
-          matchCount += matchesAnyWord(user?.email)
-          matchCount += matchesAnyWord(profile.subjectCustomDescription)
-          matchCount += matchesArrayItems(profile.subjects)
-        } else {
-          // Full search: all fields (Find Partner page)
-          matchCount += matchesAnyWord(user?.name)
-          matchCount += matchesAnyWord(user?.email)
-          matchCount += matchesAnyWord(profile.bio)
-          matchCount += matchesAnyWord(profile.school)
-          matchCount += matchesAnyWord(profile.languages)
-          matchCount += matchesAnyWord(profile.role)
-          matchCount += matchesAnyWord(profile.aboutYourself)
-          matchCount += matchesAnyWord(profile.skillLevel)
-          matchCount += matchesAnyWord(profile.studyStyle)
-          matchCount += matchesAnyWord(profile.subjectCustomDescription)
-          matchCount += matchesAnyWord(profile.skillLevelCustomDescription)
-          matchCount += matchesAnyWord(profile.studyStyleCustomDescription)
-          matchCount += matchesAnyWord(profile.interestsCustomDescription)
-          matchCount += matchesAnyWord(profile.availabilityCustomDescription)
-          // Location fields for text search
-          matchCount += matchesAnyWord(profile.location_city)
-          matchCount += matchesAnyWord(profile.location_state)
-          matchCount += matchesAnyWord(profile.location_country)
-
-          // Search in array fields
-          matchCount += matchesArrayItems(profile.subjects)
-          matchCount += matchesArrayItems(profile.interests)
-          matchCount += matchesArrayItems(profile.goals)
-          matchCount += matchesArrayItems(profile.availableDays)
-          matchCount += matchesArrayItems(profile.availableHours)
-          matchCount += matchesArrayItems(profile.aboutYourselfItems)
-        }
-
-        return { profile, matchCount }
-      })
-
-      // Only keep profiles with at least 1 match and sort by match count
-      filteredProfiles = profilesWithMatches
-        .filter(({ matchCount }) => matchCount > 0)
-        .sort((a, b) => b.matchCount - a.matchCount)
-        .map(({ profile }) => profile)
-    }
+    // All filtering is now done at database level, so we just use the sanitized profiles
+    const filteredProfiles = sanitizedProfiles
 
     // Calculate match scores
     const profilesWithScores = filteredProfiles.map(profile => {
@@ -495,18 +434,6 @@ export async function POST(request: NextRequest) {
 
     // Sort by match score
     profilesWithScores.sort((a, b) => b.matchScore - a.matchScore)
-
-    // Get total count for pagination
-    let countQuery = supabase
-      .from('Profile')
-      .select('userId', { count: 'exact', head: true })
-      .neq('userId', user.id)
-
-    if (pendingOrOtherUserIds.size > 0) {
-      countQuery = countQuery.not('userId', 'in', `(${Array.from(pendingOrOtherUserIds).join(',')})`)
-    }
-
-    const { count: totalCount } = await countQuery
 
     return NextResponse.json({
       success: true,

@@ -379,28 +379,46 @@ export function subscribeToUnreadMessages(
   // Subscribe to group messages if groupIds provided
   let groupChannel: ReturnType<typeof supabase.channel> | null = null
   if (groupIds && groupIds.length > 0) {
+    // PERFORMANCE: Use database filter to reduce traffic
+    // Supabase supports 'in' filter for up to ~20 values efficiently
+    const useDbFilter = groupIds.length <= 20
+    const filterConfig: {
+      event: 'INSERT'
+      schema: 'public'
+      table: 'Message'
+      filter?: string
+    } = {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'Message',
+    }
+
+    // Add database-level filter if we have few enough groups
+    if (useDbFilter) {
+      filterConfig.filter = `groupId=in.(${groupIds.join(',')})`
+    }
+
     groupChannel = supabase
       .channel(`unread-groups:${userId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Message',
-        },
+        filterConfig,
         (payload) => {
-          // Check if message is from one of user's groups and not from the user
           const message = payload.new as { groupId?: string; senderId?: string }
-          if (message.groupId &&
-              groupIds.includes(message.groupId) &&
-              message.senderId !== userId) {
+
+          // Skip messages from self
+          if (message.senderId === userId) return
+
+          // If using DB filter, message is already from user's groups
+          // If not using DB filter (>20 groups), check in JS
+          if (useDbFilter || (message.groupId && groupIds.includes(message.groupId))) {
             onNewMessage()
           }
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log(`✅ Group unread messages channel subscribed for user: ${userId}`)
+          console.log(`✅ Group unread messages channel subscribed for user: ${userId} (${groupIds.length} groups, DB filter: ${useDbFilter})`)
         } else if (status === 'CHANNEL_ERROR') {
           console.error(`❌ Group unread messages channel error for user: ${userId}`)
         }

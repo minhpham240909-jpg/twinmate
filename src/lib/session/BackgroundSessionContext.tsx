@@ -117,7 +117,7 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
       return
     }
 
-    // Poll timer API to keep it synced
+    // Poll timer API to keep it synced (as fallback - real-time handles most updates)
     const pollTimer = async () => {
       try {
         await fetch(`/api/study-sessions/${activeSessionId}/timer`, {
@@ -128,8 +128,9 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
       }
     }
 
-    // Poll every 2 seconds
-    timerIntervalRef.current = setInterval(pollTimer, 2000)
+    // PERFORMANCE: Poll every 30 seconds (reduced from 2s)
+    // Real-time subscription handles immediate updates
+    timerIntervalRef.current = setInterval(pollTimer, 30000)
 
     return () => {
       if (timerIntervalRef.current) {

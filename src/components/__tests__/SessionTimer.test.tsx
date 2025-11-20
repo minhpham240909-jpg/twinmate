@@ -4,12 +4,21 @@ import SessionTimer from '../SessionTimer';
 // Mock fetch
 global.fetch = jest.fn() as jest.Mock;
 
-// Mock toast
+// Mock toast - must match the actual export structure of react-hot-toast
 jest.mock('react-hot-toast', () => {
-  const mockToast = jest.fn();
-  mockToast.success = jest.fn();
-  mockToast.error = jest.fn();
-  return { default: mockToast };
+  const mockToast = Object.assign(
+    jest.fn(),
+    {
+      success: jest.fn(),
+      error: jest.fn(),
+      loading: jest.fn(),
+      custom: jest.fn(),
+    }
+  );
+  return {
+    __esModule: true,
+    default: mockToast,
+  };
 });
 
 describe('SessionTimer', () => {

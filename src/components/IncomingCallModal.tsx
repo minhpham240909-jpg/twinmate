@@ -59,51 +59,27 @@ export default function IncomingCallModal() {
     }
   }, [incomingCall, isRinging])
 
-  // Poll for incoming call notifications
+  // TODO: Subscribe to realtime notifications instead of polling
+  // The app should use Supabase realtime subscriptions for INCOMING_CALL notifications
+  // Pattern: supabase.channel(`notifications:${user.id}`).on('postgres_changes', ...)
+  // For now, this polling is removed to reduce API load. Incoming calls should be
+  // implemented using a proper realtime notification system.
   useEffect(() => {
     if (!user?.id) return
 
-    const checkForIncomingCalls = async () => {
-      try {
-        const response = await fetch('/api/notifications')
-        if (response.ok) {
-          const data = await response.json()
-          const notifications = data.notifications || []
+    // Placeholder for future realtime subscription implementation
+    // When implementing:
+    // 1. Subscribe to Notification table changes for current user
+    // 2. Filter for type === 'INCOMING_CALL' and isRead === false
+    // 3. Update incomingCall state when new call notification arrives
+    // 4. Clean up subscription on unmount
 
-          // Find the first unread INCOMING_CALL notification
-          const callNotification = notifications.find(
-            (n: any) => n.type === 'INCOMING_CALL' && !n.isRead
-          )
+    console.log('IncomingCallModal: Realtime notification subscription not yet implemented')
 
-          if (callNotification && !incomingCall) {
-            // Parse the notification to get call details
-            const conversationMatch = callNotification.actionUrl?.match(/conversation=([^&]+)/)
-            const typeMatch = callNotification.actionUrl?.match(/type=([^&]+)/)
-
-            if (conversationMatch && typeMatch) {
-              setIncomingCall({
-                notificationId: callNotification.id,
-                callerId: callNotification.relatedUserId || '',
-                callerName: callNotification.message.split(' is calling')[0],
-                conversationId: conversationMatch[1],
-                conversationType: typeMatch[1] as 'partner' | 'group',
-                isGroupCall: typeMatch[1] === 'group'
-              })
-              setIsRinging(true)
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking for incoming calls:', error)
-      }
+    return () => {
+      // Cleanup will go here
     }
-
-    // Check immediately and then every 2 seconds
-    checkForIncomingCalls()
-    const interval = setInterval(checkForIncomingCalls, 2000)
-
-    return () => clearInterval(interval)
-  }, [user?.id, incomingCall])
+  }, [user?.id])
 
   const handleAccept = async () => {
     if (!incomingCall) return

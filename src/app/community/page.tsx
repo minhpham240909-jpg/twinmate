@@ -151,17 +151,11 @@ export default function CommunityPage() {
           schema: 'public',
           table: 'Post',
         },
-        async (payload) => {
-          // Increment new posts count
+        () => {
+          // PERFORMANCE: Only increment counter, don't fetch all posts
+          // User can click "New Posts" button to refresh when ready
+          // This prevents re-downloading entire feed on every new post
           setNewPostsCount(prev => prev + 1)
-
-          // Fetch the complete post with user data
-          const response = await fetch('/api/posts')
-          if (response.ok) {
-            const data = await response.json()
-            // Add new post silently (it will be at the top)
-            setPosts(data.posts)
-          }
         }
       )
       .subscribe()

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { syncSessionToCookies } from '@/lib/auth/session-sync'
 
 export default function SignInForm() {
   const searchParams = useSearchParams()
@@ -75,19 +74,10 @@ export default function SignInForm() {
       }
 
       console.log('[SignIn] ✅ Sign in successful! User:', data.user.email)
-      console.log('[SignIn] Syncing session to cookies...')
-
-      // Critical: Sync session to cookies so server can access it
-      syncSessionToCookies()
-
-      // Wait longer to ensure:
-      // 1. Cookies are properly set
-      // 2. Auth context updates
-      // 3. Session is fully established
       console.log('[SignIn] Waiting for session to stabilize...')
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 300))
 
-      console.log('[SignIn] ✅ Cookies synced! Redirecting to dashboard...')
+      console.log('[SignIn] ✅ Redirecting to dashboard...')
 
       // Force a full page navigation to ensure everything reloads
       window.location.href = '/dashboard'
