@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { CONTENT_LIMITS } from '@/lib/constants'
+import { validateContent } from '@/lib/validation'
 
 // POST - Create a new goal
 export async function POST(
@@ -31,8 +33,18 @@ export async function POST(
     const { sessionId } = await params
     const { title, description } = await request.json()
 
-    if (!title || !title.trim()) {
-      return NextResponse.json({ error: 'Goal title required' }, { status: 400 })
+    // Validate title
+    const titleValidation = validateContent(title, CONTENT_LIMITS.GOAL_TITLE_MAX, 'Goal title')
+    if (!titleValidation.valid) {
+      return NextResponse.json({ error: titleValidation.error }, { status: 400 })
+    }
+
+    // Validate description if provided
+    if (description && description.trim().length > CONTENT_LIMITS.GOAL_DESCRIPTION_MAX) {
+      return NextResponse.json(
+        { error: `Goal description too long (max ${CONTENT_LIMITS.GOAL_DESCRIPTION_MAX} characters)` },
+        { status: 400 }
+      )
     }
 
     // Verify user is a participant

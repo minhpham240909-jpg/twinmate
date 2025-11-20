@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PAGINATION, CONTENT_LIMITS } from './constants'
 
 // ==========================================
 // MESSAGE VALIDATION
@@ -175,4 +176,129 @@ export function validateRequestAsync<T>(
     const result = validateRequest(schema, data)
     resolve(result)
   })
+}
+
+// ==========================================
+// ADDITIONAL VALIDATION UTILITIES
+// ==========================================
+
+/**
+ * Validates and sanitizes pagination limit parameter
+ * 
+ * @param limit - The limit parameter from query string (can be null)
+ * @param defaultLimit - Optional default limit (defaults to PAGINATION.DEFAULT_LIMIT)
+ * @param maxLimit - Optional max limit (defaults to PAGINATION.MAX_LIMIT)
+ * @returns Validated limit within bounds
+ */
+export function validatePaginationLimit(
+  limit: string | null,
+  defaultLimit: number = PAGINATION.DEFAULT_LIMIT,
+  maxLimit: number = PAGINATION.MAX_LIMIT
+): number {
+  const parsed = parseInt(limit || String(defaultLimit))
+  
+  if (isNaN(parsed) || parsed < 1) {
+    return defaultLimit
+  }
+  
+  return Math.min(parsed, maxLimit)
+}
+
+/**
+ * Validates content string length
+ * 
+ * @param content - The content string to validate
+ * @param maxLength - Maximum allowed length
+ * @param fieldName - Name of the field (for error messages)
+ * @returns Validation result with error message if invalid
+ */
+export function validateContent(
+  content: string,
+  maxLength: number,
+  fieldName: string = 'Content'
+): { valid: boolean; error?: string } {
+  const trimmed = content.trim()
+  
+  if (trimmed.length === 0) {
+    return { 
+      valid: false, 
+      error: `${fieldName} cannot be empty` 
+    }
+  }
+  
+  if (trimmed.length > maxLength) {
+    return {
+      valid: false,
+      error: `${fieldName} too long (max ${maxLength} characters)`
+    }
+  }
+  
+  return { valid: true }
+}
+
+/**
+ * Validates and parses a positive integer parameter
+ * 
+ * @param value - The value to parse (can be null)
+ * @param defaultValue - Default value to use if parsing fails
+ * @returns Validated positive integer or default value
+ */
+export function validatePositiveInt(
+  value: string | null,
+  defaultValue: number
+): number {
+  const parsed = parseInt(value || String(defaultValue))
+  return isNaN(parsed) || parsed < 1 ? defaultValue : parsed
+}
+
+/**
+ * Validates an array parameter has items and doesn't exceed max length
+ * 
+ * @param array - The array to validate
+ * @param maxLength - Maximum allowed array length
+ * @param fieldName - Name of the field (for error messages)
+ * @returns Validation result with error message if invalid
+ */
+export function validateArray(
+  array: unknown[],
+  maxLength: number,
+  fieldName: string = 'Array'
+): { valid: boolean; error?: string } {
+  if (!Array.isArray(array)) {
+    return {
+      valid: false,
+      error: `${fieldName} must be an array`
+    }
+  }
+  
+  if (array.length > maxLength) {
+    return {
+      valid: false,
+      error: `${fieldName} cannot have more than ${maxLength} items`
+    }
+  }
+  
+  return { valid: true }
+}
+
+/**
+ * Validates a date range
+ * 
+ * @param days - Number of days to look back
+ * @param maxDays - Maximum allowed days
+ * @param defaultDays - Default days to use if invalid
+ * @returns Validated number of days
+ */
+export function validateDateRange(
+  days: string | null,
+  maxDays: number,
+  defaultDays: number
+): number {
+  const parsed = parseInt(days || String(defaultDays))
+  
+  if (isNaN(parsed) || parsed < 1) {
+    return defaultDays
+  }
+  
+  return Math.min(parsed, maxDays)
 }

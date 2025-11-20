@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION } from '@/lib/constants'
+import { validatePaginationLimit } from '@/lib/validation'
 
 // GET /api/users/mentions?query=john
 export async function GET(req: NextRequest) {

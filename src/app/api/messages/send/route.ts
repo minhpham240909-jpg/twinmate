@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { MessageType } from '@prisma/client'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
-import { sendMessageSchema, validateRequest } from '@/lib/validation'
+import { CONTENT_LIMITS } from '@/lib/constants'
+import { sendMessageSchema, validateRequest, validateContent } from '@/lib/validation'
 
 export async function POST(req: NextRequest) {
   // Rate limiting: 20 messages per minute
@@ -102,26 +103,22 @@ export async function POST(req: NextRequest) {
         }
       })
 
-      // Create notifications for all group members except sender
-      const groupMembers = await prisma.groupMember.findMany({
-        where: {
-          groupId: conversationId,
-          userId: { not: userId }
-        },
-        select: { userId: true }
-      })
+      // PERFORMANCE: Batch fetch group members and group data in parallel
+      const [groupMembers, group] = await Promise.all([
+        prisma.groupMember.findMany({
+          where: {
+            groupId: conversationId,
+            userId: { not: userId }
+          },
+          select: { userId: true }
+        }),
+        prisma.group.findUnique({
+          where: { id: conversationId },
+          select: { name: true }
+        })
+      ])
 
-      // Get sender's name and group name for notification
-      const senderUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { name: true }
-      })
-
-      const group = await prisma.group.findUnique({
-        where: { id: conversationId },
-        select: { name: true }
-      })
-
+      // Use sender name from already-fetched message.sender (no additional query needed)
       if (groupMembers.length > 0) {
         const contentPreview = content.length > 50
           ? content.substring(0, 50) + '...'
@@ -132,11 +129,16 @@ export async function POST(req: NextRequest) {
             userId: member.userId,
             type: 'NEW_MESSAGE',
             title: `New message in ${group?.name || 'group'}`,
-            message: `${senderUser?.name || 'Someone'}: ${contentPreview}`,
+            message: `${message.sender.name || 'Someone'}: ${contentPreview}`,
             actionUrl: `/chat?conversation=${conversationId}&type=group`,
             relatedUserId: userId
           }))
-        }).catch(err => console.error('Failed to create group notifications:', err))
+        }).catch(err => {
+          // Log error in development only
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to create group notifications:', err)
+          }
+        })
       }
 
     } else if (conversationType === 'partner') {
@@ -179,22 +181,21 @@ export async function POST(req: NextRequest) {
         }
       })
 
-      // Create notification for recipient
-      // Get sender's name for notification
-      const senderUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { name: true }
-      })
-
+      // PERFORMANCE: Use sender name from already-fetched message.sender (no additional query needed)
       await prisma.notification.create({
         data: {
           userId: conversationId,
           type: 'NEW_MESSAGE',
           title: 'New message',
-          message: `${senderUser?.name || 'Someone'} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+          message: `${message.sender.name || 'Someone'} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
           actionUrl: `/chat?conversation=${userId}&type=partner`
         }
-      }).catch(err => console.error('Failed to create notification:', err))
+      }).catch(err => {
+        // Log error in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to create notification:', err)
+        }
+      })
 
     } else {
       return NextResponse.json(
@@ -222,7 +223,10 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error sending message:', error)
+    // Log error in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error sending message:', error)
+    }
     return NextResponse.json(
       { error: 'Failed to send message' },
       { status: 500 }

@@ -370,6 +370,24 @@ export default function CommunityPage() {
     const commentContent = newComment
     setNewComment('') // Clear input immediately for better UX
 
+    // Store previous state for rollback
+    const previousPosts = posts
+    const previousSearchResults = searchResults
+    const previousPopularPosts = popularPosts
+
+    // Helper to update comment count
+    const updateCommentCount = (posts: Post[]) =>
+      posts.map(post =>
+        post.id === postId
+          ? { ...post, _count: { ...post._count, comments: post._count.comments + 1 } }
+          : post
+      )
+
+    // Optimistic update - increment comment count immediately
+    setPosts(prev => updateCommentCount(prev))
+    setSearchResults(prev => updateCommentCount(prev))
+    setPopularPosts(prev => updateCommentCount(prev))
+
     try {
       const response = await fetch(`/api/posts/${postId}/comments`, {
         method: 'POST',
@@ -378,29 +396,29 @@ export default function CommunityPage() {
       })
 
       if (response.ok) {
+        // Success - fetch updated comments list
         await fetchComments(postId)
-
-        // Helper to update comment count
-        const updateCommentCount = (posts: Post[]) =>
-          posts.map(post =>
-            post.id === postId
-              ? { ...post, _count: { ...post._count, comments: post._count.comments + 1 } }
-              : post
-          )
-
-        // Update all post states for consistency
-        setPosts(prev => updateCommentCount(prev))
-        setSearchResults(prev => updateCommentCount(prev))
-        setPopularPosts(prev => updateCommentCount(prev))
       } else {
-        // Restore comment on error
+        // ROLLBACK: Restore previous state
+        setPosts(previousPosts)
+        setSearchResults(previousSearchResults)
+        setPopularPosts(previousPopularPosts)
+        
+        // Restore comment input
         setNewComment(commentContent)
+        
         const error = await response.json()
         alert(error.error || 'Failed to add comment. Please try again.')
       }
     } catch (error) {
       console.error('Error commenting:', error)
-      // Restore comment on error
+      
+      // ROLLBACK: Restore previous state
+      setPosts(previousPosts)
+      setSearchResults(previousSearchResults)
+      setPopularPosts(previousPopularPosts)
+      
+      // Restore comment input
       setNewComment(commentContent)
       alert('Failed to add comment. Please try again.')
     }
@@ -458,6 +476,16 @@ export default function CommunityPage() {
       return
     }
 
+    // Store previous state for rollback
+    const previousPosts = posts
+    const previousSearchResults = searchResults
+    const previousPopularPosts = popularPosts
+
+    // Optimistic update - remove post immediately
+    setPosts(prev => prev.filter(post => post.id !== postId))
+    setSearchResults(prev => prev.filter(post => post.id !== postId))
+    setPopularPosts(prev => prev.filter(post => post.id !== postId))
+
     try {
       const response = await fetch(`/api/posts/${postId}`, {
         method: 'DELETE',
@@ -465,17 +493,24 @@ export default function CommunityPage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Remove post from local state
-        setPosts(prev => prev.filter(post => post.id !== postId))
-        setSearchResults(prev => prev.filter(post => post.id !== postId))
-        setPopularPosts(prev => prev.filter(post => post.id !== postId))
         alert(data.message || t('postMovedToHistory'))
       } else {
+        // ROLLBACK: Restore previous state
+        setPosts(previousPosts)
+        setSearchResults(previousSearchResults)
+        setPopularPosts(previousPopularPosts)
+        
         const error = await response.json()
         alert(error.error || t('failedToDeletePostAlert'))
       }
     } catch (error) {
       console.error('Error deleting post:', error)
+      
+      // ROLLBACK: Restore previous state
+      setPosts(previousPosts)
+      setSearchResults(previousSearchResults)
+      setPopularPosts(previousPopularPosts)
+      
       alert(t('failedToDeletePostAlert'))
     }
   }

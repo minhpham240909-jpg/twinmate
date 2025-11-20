@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION, TIME_PERIODS, ENGAGEMENT_WEIGHTS } from '@/lib/constants'
+import { validatePaginationLimit, validatePositiveInt } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,8 +15,8 @@ export async function GET(req: NextRequest) {
 
     // Get query params
     const { searchParams } = new URL(req.url)
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const days = parseInt(searchParams.get('days') || '7') // Last N days
+    const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.POSTS_LIMIT)
+    const days = validatePositiveInt(searchParams.get('days'), TIME_PERIODS.POPULAR_POSTS_DAYS)
 
     // Calculate date threshold
     const dateThreshold = new Date()
@@ -105,7 +107,7 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      take: 100, // Get more to calculate scores
+      take: PAGINATION.POPULAR_POSTS_FETCH, // Get more to calculate scores
     })
 
     // Get all connections for the current user
@@ -141,9 +143,9 @@ export async function GET(req: NextRequest) {
     const postsWithScore = posts.map((post) => ({
       ...post,
       engagementScore:
-        post._count.likes * 2 +
-        post._count.comments * 3 +
-        post._count.reposts * 4,
+        post._count.likes * ENGAGEMENT_WEIGHTS.LIKE_WEIGHT +
+        post._count.comments * ENGAGEMENT_WEIGHTS.COMMENT_WEIGHT +
+        post._count.reposts * ENGAGEMENT_WEIGHTS.REPOST_WEIGHT,
       isLikedByUser: post.likes.some((like) => like.userId === user.id),
       isRepostedByUser: post.reposts.some((repost) => repost.userId === user.id),
       connectionStatus: post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none'),

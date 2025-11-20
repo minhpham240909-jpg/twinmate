@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { PAGINATION, CONTENT_LIMITS, ENGAGEMENT_WEIGHTS } from '@/lib/constants'
+import { validatePaginationLimit, validateContent } from '@/lib/validation'
 
 // GET /api/posts - Get feed posts
 export async function GET(req: NextRequest) {
@@ -15,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const cursor = searchParams.get('cursor') // For pagination
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.POSTS_LIMIT)
 
     // Get user's profile and settings
     const [profile, settings] = await Promise.all([
@@ -143,9 +145,9 @@ export async function GET(req: NextRequest) {
       const scoredPosts = posts.map((post: any) => {
         const hoursSinceCreated = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60)
         const engagementScore = (
-          post._count.likes * 3 +
-          post._count.comments * 5 +
-          post._count.reposts * 7
+          post._count.likes * (ENGAGEMENT_WEIGHTS.LIKE_WEIGHT + 1) +
+          post._count.comments * (ENGAGEMENT_WEIGHTS.COMMENT_WEIGHT + 2) +
+          post._count.reposts * (ENGAGEMENT_WEIGHTS.REPOST_WEIGHT + 3)
         ) / Math.max(hoursSinceCreated, 1) // Decay over time
 
         return { post, score: engagementScore }
@@ -162,9 +164,9 @@ export async function GET(req: NextRequest) {
         const isFromPartner = partnerIds.includes(post.userId)
         const hoursSinceCreated = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60)
         const engagementScore = (
-          post._count.likes * 2 +
-          post._count.comments * 3 +
-          post._count.reposts * 4
+          post._count.likes * ENGAGEMENT_WEIGHTS.LIKE_WEIGHT +
+          post._count.comments * ENGAGEMENT_WEIGHTS.COMMENT_WEIGHT +
+          post._count.reposts * ENGAGEMENT_WEIGHTS.REPOST_WEIGHT
         ) / Math.max(hoursSinceCreated * 0.5, 1)
 
         const partnerBoost = isFromPartner ? 10 : 1
@@ -314,16 +316,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { content, imageUrls = [], postUrl = null, allowSharing = true } = body
 
-    if (!content || content.trim().length === 0) {
+    // Validate content
+    const contentValidation = validateContent(content, CONTENT_LIMITS.POST_MAX_LENGTH, 'Post content')
+    if (!contentValidation.valid) {
       return NextResponse.json(
-        { error: 'Content is required' },
-        { status: 400 }
-      )
-    }
-
-    if (content.length > 5000) {
-      return NextResponse.json(
-        { error: 'Content too long (max 5000 characters)' },
+        { error: contentValidation.error },
         { status: 400 }
       )
     }

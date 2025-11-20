@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // POST - Control timer (start, pause, resume, stop, reset, skip)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const { sessionId } = await params
+  
+  // SECURITY: Session-specific rate limiting to prevent timer control abuse
+  // Strict limit: 5 timer actions per minute per session
+  const rateLimitResult = await rateLimit(request, {
+    ...RateLimitPresets.strict,
+    keyPrefix: `timer-control-${sessionId}` // Per-session rate limit
+  })
+  
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many timer actions. Please wait before controlling the timer again.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const {

@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { CONTENT_LIMITS, STUDY_SESSION } from '@/lib/constants'
 
 const createGroupSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(CONTENT_LIMITS.GROUP_NAME_MAX),
   subject: z.string().min(1),
-  subjectCustomDescription: z.string().optional(),
-  description: z.string().optional(),
+  subjectCustomDescription: z.string().max(500).optional(),
+  description: z.string().max(CONTENT_LIMITS.GROUP_DESCRIPTION_MAX).optional(),
   skillLevel: z.string().optional(),
-  skillLevelCustomDescription: z.string().optional(),
-  maxMembers: z.number().min(2).max(50).default(10),
+  skillLevelCustomDescription: z.string().max(500).optional(),
+  maxMembers: z.number().min(2).max(STUDY_SESSION.MAX_PARTICIPANTS).default(10),
   invitedUsernames: z.array(z.string()).optional().default([]),
 })
 

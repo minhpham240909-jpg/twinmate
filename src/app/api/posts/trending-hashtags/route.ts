@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION, TIME_PERIODS } from '@/lib/constants'
+import { validatePaginationLimit, validatePositiveInt } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,8 +15,8 @@ export async function GET(req: NextRequest) {
 
     // Get query params
     const { searchParams } = new URL(req.url)
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const days = parseInt(searchParams.get('days') || '7')
+    const limit = validatePaginationLimit(searchParams.get('limit'), 10, 20)
+    const days = validatePositiveInt(searchParams.get('days'), TIME_PERIODS.TRENDING_HASHTAGS_DAYS)
 
     // Calculate date threshold
     const dateThreshold = new Date()

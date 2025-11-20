@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION } from '@/lib/constants'
+import { validatePaginationLimit, validatePositiveInt } from '@/lib/validation'
 
 // GET /api/history/calls - Get user's call history
 export async function GET(request: Request) {
@@ -13,8 +15,8 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.HISTORY_LIMIT)
+    const offset = validatePositiveInt(searchParams.get('offset'), 0)
     const callType = searchParams.get('callType') // AUDIO, VIDEO
     const callStatus = searchParams.get('callStatus') // COMPLETED, MISSED, CANCELLED, DECLINED
 

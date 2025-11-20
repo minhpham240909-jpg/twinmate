@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError) {
-      console.error('[Partner Search] Auth error:', authError)
+      logger.error('Partner search auth error', authError)
       return NextResponse.json(
         { error: 'Authentication failed', details: authError.message },
         { status: 401 }
@@ -56,14 +57,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
-      console.error('[Partner Search] No user found in session')
+      logger.warn('Partner search - no user in session')
       return NextResponse.json(
         { error: 'Please sign in to search for partners' },
         { status: 401 }
       )
     }
 
-    console.log('[Partner Search] Request from user:', user.id)
+    logger.debug('Partner search initiated')
 
     // Parse and validate request body
     const body = await request.json()
@@ -323,7 +324,7 @@ export async function POST(request: NextRequest) {
       .neq('userId', user.id)
 
     if (countError) {
-      console.error('Count query error:', countError)
+      logger.error('Partner search count query error', countError)
     }
 
     // Apply pagination to main query
@@ -333,7 +334,7 @@ export async function POST(request: NextRequest) {
     const { data: profiles, error: profileError } = await query
 
     if (profileError) {
-      console.error('Supabase profile search error:', profileError)
+      logger.error('Partner search query error', profileError)
       throw new Error(`Search failed: ${profileError.message}`)
     }
 

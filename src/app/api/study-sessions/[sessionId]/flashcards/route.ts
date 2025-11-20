@@ -4,10 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { getInitialSpacedRepetitionData } from '@/lib/spaced-repetition'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { CONTENT_LIMITS } from '@/lib/constants'
 
 const createFlashcardSchema = z.object({
-  front: z.string().min(1, 'Front side is required').max(5000),
-  back: z.string().min(1, 'Back side is required').max(5000),
+  front: z.string().min(1, 'Front side is required').max(CONTENT_LIMITS.FLASHCARD_FRONT_MAX),
+  back: z.string().min(1, 'Back side is required').max(CONTENT_LIMITS.FLASHCARD_BACK_MAX),
   difficulty: z.number().int().min(0).max(2).default(0), // 0=easy, 1=medium, 2=hard
 })
 
@@ -99,6 +101,15 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ sessionId: string }> }
 ) {
+  // SECURITY: Rate limiting to prevent flashcard spam (20 flashcards per minute)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many flashcard creation requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const { sessionId } = await context.params
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION } from '@/lib/constants'
+import { validatePaginationLimit } from '@/lib/validation'
 
 // GET /api/history/community-activity - Get user's community activity summary
 export async function GET(request: Request) {
@@ -13,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.HISTORY_LIMIT)
 
     // Get user's posts (not deleted)
     const posts = await prisma.post.findMany({

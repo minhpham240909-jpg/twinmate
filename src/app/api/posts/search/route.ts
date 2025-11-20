@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION } from '@/lib/constants'
+import { validatePaginationLimit } from '@/lib/validation'
 
 // GET /api/posts/search - Search posts
 export async function GET(req: NextRequest) {
@@ -14,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const query = searchParams.get('q') || ''
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.SEARCH_LIMIT)
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json({ posts: [] })

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
+import { PAGINATION } from '@/lib/constants'
+import { validatePaginationLimit, validatePositiveInt } from '@/lib/validation'
 
 export async function GET(
   request: NextRequest,

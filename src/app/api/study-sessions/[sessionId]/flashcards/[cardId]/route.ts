@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const updateFlashcardSchema = z.object({
   front: z.string().min(1).max(5000).optional(),
@@ -16,6 +17,15 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ sessionId: string; cardId: string }> }
 ) {
+  // SECURITY: Rate limiting for flashcard updates
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const { sessionId, cardId } = await context.params
 
@@ -106,6 +116,15 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ sessionId: string; cardId: string }> }
 ) {
+  // SECURITY: Rate limiting for flashcard deletion
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const { sessionId, cardId } = await context.params
 

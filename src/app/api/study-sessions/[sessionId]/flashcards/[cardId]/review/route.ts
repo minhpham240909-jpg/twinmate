@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { calculateNextReview, simplifiedQualityToSM2 } from '@/lib/spaced-repetition'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const reviewFlashcardSchema = z.object({
   quality: z.enum(['easy', 'medium', 'hard', 'again']),
@@ -17,6 +18,15 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ sessionId: string; cardId: string }> }
 ) {
+  // SECURITY: Lenient rate limiting for reviews (users review frequently)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many review submissions. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const { sessionId, cardId } = await context.params
 

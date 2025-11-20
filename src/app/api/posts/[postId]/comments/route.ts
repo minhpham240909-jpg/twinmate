@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { PAGINATION, CONTENT_LIMITS } from '@/lib/constants'
+import { validatePaginationLimit, validateContent } from '@/lib/validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // GET /api/posts/[postId]/comments - Get comments for a post
@@ -103,16 +105,11 @@ export async function POST(
     const body = await req.json()
     const { content } = body
 
-    if (!content || content.trim().length === 0) {
+    // Validate content
+    const contentValidation = validateContent(content, CONTENT_LIMITS.COMMENT_MAX_LENGTH, 'Comment')
+    if (!contentValidation.valid) {
       return NextResponse.json(
-        { error: 'Content is required' },
-        { status: 400 }
-      )
-    }
-
-    if (content.length > 1000) {
-      return NextResponse.json(
-        { error: 'Comment too long (max 1000 characters)' },
+        { error: contentValidation.error },
         { status: 400 }
       )
     }

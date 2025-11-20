@@ -3,11 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { CONTENT_LIMITS } from '@/lib/constants'
 
 // SECURITY: Enforce reasonable content size limits to prevent memory exhaustion
 const updateNoteSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(200).optional(),
-  content: z.string().max(50000, 'Note content too large (max 50KB)').optional(),
+  title: z.string().min(1, 'Title is required').max(CONTENT_LIMITS.SESSION_TITLE_MAX).optional(),
+  content: z.string().max(CONTENT_LIMITS.NOTES_MAX_LENGTH, 'Note content too large').optional(),
 })
 
 // GET /api/study-sessions/[sessionId]/notes
