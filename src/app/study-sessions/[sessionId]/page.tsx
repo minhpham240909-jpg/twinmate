@@ -524,7 +524,7 @@ export default function SessionRoomPage() {
                   )}
 
                   {activeTab === 'flashcards' && (
-                    <SessionFlashcards sessionId={sessionId} isHost={isHost} />
+                    <SessionFlashcards sessionId={sessionId} isHost={isHost} currentUserId={user.id} />
                   )}
 
                   {activeTab === 'notes' && (

@@ -66,10 +66,9 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams
     const dueOnly = searchParams.get('due') === 'true'
 
-    // Build where clause - fetch cards created by the SESSION HOST
+    // Build where clause - fetch ALL cards for this session
     const where: any = {
       sessionId,
-      userId: session.createdBy, // shared deck owned by host
     }
 
     // If dueOnly, filter for cards that are due for review
@@ -158,12 +157,8 @@ export async function POST(
       select: { createdBy: true }
     })
 
-    if (!session || session.createdBy !== user.id) {
-       return NextResponse.json(
-        { error: 'Only the session host can create flashcards for the group' },
-        { status: 403 }
-      )
-    }
+    // REMOVED: Host-only restriction. Any participant can create cards.
+    // if (!session || session.createdBy !== user.id) { ... }
 
     // Validate request body
     const body = await request.json()

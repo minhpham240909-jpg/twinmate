@@ -10,14 +10,16 @@ interface Flashcard {
   front: string
   back: string
   difficulty: number
+  userId: string
 }
 
 interface SessionFlashcardsProps {
   sessionId: string
   isHost?: boolean
+  currentUserId?: string
 }
 
-export default function SessionFlashcards({ sessionId, isHost = false }: SessionFlashcardsProps) {
+export default function SessionFlashcards({ sessionId, isHost = false, currentUserId }: SessionFlashcardsProps) {
   // Data State
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,7 +30,7 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
   const [userAnswer, setUserAnswer] = useState('')
   const [hasAnswered, setHasAnswered] = useState(false)
   
-  // Host/Edit State
+  // Management State
   const [viewMode, setViewMode] = useState<'study' | 'manage'>('study')
   const [formData, setFormData] = useState({ front: '', back: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -40,13 +42,13 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
   }, [sessionId])
 
   useEffect(() => {
-    // If host, default to manage mode if no cards, otherwise study
+    // Default to manage mode if no cards
     if (!loading) {
-        if (isHost && flashcards.length === 0) {
+        if (flashcards.length === 0) {
             setViewMode('manage')
         }
     }
-  }, [loading, isHost])
+  }, [loading])
 
   const loadFlashcards = async () => {
     try {
@@ -96,8 +98,7 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
       setIsGenerating(true)
       toast.loading('Generating flashcards...', { id: 'generating' })
 
-      // MOCK AI GENERATION: In a real app, this would call an AI API.
-      // For now, we'll simulate generation with some predefined sets or generic cards.
+      // MOCK AI GENERATION
       const mockData: Record<string, Array<{front: string, back: string}>> = {
         'react': [
             { front: 'What is a Component in React?', back: 'A reusable, self-contained piece of UI code.' },
@@ -121,7 +122,6 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
       if (lowerTopic.includes('react')) cardsToCreate = mockData['react']
       else if (lowerTopic.includes('capital')) cardsToCreate = mockData['capitals']
       else {
-          // Generic fallback if topic not matched in demo
           cardsToCreate = [
               { front: `What is the most important concept in ${topic}?`, back: `The core fundamental principle of ${topic}.` },
               { front: `Example of ${topic}?`, back: `A specific instance or case study of ${topic}.` },
@@ -131,7 +131,6 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
           ]
       }
 
-      // Create cards sequentially
       let count = 0
       for (const card of cardsToCreate) {
         const res = await fetch(`/api/study-sessions/${sessionId}/flashcards`, {
@@ -177,6 +176,12 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
     setIsFlipped(true)
   }
 
+  const handleRevealForCreator = () => {
+      setHasAnswered(true)
+      setIsFlipped(true)
+      setUserAnswer('(Revealed by creator)')
+  }
+
   const handleNextCard = () => {
     setIsFlipped(false)
     setHasAnswered(false)
@@ -184,7 +189,6 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
     if (currentIndex < flashcards.length - 1) {
       setCurrentIndex(prev => prev + 1)
     } else {
-      // Completed logic
       toast.success('Deck completed! Great job!')
       setCurrentIndex(0)
     }
@@ -198,14 +202,14 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
     )
   }
 
-  // HOST MANAGEMENT VIEW
-  if (isHost && viewMode === 'manage') {
+  // MANAGEMENT VIEW (Accessible to everyone now)
+  if (viewMode === 'manage') {
     return (
       <div className="max-w-4xl mx-auto space-y-8 p-4">
         <div className="flex justify-between items-center">
             <div>
                 <h2 className="text-2xl font-bold text-gray-900">Manage Flashcards</h2>
-                <p className="text-gray-500">Create cards for your study group</p>
+                <p className="text-gray-500">Create cards for the study group</p>
             </div>
             <div className="flex gap-3">
                  <button
@@ -287,13 +291,16 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
                                     <div className="text-sm"><span className="font-medium text-gray-900">A:</span> <span className="text-gray-600">{card.back}</span></div>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => handleDeleteCard(card.id)}
-                                className="text-gray-400 hover:text-red-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
-                                title="Delete card"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
+                            {/* Allow delete if Host OR Creator */}
+                            {(isHost || card.userId === currentUserId) && (
+                                <button
+                                    onClick={() => handleDeleteCard(card.id)}
+                                    className="text-gray-400 hover:text-red-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                    title="Delete card"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -303,7 +310,7 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
     )
   }
 
-  // STUDY MODE (For everyone)
+  // STUDY MODE
   if (flashcards.length === 0) {
     return (
         <div className="flex flex-col items-center justify-center h-96 text-center p-8">
@@ -312,41 +319,38 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Flashcards Yet</h3>
             <p className="text-gray-500 max-w-md">
-                {isHost ? "You haven't created any flashcards for this session yet." : "The host hasn't created any flashcards yet. Ask them to add some!"}
+                No flashcards have been created for this session yet. Be the first to add one!
             </p>
             
-            {!isHost && (
+            <div className="flex flex-col gap-3 mt-6">
                 <button 
+                    onClick={() => setViewMode('manage')}
+                    className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all"
+                >
+                    Create Flashcards
+                </button>
+                 <button 
+                    onClick={handleAutoGenerate}
+                    disabled={isGenerating}
+                    className="px-6 py-2.5 bg-purple-100 text-purple-700 font-medium rounded-lg hover:bg-purple-200 transition-all"
+                >
+                    {isGenerating ? 'Generating...' : '✨ Auto-Generate with AI'}
+                </button>
+                
+                 <button 
                     onClick={loadFlashcards}
-                    className="mt-6 px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm"
+                    className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                    Check for Cards
+                    Check for New Cards
                 </button>
-            )}
-
-            {isHost && (
-                <div className="flex flex-col gap-3 mt-6">
-                    <button 
-                        onClick={() => setViewMode('manage')}
-                        className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all"
-                    >
-                        Create Flashcards
-                    </button>
-                     <button 
-                        onClick={handleAutoGenerate}
-                        disabled={isGenerating}
-                        className="px-6 py-2.5 bg-purple-100 text-purple-700 font-medium rounded-lg hover:bg-purple-200 transition-all"
-                    >
-                        {isGenerating ? 'Generating...' : '✨ Auto-Generate with AI'}
-                    </button>
-                </div>
-            )}
+            </div>
         </div>
     )
   }
 
   const currentCard = flashcards[currentIndex]
+  const isCreator = currentCard.userId === currentUserId
   const progress = ((currentIndex + 1) / flashcards.length) * 100
 
   return (
@@ -357,14 +361,12 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
             <div className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
                 Card {currentIndex + 1} / {flashcards.length}
             </div>
-            {isHost && (
-                <button 
-                    onClick={() => setViewMode('manage')}
-                    className="text-sm text-gray-500 hover:text-gray-900 underline"
-                >
-                    Edit Deck
-                </button>
-            )}
+            <button 
+                onClick={() => setViewMode('manage')}
+                className="text-sm text-gray-500 hover:text-gray-900 underline"
+            >
+                Add/Edit Cards
+            </button>
         </div>
         <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
@@ -383,30 +385,51 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
           {/* FRONT */}
           <div className="absolute inset-0 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-12 flex flex-col" style={{ backfaceVisibility: 'hidden' }}>
             <div className="flex-1 flex flex-col items-center justify-center text-center space-y-8">
-                <h3 className="text-gray-400 text-sm font-semibold uppercase tracking-wider">Question</h3>
+                <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-gray-400 text-sm font-semibold uppercase tracking-wider">Question</h3>
+                    {isCreator && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                            You created this
+                        </span>
+                    )}
+                </div>
                 <div className="text-2xl md:text-3xl font-medium text-gray-900 leading-relaxed max-w-xl">
                     {currentCard.front}
                 </div>
                 
-                {/* Answer Input - Only on front */}
+                {/* Answer Section - Differs for Creator vs Others */}
                 <div className="w-full max-w-md mt-8" onClick={(e) => e.stopPropagation()}>
-                    <form onSubmit={handleSubmitAnswer} className="relative">
-                        <input
-                            type="text"
-                            value={userAnswer}
-                            onChange={(e) => setUserAnswer(e.target.value)}
-                            placeholder="Type your answer here..."
-                            className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-lg text-center placeholder:text-gray-400"
-                            autoFocus
-                        />
-                        <button
-                            type="submit"
-                            disabled={!userAnswer.trim()}
-                            className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:shadow-none"
-                        >
-                            Check Answer
-                        </button>
-                    </form>
+                    {isCreator ? (
+                        <div className="flex flex-col items-center gap-4">
+                            <p className="text-sm text-gray-500 italic">
+                                Since you created this card, you can flip it immediately.
+                            </p>
+                            <button
+                                onClick={handleRevealForCreator}
+                                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95"
+                            >
+                                Flip Card ↻
+                            </button>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmitAnswer} className="relative">
+                            <input
+                                type="text"
+                                value={userAnswer}
+                                onChange={(e) => setUserAnswer(e.target.value)}
+                                placeholder="Type your answer here..."
+                                className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-lg text-center placeholder:text-gray-400"
+                                autoFocus
+                            />
+                            <button
+                                type="submit"
+                                disabled={!userAnswer.trim()}
+                                className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                            >
+                                Check Answer
+                            </button>
+                        </form>
+                    )}
                 </div>
             </div>
           </div>
@@ -447,7 +470,7 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
       {/* Instructions footer */}
       {!isFlipped && (
         <p className="text-center text-gray-400 text-sm mt-8">
-          Type your answer and press Enter to reveal the solution
+          {isCreator ? 'You can flip this card anytime.' : 'Type your answer and press Enter to reveal the solution'}
         </p>
       )}
     </div>
