@@ -401,28 +401,25 @@ export default function StudyCallPage() {
 
             {/* Feature Content */}
             <div className="flex-1 overflow-auto">
-              {activeFeature === 'timer' && (
-                <div className="p-6">
-                  <SessionTimer sessionId={sessionId} isHost={isHost} size="large" />
-                </div>
-              )}
-              {activeFeature === 'goals' && <SessionGoals sessionId={sessionId} goals={session.goals} onGoalsUpdate={fetchSession} />}
-              {activeFeature === 'chat' && <SessionChat sessionId={sessionId} isHost={isHost} onUnreadCountChange={() => {}} isVisible={true} />}
-              {activeFeature === 'flashcards' && (
-                <div className="p-6">
-                  <SessionFlashcards sessionId={sessionId} />
-                </div>
-              )}
-              {activeFeature === 'notes' && (
-                <div className="p-6">
-                  <SessionNotes sessionId={sessionId} />
-                </div>
-              )}
-              {activeFeature === 'whiteboard' && (
-                <div className="p-6">
-                  <SessionWhiteboard sessionId={sessionId} />
-                </div>
-              )}
+              <div className={`p-6 ${activeFeature === 'timer' ? 'block' : 'hidden'}`}>
+                <SessionTimer sessionId={sessionId} isHost={isHost} size="large" />
+              </div>
+              <div className={activeFeature === 'goals' ? 'block' : 'hidden'}>
+                <SessionGoals sessionId={sessionId} goals={session.goals} onGoalsUpdate={fetchSession} />
+              </div>
+              <div className={activeFeature === 'chat' ? 'block' : 'hidden'}>
+                <SessionChat sessionId={sessionId} isHost={isHost} onUnreadCountChange={() => {}} isVisible={activeFeature === 'chat'} />
+              </div>
+              <div className={`p-6 ${activeFeature === 'flashcards' ? 'block' : 'hidden'}`}>
+                <SessionFlashcards sessionId={sessionId} />
+              </div>
+              <div className={`p-6 ${activeFeature === 'notes' ? 'block' : 'hidden'}`}>
+                <SessionNotes sessionId={sessionId} />
+              </div>
+              {/* FIX: Keep whiteboard mounted but hidden to prevent Tldraw from being destroyed */}
+              <div className={`p-6 ${activeFeature === 'whiteboard' ? 'block' : 'hidden'}`}>
+                <SessionWhiteboard sessionId={sessionId} />
+              </div>
             </div>
           </div>
         )}

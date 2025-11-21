@@ -118,8 +118,12 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       <div className="relative w-full" style={{ height: '600px' }}>
         <div className="absolute inset-0 border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
           <Tldraw
+            key={`whiteboard-${sessionId}`}
             autoFocus
             persistenceKey={`whiteboard-${sessionId}`}
+            onMount={() => {
+              console.log('[Whiteboard] Tldraw mounted successfully')
+            }}
           />
         </div>
       </div>

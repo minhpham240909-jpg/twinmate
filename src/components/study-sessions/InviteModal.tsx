@@ -22,6 +22,7 @@ interface GroupMember {
   avatarUrl: string | null
   groupId: string
   groupName: string
+  onlineStatus?: 'ONLINE' | 'OFFLINE'
 }
 
 interface InviteModalProps {
@@ -70,18 +71,20 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
           // Flatten all group members from all groups
           const allMembers: GroupMember[] = []
           groupsData.groups.forEach((group: any) => {
-            if (group.members && Array.isArray(group.members)) {
-              group.members.forEach((member: any) => {
+            // FIX: API returns 'membersList' not 'members'
+            if (group.membersList && Array.isArray(group.membersList)) {
+              group.membersList.forEach((member: any) => {
                 // Don't include the current user
-                if (member.user && member.user.id !== user.id) {
+                if (member.id !== user.id) {
                   allMembers.push({
-                    id: member.userId,
-                    userId: member.user.id,
-                    name: member.user.name,
-                    email: member.user.email,
-                    avatarUrl: member.user.avatarUrl,
+                    id: member.id,
+                    userId: member.id,
+                    name: member.name,
+                    email: member.email || '',
+                    avatarUrl: member.avatarUrl,
                     groupId: group.id,
                     groupName: group.name,
+                    onlineStatus: member.onlineStatus,
                   })
                 }
               })
@@ -235,7 +238,8 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
                           avatarUrl={member.avatarUrl}
                           name={member.name}
                           size="md"
-                          showStatus={false}
+                          onlineStatus={member.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                          showStatus={true}
                         />
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">{member.name}</h3>

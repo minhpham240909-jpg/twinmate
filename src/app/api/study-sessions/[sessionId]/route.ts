@@ -38,6 +38,11 @@ export async function GET(
                 id: true,
                 name: true,
                 avatarUrl: true,
+                presence: {
+                  select: {
+                    status: true,
+                  },
+                },
               },
             },
           },
@@ -61,7 +66,7 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // Format participants
+    // Format participants with online status
     const formattedParticipants = session.participants.map(p => ({
       id: p.id,
       userId: p.user.id,
@@ -69,6 +74,7 @@ export async function GET(
       avatarUrl: p.user.avatarUrl,
       role: p.role,
       joinedAt: p.joinedAt,
+      onlineStatus: p.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
     }))
 
     return NextResponse.json({
