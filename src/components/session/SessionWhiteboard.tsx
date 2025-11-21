@@ -115,17 +115,15 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       )}
 
       {/* Tldraw Canvas */}
-      <div className="relative w-full" style={{ height: '600px' }}>
-        <div className="absolute inset-0 border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
-          <Tldraw
-            key={`whiteboard-${sessionId}`}
-            autoFocus
-            persistenceKey={`whiteboard-${sessionId}`}
-            onMount={() => {
-              console.log('[Whiteboard] Tldraw mounted successfully')
-            }}
-          />
-        </div>
+      <div className="w-full border-2 border-gray-200 rounded-lg bg-white" style={{ height: '600px' }}>
+        <Tldraw
+          key={`whiteboard-${sessionId}`}
+          autoFocus
+          persistenceKey={`whiteboard-${sessionId}`}
+          onMount={() => {
+            console.log('[Whiteboard] Tldraw mounted successfully')
+          }}
+        />
       </div>
 
       {/* Help Text */}
