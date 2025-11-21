@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { getOrSetCached, userProfileKey, CACHE_TTL } from '@/lib/cache'
 
 export async function GET(
   _request: NextRequest,
@@ -21,10 +22,16 @@ export async function GET(
       )
     }
 
-    // Get user with profile and posts
+    // Get user with profile and posts (with caching)
+    const cacheKey = userProfileKey(userId)
     let dbUser: any = null
-    try {
-      dbUser = await prisma.user.findUnique({
+    
+    dbUser = await getOrSetCached(
+      cacheKey,
+      CACHE_TTL.USER_PROFILE,
+      async () => {
+        try {
+          return await prisma.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -43,11 +50,11 @@ export async function GET(
           },
         },
       })
-    } catch (error) {
-      console.error('Error fetching user:', error)
-      // Try without presence relation if it fails
-      try {
-        dbUser = await prisma.user.findUnique({
+        } catch (error) {
+          console.error('Error fetching user:', error)
+          // Try without presence relation if it fails
+          try {
+            return await prisma.user.findUnique({
           where: { id: userId },
           select: {
             id: true,
@@ -58,18 +65,22 @@ export async function GET(
             coverPhotoUrl: true,
             role: true,
             profile: true,
-            createdAt: true,
-          },
-        })
+          createdAt: true,
+        },
+      }).then(user => {
         // Add null presence if not included
-        if (dbUser) {
-          dbUser.presence = null
+        if (user) {
+          return { ...user, presence: null }
         }
-      } catch (retryError) {
-        console.error('Error fetching user (retry):', retryError)
-        throw retryError
+        return user
+      })
+          } catch (retryError) {
+            console.error('Error fetching user (retry):', retryError)
+            throw retryError
+          }
+        }
       }
-    }
+    )
 
     // Ensure dbUser is not null before proceeding
     if (!dbUser) {

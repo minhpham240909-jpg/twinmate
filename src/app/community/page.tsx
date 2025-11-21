@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import GlowBorderOptimized from '@/components/ui/GlowBorderOptimized'
 import PulseOptimized from '@/components/ui/PulseOptimized'
 import FadeInOptimized from '@/components/ui/FadeInOptimized'
+import { sanitizeText, sanitizeUrl } from '@/lib/sanitize'
 
 type Post = {
   id: string
@@ -861,7 +862,7 @@ export default function CommunityPage() {
                 </div>
               ) : (
                 <div>
-                  <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.content}</p>
+                  <p className="text-gray-800 mb-4 whitespace-pre-wrap">{sanitizeText(post.content)}</p>
 
                   {/* Post Images */}
                   {post.imageUrls && post.imageUrls.length > 0 && (
@@ -890,9 +891,9 @@ export default function CommunityPage() {
                   )}
 
                   {/* Post Link Preview */}
-                  {post.postUrl && (
+                  {post.postUrl && sanitizeUrl(post.postUrl) && (
                     <a
-                      href={post.postUrl}
+                      href={sanitizeUrl(post.postUrl)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block mb-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
@@ -901,7 +902,7 @@ export default function CommunityPage() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        <span className="text-sm font-medium break-all">{post.postUrl}</span>
+                        <span className="text-sm font-medium break-all">{sanitizeUrl(post.postUrl)}</span>
                       </div>
                     </a>
                   )}
@@ -974,8 +975,8 @@ export default function CommunityPage() {
                           showStatus={!!comment.user.onlineStatus}
                         />
                         <div className="flex-1 bg-gray-50 rounded-lg p-3">
-                          <p className="font-semibold text-sm">{comment.user.name}</p>
-                          <p className="text-gray-800 text-sm">{comment.content}</p>
+                          <p className="font-semibold text-sm">{sanitizeText(comment.user.name)}</p>
+                          <p className="text-gray-800 text-sm">{sanitizeText(comment.content)}</p>
                         </div>
                       </div>
                     ))}

@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { rateLimit } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
+import { passwordSchema } from '@/lib/password-validation'
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",

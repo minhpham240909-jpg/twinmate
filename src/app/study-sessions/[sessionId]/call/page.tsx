@@ -19,6 +19,7 @@ import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
+import OfflineWarning from '@/components/OfflineWarning'
 
 interface Participant {
   id: string
@@ -401,6 +402,13 @@ export default function StudyCallPage() {
 
             {/* Feature Content */}
             <div className="flex-1 overflow-auto">
+              {/* Offline Warning */}
+              <OfflineWarning 
+                message="You are offline. Real-time features and messaging are unavailable."
+                className="m-4"
+                showWhenSlow
+              />
+              
               <div className={`p-6 ${activeFeature === 'timer' ? 'block' : 'hidden'}`}>
                 <SessionTimer sessionId={sessionId} isHost={isHost} size="large" />
               </div>
@@ -416,8 +424,8 @@ export default function StudyCallPage() {
               <div className={`p-6 ${activeFeature === 'notes' ? 'block' : 'hidden'}`}>
                 <SessionNotes sessionId={sessionId} />
               </div>
-              {/* FIX: Keep whiteboard mounted but hidden to prevent Tldraw from being destroyed */}
-              <div className={`p-6 ${activeFeature === 'whiteboard' ? 'block' : 'hidden'}`}>
+              {/* FIX: Always render whiteboard but hide with CSS to prevent Tldraw unmounting */}
+              <div className="p-6" style={{ display: activeFeature === 'whiteboard' ? 'block' : 'none' }}>
                 <SessionWhiteboard sessionId={sessionId} />
               </div>
             </div>

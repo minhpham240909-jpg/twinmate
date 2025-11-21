@@ -9,6 +9,7 @@ import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
+import { sanitizeBio, sanitizeText } from '@/lib/sanitize'
 
 type UserProfile = {
   user: {
@@ -501,11 +502,11 @@ export default function UserProfilePage() {
 
         {/* User Info */}
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{viewedUser.name}</h1>
-          <p className="text-gray-500 text-sm mb-3">@{viewedUser.email.split('@')[0]}</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">{sanitizeText(viewedUser.name)}</h1>
+          <p className="text-gray-500 text-sm mb-3">@{sanitizeText(viewedUser.email.split('@')[0])}</p>
           
           {profile?.bio && (
-            <p className="text-gray-900 mb-3 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+            <p className="text-gray-900 mb-3 whitespace-pre-wrap leading-relaxed">{sanitizeBio(profile.bio)}</p>
           )}
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-3">

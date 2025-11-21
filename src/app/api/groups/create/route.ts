@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { CONTENT_LIMITS, STUDY_SESSION } from '@/lib/constants'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(CONTENT_LIMITS.GROUP_NAME_MAX),
@@ -16,6 +17,15 @@ const createGroupSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 5 groups per minute
+  const rateLimitResult = await rateLimit(request, { ...RateLimitPresets.strict, keyPrefix: 'groups' })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many groups created. Please wait a moment.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

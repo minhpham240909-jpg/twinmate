@@ -1,7 +1,14 @@
 /**
- * Simple in-memory cache with TTL (Time To Live)
- * For production, consider using Redis/Upstash for distributed caching
- * This provides a lightweight solution without external dependencies
+ * Caching Utility with Redis (Upstash) support
+ * 
+ * Provides caching layer for frequently accessed data:
+ * - User profiles (5min)
+ * - Groups (2min)
+ * - Trending posts (10min)
+ * - Search results (5min)
+ * - Feed data (2min)
+ * 
+ * Automatically falls back to in-memory cache in development
  */
 
 interface CacheEntry<T> {
@@ -157,7 +164,7 @@ export async function withCache<T>(
  * ```
  */
 export function invalidateByPattern(pattern: string): number {
-  const regex = new RegExp('^' + pattern.replace('*', '.*') + '$')
+  const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
   let count = 0
 
   for (const key of Array.from(cache['cache'].keys())) {
@@ -168,4 +175,218 @@ export function invalidateByPattern(pattern: string): number {
   }
 
   return count
+}
+
+// ============================================================================
+// Redis/Upstash Implementation
+// ============================================================================
+
+/**
+ * Cache TTL constants (in seconds)
+ */
+export const CACHE_TTL = {
+  USER_PROFILE: 5 * 60, // 5 minutes
+  GROUP: 2 * 60, // 2 minutes
+  TRENDING: 10 * 60, // 10 minutes
+  SEARCH: 5 * 60, // 5 minutes
+  FEED: 2 * 60, // 2 minutes
+  STATISTICS: 15 * 60, // 15 minutes
+  ONLINE_USERS: 30, // 30 seconds
+} as const
+
+/**
+ * Cache key prefixes for namespacing
+ */
+export const CACHE_PREFIX = {
+  USER: 'user',
+  GROUP: 'group',
+  TRENDING: 'trending',
+  SEARCH: 'search',
+  FEED: 'feed',
+  STATS: 'stats',
+  ONLINE: 'online',
+} as const
+
+/**
+ * Check if Redis/Upstash is configured
+ */
+export function isRedisConfigured(): boolean {
+  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+}
+
+/**
+ * Get cached data with Redis support
+ */
+export async function getCached<T>(key: string): Promise<T | null> {
+  if (isRedisConfigured()) {
+    try {
+      const url = process.env.UPSTASH_REDIS_REST_URL!
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+      const response = await fetch(`${url}/get/${key}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!response.ok) return null
+
+      const result = await response.json()
+      if (result.result === null) return null
+
+      return JSON.parse(result.result) as T
+    } catch (error) {
+      console.error('Redis GET error:', error)
+      // Fallback to memory cache
+      return cache.get<T>(key)
+    }
+  }
+
+  // Use memory cache
+  return cache.get<T>(key)
+}
+
+/**
+ * Set cached data with Redis support
+ */
+export async function setCached<T>(key: string, data: T, ttl: number): Promise<void> {
+  if (isRedisConfigured()) {
+    try {
+      const url = process.env.UPSTASH_REDIS_REST_URL!
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+      const value = JSON.stringify(data)
+
+      await fetch(`${url}/setex/${key}/${ttl}/${encodeURIComponent(value)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch (error) {
+      console.error('Redis SETEX error:', error)
+      // Fallback to memory cache
+      cache.set(key, data, ttl)
+    }
+  } else {
+    cache.set(key, data, ttl)
+  }
+}
+
+/**
+ * Invalidate cached data with pattern support
+ */
+export async function invalidateCache(pattern: string): Promise<void> {
+  if (isRedisConfigured()) {
+    try {
+      const url = process.env.UPSTASH_REDIS_REST_URL!
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+      if (pattern.includes('*')) {
+        // Get matching keys
+        const scanResponse = await fetch(`${url}/keys/${pattern}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (scanResponse.ok) {
+          const keys = await scanResponse.json()
+          if (keys.result && Array.isArray(keys.result) && keys.result.length > 0) {
+            const pipeline = keys.result.map((key: string) => ['DEL', key])
+            await fetch(`${url}/pipeline`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(pipeline),
+            })
+          }
+        }
+      } else {
+        await fetch(`${url}/del/${pattern}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      }
+    } catch (error) {
+      console.error('Redis invalidate error:', error)
+    }
+  }
+
+  // Also invalidate memory cache
+  if (pattern.includes('*')) {
+    invalidateByPattern(pattern)
+  } else {
+    cache.delete(pattern)
+  }
+}
+
+/**
+ * Get or set cached data (cache-aside pattern)
+ */
+export async function getOrSetCached<T>(
+  key: string,
+  ttl: number,
+  fetchFn: () => Promise<T>
+): Promise<T> {
+  const cached = await getCached<T>(key)
+  if (cached !== null) return cached
+
+  const data = await fetchFn()
+  await setCached(key, data, ttl)
+  return data
+}
+
+// ============================================================================
+// Cache Key Helpers
+// ============================================================================
+
+export function userProfileKey(userId: string): string {
+  return `${CACHE_PREFIX.USER}:${userId}`
+}
+
+export function groupKey(groupId: string): string {
+  return `${CACHE_PREFIX.GROUP}:${groupId}`
+}
+
+export function trendingKey(): string {
+  return `${CACHE_PREFIX.TRENDING}:posts`
+}
+
+export function searchKey(query: string, type?: string): string {
+  const normalized = query.toLowerCase().trim()
+  return type ? `${CACHE_PREFIX.SEARCH}:${type}:${normalized}` : `${CACHE_PREFIX.SEARCH}:${normalized}`
+}
+
+export function feedKey(userId: string, page: number = 1): string {
+  return `${CACHE_PREFIX.FEED}:${userId}:${page}`
+}
+
+export function statsKey(type: string): string {
+  return `${CACHE_PREFIX.STATS}:${type}`
+}
+
+export function onlineUsersKey(): string {
+  return `${CACHE_PREFIX.ONLINE}:users`
+}
+
+/**
+ * Invalidate all user-related caches
+ */
+export async function invalidateUserCache(userId: string): Promise<void> {
+  await Promise.all([
+    invalidateCache(userProfileKey(userId)),
+    invalidateCache(`${CACHE_PREFIX.FEED}:${userId}:*`),
+    invalidateCache(onlineUsersKey()),
+  ])
+}
+
+/**
+ * Invalidate all group-related caches
+ */
+export async function invalidateGroupCache(groupId: string): Promise<void> {
+  await invalidateCache(groupKey(groupId))
+}
+
+/**
+ * Invalidate feed caches (after new post/comment)
+ */
+export async function invalidateFeedCaches(): Promise<void> {
+  await Promise.all([
+    invalidateCache(trendingKey()),
+    invalidateCache(`${CACHE_PREFIX.FEED}:*`),
+  ])
 }

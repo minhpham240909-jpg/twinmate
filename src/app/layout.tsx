@@ -13,6 +13,8 @@ import { IntlProvider } from "@/contexts/IntlContext";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { PresenceProvider } from "@/components/presence/PresenceProvider";
+import { NetworkProvider } from "@/contexts/NetworkContext";
+import OfflineIndicator from "@/components/OfflineIndicator";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -56,14 +58,16 @@ export default function RootLayout({
         <GlobalErrorHandler />
         <ErrorBoundary>
           <ThemeProvider>
-            <AuthProvider>
-              <SettingsProvider>
-                <IntlProvider>
-                  <PresenceProvider>
-                    <BackgroundSessionProvider>
-                      {children}
-                      <FloatingSessionButton />
-                      <IncomingCallModal />
+            <NetworkProvider>
+              <AuthProvider>
+                <SettingsProvider>
+                  <IntlProvider>
+                    <PresenceProvider>
+                      <BackgroundSessionProvider>
+                        <OfflineIndicator />
+                        {children}
+                        <FloatingSessionButton />
+                        <IncomingCallModal />
                       <Toaster
                       position="top-right"
                       toastOptions={{
@@ -88,11 +92,12 @@ export default function RootLayout({
                         },
                       }}
                       />
-                    </BackgroundSessionProvider>
-                  </PresenceProvider>
-                </IntlProvider>
-              </SettingsProvider>
-            </AuthProvider>
+                      </BackgroundSessionProvider>
+                    </PresenceProvider>
+                  </IntlProvider>
+                </SettingsProvider>
+              </AuthProvider>
+            </NetworkProvider>
           </ThemeProvider>
         </ErrorBoundary>
       </body>

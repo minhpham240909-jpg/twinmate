@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { authenticator } from 'otplib'
 import crypto from 'crypto'
+import { isAccountLocked, recordFailedAttempt, clearLockout, formatLockoutMessage } from '@/lib/account-lockout'
 
 // Encryption helpers for decrypting 2FA secret
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
@@ -65,6 +66,19 @@ export async function POST(request: NextRequest) {
 
     const { email, password, twoFactorCode } = validation.data
 
+    // Check if account is locked
+    const lockoutStatus = await isAccountLocked(email)
+    if (lockoutStatus.locked) {
+      return NextResponse.json(
+        { 
+          error: formatLockoutMessage(lockoutStatus.remainingMinutes!),
+          locked: true,
+          remainingMinutes: lockoutStatus.remainingMinutes,
+        },
+        { status: 429 }
+      )
+    }
+
     // Check if user exists in database first and get 2FA status
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -78,9 +92,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!existingUser) {
+      // Record failed attempt (account not found)
+      await recordFailedAttempt(email)
       return NextResponse.json(
-        { error: 'Account not found. Please sign up to access the app.' },
-        { status: 404 }
+        { error: 'Invalid email or password.' },
+        { status: 401 }
       )
     }
 
@@ -92,6 +108,9 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
+      // Record failed attempt
+      const failureResult = await recordFailedAttempt(email)
+      
       // Check if it's an email verification issue
       if (authError.message.includes('Email not confirmed')) {
         return NextResponse.json(
@@ -100,9 +119,29 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Wrong password
+      // Wrong password - include remaining attempts warning
+      const remainingAttempts = failureResult.remainingAttempts
+      let errorMessage = 'Invalid email or password.'
+      
+      if (failureResult.locked) {
+        errorMessage = formatLockoutMessage(15) // 15 minutes lockout
+        return NextResponse.json(
+          { 
+            error: errorMessage,
+            locked: true,
+            remainingMinutes: 15,
+          },
+          { status: 429 }
+        )
+      } else if (remainingAttempts <= 2 && remainingAttempts > 0) {
+        errorMessage += ` ${remainingAttempts} attempt${remainingAttempts > 1 ? 's' : ''} remaining before account is temporarily locked.`
+      }
+      
       return NextResponse.json(
-        { error: 'Invalid password. Please try again.' },
+        { 
+          error: errorMessage,
+          remainingAttempts,
+        },
         { status: 401 }
       )
     }
@@ -134,10 +173,30 @@ export async function POST(request: NextRequest) {
         const isBackupCode = existingUser.twoFactorBackupCodes.includes(twoFactorCode.toUpperCase())
 
         if (!isValidTOTP && !isBackupCode) {
-          // Invalid 2FA code - sign out
+          // Invalid 2FA code - sign out and record failed attempt
           await supabase.auth.signOut()
+          const failureResult = await recordFailedAttempt(email)
+          
+          let errorMessage = 'Invalid two-factor authentication code'
+          if (failureResult.locked) {
+            errorMessage = formatLockoutMessage(15)
+            return NextResponse.json(
+              { 
+                error: errorMessage,
+                locked: true,
+                remainingMinutes: 15,
+              },
+              { status: 429 }
+            )
+          } else if (failureResult.remainingAttempts <= 2) {
+            errorMessage += `. ${failureResult.remainingAttempts} attempt${failureResult.remainingAttempts > 1 ? 's' : ''} remaining.`
+          }
+          
           return NextResponse.json(
-            { error: 'Invalid two-factor authentication code' },
+            { 
+              error: errorMessage,
+              remainingAttempts: failureResult.remainingAttempts,
+            },
             { status: 401 }
           )
         }
@@ -163,6 +222,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Successful login - clear any lockout
+    await clearLockout(email)
+    
     // Update last login
     await prisma.user.update({
       where: { id: authData.user.id },

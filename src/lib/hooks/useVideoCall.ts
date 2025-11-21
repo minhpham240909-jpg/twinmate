@@ -17,6 +17,7 @@ import {
 } from '@/lib/agora/client'
 import type { RemoteUser, LocalTracks, UseVideoCallReturn } from '@/lib/agora/types'
 import toast from 'react-hot-toast'
+import { useNetwork } from '@/contexts/NetworkContext'
 
 interface UseVideoCallOptions {
   channelName: string
@@ -35,9 +36,15 @@ export function useVideoCall({
 }: UseVideoCallOptions): UseVideoCallReturn {
   console.log('🎯 useVideoCall initialized with audioOnly:', audioOnly)
 
+  // Network status
+  const { isOnline, wasOffline } = useNetwork()
+
   // Client state
   const [client, setClient] = useState<IAgoraRTCClient | null>(null)
   const clientRef = useRef<IAgoraRTCClient | null>(null)
+  
+  // Track if we were in a call before going offline (for auto-reconnect)
+  const wasInCallRef = useRef(false)
 
   // Connection state
   const [isConnected, setIsConnected] = useState(false)
@@ -89,6 +96,9 @@ export function useVideoCall({
   // Error handling throttling to prevent infinite loops
   const lastErrorRef = useRef<string | null>(null)
   const errorThrottleRef = useRef(0)
+  
+  // Auto-reconnect state
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   /**
    * Initialize Agora client and set up event listeners
@@ -264,17 +274,30 @@ export function useVideoCall({
         setIsConnected(false)
         // Only show error toast if we were previously connected (not initial connection)
         if (prevState === 'CONNECTED') {
-          toast.error('Disconnected from call')
-          setConnectionError('Connection lost. Please retry.')
+          // Check if we're offline - if so, show different message
+          if (!navigator.onLine) {
+            toast.error('Lost connection - You are offline')
+            setConnectionError('You are offline. Connection will resume when network is restored.')
+          } else {
+            toast.error('Disconnected from call')
+            setConnectionError('Connection lost. Please retry.')
+          }
         }
       } else if (curState === 'CONNECTED') {
         setIsConnected(true)
         setConnectionError(null) // Clear any previous errors
+        wasInCallRef.current = true // Mark that we're in a call
       } else if (curState === 'FAILED' || curState === 'DISCONNECTING') {
         // Handle connection failures
         if (curState === 'FAILED') {
-          setConnectionError('Connection failed. Please check your network and try again.')
-          toast.error('Connection failed')
+          // Distinguish network errors from other failures
+          if (!navigator.onLine) {
+            setConnectionError('Cannot connect - You are offline. Please check your internet connection.')
+            toast.error('Cannot connect while offline')
+          } else {
+            setConnectionError('Connection failed. Please check your network and try again.')
+            toast.error('Connection failed')
+          }
         }
       }
     })
@@ -304,8 +327,17 @@ export function useVideoCall({
       isConnecting,
       isConnected,
       isJoiningRef: isJoiningRef.current,
+      isOnline,
       channelName
     })
+
+    // Check if online before attempting to join
+    if (!isOnline) {
+      console.error('❌ Cannot join call - offline')
+      setConnectionError('Cannot join call while offline. Please check your internet connection.')
+      toast.error('You are offline. Cannot join call.')
+      return
+    }
 
     // Prevent duplicate join attempts
     if (isConnecting || isConnected || isJoiningRef.current) {
@@ -839,10 +871,41 @@ export function useVideoCall({
   }, [])
 
   /**
+   * Auto-reconnect when network comes back online
+   */
+  useEffect(() => {
+    if (wasOffline && isOnline && wasInCallRef.current && !isConnected && !isConnecting) {
+      console.log('[Video Call] Network restored - attempting to reconnect to call')
+      toast('Network restored - Reconnecting to call...', {
+        icon: '🔄',
+        duration: 3000,
+      })
+      
+      // Add a small delay to ensure network is stable
+      reconnectTimeoutRef.current = setTimeout(() => {
+        joinCall()
+      }, 2000)
+    }
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+    }
+  }, [wasOffline, isOnline, isConnected, isConnecting, joinCall])
+
+  /**
    * Cleanup on unmount
    */
   useEffect(() => {
     return () => {
+      // Clear any pending reconnect
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      
       // Cleanup when component unmounts
       if (isConnected) {
         leaveCall()

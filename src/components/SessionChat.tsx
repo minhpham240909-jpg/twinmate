@@ -5,6 +5,9 @@ import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
+import { useNetwork } from '@/contexts/NetworkContext'
+import OfflineWarning from '@/components/OfflineWarning'
+import { sanitizeText } from '@/lib/sanitize'
 
 interface Message {
   id: string
@@ -29,6 +32,7 @@ interface SessionChatProps {
 
 export default function SessionChat({ sessionId, isHost = false, onUnreadCountChange, isVisible = true }: SessionChatProps) {
   const { user, profile } = useAuth()
+  const { isOnline } = useNetwork()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
@@ -281,6 +285,12 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     e.preventDefault()
 
     if (!newMessage.trim() || sending || !user) return
+    
+    // Check if online before sending
+    if (!isOnline) {
+      toast.error('Cannot send message while offline')
+      return
+    }
 
     const messageContent = newMessage.trim()
     const tempId = `temp-${Date.now()}-${Math.random()}`
@@ -376,6 +386,12 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
 
   return (
     <div className="flex flex-col h-full">
+      {/* Offline Warning */}
+      <OfflineWarning 
+        message="You are offline. Messages cannot be sent or received."
+        className="m-4"
+      />
+      
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
@@ -432,7 +448,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
                       }}
                     >
                       <p className="text-sm whitespace-pre-wrap break-words">
-                        {isDeleted ? 'This message was deleted' : message.content}
+                        {isDeleted ? 'This message was deleted' : sanitizeText(message.content)}
                       </p>
 
                       {/* Delete button - shows on click */}
@@ -469,14 +485,15 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message... (Press Enter to send)"
+            placeholder={isOnline ? "Type a message... (Press Enter to send)" : "Offline - Cannot send messages"}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-            disabled={sending}
+            disabled={sending || !isOnline}
           />
           <button
             type="submit"
-            disabled={!newMessage.trim() || sending}
+            disabled={!newMessage.trim() || sending || !isOnline}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!isOnline ? 'Cannot send messages while offline' : ''}
           >
             {sending ? 'Sending...' : 'Send'}
           </button>

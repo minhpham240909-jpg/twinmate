@@ -23,14 +23,15 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    // Find sessions that are SCHEDULED and older than 30 minutes with no study time
+    // Cleanup logic:
+    // 1. Delete SCHEDULED sessions older than 30 minutes with no activity
+    // 2. Auto-end IN_PROGRESS sessions older than 6 hours (likely abandoned)
+    
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000)
 
-    // Get sessions that match criteria:
-    // 1. Status is SCHEDULED
-    // 2. Created more than 30 minutes ago
-    // 3. No timer has been started (or totalStudyTime is 0)
-    const sessionsToDelete = await prisma.studySession.findMany({
+    // Find SCHEDULED sessions to delete
+    const scheduledSessionsToDelete = await prisma.studySession.findMany({
       where: {
         status: 'SCHEDULED',
         createdAt: {
@@ -43,12 +44,25 @@ export async function POST(request: NextRequest) {
     })
 
     // Filter to only delete sessions where nobody has started studying
-    const sessionIdsToDelete = sessionsToDelete
+    const sessionIdsToDelete = scheduledSessionsToDelete
       .filter(session => !session.timer || session.timer.totalStudyTime === 0)
       .map(session => session.id)
 
+    // Find ACTIVE sessions to auto-end (abandoned)
+    const abandonedSessions = await prisma.studySession.findMany({
+      where: {
+        status: 'ACTIVE',
+        startedAt: {
+          lt: sixHoursAgo,
+        },
+      },
+    })
+
+    let deletedCount = 0
+    let autoEndedCount = 0
+
+    // Delete SCHEDULED sessions
     if (sessionIdsToDelete.length > 0) {
-      // Delete the sessions (cascade will handle participants, goals, messages, timer)
       await prisma.studySession.deleteMany({
         where: {
           id: {
@@ -56,18 +70,53 @@ export async function POST(request: NextRequest) {
           },
         },
       })
+      deletedCount = sessionIdsToDelete.length
+    }
 
-      return NextResponse.json({
-        success: true,
-        deletedCount: sessionIdsToDelete.length,
-        message: `Cleaned up ${sessionIdsToDelete.length} inactive session(s)`,
-      })
+    // Auto-end abandoned ACTIVE sessions
+    if (abandonedSessions.length > 0) {
+      for (const session of abandonedSessions) {
+        try {
+          const endedAt = new Date()
+          const startedAt = new Date(session.startedAt!)
+          const durationMinutes = Math.floor((endedAt.getTime() - startedAt.getTime()) / 60000)
+
+          await prisma.$transaction(async (tx) => {
+            // Update session status
+            await tx.studySession.update({
+              where: { id: session.id },
+              data: {
+                status: 'COMPLETED',
+                endedAt,
+                durationMinutes,
+              },
+            })
+
+            // Update participants to LEFT
+            await tx.sessionParticipant.updateMany({
+              where: {
+                sessionId: session.id,
+                status: 'JOINED',
+              },
+              data: {
+                status: 'LEFT',
+                leftAt: endedAt,
+              },
+            })
+          })
+
+          autoEndedCount++
+        } catch (err) {
+          console.error(`Failed to auto-end session ${session.id}:`, err)
+        }
+      }
     }
 
     return NextResponse.json({
       success: true,
-      deletedCount: 0,
-      message: 'No sessions to clean up',
+      deletedCount,
+      autoEndedCount,
+      message: `Cleaned up ${deletedCount} inactive session(s) and auto-ended ${autoEndedCount} abandoned session(s)`,
     })
   } catch (error) {
     console.error('Error cleaning up sessions:', error)

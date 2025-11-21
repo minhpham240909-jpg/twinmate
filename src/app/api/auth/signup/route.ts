@@ -6,10 +6,11 @@ import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { passwordSchema } from '@/lib/password-validation'
 
 const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
   name: z.string().min(2, 'Name must be at least 2 characters'),
 })
 

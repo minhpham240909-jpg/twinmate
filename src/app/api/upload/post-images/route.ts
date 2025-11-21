@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateMultipleImages, generateSafeFilename, FILE_SIZE_LIMITS } from '@/lib/file-validation'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  // Rate limiting: 10 uploads per hour
+  const rateLimitResult = await rateLimit(req, { ...RateLimitPresets.hourly, keyPrefix: 'post-images-upload' })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many upload attempts. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -13,39 +24,23 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const files = formData.getAll('images') as File[]
 
-    if (files.length === 0) {
-      return NextResponse.json({ error: 'No files provided' }, { status: 400 })
-    }
+    // Comprehensive validation for all files
+    const validation = await validateMultipleImages(
+      files,
+      FILE_SIZE_LIMITS.MAX_POST_IMAGES,
+      FILE_SIZE_LIMITS.POST_IMAGE
+    )
 
-    if (files.length > 4) {
-      return NextResponse.json(
-        { error: 'Maximum 4 images allowed per post' },
-        { status: 400 }
-      )
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
     }
 
     const uploadedUrls: string[] = []
 
     for (const file of files) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        return NextResponse.json(
-          { error: 'Only image files are allowed' },
-          { status: 400 }
-        )
-      }
 
-      // Validate file size (max 5MB per image)
-      if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: 'Image size must be less than 5MB' },
-          { status: 400 }
-        )
-      }
-
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+      // Generate safe filename
+      const fileName = `${user.id}/${generateSafeFilename(user.id, file.name)}`
 
       // Convert File to ArrayBuffer then to Buffer
       const arrayBuffer = await file.arrayBuffer()

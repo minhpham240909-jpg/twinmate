@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuth } from '@/lib/auth/context'
+import { useNetwork } from '@/contexts/NetworkContext'
 
 const HEARTBEAT_INTERVAL = 15000 // 15 seconds - faster offline detection
 const DEVICE_ID_KEY = 'clerva_device_id'
+const MAX_RETRY_ATTEMPTS = 3
+const INITIAL_RETRY_DELAY = 2000 // 2 seconds
 
 export interface PresenceStatus {
   status: 'online' | 'away' | 'offline'
@@ -13,9 +16,12 @@ export interface PresenceStatus {
 
 export function usePresence() {
   const { user, loading } = useAuth()
+  const { isOnline, wasOffline } = useNetwork()
   const [isInitialized, setIsInitialized] = useState(false)
   const deviceIdRef = useRef<string | null>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const retryCountRef = useRef(0)
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Initialize device ID (persists across page refreshes)
   useEffect(() => {
@@ -39,8 +45,14 @@ export function usePresence() {
     setIsInitialized(true)
   }, [])
 
-  // Send heartbeat to server (memoized to prevent unnecessary re-renders)
-  const sendHeartbeat = useCallback(async () => {
+  // Send heartbeat to server with retry logic (memoized to prevent unnecessary re-renders)
+  const sendHeartbeat = useCallback(async (isRetry = false) => {
+    // Don't send heartbeat if offline
+    if (!isOnline) {
+      console.log('[HEARTBEAT] Skipping - offline')
+      return
+    }
+
     // Only send heartbeat if user is authenticated
     if (!deviceIdRef.current || !user) return
 
@@ -56,16 +68,53 @@ export function usePresence() {
 
       if (!response.ok) {
         console.error('[HEARTBEAT] Failed:', response.statusText)
+        
+        // Retry with exponential backoff if not already retrying
+        if (!isRetry && retryCountRef.current < MAX_RETRY_ATTEMPTS) {
+          retryCountRef.current += 1
+          const retryDelay = INITIAL_RETRY_DELAY * Math.pow(2, retryCountRef.current - 1)
+          console.log(`[HEARTBEAT] Scheduling retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS} in ${retryDelay}ms`)
+          
+          retryTimeoutRef.current = setTimeout(() => {
+            sendHeartbeat(true)
+          }, retryDelay)
+        }
+      } else {
+        // Success - reset retry count
+        retryCountRef.current = 0
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current)
+          retryTimeoutRef.current = null
+        }
       }
     } catch (error) {
       console.error('[HEARTBEAT] Error:', error)
+      
+      // Retry with exponential backoff if not already retrying
+      if (!isRetry && retryCountRef.current < MAX_RETRY_ATTEMPTS) {
+        retryCountRef.current += 1
+        const retryDelay = INITIAL_RETRY_DELAY * Math.pow(2, retryCountRef.current - 1)
+        console.log(`[HEARTBEAT] Scheduling retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS} in ${retryDelay}ms`)
+        
+        retryTimeoutRef.current = setTimeout(() => {
+          sendHeartbeat(true)
+        }, retryDelay)
+      } else if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+        console.error('[HEARTBEAT] Max retries reached, giving up')
+      }
     }
-  }, [user])
+  }, [user, isOnline])
 
   // Disconnect device session (memoized to prevent unnecessary re-renders)
   const disconnect = useCallback(async () => {
     // Only disconnect if user is authenticated and device ID exists
     if (!deviceIdRef.current || !user) return
+
+    // Clear any pending retries
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
 
     try {
       // Use fetch with keepalive for reliable disconnect (works better than sendBeacon for JSON)
@@ -83,7 +132,7 @@ export function usePresence() {
     }
   }, [user])
 
-  // Start heartbeat interval (only when user is authenticated)
+  // Start heartbeat interval (only when user is authenticated and online)
   useEffect(() => {
     if (!isInitialized || loading) return
     if (!user) {
@@ -95,11 +144,21 @@ export function usePresence() {
       return
     }
 
+    // Don't start heartbeat if offline
+    if (!isOnline) {
+      console.log('[HEARTBEAT] User offline, pausing heartbeat')
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+      return
+    }
+
     // Send initial heartbeat immediately
     sendHeartbeat()
 
     // Set up interval for subsequent heartbeats
-    heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
+    heartbeatIntervalRef.current = setInterval(() => sendHeartbeat(), HEARTBEAT_INTERVAL)
 
     // Cleanup on unmount or when user logs out
     return () => {
@@ -107,19 +166,35 @@ export function usePresence() {
         clearInterval(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
       }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
       // Disconnect when component unmounts or user logs out
       if (user) {
         disconnect()
       }
     }
-  }, [isInitialized, user, loading, sendHeartbeat, disconnect])
+  }, [isInitialized, user, loading, isOnline, sendHeartbeat, disconnect])
 
-  // Handle page visibility changes (tab focus/blur)
+  // Handle network recovery - send immediate heartbeat when coming back online
   useEffect(() => {
     if (!isInitialized || !user) return
 
+    if (wasOffline && isOnline) {
+      console.log('[HEARTBEAT] Network restored, sending immediate heartbeat')
+      // Reset retry count on network recovery
+      retryCountRef.current = 0
+      sendHeartbeat()
+    }
+  }, [isInitialized, user, wasOffline, isOnline, sendHeartbeat])
+
+  // Handle page visibility changes (tab focus/blur)
+  useEffect(() => {
+    if (!isInitialized || !user || !isOnline) return
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && user) {
+      if (document.visibilityState === 'visible' && user && isOnline) {
         // Tab became visible - send immediate heartbeat
         sendHeartbeat()
       }
@@ -130,7 +205,7 @@ export function usePresence() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [isInitialized, user, sendHeartbeat])
+  }, [isInitialized, user, isOnline, sendHeartbeat])
 
   // Handle beforeunload (browser close)
   useEffect(() => {

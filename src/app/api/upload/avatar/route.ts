@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateImageFile, generateSafeFilename, FILE_SIZE_LIMITS } from '@/lib/file-validation'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { invalidateUserCache } from '@/lib/cache'
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 10 uploads per hour
+  const rateLimitResult = await rateLimit(request, { ...RateLimitPresets.hourly, keyPrefix: 'avatar-upload' })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many upload attempts. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()
@@ -19,33 +31,19 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const userId = formData.get('userId') as string
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      )
-    }
-
     // Verify user is uploading their own avatar
-    if (userId !== user.id) {
+    if (userId && userId !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Comprehensive file validation
+    const validation = await validateImageFile(file, FILE_SIZE_LIMITS.AVATAR)
+    if (!validation.valid) {
       return NextResponse.json(
-        { error: 'File must be an image' },
-        { status: 400 }
-      )
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'File size must be less than 5MB' },
+        { error: validation.error },
         { status: 400 }
       )
     }
@@ -54,9 +52,8 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`
+    // Generate safe filename
+    const fileName = generateSafeFilename(user.id, file.name)
     const filePath = `avatars/${fileName}`
 
     // Upload to Supabase Storage
@@ -79,6 +76,9 @@ export async function POST(request: NextRequest) {
     const { data: urlData } = supabase.storage
       .from('user-uploads')
       .getPublicUrl(filePath)
+
+    // Invalidate user cache after avatar upload
+    await invalidateUserCache(user.id)
 
     return NextResponse.json({
       success: true,

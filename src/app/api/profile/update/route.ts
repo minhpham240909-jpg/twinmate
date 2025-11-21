@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { StudyStyle } from '@prisma/client'
 import { z } from 'zod'
+import { invalidateUserCache } from '@/lib/cache'
 
 const profileSchema = z.object({
   userId: z.string(),
@@ -143,6 +144,9 @@ export async function POST(request: NextRequest) {
         })
       }
     })
+
+    // Invalidate user cache after profile update
+    await invalidateUserCache(user.id)
 
     return NextResponse.json({
       success: true,

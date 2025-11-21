@@ -49,14 +49,27 @@ export async function GET(
       )
     }
 
+    // Get session details to identify the host
+    const session = await prisma.studySession.findUnique({
+      where: { id: sessionId },
+      select: { createdBy: true }
+    })
+
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      )
+    }
+
     // Get URL search params for filtering
     const searchParams = request.nextUrl.searchParams
     const dueOnly = searchParams.get('due') === 'true'
 
-    // Build where clause
+    // Build where clause - fetch cards created by the SESSION HOST
     const where: any = {
       sessionId,
-      userId: user.id,
+      userId: session.createdBy, // shared deck owned by host
     }
 
     // If dueOnly, filter for cards that are due for review
@@ -135,6 +148,19 @@ export async function POST(
     if (!participant) {
       return NextResponse.json(
         { error: 'Not a participant in this session' },
+        { status: 403 }
+      )
+    }
+
+    // Check if user is the host
+    const session = await prisma.studySession.findUnique({
+      where: { id: sessionId },
+      select: { createdBy: true }
+    })
+
+    if (!session || session.createdBy !== user.id) {
+       return NextResponse.json(
+        { error: 'Only the session host can create flashcards for the group' },
         { status: 403 }
       )
     }
