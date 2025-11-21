@@ -41,7 +41,13 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesRef = useRef<Message[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
+
+  // Fix hydration: only render time after mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Initialize notification sound
   useEffect(() => {
@@ -376,6 +382,9 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
   }
 
   const formatTime = (dateString: string) => {
+    // Fix hydration: don't format time on server
+    if (!mounted) return ''
+    
     const date = new Date(dateString)
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',

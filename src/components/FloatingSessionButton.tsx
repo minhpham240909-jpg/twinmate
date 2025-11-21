@@ -13,6 +13,12 @@ export default function FloatingSessionButton() {
   // Always call hooks unconditionally (before early returns)
   const { timer } = useTimerSync(activeSessionId || '')
   const [displayTime, setDisplayTime] = useState(0)
+  const [mounted, setMounted] = useState(false)
+
+  // Fix hydration: only render after mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Calculate display time based on timer state
   useEffect(() => {
@@ -62,7 +68,8 @@ export default function FloatingSessionButton() {
   // Don't show button if:
   // 1. No active session
   // 2. Already on the session page
-  if (!activeSessionId || pathname?.startsWith(`/study-sessions/${activeSessionId}`)) {
+  // 3. Not mounted yet (hydration fix)
+  if (!mounted || !activeSessionId || pathname?.startsWith(`/study-sessions/${activeSessionId}`)) {
     return null
   }
 

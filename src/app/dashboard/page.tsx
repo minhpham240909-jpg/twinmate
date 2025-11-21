@@ -187,13 +187,15 @@ export default function DashboardPage() {
         setUnreadMessagesCount(unreadMessagesTotal)
 
         // Filter and set online partners
+        // FIX: Use top-level onlineStatus instead of p.profile?.onlineStatus
+        // This ensures partners without profiles still show as online if they are
         const online = activePartners.partners
-          ?.filter((p: any) => p.profile?.onlineStatus === 'ONLINE')
+          ?.filter((p: any) => p.onlineStatus === 'ONLINE')
           .map((p: any) => ({
             id: p.id,
             name: p.name,
             avatarUrl: p.avatarUrl,
-            onlineStatus: p.profile.onlineStatus
+            onlineStatus: p.onlineStatus
           })) || []
         setOnlinePartners(online)
         

@@ -17,6 +17,7 @@ interface Partner {
   name: string
   email: string
   avatarUrl: string | null
+  onlineStatus: string
   profile: {
     bio: string | null
     subjects: string[]
@@ -181,7 +182,7 @@ export default function PartnersPage() {
                         avatarUrl={partner.avatarUrl}
                         name={partner.name}
                         size="lg"
-                        onlineStatus={partner.profile?.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                        onlineStatus={partner.onlineStatus as 'ONLINE' | 'OFFLINE'}
                         showStatus={true}
                         className="ring-2 ring-blue-100"
                       />

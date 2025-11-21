@@ -41,6 +41,12 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set())
+  const [mounted, setMounted] = useState(false)
+
+  // Fix hydration: only render time-dependent content after mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Define which notification types should appear in the bell icon (CRITICAL ONLY)
   // Feature-specific notifications appear in their respective pages:
@@ -262,6 +268,9 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
   }
 
   const getTimeAgo = (dateString: string) => {
+    // Fix hydration: don't calculate time on server
+    if (!mounted) return ''
+    
     const date = new Date(dateString)
     const now = new Date()
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
