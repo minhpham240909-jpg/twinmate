@@ -79,6 +79,8 @@ function PartnersChatContent() {
   const callMessageId = useRef<string | null>(null)
   const callStartTime = useRef<number>(0)
   const currentCallType = useRef<'VIDEO' | 'AUDIO'>('VIDEO')
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -263,6 +265,68 @@ function PartnersChatContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     setShouldAutoScroll(true)
     setShowScrollButton(false)
+  }
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !selectedConversation || !user) return
+
+    setUploadingFile(true)
+    try {
+      // Upload file to server
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('conversationId', selectedConversation.id)
+      formData.append('conversationType', 'partner')
+
+      const uploadRes = await fetch('/api/messages/upload-file', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const uploadData = await uploadRes.json()
+
+      if (!uploadData.success) {
+        alert(uploadData.error || 'Failed to upload file')
+        return
+      }
+
+      // Send message with file URL
+      const fileUrl = uploadData.file.url
+      const fileName = uploadData.file.fileName
+      const isImage = uploadData.file.isImage
+
+      let messageContent = isImage
+        ? `[Image: ${fileName}](${fileUrl})`
+        : `[File: ${fileName}](${fileUrl})`
+
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: messageContent,
+          conversationId: selectedConversation.id,
+          conversationType: 'partner'
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setMessages(prev => [...prev, data.message])
+        setShouldAutoScroll(true)
+        setTimeout(() => scrollToBottom(), 100)
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error)
+      alert('Failed to upload file')
+    } finally {
+      setUploadingFile(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   // Send message
@@ -746,6 +810,31 @@ function PartnersChatContent() {
                   {/* Message Input */}
                   <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
                     <div className="flex items-center gap-2">
+                      {/* Hidden file input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx,.txt"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+
+                      {/* File upload button */}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingFile}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
+                        title="Attach file or image"
+                      >
+                        {uploadingFile ? (
+                          <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                        )}
+                      </button>
+
                       <input
                         type="text"
                         value={message}

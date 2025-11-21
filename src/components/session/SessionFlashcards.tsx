@@ -32,6 +32,7 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
   const [viewMode, setViewMode] = useState<'study' | 'manage'>('study')
   const [formData, setFormData] = useState({ front: '', back: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // Initialize
   useEffect(() => {
@@ -84,6 +85,70 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
       toast.error('Failed to create flashcard')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleAutoGenerate = async () => {
+    const topic = window.prompt('Enter a topic to generate flashcards for (e.g., "React Basics", "World Capitals", "Science"):')
+    if (!topic) return
+
+    try {
+      setIsGenerating(true)
+      toast.loading('Generating flashcards...', { id: 'generating' })
+
+      // MOCK AI GENERATION: In a real app, this would call an AI API.
+      // For now, we'll simulate generation with some predefined sets or generic cards.
+      const mockData: Record<string, Array<{front: string, back: string}>> = {
+        'react': [
+            { front: 'What is a Component in React?', back: 'A reusable, self-contained piece of UI code.' },
+            { front: 'What is useState used for?', back: 'To manage local state within a functional component.' },
+            { front: 'What is useEffect used for?', back: 'To perform side effects like data fetching or subscriptions.' },
+            { front: 'What is the Virtual DOM?', back: 'A lightweight copy of the real DOM used for performance optimization.' },
+            { front: 'What are Props?', back: 'Read-only inputs passed from parent to child components.' }
+        ],
+        'capitals': [
+            { front: 'Capital of France?', back: 'Paris' },
+            { front: 'Capital of Japan?', back: 'Tokyo' },
+            { front: 'Capital of Brazil?', back: 'Brasilia' },
+            { front: 'Capital of Canada?', back: 'Ottawa' },
+            { front: 'Capital of Australia?', back: 'Canberra' }
+        ]
+      }
+
+      // Simple keyword matching for demo
+      const lowerTopic = topic.toLowerCase()
+      let cardsToCreate = []
+      if (lowerTopic.includes('react')) cardsToCreate = mockData['react']
+      else if (lowerTopic.includes('capital')) cardsToCreate = mockData['capitals']
+      else {
+          // Generic fallback if topic not matched in demo
+          cardsToCreate = [
+              { front: `What is the most important concept in ${topic}?`, back: `The core fundamental principle of ${topic}.` },
+              { front: `Example of ${topic}?`, back: `A specific instance or case study of ${topic}.` },
+              { front: `Why is ${topic} important?`, back: `It helps in understanding broader contexts.` },
+              { front: `Who founded/discovered ${topic}?`, back: `The key historical figure associated with it.` },
+              { front: `Key term in ${topic}?`, back: `A crucial vocabulary word.` }
+          ]
+      }
+
+      // Create cards sequentially
+      let count = 0
+      for (const card of cardsToCreate) {
+        const res = await fetch(`/api/study-sessions/${sessionId}/flashcards`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...card, difficulty: 0 }),
+        })
+        if (res.ok) count++
+      }
+
+      toast.success(`Generated ${count} flashcards for "${topic}"`, { id: 'generating' })
+      loadFlashcards()
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to generate flashcards', { id: 'generating' })
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -142,14 +207,28 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
                 <h2 className="text-2xl font-bold text-gray-900">Manage Flashcards</h2>
                 <p className="text-gray-500">Create cards for your study group</p>
             </div>
-            <button
-              onClick={() => setViewMode('study')}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2"
-              disabled={flashcards.length === 0}
-            >
-              <span>Preview Mode</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-            </button>
+            <div className="flex gap-3">
+                 <button
+                  onClick={handleAutoGenerate}
+                  disabled={isGenerating}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  {isGenerating ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  )}
+                  <span>Auto-Generate</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('study')}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  disabled={flashcards.length === 0}
+                >
+                  <span>Preview Mode</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                </button>
+            </div>
         </div>
 
         {/* Create Form */}
@@ -236,12 +315,21 @@ export default function SessionFlashcards({ sessionId, isHost = false }: Session
                 {isHost ? "You haven't created any flashcards for this session yet." : "The host hasn't created any flashcards yet. Ask them to add some!"}
             </p>
             {isHost && (
-                <button 
-                    onClick={() => setViewMode('manage')}
-                    className="mt-6 px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all"
-                >
-                    Create Flashcards
-                </button>
+                <div className="flex flex-col gap-3 mt-6">
+                    <button 
+                        onClick={() => setViewMode('manage')}
+                        className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all"
+                    >
+                        Create Flashcards
+                    </button>
+                     <button 
+                        onClick={handleAutoGenerate}
+                        disabled={isGenerating}
+                        className="px-6 py-2.5 bg-purple-100 text-purple-700 font-medium rounded-lg hover:bg-purple-200 transition-all"
+                    >
+                        {isGenerating ? 'Generating...' : '✨ Auto-Generate with AI'}
+                    </button>
+                </div>
             )}
         </div>
     )
