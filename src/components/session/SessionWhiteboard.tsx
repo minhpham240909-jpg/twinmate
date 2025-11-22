@@ -548,7 +548,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
           onMouseUp={handleMouseUp}
           onMouseLeave={() => {
             if (isDrawing && currentAction) {
-              handleMouseUp({} as any)
+              handleMouseUp()
             }
           }}
           className="w-full h-full cursor-crosshair"
