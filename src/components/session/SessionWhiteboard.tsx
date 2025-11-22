@@ -50,21 +50,37 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current
     const container = containerRef.current
-    if (!canvas || !container) return
+    if (!canvas || !container) {
+      console.error('[Whiteboard] Canvas or container not found!')
+      return
+    }
 
     // Set canvas to match container size
     const rect = container.getBoundingClientRect()
     canvas.width = rect.width
     canvas.height = 600
 
+    console.log('[Whiteboard] Canvas size set to:', canvas.width, 'x', canvas.height)
+    console.log('[Whiteboard] Container size:', rect.width, 'x', rect.height)
+
     // Set white background
     const ctx = canvas.getContext('2d')
     if (ctx) {
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-    }
 
-    console.log('[Whiteboard] Canvas initialized:', canvas.width, 'x', canvas.height)
+      // Draw a TEST diagonal line to prove canvas is working
+      ctx.strokeStyle = '#ff0000'
+      ctx.lineWidth = 5
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.lineTo(200, 200)
+      ctx.stroke()
+
+      console.log('[Whiteboard] ✅ Canvas initialized and TEST line drawn')
+    } else {
+      console.error('[Whiteboard] Failed to get 2D context!')
+    }
   }, [])
 
   // Initialize canvas on mount
@@ -242,7 +258,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getMousePos(e)
-    console.log('[Whiteboard] Mouse down at', pos, 'with tool', tool)
+    console.log('[Whiteboard] 🖱️ Mouse DOWN at', pos, 'with tool', tool)
+    console.log('[Whiteboard] Canvas ref exists?', !!canvasRef.current)
+    console.log('[Whiteboard] Current action:', currentAction)
 
     if (tool === 'text') {
       setTextPos(pos)
@@ -280,14 +298,24 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !currentAction) return
+    if (!isDrawing || !currentAction) {
+      // Silently return if not drawing
+      return
+    }
 
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas) {
+      console.error('[Whiteboard] No canvas in handleMouseMove!')
+      return
+    }
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    if (!ctx) {
+      console.error('[Whiteboard] No context in handleMouseMove!')
+      return
+    }
 
     const pos = getMousePos(e)
+    console.log('[Whiteboard] 🖱️ Mouse MOVE to', pos)
 
     if (tool === 'pen' || tool === 'eraser') {
       // Add point to current action

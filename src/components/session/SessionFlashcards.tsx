@@ -376,10 +376,11 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
       {/* 3D Card Container */}
       <div className="relative w-full aspect-[3/2]" style={{ perspective: '1000px' }}>
         <motion.div
-          className="w-full h-full relative transition-all duration-700"
-          initial={false}
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
+          key={currentIndex}
+          className="w-full h-full relative"
+          initial={{ opacity: 0, x: 50, rotateY: 0 }}
+          animate={{ opacity: 1, x: 0, rotateY: isFlipped ? 180 : 0 }}
+          transition={{ duration: 0.4 }}
           style={{ transformStyle: 'preserve-3d' }}
         >
           {/* FRONT */}
