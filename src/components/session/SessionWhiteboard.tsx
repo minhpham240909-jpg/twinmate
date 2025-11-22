@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth/context'
 import toast from 'react-hot-toast'
@@ -28,13 +28,14 @@ interface SessionWhiteboardProps {
 export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps) {
   const { user } = useAuth()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#000000')
   const [lineWidth, setLineWidth] = useState(2)
   const [actions, setActions] = useState<DrawAction[]>([])
   const [mounted, setMounted] = useState(false)
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 })
+  const [currentAction, setCurrentAction] = useState<DrawAction | null>(null)
   const [textInput, setTextInput] = useState('')
   const [showTextInput, setShowTextInput] = useState(false)
   const [textPos, setTextPos] = useState({ x: 0, y: 0 })
@@ -45,30 +46,67 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     setMounted(true)
   }, [])
 
-  // Initialize canvas
+  // Initialize canvas with proper dimensions
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current
+    const container = containerRef.current
+    if (!canvas || !container) return
+
+    // Set canvas to match container size
+    const rect = container.getBoundingClientRect()
+    canvas.width = rect.width
+    canvas.height = 600
+
+    // Set white background
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
+
+    console.log('[Whiteboard] Canvas initialized:', canvas.width, 'x', canvas.height)
+  }, [])
+
+  // Initialize canvas on mount
   useEffect(() => {
-    if (!mounted || !canvasRef.current) return
+    if (!mounted) return
+
+    // Wait for next tick to ensure DOM is ready
+    setTimeout(() => {
+      initCanvas()
+
+      // Load saved state
+      const saved = localStorage.getItem(`whiteboard-${sessionId}`)
+      if (saved) {
+        try {
+          const savedActions = JSON.parse(saved) as DrawAction[]
+          setActions(savedActions)
+          console.log('[Whiteboard] Loaded', savedActions.length, 'actions from localStorage')
+        } catch (e) {
+          console.error('[Whiteboard] Failed to load saved state:', e)
+        }
+      }
+    }, 100)
+  }, [mounted, sessionId, initCanvas])
+
+  // Redraw all actions whenever actions array changes
+  useEffect(() => {
+    if (!mounted || !canvasRef.current || actions.length === 0) return
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Set canvas size
-    canvas.width = canvas.offsetWidth
-    canvas.height = 600
+    // Clear and redraw all
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Load saved state from localStorage
-    const saved = localStorage.getItem(`whiteboard-${sessionId}`)
-    if (saved) {
-      try {
-        const savedActions = JSON.parse(saved) as DrawAction[]
-        setActions(savedActions)
-        redrawCanvas(savedActions)
-      } catch (e) {
-        console.error('Failed to load saved whiteboard:', e)
-      }
-    }
-  }, [mounted, sessionId])
+    actions.forEach(action => {
+      drawActionToCanvas(action, ctx)
+    })
+
+    console.log('[Whiteboard] Redrawn', actions.length, 'actions')
+  }, [actions, mounted])
 
   // Set up real-time sync
   useEffect(() => {
@@ -84,27 +122,28 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
             localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
             return updated
           })
-          drawAction(newAction)
         }
       })
       .on('broadcast', { event: 'clear' }, () => {
-        clearCanvas()
         setActions([])
         localStorage.removeItem(`whiteboard-${sessionId}`)
+        const canvas = canvasRef.current
+        if (canvas) {
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+          }
+        }
       })
       .subscribe()
+
+    console.log('[Whiteboard] Real-time channel subscribed')
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [mounted, sessionId, user])
-
-  // Redraw canvas when actions change
-  useEffect(() => {
-    if (actions.length > 0) {
-      redrawCanvas(actions)
-    }
-  }, [actions])
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -116,25 +155,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     }
   }
 
-  const clearCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-  }
-
-  const redrawCanvas = (actionsToRedraw: DrawAction[]) => {
-    clearCanvas()
-    actionsToRedraw.forEach(action => drawAction(action))
-  }
-
-  const drawAction = (action: DrawAction) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
+  const drawActionToCanvas = (action: DrawAction, ctx: CanvasRenderingContext2D) => {
     ctx.strokeStyle = action.color
     ctx.lineWidth = action.lineWidth
     ctx.lineCap = 'round'
@@ -221,6 +242,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getMousePos(e)
+    console.log('[Whiteboard] Mouse down at', pos, 'with tool', tool)
 
     if (tool === 'text') {
       setTextPos(pos)
@@ -229,8 +251,8 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     }
 
     setIsDrawing(true)
-    setStartPos(pos)
 
+    // Start new action
     if (tool === 'pen' || tool === 'eraser') {
       const newAction: DrawAction = {
         tool,
@@ -240,80 +262,93 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
         userId: user?.id || 'anonymous',
         timestamp: Date.now()
       }
-      setActions(prev => [...prev, newAction])
-    }
-  }
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
-    const pos = getMousePos(e)
-
-    if (tool === 'pen' || tool === 'eraser') {
-      setActions(prev => {
-        const updated = [...prev]
-        const lastAction = updated[updated.length - 1]
-        if (lastAction && (lastAction.tool === 'pen' || lastAction.tool === 'eraser')) {
-          lastAction.points?.push(pos)
-        }
-        return updated
-      })
+      setCurrentAction(newAction)
     } else {
-      // For shapes, redraw with preview
-      redrawCanvas(actions)
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      ctx.strokeStyle = color
-      ctx.lineWidth = lineWidth
-
-      const tempAction: DrawAction = {
-        tool,
-        color,
-        lineWidth,
-        startX: startPos.x,
-        startY: startPos.y,
-        endX: pos.x,
-        endY: pos.y,
-        userId: user?.id || 'anonymous',
-        timestamp: Date.now()
-      }
-      drawAction(tempAction)
-    }
-  }
-
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
-    setIsDrawing(false)
-
-    const pos = getMousePos(e)
-
-    if (tool === 'line' || tool === 'circle' || tool === 'rectangle') {
       const newAction: DrawAction = {
         tool,
         color,
         lineWidth,
-        startX: startPos.x,
-        startY: startPos.y,
+        startX: pos.x,
+        startY: pos.y,
         endX: pos.x,
         endY: pos.y,
         userId: user?.id || 'anonymous',
         timestamp: Date.now()
       }
-      setActions(prev => {
-        const updated = [...prev, newAction]
-        localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
-        return updated
-      })
-      broadcastAction(newAction)
-    } else if (tool === 'pen' || tool === 'eraser') {
-      const lastAction = actions[actions.length - 1]
-      if (lastAction) {
-        localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(actions))
-        broadcastAction(lastAction)
-      }
+      setCurrentAction(newAction)
     }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !currentAction) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const pos = getMousePos(e)
+
+    if (tool === 'pen' || tool === 'eraser') {
+      // Add point to current action
+      currentAction.points?.push(pos)
+
+      // Draw the new segment immediately for visual feedback
+      const points = currentAction.points
+      if (points && points.length >= 2) {
+        const lastPoint = points[points.length - 2]
+        const currentPoint = points[points.length - 1]
+
+        ctx.strokeStyle = currentAction.color
+        ctx.lineWidth = currentAction.lineWidth
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+
+        if (tool === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out'
+          ctx.lineWidth = currentAction.lineWidth * 3
+        }
+
+        ctx.beginPath()
+        ctx.moveTo(lastPoint.x, lastPoint.y)
+        ctx.lineTo(currentPoint.x, currentPoint.y)
+        ctx.stroke()
+
+        if (tool === 'eraser') {
+          ctx.globalCompositeOperation = 'source-over'
+        }
+      }
+    } else {
+      // For shapes, update end position and redraw preview
+      currentAction.endX = pos.x
+      currentAction.endY = pos.y
+
+      // Redraw everything + preview
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      actions.forEach(action => drawActionToCanvas(action, ctx))
+      drawActionToCanvas(currentAction, ctx)
+    }
+  }
+
+  const handleMouseUp = () => {
+    if (!isDrawing || !currentAction) return
+
+    console.log('[Whiteboard] Mouse up, finalizing action')
+    setIsDrawing(false)
+
+    // Add to actions and save
+    setActions(prev => {
+      const updated = [...prev, currentAction]
+      localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
+      return updated
+    })
+
+    // Broadcast to other users
+    broadcastAction(currentAction)
+
+    setCurrentAction(null)
   }
 
   const handleAddText = () => {
@@ -342,15 +377,22 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
     setTextInput('')
     setShowTextInput(false)
-    drawAction(newAction)
   }
 
   const handleClear = () => {
     if (!confirm('Clear entire whiteboard? This action cannot be undone.')) return
 
-    clearCanvas()
     setActions([])
     localStorage.removeItem(`whiteboard-${sessionId}`)
+
+    const canvas = canvasRef.current
+    if (canvas) {
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+      }
+    }
 
     supabase.channel(`whiteboard:${sessionId}`).send({
       type: 'broadcast',
@@ -494,21 +536,28 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       </div>
 
       {/* Canvas */}
-      <div className="relative border-2 border-gray-200 rounded-lg bg-white">
+      <div
+        ref={containerRef}
+        className="relative border-2 border-gray-200 rounded-lg bg-white"
+        style={{ height: '600px' }}
+      >
         <canvas
           ref={canvasRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onMouseLeave={() => setIsDrawing(false)}
-          className="w-full cursor-crosshair"
-          style={{ height: '600px' }}
+          onMouseLeave={() => {
+            if (isDrawing && currentAction) {
+              handleMouseUp({} as any)
+            }
+          }}
+          className="w-full h-full cursor-crosshair"
         />
 
         {/* Text Input Modal */}
         {showTextInput && (
           <div
-            className="absolute bg-white p-3 rounded-lg shadow-lg border border-gray-300"
+            className="absolute bg-white p-3 rounded-lg shadow-lg border border-gray-300 z-10"
             style={{ left: textPos.x, top: textPos.y }}
           >
             <input
