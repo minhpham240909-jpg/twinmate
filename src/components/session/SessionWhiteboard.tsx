@@ -257,13 +257,14 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       )}
 
       {/* Tldraw Canvas */}
-      <div 
-        className="w-full border-2 border-gray-200 rounded-lg bg-white overflow-hidden" 
+      <div
+        className="w-full border-2 border-gray-200 rounded-lg bg-white"
         style={{ height: '600px' }}
       >
         <Tldraw
+          key={`tldraw-${sessionId}`}
           onMount={handleMount}
-          autoFocus
+          autoFocus={false}
         />
       </div>
 
