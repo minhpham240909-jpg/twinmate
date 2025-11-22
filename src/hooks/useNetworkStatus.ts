@@ -23,10 +23,8 @@ const hasNetworkInfo = typeof navigator !== 'undefined' && 'connection' in navig
  * Listens to browser online/offline events and Network Information API
  */
 export function useNetworkStatus(): UseNetworkStatusReturn {
-  const [isOnline, setIsOnline] = useState(() => {
-    if (typeof navigator === 'undefined') return true
-    return navigator.onLine
-  })
+  // Always start as true (online) to ensure server/client match during hydration
+  const [isOnline, setIsOnline] = useState(true)
   
   const [wasOffline, setWasOffline] = useState(false)
   
@@ -128,6 +126,11 @@ export function useNetworkStatus(): UseNetworkStatusReturn {
 
     // Initial connection info check
     updateConnectionInfo()
+
+    // Sync initial online status
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine)
+    }
 
     // Cleanup
     return () => {

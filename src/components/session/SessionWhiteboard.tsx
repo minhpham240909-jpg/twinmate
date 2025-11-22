@@ -256,7 +256,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
       {/* Tldraw Canvas */}
       <div
-        className="w-full border-2 border-gray-200 rounded-lg bg-white"
+        className="w-full border-2 border-gray-200 rounded-lg bg-white relative"
         style={{ height: '600px' }}
       >
         <Tldraw

@@ -32,7 +32,7 @@ export default function FloatingSignupButton() {
       className="fixed top-8 right-8 z-50"
     >
       <Link href="/auth/signup">
-        <motion.button
+        <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold rounded-full shadow-2xl overflow-hidden"
@@ -70,7 +70,7 @@ export default function FloatingSignupButton() {
               →
             </motion.span>
           </span>
-        </motion.button>
+        </motion.div>
       </Link>
     </motion.div>
   )

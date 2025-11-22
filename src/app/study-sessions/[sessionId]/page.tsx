@@ -703,8 +703,11 @@ export default function SessionRoomPage() {
           userId={user.id}
           userName={profile.name}
           onCallEnd={() => setShowVideoCall(false)}
+          pipMode={videoPipMode}
+          onTogglePip={() => setVideoPipMode(!videoPipMode)}
           onOpenChat={() => {
-            setShowVideoCall(false)
+            // Minimize call instead of closing/hiding it completely if desired
+            setVideoPipMode(true)
             setActiveTab('chat')
           }}
         />

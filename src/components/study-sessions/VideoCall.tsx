@@ -247,8 +247,13 @@ export default function VideoCall({
     ? getNetworkQualityLabel(networkQuality.uplinkNetworkQuality)
     : { label: 'Unknown', color: 'gray' }
 
+  // Main container classes based on pipMode
+  const containerClasses = pipMode
+    ? "fixed bottom-4 right-4 w-96 h-64 z-50 rounded-xl shadow-2xl overflow-hidden border border-gray-700 bg-gray-900 transition-all duration-300"
+    : `fixed inset-0 z-50 transition-all duration-300 ${audioOnly ? 'bg-gradient-to-br from-purple-900 via-gray-900 to-gray-900' : 'bg-gray-900'}`
+
   return (
-    <div className={`fixed inset-0 z-50 ${audioOnly ? 'bg-gradient-to-br from-purple-900 via-gray-900 to-gray-900' : 'bg-gray-900'}`}>
+    <div className={containerClasses}>
       {/* Leave Notification Overlay */}
       {leaveNotification && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
@@ -488,6 +493,25 @@ export default function VideoCall({
                   )}
                 </svg>
               </button>
+
+              {/* Toggle PiP */}
+              {onTogglePip && (
+                <button
+                  onClick={onTogglePip}
+                  className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition"
+                  title={pipMode ? "Expand" : "Minimize"}
+                >
+                  {pipMode ? (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
               {/* Leave Call */}
               <button
