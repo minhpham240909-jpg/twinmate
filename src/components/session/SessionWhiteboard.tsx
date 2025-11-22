@@ -122,11 +122,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   }
 
   const saveCanvasState = useCallback(async () => {
-    if (!editorRef.current || isSaving) return
+    if (!editorRef.current) return
 
     try {
-      setIsSaving(true)
-      
       // Get current snapshot from tldraw using v4 API
       const allRecords = editorRef.current.store.allRecords()
       const snapshot = {
@@ -137,16 +135,17 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
         schema: editorRef.current.store.schema.serialize()
       }
       const snapshotJson = JSON.stringify(snapshot)
-      
-      // Save to localStorage for instant persistence
+
+      // Save to localStorage for instant persistence (no spinner needed)
       localStorage.setItem(`tldraw-${sessionId}`, snapshotJson)
-      
+
       // Debounced save to backend
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
-      
+
       saveTimeoutRef.current = setTimeout(async () => {
+        setIsSaving(true)
         try {
           const res = await fetch(`/api/whiteboard/save`, {
             method: 'POST',
@@ -157,9 +156,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
               title: whiteboard?.title || 'Whiteboard'
             })
           })
-          
+
           const data = await res.json()
-          
+
           if (data.success) {
             console.log('[Whiteboard] Saved to backend, version:', data.whiteboard.version)
           } else {
@@ -171,12 +170,11 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
           setIsSaving(false)
         }
       }, 2000) // Debounce 2 seconds
-      
+
     } catch (err) {
       console.error('[Whiteboard] Save error:', err)
-      setIsSaving(false)
     }
-  }, [sessionId, whiteboard?.title, isSaving])
+  }, [sessionId, whiteboard?.title])
 
   const handleMount = useCallback((editor: Editor) => {
     editorRef.current = editor

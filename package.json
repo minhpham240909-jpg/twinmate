@@ -47,6 +47,7 @@
     "agora-token": "^2.0.5",
     "bcryptjs": "^3.0.2",
     "cmdk": "^1.1.1",
+    "cssstyle": "^5.3.3",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.24",
