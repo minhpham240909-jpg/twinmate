@@ -71,17 +71,15 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // DIRECTIVE 1: script-src - Allow scripts from Agora SDK and required sources
-              // Added blob: for tldraw web workers
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://accounts.google.com https://*.agora.io https://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://cdn.tldraw.com",
-              // Added blob: for tldraw inline styles
-              "style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com https://cdn.tldraw.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://accounts.google.com https://*.agora.io https://*.sd-rtn.com https://*.statscollector.sd-rtn.com",
+              "style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com",
+              "font-src 'self' https://fonts.gstatic.com",
               // DIRECTIVE 2: connect-src - CRITICAL: Allow ALL WebSocket and HTTP connections for Agora
               // CSP wildcards DON'T match IP-based subdomains (148-153-236-83.edge.agora.io)
               // Solution: Allow ALL wss: and https: for Agora domains using broader patterns
               // Include statscollector domains for Agora analytics
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https: wss: https://*.agora.io wss://*.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://statscollector-1.agora.io https://web-2.statscollector.sd-rtn.com https://cdn.tldraw.com https://api.openai.com https://*.sentry.io https://clerva-app.vercel.app",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https: wss: https://*.agora.io wss://*.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://statscollector-1.agora.io https://web-2.statscollector.sd-rtn.com https://api.openai.com https://*.sentry.io https://clerva-app.vercel.app",
               // DIRECTIVE 3: media-src - Allow media streams from all sources (camera/mic permissions handled by browser)
               "media-src 'self' data: blob: https: mediastream:",
               // DIRECTIVE 4: worker-src - Allow workers from all blob sources

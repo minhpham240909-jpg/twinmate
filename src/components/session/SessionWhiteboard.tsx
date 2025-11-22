@@ -1,24 +1,24 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Tldraw, Editor, TLStoreSnapshot, createTLStore, defaultShapeUtils } from 'tldraw'
-import 'tldraw/tldraw.css'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import toast from 'react-hot-toast'
 import { useAuth } from '@/lib/auth/context'
+import toast from 'react-hot-toast'
 
-interface SessionWhiteboard {
-  id: string
-  sessionId: string
-  title: string
-  description: string | null
-  snapshotUrl: string | null
-  thumbnailUrl: string | null
-  lastEditedBy: string | null
-  lastSyncedAt: Date
-  version: number
-  createdAt: Date
-  updatedAt: Date
+type Tool = 'pen' | 'eraser' | 'line' | 'circle' | 'rectangle' | 'text'
+
+interface DrawAction {
+  tool: Tool
+  color: string
+  lineWidth: number
+  points?: { x: number; y: number }[]
+  startX?: number
+  startY?: number
+  endX?: number
+  endY?: number
+  text?: string
+  userId: string
+  timestamp: number
 }
 
 interface SessionWhiteboardProps {
@@ -27,255 +27,520 @@ interface SessionWhiteboardProps {
 
 export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps) {
   const { user } = useAuth()
-  const [whiteboard, setWhiteboard] = useState<SessionWhiteboard | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [tool, setTool] = useState<Tool>('pen')
+  const [color, setColor] = useState('#000000')
+  const [lineWidth, setLineWidth] = useState(2)
+  const [actions, setActions] = useState<DrawAction[]>([])
   const [mounted, setMounted] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const editorRef = useRef<Editor | null>(null)
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 })
+  const [textInput, setTextInput] = useState('')
+  const [showTextInput, setShowTextInput] = useState(false)
+  const [textPos, setTextPos] = useState({ x: 0, y: 0 })
   const supabase = createClient()
 
-  // Fix hydration: only render after mount
+  // Fix hydration
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Load whiteboard on mount
+  // Initialize canvas
   useEffect(() => {
-    if (mounted) {
-      loadWhiteboard()
-    }
-  }, [sessionId, mounted])
+    if (!mounted || !canvasRef.current) return
 
-  // Set up real-time sync for other users' changes
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Set canvas size
+    canvas.width = canvas.offsetWidth
+    canvas.height = 600
+
+    // Load saved state from localStorage
+    const saved = localStorage.getItem(`whiteboard-${sessionId}`)
+    if (saved) {
+      try {
+        const savedActions = JSON.parse(saved) as DrawAction[]
+        setActions(savedActions)
+        redrawCanvas(savedActions)
+      } catch (e) {
+        console.error('Failed to load saved whiteboard:', e)
+      }
+    }
+  }, [mounted, sessionId])
+
+  // Set up real-time sync
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !user) return
 
     const channel = supabase
-      .channel(`session-whiteboard:${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'SessionWhiteboard',
-          filter: `sessionId=eq.${sessionId}`,
-        },
-        async (payload) => {
-          console.log('[Whiteboard] Real-time update received:', payload)
-          const updated = payload.new as SessionWhiteboard
-          
-          // Only reload if the update was from another user
-          if (updated.lastEditedBy !== user?.id) {
-            setWhiteboard(updated)
-            // Optionally reload the canvas state here
-            await loadCanvasState()
-          }
+      .channel(`whiteboard:${sessionId}`)
+      .on('broadcast', { event: 'draw' }, (payload) => {
+        if (payload.payload.userId !== user.id) {
+          const newAction = payload.payload as DrawAction
+          setActions(prev => {
+            const updated = [...prev, newAction]
+            localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
+            return updated
+          })
+          drawAction(newAction)
         }
-      )
+      })
+      .on('broadcast', { event: 'clear' }, () => {
+        clearCanvas()
+        setActions([])
+        localStorage.removeItem(`whiteboard-${sessionId}`)
+      })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [sessionId, mounted, user?.id])
+  }, [mounted, sessionId, user])
 
-  const loadWhiteboard = async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(`/api/study-sessions/${sessionId}/whiteboard`)
-      const data = await res.json()
+  // Redraw canvas when actions change
+  useEffect(() => {
+    if (actions.length > 0) {
+      redrawCanvas(actions)
+    }
+  }, [actions])
 
-      if (!res.ok) throw new Error(data.error || 'Failed to load whiteboard')
-
-      setWhiteboard(data.whiteboard)
-      setError(null)
-      
-      // Load canvas state if it exists
-      await loadCanvasState()
-    } catch (err: any) {
-      console.error('[Whiteboard] Load error:', err)
-      setError(err.message)
-    } finally {
-      setLoading(false)
+  const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     }
   }
 
-  const loadCanvasState = async () => {
-    try {
-      // Load persisted state from localStorage first (instant)
-      const persistedState = localStorage.getItem(`tldraw-${sessionId}`)
-      if (persistedState && editorRef.current) {
-        try {
-          const snapshot = JSON.parse(persistedState) as TLStoreSnapshot
-          // Use tldraw v4 API for loading snapshot
-          editorRef.current.store.put(Object.values(snapshot.store || {}))
-          console.log('[Whiteboard] Loaded state from localStorage')
-        } catch (e) {
-          console.error('[Whiteboard] Failed to parse persisted state:', e)
-        }
-      }
-    } catch (err) {
-      console.error('[Whiteboard] Error loading canvas state:', err)
-    }
+  const clearCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
-  const saveCanvasState = useCallback(async () => {
-    if (!editorRef.current) return
+  const redrawCanvas = (actionsToRedraw: DrawAction[]) => {
+    clearCanvas()
+    actionsToRedraw.forEach(action => drawAction(action))
+  }
 
-    try {
-      // Get current snapshot from tldraw using v4 API
-      const allRecords = editorRef.current.store.allRecords()
-      const snapshot = {
-        store: allRecords.reduce((acc, record) => {
-          acc[record.id] = record
-          return acc
-        }, {} as Record<string, any>),
-        schema: editorRef.current.store.schema.serialize()
-      }
-      const snapshotJson = JSON.stringify(snapshot)
+  const drawAction = (action: DrawAction) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-      // Save to localStorage for instant persistence (no spinner needed)
-      localStorage.setItem(`tldraw-${sessionId}`, snapshotJson)
+    ctx.strokeStyle = action.color
+    ctx.lineWidth = action.lineWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
 
-      // Debounced save to backend
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-
-      saveTimeoutRef.current = setTimeout(async () => {
-        setIsSaving(true)
-        try {
-          const res = await fetch(`/api/whiteboard/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId,
-              whiteboardData: snapshot,
-              title: whiteboard?.title || 'Whiteboard'
-            })
-          })
-
-          const data = await res.json()
-
-          if (data.success) {
-            console.log('[Whiteboard] Saved to backend, version:', data.whiteboard.version)
-          } else {
-            console.error('[Whiteboard] Save failed:', data.error)
+    switch (action.tool) {
+      case 'pen':
+        if (action.points && action.points.length > 1) {
+          ctx.beginPath()
+          ctx.moveTo(action.points[0].x, action.points[0].y)
+          for (let i = 1; i < action.points.length; i++) {
+            ctx.lineTo(action.points[i].x, action.points[i].y)
           }
-        } catch (err) {
-          console.error('[Whiteboard] Backend save error:', err)
-        } finally {
-          setIsSaving(false)
+          ctx.stroke()
         }
-      }, 2000) // Debounce 2 seconds
+        break
 
-    } catch (err) {
-      console.error('[Whiteboard] Save error:', err)
+      case 'eraser':
+        if (action.points && action.points.length > 1) {
+          ctx.globalCompositeOperation = 'destination-out'
+          ctx.lineWidth = action.lineWidth * 3
+          ctx.beginPath()
+          ctx.moveTo(action.points[0].x, action.points[0].y)
+          for (let i = 1; i < action.points.length; i++) {
+            ctx.lineTo(action.points[i].x, action.points[i].y)
+          }
+          ctx.stroke()
+          ctx.globalCompositeOperation = 'source-over'
+        }
+        break
+
+      case 'line':
+        if (action.startX !== undefined && action.startY !== undefined &&
+            action.endX !== undefined && action.endY !== undefined) {
+          ctx.beginPath()
+          ctx.moveTo(action.startX, action.startY)
+          ctx.lineTo(action.endX, action.endY)
+          ctx.stroke()
+        }
+        break
+
+      case 'circle':
+        if (action.startX !== undefined && action.startY !== undefined &&
+            action.endX !== undefined && action.endY !== undefined) {
+          const radius = Math.sqrt(
+            Math.pow(action.endX - action.startX, 2) +
+            Math.pow(action.endY - action.startY, 2)
+          )
+          ctx.beginPath()
+          ctx.arc(action.startX, action.startY, radius, 0, 2 * Math.PI)
+          ctx.stroke()
+        }
+        break
+
+      case 'rectangle':
+        if (action.startX !== undefined && action.startY !== undefined &&
+            action.endX !== undefined && action.endY !== undefined) {
+          ctx.strokeRect(
+            action.startX,
+            action.startY,
+            action.endX - action.startX,
+            action.endY - action.startY
+          )
+        }
+        break
+
+      case 'text':
+        if (action.text && action.startX !== undefined && action.startY !== undefined) {
+          ctx.font = `${action.lineWidth * 8}px Arial`
+          ctx.fillStyle = action.color
+          ctx.fillText(action.text, action.startX, action.startY)
+        }
+        break
     }
-  }, [sessionId, whiteboard?.title])
+  }
 
-  const handleMount = useCallback((editor: Editor) => {
-    editorRef.current = editor
-    console.log('[Whiteboard] Tldraw mounted successfully')
-    
-    // Load initial state
-    loadCanvasState()
-    
-    // Listen for changes and save
-    const cleanupFn = editor.store.listen((entry) => {
-      // Save on any store change
-      saveCanvasState()
-    }, { scope: 'all' })
-    
-    return () => {
-      cleanupFn()
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
+  const broadcastAction = (action: DrawAction) => {
+    supabase.channel(`whiteboard:${sessionId}`).send({
+      type: 'broadcast',
+      event: 'draw',
+      payload: action
+    })
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pos = getMousePos(e)
+
+    if (tool === 'text') {
+      setTextPos(pos)
+      setShowTextInput(true)
+      return
+    }
+
+    setIsDrawing(true)
+    setStartPos(pos)
+
+    if (tool === 'pen' || tool === 'eraser') {
+      const newAction: DrawAction = {
+        tool,
+        color,
+        lineWidth,
+        points: [pos],
+        userId: user?.id || 'anonymous',
+        timestamp: Date.now()
+      }
+      setActions(prev => [...prev, newAction])
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    const pos = getMousePos(e)
+
+    if (tool === 'pen' || tool === 'eraser') {
+      setActions(prev => {
+        const updated = [...prev]
+        const lastAction = updated[updated.length - 1]
+        if (lastAction && (lastAction.tool === 'pen' || lastAction.tool === 'eraser')) {
+          lastAction.points?.push(pos)
+        }
+        return updated
+      })
+    } else {
+      // For shapes, redraw with preview
+      redrawCanvas(actions)
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.strokeStyle = color
+      ctx.lineWidth = lineWidth
+
+      const tempAction: DrawAction = {
+        tool,
+        color,
+        lineWidth,
+        startX: startPos.x,
+        startY: startPos.y,
+        endX: pos.x,
+        endY: pos.y,
+        userId: user?.id || 'anonymous',
+        timestamp: Date.now()
+      }
+      drawAction(tempAction)
+    }
+  }
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    setIsDrawing(false)
+
+    const pos = getMousePos(e)
+
+    if (tool === 'line' || tool === 'circle' || tool === 'rectangle') {
+      const newAction: DrawAction = {
+        tool,
+        color,
+        lineWidth,
+        startX: startPos.x,
+        startY: startPos.y,
+        endX: pos.x,
+        endY: pos.y,
+        userId: user?.id || 'anonymous',
+        timestamp: Date.now()
+      }
+      setActions(prev => {
+        const updated = [...prev, newAction]
+        localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
+        return updated
+      })
+      broadcastAction(newAction)
+    } else if (tool === 'pen' || tool === 'eraser') {
+      const lastAction = actions[actions.length - 1]
+      if (lastAction) {
+        localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(actions))
+        broadcastAction(lastAction)
       }
     }
-  }, [saveCanvasState])
-
-  if (!mounted) {
-    return null // Prevent hydration mismatch
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-          <div className="text-gray-500">Loading whiteboard...</div>
-        </div>
-      </div>
-    )
+  const handleAddText = () => {
+    if (!textInput.trim()) {
+      setShowTextInput(false)
+      return
+    }
+
+    const newAction: DrawAction = {
+      tool: 'text',
+      color,
+      lineWidth,
+      text: textInput,
+      startX: textPos.x,
+      startY: textPos.y,
+      userId: user?.id || 'anonymous',
+      timestamp: Date.now()
+    }
+
+    setActions(prev => {
+      const updated = [...prev, newAction]
+      localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
+      return updated
+    })
+    broadcastAction(newAction)
+
+    setTextInput('')
+    setShowTextInput(false)
+    drawAction(newAction)
   }
 
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm">
-          <p className="font-semibold mb-2">⚠️ Error Loading Whiteboard</p>
-          <p>{error}</p>
-        </div>
-        <button
-          onClick={loadWhiteboard}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          🔄 Retry
-        </button>
-      </div>
-    )
+  const handleClear = () => {
+    if (!confirm('Clear entire whiteboard? This action cannot be undone.')) return
+
+    clearCanvas()
+    setActions([])
+    localStorage.removeItem(`whiteboard-${sessionId}`)
+
+    supabase.channel(`whiteboard:${sessionId}`).send({
+      type: 'broadcast',
+      event: 'clear',
+      payload: {}
+    })
+
+    toast.success('Whiteboard cleared')
   }
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const link = document.createElement('a')
+    link.download = `whiteboard-${sessionId}-${Date.now()}.png`
+    link.href = canvas.toDataURL()
+    link.click()
+
+    toast.success('Whiteboard downloaded')
+  }
+
+  if (!mounted) return null
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-semibold">🎨 Collaborative Whiteboard</h3>
+          <h3 className="text-xl font-semibold">Collaborative Whiteboard</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Draw, annotate, and collaborate in real-time with your study partners
+            Draw and collaborate in real-time
           </p>
         </div>
-        {isSaving && (
-          <span className="text-xs text-gray-500 flex items-center gap-2">
-            <div className="animate-spin w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full"></div>
-            Saving...
-          </span>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        {/* Tools */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => setTool('pen')}
+            className={`px-3 py-2 rounded transition ${
+              tool === 'pen' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title="Pen"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => setTool('eraser')}
+            className={`px-3 py-2 rounded transition ${
+              tool === 'eraser' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title="Eraser"
+          >
+            🧹
+          </button>
+          <button
+            onClick={() => setTool('line')}
+            className={`px-3 py-2 rounded transition ${
+              tool === 'line' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title="Line"
+          >
+            ─
+          </button>
+          <button
+            onClick={() => setTool('circle')}
+            className={`px-3 py-2 rounded transition ${
+              tool === 'circle' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title="Circle"
+          >
+            ⭕
+          </button>
+          <button
+            onClick={() => setTool('rectangle')}
+            className={`px-3 py-2 rounded transition ${
+              tool === 'rectangle' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title="Rectangle"
+          >
+            ▭
+          </button>
+          <button
+            onClick={() => setTool('text')}
+            className={`px-3 py-2 rounded transition ${
+              tool === 'text' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
+            }`}
+            title="Text"
+          >
+            T
+          </button>
+        </div>
+
+        <div className="w-px h-8 bg-gray-300"></div>
+
+        {/* Color picker */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Color:</label>
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            className="w-10 h-10 rounded cursor-pointer"
+          />
+        </div>
+
+        {/* Line width */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Size:</label>
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={lineWidth}
+            onChange={(e) => setLineWidth(Number(e.target.value))}
+            className="w-24"
+          />
+          <span className="text-sm text-gray-600 w-8">{lineWidth}</span>
+        </div>
+
+        <div className="w-px h-8 bg-gray-300"></div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleClear}
+            className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm"
+          >
+            Clear
+          </button>
+          <button
+            onClick={handleDownload}
+            className="px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition text-sm"
+          >
+            Download
+          </button>
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div className="relative border-2 border-gray-200 rounded-lg bg-white">
+        <canvas
+          ref={canvasRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={() => setIsDrawing(false)}
+          className="w-full cursor-crosshair"
+          style={{ height: '600px' }}
+        />
+
+        {/* Text Input Modal */}
+        {showTextInput && (
+          <div
+            className="absolute bg-white p-3 rounded-lg shadow-lg border border-gray-300"
+            style={{ left: textPos.x, top: textPos.y }}
+          >
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddText()
+                if (e.key === 'Escape') setShowTextInput(false)
+              }}
+              placeholder="Enter text..."
+              className="px-2 py-1 border border-gray-300 rounded mr-2"
+              autoFocus
+            />
+            <button
+              onClick={handleAddText}
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Add
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Whiteboard Info */}
-      {whiteboard && mounted && (
-        <div className="text-xs text-gray-500">
-          Version {whiteboard.version} • Auto-saves every 2 seconds
-        </div>
-      )}
-
-      {/* Tldraw Canvas */}
-      <div
-        className="w-full border-2 border-gray-200 rounded-lg bg-white relative"
-        style={{ height: '600px' }}
-      >
-        <Tldraw
-          key={`tldraw-${sessionId}`}
-          onMount={handleMount}
-          autoFocus={false}
-        />
-      </div>
-
-      {/* Help Text */}
+      {/* Help */}
       <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-        <p className="font-medium mb-1">💡 Whiteboard Tips:</p>
+        <p className="font-medium mb-1">Tips:</p>
         <ul className="list-disc list-inside space-y-1">
-          <li>Use the toolbar on the left to select drawing tools</li>
-          <li>Select mode (V) to move and resize objects</li>
-          <li>Draw mode (D) to create freehand drawings</li>
-          <li>Add text (T), shapes, arrows, and sticky notes</li>
-          <li>Your changes save automatically every 2 seconds</li>
-          <li>All participants see updates in real-time</li>
+          <li>Click a tool to select it, then draw on the canvas</li>
+          <li>Use the eraser to remove parts of your drawing</li>
+          <li>For text, click where you want to add it and type</li>
+          <li>Changes sync in real-time with other participants</li>
         </ul>
       </div>
     </div>
