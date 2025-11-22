@@ -71,8 +71,10 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // DIRECTIVE 1: script-src - Allow scripts from Agora SDK and required sources
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://*.agora.io https://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://cdn.tldraw.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tldraw.com",
+              // Added blob: for tldraw web workers
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://accounts.google.com https://*.agora.io https://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://cdn.tldraw.com",
+              // Added blob: for tldraw inline styles
+              "style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com https://cdn.tldraw.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com",
               // DIRECTIVE 2: connect-src - CRITICAL: Allow ALL WebSocket and HTTP connections for Agora
