@@ -190,12 +190,12 @@ function ParticleNetwork({
 
 export default function ThreeScene(props: ParticleNetworkProps) {
   return (
-    <div className="absolute inset-0 h-full w-full">
+    <div className="absolute inset-0 h-full w-full pointer-events-none">
       <Canvas
         camera={{ position: [0, 0, 10], fov: 45 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
-        style={{ background: 'transparent' }}
+        style={{ background: 'transparent', pointerEvents: 'none' }}
       >
         <color attach="background" args={['transparent']} />
         <ambientLight intensity={0.5} />
