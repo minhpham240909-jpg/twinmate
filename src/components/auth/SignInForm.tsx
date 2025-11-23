@@ -13,6 +13,7 @@ export default function SignInForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: true, // Default to true (better UX - most users want to stay logged in)
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -74,6 +75,46 @@ export default function SignInForm() {
       }
 
       console.log('[SignIn] ✅ Sign in successful! User:', data.user.email)
+
+      // Handle "Remember Me" functionality
+      if (data.session && !formData.rememberMe) {
+        console.log('[SignIn] Remember me is OFF - moving session to sessionStorage')
+        // User doesn't want to be remembered - use sessionStorage instead of localStorage
+        // This means the session will be cleared when the browser closes
+
+        try {
+          // Get the session data
+          const sessionData = {
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+            expires_at: data.session.expires_at,
+            expires_in: data.session.expires_in,
+            token_type: data.session.token_type,
+            user: data.session.user,
+          }
+
+          // Store in sessionStorage (will be cleared when browser closes)
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sb-session', JSON.stringify(sessionData))
+
+            // Clear from localStorage to ensure session doesn't persist
+            const localStorageKeys = Object.keys(localStorage)
+            localStorageKeys.forEach(key => {
+              if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
+                localStorage.removeItem(key)
+              }
+            })
+          }
+        } catch (storageError) {
+          console.error('[SignIn] Error managing session storage:', storageError)
+          // Continue anyway - worst case they stay logged in (not critical)
+        }
+      } else {
+        console.log('[SignIn] Remember me is ON - session will persist in localStorage')
+        // rememberMe is true (default) - Supabase already stores in localStorage by default
+        // No action needed - the session will persist across browser restarts
+      }
+
       console.log('[SignIn] Waiting for session to stabilize...')
       await new Promise(resolve => setTimeout(resolve, 300))
 
@@ -141,8 +182,13 @@ export default function SignInForm() {
           </div>
 
           <div className="flex items-center justify-between">
-            <label className="flex items-center">
-              <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.rememberMe}
+                onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
               <span className="ml-2 text-sm text-gray-600">Remember me</span>
             </label>
             <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">
