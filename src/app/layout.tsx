@@ -32,8 +32,8 @@ export const metadata: Metadata = {
     userScalable: true,
   },
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1a1a' },
+    { media: '(prefers-color-scheme: light)', color: '#020617' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
   ],
   manifest: '/manifest.json',
   appleWebApp: {

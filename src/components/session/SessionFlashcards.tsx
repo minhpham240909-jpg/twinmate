@@ -31,10 +31,13 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
   const [hasAnswered, setHasAnswered] = useState(false)
   
   // Management State
-  const [viewMode, setViewMode] = useState<'study' | 'manage'>('study')
+  const [viewMode, setViewMode] = useState<'study' | 'manage' | 'results'>('study')
   const [formData, setFormData] = useState({ front: '', back: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
+  
+  // Result Tracking
+  const [correctCount, setCorrectCount] = useState(0)
+  const [results, setResults] = useState<Array<{id: string, isCorrect: boolean}>>([])
 
   // Initialize
   useEffect(() => {
@@ -46,9 +49,39 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
     if (!loading) {
         if (flashcards.length === 0) {
             setViewMode('manage')
+        } else if (viewMode === 'results' && flashcards.length > results.length) {
+            // If new cards added while showing results, go back to study
+            // But we need to be careful not to reset if we just finished.
+            // Actually, simpler logic: if results are shown, and card count increases, reset.
+            // Ideally we compare with a ref of previous length, but for now:
+            // If we are in results, it means we finished all. If length > currentIndex + 1 (which was max),
+            // it implies new cards.
+            // Let's just use a simple check: if in results mode, and we have more cards than we answered,
+            // user likely wants to see them.
+             if (flashcards.length > results.length) {
+                 setViewMode('study')
+                 // Optional: resume from where we left off? Or restart?
+                 // User said "go back to normal show the flashcards".
+                 // Safest is to stay on results until user explicitly restarts or we detect meaningful change.
+                 // Let's implement a dedicated listener for changes.
+             }
         }
     }
-  }, [loading])
+  }, [loading, flashcards.length])
+
+  // Watch for new cards while in results mode to auto-switch back
+  const prevFlashcardsLengthRef = useState(0)
+  useEffect(() => {
+      if (viewMode === 'results' && flashcards.length > 0) {
+          // If cards were added (length increased), reset to study mode
+          // We can just reset everything
+          setViewMode('study')
+          setCurrentIndex(0)
+          setResults([])
+          setCorrectCount(0)
+          toast('New cards added! Restarting deck.', { icon: '🔄' })
+      }
+  }, [flashcards.length]) 
 
   const loadFlashcards = async () => {
     try {
@@ -90,67 +123,6 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
     }
   }
 
-  const handleAutoGenerate = async () => {
-    const topic = window.prompt('Enter a topic to generate flashcards for (e.g., "React Basics", "World Capitals", "Science"):')
-    if (!topic) return
-
-    try {
-      setIsGenerating(true)
-      toast.loading('Generating flashcards...', { id: 'generating' })
-
-      // MOCK AI GENERATION
-      const mockData: Record<string, Array<{front: string, back: string}>> = {
-        'react': [
-            { front: 'What is a Component in React?', back: 'A reusable, self-contained piece of UI code.' },
-            { front: 'What is useState used for?', back: 'To manage local state within a functional component.' },
-            { front: 'What is useEffect used for?', back: 'To perform side effects like data fetching or subscriptions.' },
-            { front: 'What is the Virtual DOM?', back: 'A lightweight copy of the real DOM used for performance optimization.' },
-            { front: 'What are Props?', back: 'Read-only inputs passed from parent to child components.' }
-        ],
-        'capitals': [
-            { front: 'Capital of France?', back: 'Paris' },
-            { front: 'Capital of Japan?', back: 'Tokyo' },
-            { front: 'Capital of Brazil?', back: 'Brasilia' },
-            { front: 'Capital of Canada?', back: 'Ottawa' },
-            { front: 'Capital of Australia?', back: 'Canberra' }
-        ]
-      }
-
-      // Simple keyword matching for demo
-      const lowerTopic = topic.toLowerCase()
-      let cardsToCreate = []
-      if (lowerTopic.includes('react')) cardsToCreate = mockData['react']
-      else if (lowerTopic.includes('capital')) cardsToCreate = mockData['capitals']
-      else {
-          cardsToCreate = [
-              { front: `What is the most important concept in ${topic}?`, back: `The core fundamental principle of ${topic}.` },
-              { front: `Example of ${topic}?`, back: `A specific instance or case study of ${topic}.` },
-              { front: `Why is ${topic} important?`, back: `It helps in understanding broader contexts.` },
-              { front: `Who founded/discovered ${topic}?`, back: `The key historical figure associated with it.` },
-              { front: `Key term in ${topic}?`, back: `A crucial vocabulary word.` }
-          ]
-      }
-
-      let count = 0
-      for (const card of cardsToCreate) {
-        const res = await fetch(`/api/study-sessions/${sessionId}/flashcards`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...card, difficulty: 0 }),
-        })
-        if (res.ok) count++
-      }
-
-      toast.success(`Generated ${count} flashcards for "${topic}"`, { id: 'generating' })
-      loadFlashcards()
-    } catch (error) {
-      console.error(error)
-      toast.error('Failed to generate flashcards', { id: 'generating' })
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
   const handleDeleteCard = async (id: string) => {
     if (!confirm('Delete this card?')) return
     try {
@@ -182,16 +154,34 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
       setUserAnswer('(Revealed by creator)')
   }
 
-  const handleNextCard = () => {
+  const handleNextCard = (wasCorrect?: boolean) => {
+    if (wasCorrect !== undefined) {
+        // Update score
+        setResults(prev => [...prev, { id: flashcards[currentIndex].id, isCorrect: wasCorrect }])
+        if (wasCorrect) setCorrectCount(prev => prev + 1)
+    }
+
     setIsFlipped(false)
     setHasAnswered(false)
     setUserAnswer('')
+    
     if (currentIndex < flashcards.length - 1) {
       setCurrentIndex(prev => prev + 1)
     } else {
-      toast.success('Deck completed! Great job!')
-      setCurrentIndex(0)
+      // Deck finished
+      setViewMode('results')
+      toast.success('Deck completed!')
     }
+  }
+
+  const handleRestartDeck = () => {
+      setCurrentIndex(0)
+      setResults([])
+      setCorrectCount(0)
+      setViewMode('study')
+      setIsFlipped(false)
+      setHasAnswered(false)
+      setUserAnswer('')
   }
 
   if (loading) {
@@ -212,18 +202,6 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                 <p className="text-gray-500">Create cards for the study group</p>
             </div>
             <div className="flex gap-3">
-                 <button
-                  onClick={handleAutoGenerate}
-                  disabled={isGenerating}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
-                >
-                  {isGenerating ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  )}
-                  <span>Auto-Generate</span>
-                </button>
                 <button
                   onClick={() => setViewMode('study')}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2"
@@ -291,16 +269,14 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                                     <div className="text-sm"><span className="font-medium text-gray-900">A:</span> <span className="text-gray-600">{card.back}</span></div>
                                 </div>
                             </div>
-                            {/* Allow delete if Host OR Creator */}
-                            {(isHost || card.userId === currentUserId) && (
-                                <button
-                                    onClick={() => handleDeleteCard(card.id)}
-                                    className="text-gray-400 hover:text-red-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
-                                    title="Delete card"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            )}
+                            {/* Allow delete for everyone for now to ensure functionality is accessible as requested */}
+                            <button
+                                onClick={() => handleDeleteCard(card.id)}
+                                className="text-gray-400 hover:text-red-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                title="Delete card"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -329,13 +305,6 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                 >
                     Create Flashcards
                 </button>
-                 <button 
-                    onClick={handleAutoGenerate}
-                    disabled={isGenerating}
-                    className="px-6 py-2.5 bg-purple-100 text-purple-700 font-medium rounded-lg hover:bg-purple-200 transition-all"
-                >
-                    {isGenerating ? 'Generating...' : '✨ Auto-Generate with AI'}
-                </button>
                 
                  <button 
                     onClick={loadFlashcards}
@@ -347,6 +316,52 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
             </div>
         </div>
     )
+  }
+
+  // RESULTS MODE
+  if (viewMode === 'results') {
+      const percentage = Math.round((correctCount / flashcards.length) * 100)
+      
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 text-5xl shadow-lg">
+                  {percentage >= 80 ? '🏆' : percentage >= 50 ? '👍' : '📚'}
+              </div>
+              
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Session Complete!</h2>
+              <p className="text-gray-500 mb-8">Here is how you performed:</p>
+              
+              <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                      <div className="text-2xl font-bold text-green-600">{correctCount}</div>
+                      <div className="text-xs text-green-800 uppercase font-semibold">Correct</div>
+                  </div>
+                  <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                      <div className="text-2xl font-bold text-red-600">{flashcards.length - correctCount}</div>
+                      <div className="text-xs text-red-800 uppercase font-semibold">Incorrect</div>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                      <div className="text-2xl font-bold text-blue-600">{percentage}%</div>
+                      <div className="text-xs text-blue-800 uppercase font-semibold">Score</div>
+                  </div>
+              </div>
+              
+              <div className="flex gap-4">
+                  <button
+                      onClick={handleRestartDeck}
+                      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                  >
+                      Restart Deck
+                  </button>
+                  <button
+                      onClick={() => setViewMode('manage')}
+                      className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all"
+                  >
+                      Manage Cards
+                  </button>
+              </div>
+          </div>
+      )
   }
 
   const currentCard = flashcards[currentIndex]
@@ -458,10 +473,16 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                 </div>
                 
                 <button
-                    onClick={handleNextCard}
-                    className="mt-8 px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg active:scale-95"
+                    onClick={() => handleNextCard(false)}
+                    className="mt-8 px-8 py-3 bg-red-100 text-red-700 font-bold rounded-xl hover:bg-red-200 transition-all flex-1"
                 >
-                    {currentIndex === flashcards.length - 1 ? 'Finish Deck' : 'Next Card →'}
+                    Got it Wrong
+                </button>
+                <button
+                    onClick={() => handleNextCard(true)}
+                    className="mt-8 px-8 py-3 bg-green-100 text-green-700 font-bold rounded-xl hover:bg-green-200 transition-all flex-1"
+                >
+                    Got it Right
                 </button>
             </div>
           </div>

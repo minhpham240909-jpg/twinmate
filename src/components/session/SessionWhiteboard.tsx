@@ -38,12 +38,15 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   const [showTextInput, setShowTextInput] = useState(false)
   const [textInput, setTextInput] = useState('')
   const [textPos, setTextPos] = useState({ x: 0, y: 0 })
+  const [isDraggingInput, setIsDraggingInput] = useState(false)
+  const dragOffset = useRef({ x: 0, y: 0 })
 
   // Refs for drawing state (mutable, no re-renders needed while drawing)
   const isDrawingRef = useRef(false)
   const currentActionRef = useRef<DrawAction | null>(null)
   const actionsRef = useRef<DrawAction[]>([]) // Keep track of all actions
   const [actions, setActions] = useState<DrawAction[]>([]) // Sync for re-renders if needed (e.g. undo/redo UI)
+  const [redoStack, setRedoStack] = useState<DrawAction[]>([]) // Redo stack
 
   const supabase = createClient()
 
@@ -56,6 +59,33 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   useEffect(() => {
     actionsRef.current = actions
   }, [actions])
+
+  // Global mouse listener for dragging text input
+  useEffect(() => {
+    if (!isDraggingInput) return
+
+    const handleGlobalMove = (e: MouseEvent) => {
+      if (!containerRef.current) return
+      const containerRect = containerRef.current.getBoundingClientRect()
+      
+      const newX = e.clientX - containerRect.left - dragOffset.current.x
+      const newY = e.clientY - containerRect.top - dragOffset.current.y
+
+      setTextPos({ x: newX, y: newY })
+    }
+
+    const handleGlobalUp = () => {
+      setIsDraggingInput(false)
+    }
+
+    window.addEventListener('mousemove', handleGlobalMove)
+    window.addEventListener('mouseup', handleGlobalUp)
+    
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMove)
+      window.removeEventListener('mouseup', handleGlobalUp)
+    }
+  }, [isDraggingInput])
 
   // Draw a single action to the canvas context
   const drawAction = (ctx: CanvasRenderingContext2D, action: DrawAction) => {
@@ -238,8 +268,27 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       })
       .on('broadcast', { event: 'clear' }, () => {
         setActions([])
+        setRedoStack([])
         localStorage.removeItem(`whiteboard-${sessionId}`)
         redrawCanvas()
+      })
+      .on('broadcast', { event: 'undo' }, (payload) => {
+        // If another user undid their last action, we should respect that if we support collaborative undo.
+        // But simpler: just reload state? No, that's heavy.
+        // For now, "Undo" is local-first but broadcasts a "delete" of the specific action ID if we tracked IDs.
+        // Since we don't have unique IDs on actions yet, let's rely on the fact that "undo" removes the LAST action of that user.
+        const userIdToUndo = payload.payload.userId
+        setActions(prev => {
+            // Find last action by this user
+            const index = prev.map(a => a.userId).lastIndexOf(userIdToUndo)
+            if (index !== -1) {
+                const newActions = [...prev]
+                newActions.splice(index, 1)
+                localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(newActions))
+                return newActions
+            }
+            return prev
+        })
       })
       .subscribe()
 
@@ -331,6 +380,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
       return updated
     })
+    
+    // Clear redo stack on new action
+    setRedoStack([])
 
     // Broadcast
     supabase.channel(`whiteboard:${sessionId}`).send({
@@ -364,6 +416,8 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
       return updated
     })
+    
+    setRedoStack([])
 
     supabase.channel(`whiteboard:${sessionId}`).send({
       type: 'broadcast',
@@ -378,6 +432,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   const handleClear = () => {
     if (!confirm('Clear whiteboard?')) return
     setActions([])
+    setRedoStack([])
     localStorage.removeItem(`whiteboard-${sessionId}`)
     
     supabase.channel(`whiteboard:${sessionId}`).send({
@@ -385,6 +440,70 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       event: 'clear',
       payload: {}
     })
+  }
+
+  const handleUndo = () => {
+      // Undo MY last action
+      const myActions = actions.filter(a => a.userId === (user?.id || 'anonymous'))
+      if (myActions.length === 0) return
+
+      const lastAction = myActions[myActions.length - 1]
+      
+      // Remove from actions
+      setActions(prev => {
+          const index = prev.lastIndexOf(lastAction)
+          if (index === -1) return prev
+          const newActions = [...prev]
+          newActions.splice(index, 1)
+          localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(newActions))
+          return newActions
+      })
+
+      // Add to redo stack
+      setRedoStack(prev => [...prev, lastAction])
+
+      // Broadcast undo
+      supabase.channel(`whiteboard:${sessionId}`).send({
+          type: 'broadcast',
+          event: 'undo',
+          payload: { userId: user?.id || 'anonymous' }
+      })
+  }
+
+  const handleRedo = () => {
+      if (redoStack.length === 0) return
+
+      const actionToRedo = redoStack[redoStack.length - 1]
+      
+      // Remove from redo stack
+      setRedoStack(prev => prev.slice(0, -1))
+
+      // Add to actions
+      setActions(prev => {
+          const newActions = [...prev, actionToRedo]
+          localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(newActions))
+          return newActions
+      })
+
+      // Broadcast as a new draw event (simplest way to sync redo)
+      supabase.channel(`whiteboard:${sessionId}`).send({
+          type: 'broadcast',
+          event: 'draw',
+          payload: actionToRedo
+      })
+  }
+
+  const handleTextDragStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDraggingInput(true)
+    
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    
+    dragOffset.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    }
   }
 
   const handleDownload = () => {
@@ -450,6 +569,23 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
         <div className="flex gap-2">
           <button
+            onClick={handleUndo}
+            disabled={!actions.some(a => a.userId === (user?.id || 'anonymous'))}
+            className="px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Undo"
+          >
+            ↩️
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            className="px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Redo"
+          >
+            ↪️
+          </button>
+          <div className="w-px h-8 bg-gray-200 mx-1" />
+          <button
             onClick={handleClear}
             className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
           >
@@ -483,9 +619,18 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
         {showTextInput && (
           <div
-            className="absolute bg-white p-4 rounded-lg shadow-xl border border-gray-200 z-50 animate-in fade-in zoom-in-95 duration-200"
+            className="absolute bg-white p-3 rounded-lg shadow-xl border border-gray-200 z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-2"
             style={{ left: textPos.x, top: textPos.y }}
           >
+            {/* Drag Handle */}
+            <div 
+                onMouseDown={handleTextDragStart}
+                className="w-full h-4 bg-gray-100 rounded-t-md cursor-move flex justify-center items-center hover:bg-gray-200 transition-colors"
+                title="Drag to move"
+            >
+                <div className="w-8 h-1 bg-gray-300 rounded-full" />
+            </div>
+
             <div className="flex gap-2">
               <input
                 type="text"

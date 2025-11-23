@@ -4,9 +4,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
-import ModernHeroBackground from '@/components/landing/ModernHeroBackground'
+import ThreeScene from '@/components/landing/ThreeScene'
 import ModernDotPattern from '@/components/landing/ModernDotPattern'
-import GlowBorder from '@/components/ui/GlowBorder'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 import Footer from '@/components/landing/Footer'
 
@@ -15,18 +14,36 @@ export default function HomePage() {
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set())
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Floating Signup Button */}
-      <FloatingSignupButton />
-
-      {/* Hero Section - Modern & Professional */}
-      <section className="relative pt-40 pb-32 overflow-hidden">
-        <div className="absolute inset-0">
-          <ModernHeroBackground />
-        </div>
+    <div className="min-h-screen bg-slate-950 text-white relative overflow-x-hidden selection:bg-blue-500/30">
+      
+      {/* Animated Gradient Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Deep space base */}
+        <div className="absolute inset-0 bg-slate-950" />
         
-        {/* Professional overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/30 to-transparent" />
+        {/* Moving nebulae gradients */}
+        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-blue-900/20 blur-[120px] animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full bg-indigo-900/20 blur-[100px] animate-pulse-slower delay-700" />
+        <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] rounded-full bg-purple-900/10 blur-[80px] animate-pulse-slow delay-1000" />
+        
+        {/* Subtle noise texture for realism */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("/noise.png")' }} />
+      </div>
+
+      {/* Global 3D Background - Fixed */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <ThreeScene count={60} connectionDistance={2.5} interactive={true} />
+      </div>
+
+      {/* Floating Signup Button - Ensure high z-index */}
+      <div className="relative z-50">
+        <FloatingSignupButton />
+      </div>
+
+      {/* Hero Section */}
+      <section className="relative pt-40 pb-32 overflow-hidden z-10">
+        {/* Subtle gradient overlay to ensure text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-transparent to-slate-950/80 pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <motion.div
@@ -35,11 +52,10 @@ export default function HomePage() {
             transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
             className="text-center max-w-5xl mx-auto"
           >
-            {/* Professional Gradient Headline */}
             <div className="mb-8">
               <GradientText
-                colors={['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#3b82f6']}
-                animationSpeed={5}
+                colors={['#60a5fa', '#a78bfa', '#f472b6', '#a78bfa', '#60a5fa']}
+                animationSpeed={6}
                 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-4 tracking-tight leading-tight"
               >
                 Find your perfect
@@ -52,7 +68,7 @@ export default function HomePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-xl md:text-2xl text-slate-200 mb-12 font-light max-w-3xl mx-auto leading-relaxed"
+              className="text-xl md:text-2xl text-slate-300 mb-12 font-light max-w-3xl mx-auto leading-relaxed"
             >
               Connect with study partners who share your subjects, goals, and learning style.
               <br className="hidden md:block" />
@@ -80,27 +96,18 @@ export default function HomePage() {
 
               <Link
                 href="#how-it-works"
-                className="px-8 py-4 text-white text-lg font-semibold rounded-xl border-2 border-white/20 hover:bg-white/10 hover:border-white/30 hover:scale-105 transition-all duration-300 backdrop-blur-sm bg-white/5"
+                className="px-8 py-4 text-white text-lg font-semibold rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 hover:scale-105 transition-all duration-300 backdrop-blur-md"
               >
                 Learn More
               </Link>
-            </motion.div>
-
-            {/* Trust indicators */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6, duration: 0.8 }}
-              className="mt-16 flex flex-wrap items-center justify-center gap-8 text-slate-300 text-sm"
-            >
             </motion.div>
           </motion.div>
         </div>
       </section>
 
-      {/* How It Works Section - Professional Cards */}
-      <section id="how-it-works" className="py-24 bg-gradient-to-b from-white to-slate-50 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -108,10 +115,10 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 tracking-tight">
-              Get started in <span className="text-blue-600">minutes.</span>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
+              Get started in <span className="text-blue-400">minutes.</span>
             </h2>
-            <p className="text-lg md:text-xl text-slate-600 font-light max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-slate-400 font-light max-w-2xl mx-auto">
               Three simple steps to find your perfect study partner.
             </p>
           </motion.div>
@@ -160,22 +167,21 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
-                transition={{ delay: index * 0.1, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                transition={{ delay: index * 0.1, duration: 0.6 }}
                 className="group"
               >
-                <div className="h-full bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-100 group-hover:border-blue-200 group-hover:-translate-y-1">
-                  {/* Step Number Badge */}
+                <div className="h-full bg-slate-900/50 backdrop-blur-xl rounded-2xl p-8 border border-white/5 hover:border-blue-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-900/20">
                   <div className="mb-6 flex items-center justify-between">
                     <div className={`w-16 h-16 bg-gradient-to-br ${item.gradient} rounded-xl flex items-center justify-center shadow-lg text-white`}>
                       {item.icon}
                     </div>
-                    <div className={`w-12 h-12 bg-gradient-to-br ${item.gradient} rounded-full flex items-center justify-center shadow-md`}>
+                    <div className={`w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center border border-white/10`}>
                       <span className="text-xl font-bold text-white">{item.step}</span>
                     </div>
                   </div>
 
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">{item.title}</h3>
-                  <p className="text-slate-600 leading-relaxed">{item.description}</p>
+                  <h3 className="text-2xl font-bold text-white mb-3">{item.title}</h3>
+                  <p className="text-slate-400 leading-relaxed">{item.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -183,21 +189,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Partner Matching Section - Professional Layout */}
-      <section className="py-24 bg-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+      {/* Partner Matching Section */}
+      <section className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Text Content */}
             <motion.div
               initial={{ opacity: 0, x: -40 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: '-100px' }}
-              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+              transition={{ duration: 0.7 }}
             >
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 tracking-tight">
-                Find partners that <GradientText colors={['#3b82f6', '#6366f1', '#8b5cf6']} animationSpeed={4} className="text-4xl md:text-5xl lg:text-6xl font-bold inline-block">fit your goals.</GradientText>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
+                Find partners that <GradientText colors={['#60a5fa', '#8b5cf6', '#c084fc']} animationSpeed={4} className="text-4xl md:text-5xl lg:text-6xl font-bold inline-block">fit your goals.</GradientText>
               </h2>
-              <p className="text-lg md:text-xl text-slate-600 mb-10 leading-relaxed">
+              <p className="text-lg md:text-xl text-slate-400 mb-10 leading-relaxed">
                 Search and filter profiles by subjects, learning preferences, goals, and availability. Find study partners who share your interests and help you succeed.
               </p>
               <ul className="space-y-5">
@@ -213,9 +219,9 @@ export default function HomePage() {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1, duration: 0.5 }}
-                    className="flex items-center gap-4 text-slate-700 group"
+                    className="flex items-center gap-4 text-slate-300 group"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-900/20 group-hover:scale-110 transition-transform">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
@@ -226,42 +232,31 @@ export default function HomePage() {
               </ul>
             </motion.div>
 
-            {/* Visual Element - Professional Card */}
+            {/* Visual Element */}
             <motion.div
               initial={{ opacity: 0, x: 40 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: '-100px' }}
-              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+              transition={{ duration: 0.7 }}
               className="relative"
             >
-              <div className="bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 rounded-3xl p-10 relative overflow-hidden shadow-2xl">
-                {/* Professional background pattern */}
-                <div className="absolute inset-0 opacity-10">
-                  {[...Array(12)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-1 h-16 bg-white rounded-full"
-                      style={{
-                        left: `${i * 8}%`,
-                        bottom: 0,
-                        animation: `slideUp 5s linear infinite`,
-                        animationDelay: `${i * 0.4}s`,
-                      }}
-                    />
-                  ))}
+              <div className="bg-gradient-to-br from-blue-900/80 via-indigo-900/80 to-purple-900/80 backdrop-blur-xl rounded-3xl p-10 relative overflow-hidden shadow-2xl border border-white/10">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-20">
+                  <ModernDotPattern dotSize={1.5} gap={24} color="rgba(255,255,255,0.3)" />
                 </div>
 
                 {/* Center content */}
                 <div className="relative z-10 text-center text-white">
                   <div className="mb-8">
-                    <div className="w-32 h-32 mx-auto bg-white/20 rounded-2xl backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30">
-                      <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-32 h-32 mx-auto bg-white/10 rounded-2xl backdrop-blur-md flex items-center justify-center shadow-xl border border-white/20 ring-1 ring-white/10">
+                      <svg className="w-16 h-16 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                       </svg>
                     </div>
                   </div>
                   <h3 className="text-3xl font-bold mb-3">Partner Matching</h3>
-                  <p className="text-blue-100 text-lg font-light">Connecting 10,000+ students worldwide</p>
+                  <p className="text-blue-200 text-lg font-light">Connecting 10,000+ students worldwide</p>
                 </div>
               </div>
             </motion.div>
@@ -269,28 +264,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Video Call Section - Professional Design */}
-      <section className="py-24 bg-gradient-to-b from-white to-slate-50 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+      {/* Video Call Section */}
+      <section className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Visual First */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: '-100px' }}
-              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+              transition={{ duration: 0.7 }}
               className="order-2 lg:order-1"
             >
-              <div className="bg-gradient-to-br from-pink-600 via-purple-700 to-indigo-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-                {/* Professional Video Grid */}
+              <div className="bg-gradient-to-br from-pink-900/80 via-purple-900/80 to-indigo-900/80 backdrop-blur-xl rounded-3xl p-8 relative overflow-hidden shadow-2xl border border-white/10">
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
-                      className="aspect-square bg-white/10 backdrop-blur-md rounded-xl border-2 border-white/20 flex items-center justify-center relative overflow-hidden"
+                      className="aspect-square bg-black/20 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-center relative overflow-hidden group"
                     >
-                      <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                        <svg className="w-8 h-8 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       </div>
@@ -298,14 +292,13 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                {/* Professional Control Bar */}
-                <div className="bg-black/30 backdrop-blur-md rounded-xl p-4 flex justify-center gap-3">
+                <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 flex justify-center gap-3 border border-white/5">
                   {[
                     { icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' },
                     { icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
                     { icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
                   ].map((btn, idx) => (
-                    <div key={idx} className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/30 transition-all hover:scale-110">
+                    <div key={idx} className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all hover:scale-110">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={btn.icon} />
                       </svg>
@@ -325,13 +318,13 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 40 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: '-100px' }}
-              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+              transition={{ duration: 0.7 }}
               className="order-1 lg:order-2"
             >
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 tracking-tight">
-                Study together, <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">anywhere.</span>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
+                Study together, <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">anywhere.</span>
               </h2>
-              <p className="text-lg md:text-xl text-slate-600 mb-10 leading-relaxed">
+              <p className="text-lg md:text-xl text-slate-400 mb-10 leading-relaxed">
                 Built-in video calls, screen sharing, and collaborative whiteboards make it easy to study together in real-time.
               </p>
               <ul className="space-y-5">
@@ -347,9 +340,9 @@ export default function HomePage() {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1, duration: 0.5 }}
-                    className="flex items-center gap-4 text-slate-700 group"
+                    className="flex items-center gap-4 text-slate-300 group"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-pink-900/20 group-hover:scale-110 transition-transform">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
@@ -363,9 +356,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Grid Section - Professional Cards */}
-      <section id="features" className="py-24 bg-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+      {/* Features Grid Section */}
+      <section id="features" className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -373,10 +366,10 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 tracking-tight">
-              Everything you need to <span className="text-blue-600">succeed.</span>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
+              Everything you need to <span className="text-blue-400">succeed.</span>
             </h2>
-            <p className="text-lg md:text-xl text-slate-600 font-light max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-slate-400 font-light max-w-2xl mx-auto">
               Powerful features designed to enhance your learning experience.
             </p>
           </motion.div>
@@ -388,47 +381,38 @@ export default function HomePage() {
                 description: 'Search and filter through profiles by subjects, interests, and goals. View compatibility scores based on your learning preferences and send connection requests to find your perfect study match.',
                 icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
                 gradient: 'from-blue-500 to-indigo-600',
-                color: '#3b82f6',
               },
               {
                 title: 'Study Groups',
                 description: 'Create or join study groups with up to 50 members. Choose between public, private, or invite-only groups with role-based permissions for organized collaborative learning.',
                 icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
                 gradient: 'from-purple-500 to-pink-600',
-                color: '#8b5cf6',
               },
               {
                 title: 'Live Study Sessions',
                 description: 'Start video calls with up to 10 participants. Collaborate with shared whiteboards, real-time notes, flashcards with spaced repetition, and built-in Pomodoro timers for focused study sessions.',
                 icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z',
                 gradient: 'from-indigo-500 to-purple-600',
-                color: '#6366f1',
               },
               {
                 title: 'Direct Messaging',
                 description: 'Chat with study partners and groups in real-time. Send messages, share files, and make voice or video calls with typing indicators and read receipts to stay connected.',
                 icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
                 gradient: 'from-pink-500 to-red-600',
-                color: '#ec4899',
               },
               {
                 title: 'Community Feed',
                 description: 'Share posts, like, and engage with thousands of students. Choose between recommended, chronological, or trending feeds with privacy controls for your content.',
                 icon: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z',
                 gradient: 'from-orange-500 to-yellow-600',
-                color: '#f59e0b',
               },
             ].map((feature, index) => {
               const isFlipped = flippedCards.has(index)
-
               const toggleFlip = () => {
                 setFlippedCards(prev => {
                   const newSet = new Set(prev)
-                  if (newSet.has(index)) {
-                    newSet.delete(index)
-                  } else {
-                    newSet.add(index)
-                  }
+                  if (newSet.has(index)) newSet.delete(index)
+                  else newSet.add(index)
                   return newSet
                 })
               }
@@ -439,7 +423,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-50px' }}
-                  transition={{ delay: index * 0.08, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                  transition={{ delay: index * 0.08, duration: 0.6 }}
                   style={{ perspective: '1000px' }}
                   className="h-full min-h-[360px]"
                 >
@@ -463,14 +447,14 @@ export default function HomePage() {
                           WebkitBackfaceVisibility: 'hidden',
                         }}
                       >
-                        <div className="h-full bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-100 group-hover:border-blue-200 group-hover:-translate-y-1 flex flex-col items-center justify-center">
+                        <div className="h-full bg-slate-900/50 backdrop-blur-xl rounded-2xl p-8 border border-white/5 group-hover:border-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 flex flex-col items-center justify-center">
                           <div className={`w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-xl`}>
                             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
                             </svg>
                           </div>
-                          <h3 className="text-2xl font-bold text-slate-900 text-center mb-2">{feature.title}</h3>
-                          <p className="text-sm text-slate-500 text-center">Click to learn more</p>
+                          <h3 className="text-2xl font-bold text-white text-center mb-2">{feature.title}</h3>
+                          <p className="text-sm text-slate-500 text-center group-hover:text-blue-400 transition-colors">Click to learn more</p>
                         </div>
                       </div>
 
@@ -483,14 +467,14 @@ export default function HomePage() {
                           transform: 'rotateY(180deg)',
                         }}
                       >
-                        <div className="h-full bg-gradient-to-br from-slate-50 to-white rounded-2xl p-8 shadow-2xl border-2 border-slate-200 flex flex-col justify-center">
+                        <div className="h-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 border border-white/10 flex flex-col justify-center shadow-2xl">
                           <div className={`w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-5 shadow-lg mx-auto`}>
                             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
                             </svg>
                           </div>
-                          <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">{feature.title}</h3>
-                          <p className="text-slate-700 leading-relaxed text-sm text-center">{feature.description}</p>
+                          <h3 className="text-xl font-bold text-white mb-4 text-center">{feature.title}</h3>
+                          <p className="text-slate-300 leading-relaxed text-sm text-center">{feature.description}</p>
                         </div>
                       </div>
                     </div>
@@ -502,8 +486,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section - Professional Design */}
-      <section className="py-32 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 relative overflow-hidden">
+      {/* CTA Section */}
+      <section className="py-32 bg-gradient-to-br from-blue-900/50 via-indigo-900/50 to-purple-900/50 relative overflow-hidden z-10 backdrop-blur-sm">
         <div className="absolute inset-0 opacity-10">
           <ModernDotPattern dotSize={2} gap={40} color="rgba(255,255,255,0.2)" />
         </div>
@@ -518,14 +502,14 @@ export default function HomePage() {
             <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight">
               Ready to find your study partner?
             </h2>
-            <p className="text-xl md:text-2xl text-blue-100 mb-12 font-light max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-slate-300 mb-12 font-light max-w-3xl mx-auto">
               Join thousands of students already studying smarter, not harder.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
               <Link
                 href="/auth/signup"
-                className="group px-10 py-5 bg-white text-blue-600 text-xl font-bold rounded-xl hover:scale-105 hover:shadow-2xl transition-all duration-300 flex items-center gap-2"
+                className="group px-10 py-5 bg-white text-blue-900 text-xl font-bold rounded-xl hover:scale-105 hover:shadow-2xl transition-all duration-300 flex items-center gap-2"
               >
                 <span>Get Started Now</span>
                 <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -535,7 +519,7 @@ export default function HomePage() {
 
               <Link
                 href="#how-it-works"
-                className="px-10 py-5 text-white text-xl font-bold rounded-xl border-2 border-white/30 hover:bg-white/10 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+                className="px-10 py-5 text-white text-xl font-bold rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 hover:scale-105 transition-all duration-300 backdrop-blur-md"
               >
                 Watch Demo
               </Link>
@@ -545,8 +529,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ Section - Professional Accordion */}
-      <section id="faq" className="py-24 bg-gradient-to-b from-white to-slate-50">
+      {/* FAQ Section */}
+      <section id="faq" className="py-24 relative z-10">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -555,10 +539,10 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 tracking-tight">
-              Frequently asked <span className="text-blue-600">questions.</span>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
+              Frequently asked <span className="text-blue-400">questions.</span>
             </h2>
-            <p className="text-lg md:text-xl text-slate-600">
+            <p className="text-lg md:text-xl text-slate-400">
               Everything you need to know about Clerva.
             </p>
           </motion.div>
@@ -607,16 +591,16 @@ export default function HomePage() {
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full text-left bg-white hover:bg-slate-50 rounded-xl p-6 transition-all duration-300 shadow-sm hover:shadow-md border border-slate-100"
+                  className="w-full text-left bg-slate-900/50 hover:bg-slate-900/80 rounded-xl p-6 transition-all duration-300 shadow-sm border border-white/5 hover:border-white/10 backdrop-blur-md"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg md:text-xl font-bold text-slate-900 pr-8">{faq.question}</h3>
+                    <h3 className="text-lg md:text-xl font-bold text-white pr-8">{faq.question}</h3>
                     <motion.div
                       animate={{ rotate: openFaq === index ? 180 : 0 }}
                       transition={{ duration: 0.3 }}
-                      className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"
+                      className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20"
                     >
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </motion.div>
@@ -631,7 +615,7 @@ export default function HomePage() {
                     transition={{ duration: 0.3 }}
                     className="overflow-hidden"
                   >
-                    <p className="mt-4 text-slate-600 leading-relaxed">{faq.answer}</p>
+                    <p className="mt-4 text-slate-400 leading-relaxed">{faq.answer}</p>
                   </motion.div>
                 </button>
               </motion.div>
@@ -642,24 +626,22 @@ export default function HomePage() {
 
       {/* Footer */}
       <Footer />
-
-      {/* CSS Animations */}
-      <style jsx global>{`
-        @keyframes slideUp {
-          0% {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.5;
-          }
-          90% {
-            opacity: 0.5;
-          }
-          100% {
-            transform: translateY(-100%);
-            opacity: 0;
-          }
+      
+      {/* CSS for animations */}
+      <style jsx>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(1.1); }
+        }
+        @keyframes pulse-slower {
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(1.2); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 8s infinite ease-in-out;
+        }
+        .animate-pulse-slower {
+          animation: pulse-slower 12s infinite ease-in-out;
         }
       `}</style>
     </div>
