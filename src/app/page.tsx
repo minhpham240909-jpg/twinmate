@@ -417,6 +417,10 @@ export default function HomePage() {
                       style={{
                         transformStyle: 'preserve-3d',
                         transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                        transformOrigin: 'center center',
+                        willChange: 'transform',
+                        WebkitFontSmoothing: 'antialiased',
+                        MozOsxFontSmoothing: 'grayscale',
                       }}
                     >
                       {/* Front of Card */}
@@ -425,6 +429,8 @@ export default function HomePage() {
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
+                          transform: 'translateZ(0)',
+                          WebkitTransform: 'translateZ(0)',
                         }}
                       >
                         <div className="h-full bg-slate-900/50 backdrop-blur-xl rounded-2xl p-8 border border-white/5 group-hover:border-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 flex flex-col items-center justify-center">
@@ -444,7 +450,8 @@ export default function HomePage() {
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
-                          transform: 'rotateY(180deg)',
+                          transform: 'rotateY(180deg) translateZ(1px)',
+                          WebkitTransform: 'rotateY(180deg) translateZ(1px)',
                         }}
                       >
                         <div className="h-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 border border-white/10 flex flex-col justify-center shadow-2xl">
