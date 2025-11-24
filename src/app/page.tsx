@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
-import ThreeScene from '@/components/landing/ThreeScene'
 import ModernDotPattern from '@/components/landing/ModernDotPattern'
 import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 import Footer from '@/components/landing/Footer'
@@ -16,25 +15,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white relative overflow-x-hidden selection:bg-blue-500/30">
       
-      {/* Animated Gradient Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Deep space base */}
-        <div className="absolute inset-0 bg-slate-950" />
-        
-        {/* Moving nebulae gradients */}
-        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-blue-900/20 blur-[120px] animate-pulse-slow" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full bg-indigo-900/20 blur-[100px] animate-pulse-slower delay-700" />
-        <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] rounded-full bg-purple-900/10 blur-[80px] animate-pulse-slow delay-1000" />
-        
-        {/* Subtle noise texture for realism */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("/noise.png")' }} />
-      </div>
-
-      {/* Global 3D Background - Fixed */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <ThreeScene count={60} connectionDistance={2.5} interactive={true} />
-      </div>
-
       {/* Floating Signup Button - Ensure high z-index */}
       <div className="relative z-50">
         <FloatingSignupButton />
@@ -83,7 +63,7 @@ export default function HomePage() {
             >
               <Link
                 href="/auth/signup"
-                className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-semibold rounded-xl hover:shadow-2xl hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 overflow-hidden"
+                className="group relative px-8 py-4 bg-slate-900 border border-white/10 text-white text-lg font-semibold rounded-xl hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/20 hover:scale-105 transition-all duration-300 overflow-hidden"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   Get Started Now
@@ -91,7 +71,7 @@ export default function HomePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </Link>
 
               <Link
@@ -509,10 +489,11 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
               <Link
                 href="/auth/signup"
-                className="group px-10 py-5 bg-white text-blue-900 text-xl font-bold rounded-xl hover:scale-105 hover:shadow-2xl transition-all duration-300 flex items-center gap-2"
+                className="group px-10 py-5 bg-slate-900 border border-white/10 text-white text-xl font-bold rounded-xl hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20 hover:border-blue-500/50 transition-all duration-300 flex items-center gap-2 relative overflow-hidden"
               >
-                <span>Get Started Now</span>
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="relative z-10">Get Started Now</span>
+                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </Link>
@@ -626,24 +607,6 @@ export default function HomePage() {
 
       {/* Footer */}
       <Footer />
-      
-      {/* CSS for animations */}
-      <style jsx>{`
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.2; transform: scale(1); }
-          50% { opacity: 0.3; transform: scale(1.1); }
-        }
-        @keyframes pulse-slower {
-          0%, 100% { opacity: 0.2; transform: scale(1); }
-          50% { opacity: 0.3; transform: scale(1.2); }
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 8s infinite ease-in-out;
-        }
-        .animate-pulse-slower {
-          animation: pulse-slower 12s infinite ease-in-out;
-        }
-      `}</style>
     </div>
   )
 }

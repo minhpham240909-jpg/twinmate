@@ -468,9 +468,9 @@ function GroupsChatContent() {
     const days = Math.floor(diff / 86400000)
 
     if (minutes < 1) return tCommon('justNow')
-    if (minutes < 60) return tCommon('minutesAgo').replace('{count}', String(minutes))
-    if (hours < 24) return tCommon('hoursAgo').replace('{count}', String(hours))
-    return tCommon('daysAgo').replace('{count}', String(days))
+    if (minutes < 60) return tCommon('minutesAgo', { count: minutes })
+    if (hours < 24) return tCommon('hoursAgo', { count: hours })
+    return tCommon('daysAgo', { count: days })
   }
 
   if (loading) {

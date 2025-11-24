@@ -129,9 +129,9 @@ export default function SearchDropdown({
     const diffDays = Math.floor(diffMs / 86400000)
 
     if (diffMins < 1) return tCommon('justNow')
-    if (diffMins < 60) return tCommon('minutesAgo').replace('{count}', String(diffMins))
-    if (diffHours < 24) return tCommon('hoursAgo').replace('{count}', String(diffHours))
-    if (diffDays < 7) return tCommon('daysAgo').replace('{count}', String(diffDays))
+    if (diffMins < 60) return tCommon('minutesAgo', { count: diffMins })
+    if (diffHours < 24) return tCommon('hoursAgo', { count: diffHours })
+    if (diffDays < 7) return tCommon('daysAgo', { count: diffDays })
     return date.toLocaleDateString()
   }
 

@@ -276,9 +276,9 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
     if (seconds < 60) return t('justNow')
-    if (seconds < 3600) return t('minutesAgo').replace('{count}', String(Math.floor(seconds / 60)))
-    if (seconds < 86400) return t('hoursAgo').replace('{count}', String(Math.floor(seconds / 3600)))
-    if (seconds < 604800) return t('daysAgo').replace('{count}', String(Math.floor(seconds / 86400)))
+    if (seconds < 3600) return t('minutesAgo', { count: Math.floor(seconds / 60) })
+    if (seconds < 86400) return t('hoursAgo', { count: Math.floor(seconds / 3600) })
+    if (seconds < 604800) return t('daysAgo', { count: Math.floor(seconds / 86400) })
     return date.toLocaleDateString()
   }
 

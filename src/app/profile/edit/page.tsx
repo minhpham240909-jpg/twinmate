@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { LocationForm } from '@/components/profile/LocationForm'
 import GlowBorder from '@/components/ui/GlowBorder'
@@ -114,6 +114,26 @@ export default function ProfilePage() {
       }
     }
   }, [user, profile, loading, router])
+
+  // Memoized callback to prevent infinite loop
+  const handleLocationChange = useCallback((location: {
+    city: string
+    state: string
+    country: string
+    lat: number | null
+    lng: number | null
+    visibility: 'match-only' | 'private' | 'public'
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      locationCity: location.city,
+      locationState: location.state,
+      locationCountry: location.country,
+      locationLat: location.lat,
+      locationLng: location.lng,
+      locationVisibility: location.visibility,
+    }))
+  }, [])
 
   if (loading) {
     return (
@@ -620,17 +640,7 @@ export default function ProfilePage() {
                   lng: formData.locationLng,
                   visibility: formData.locationVisibility,
                 }}
-                onLocationChange={(location) => {
-                  setFormData({
-                    ...formData,
-                    locationCity: location.city,
-                    locationState: location.state,
-                    locationCountry: location.country,
-                    locationLat: location.lat,
-                    locationLng: location.lng,
-                    locationVisibility: location.visibility,
-                  })
-                }}
+                onLocationChange={handleLocationChange}
               />
             </div>
 

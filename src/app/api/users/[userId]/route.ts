@@ -44,8 +44,7 @@ export async function GET(
           createdAt: true,
           presence: {
             select: {
-              // @ts-ignore - Prisma type inference issue
-              onlineStatus: true,
+              status: true,
             },
           },
         },

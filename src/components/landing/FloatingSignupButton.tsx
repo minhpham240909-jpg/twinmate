@@ -35,9 +35,9 @@ export default function FloatingSignupButton() {
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold rounded-full shadow-2xl overflow-hidden"
+          className="group relative px-8 py-4 bg-slate-900 border border-white/10 text-white font-semibold rounded-full shadow-2xl overflow-hidden hover:border-blue-500/50 hover:shadow-blue-500/20 transition-all duration-300"
         >
-          {/* Animated gradient background */}
+          {/* Subtle animated gradient background on hover */}
           <motion.div
             animate={{
               backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
@@ -47,7 +47,7 @@ export default function FloatingSignupButton() {
               repeat: Infinity,
               ease: 'linear',
             }}
-            className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{ backgroundSize: '200% 100%' }}
           />
 
