@@ -58,7 +58,7 @@ export default function InviteModal({ sessionId, isOpen, onClose }: InviteModalP
             name: p.name,
             email: p.email,
             avatarUrl: p.avatarUrl,
-            onlineStatus: p.profile?.onlineStatus,
+            onlineStatus: p.presence?.status,
           }))
           setPartners(formattedPartners)
         }

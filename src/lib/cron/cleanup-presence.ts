@@ -66,17 +66,10 @@ export async function cleanupPresence() {
         // At least one active session = online
         newStatus = 'online'
       } else {
-        // No active sessions - check if last heartbeat was recent
-        const lastSeen = user.presence?.lastSeenAt || user.presence?.lastActivityAt || new Date(0)
-
-        if (lastSeen < staleThreshold) {
-          // No heartbeat for >60 seconds = offline (immediate offline detection)
-          newStatus = 'offline'
-        } else {
-          // Very recently disconnected (<60 seconds) - might be temporary network issue
-          // Keep as online briefly, but will be marked offline on next cleanup cycle
-          newStatus = 'online'
-        }
+        // No active sessions = offline (immediate offline detection)
+        // The stale threshold already marked inactive sessions (step 1)
+        // so if we reach here with no active sessions, user is definitively offline
+        newStatus = 'offline'
       }
 
       // Update if status changed
@@ -85,8 +78,8 @@ export async function cleanupPresence() {
           where: { userId: user.id },
           data: {
             status: newStatus,
-            lastSeenAt: new Date(),
             updatedAt: new Date(),
+            // Note: lastSeenAt is NOT updated here - it should preserve the actual last activity time
           },
         })
         updatedCount++

@@ -84,7 +84,7 @@ export default function PartnerSearchBar({ onConversationSelect }: PartnerSearch
           id: p.user.id,
           name: p.user.name,
           avatarUrl: p.user.avatarUrl,
-          onlineStatus: p.profile?.onlineStatus
+          onlineStatus: p.presence?.status
         })
       })
 

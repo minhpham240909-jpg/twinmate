@@ -153,9 +153,9 @@ export async function GET(
               id: true,
               name: true,
               avatarUrl: true,
-              profile: {
+              presence: {
                 select: {
-                  onlineStatus: true
+                  status: true
                 }
               }
             }
@@ -165,9 +165,9 @@ export async function GET(
               id: true,
               name: true,
               avatarUrl: true,
-              profile: {
+              presence: {
                 select: {
-                  onlineStatus: true
+                  status: true
                 }
               }
             }
@@ -189,7 +189,7 @@ export async function GET(
         name: partner.name,
         avatarUrl: partner.avatarUrl,
         type: 'partner',
-        onlineStatus: partner.profile?.onlineStatus || 'OFFLINE'
+        onlineStatus: partner.presence?.status || 'offline'
       }
 
       // Get DM messages with pagination

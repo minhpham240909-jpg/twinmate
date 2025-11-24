@@ -166,7 +166,6 @@ model Profile {
   aboutYourself      String?  @db.Text // Detailed description
 
   // Status
-  onlineStatus        OnlineStatus @default(OFFLINE)
   isLookingForPartner Boolean      @default(false)
 
   // Privacy
@@ -194,7 +193,6 @@ model Profile {
   @@index([userId])
   @@index([subjects])
   @@index([interests])
-  @@index([onlineStatus])
   @@index([location_city])
   @@index([location_visibility])
 }
