@@ -4,7 +4,14 @@ import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
 
-export default function AuthErrorPage() {
+interface PageProps {
+  searchParams: Promise<{ message?: string }>
+}
+
+export default async function AuthErrorPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const errorMessage = params.message || 'Something went wrong during authentication. Please try again.'
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <FastFadeIn delay={0.1}>
@@ -21,7 +28,7 @@ export default function AuthErrorPage() {
             </FastBounce>
             <h1 className="text-2xl font-bold text-white mb-2">Authentication Error</h1>
             <p className="text-slate-300 mb-6">
-              Something went wrong during authentication. Please try again.
+              {errorMessage}
             </p>
             <div className="flex gap-4">
               <FastBounce delay={0.2}>

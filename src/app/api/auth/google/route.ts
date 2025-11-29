@@ -4,12 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import logger from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url)
+  const origin = requestUrl.origin
+
   try {
     const supabase = await createClient()
-
-    // Get the origin from the request for dynamic redirect
-    const requestUrl = new URL(request.url)
-    const origin = requestUrl.origin
     const redirectUrl = `${origin}/auth/callback`
 
     // Note: Supabase handles CSRF protection internally with its own state parameter
@@ -28,18 +27,24 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       logger.error('Google OAuth initiation failed', { error: error.message })
-      return NextResponse.json(
-        { error: 'Failed to initiate sign in. Please try again.' },
-        { status: 400 }
+      // Redirect to error page instead of returning JSON (since browser navigates directly)
+      return NextResponse.redirect(
+        new URL(`/auth/error?message=${encodeURIComponent(error.message)}`, origin)
+      )
+    }
+
+    if (!data?.url) {
+      logger.error('Google OAuth returned no URL - provider may not be enabled in Supabase')
+      return NextResponse.redirect(
+        new URL('/auth/error?message=' + encodeURIComponent('Google sign-in is not configured. Please contact support.'), origin)
       )
     }
 
     return NextResponse.redirect(data.url)
   } catch (error) {
     logger.error('Google OAuth error', error instanceof Error ? error : new Error(String(error)))
-    return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again.' },
-      { status: 500 }
+    return NextResponse.redirect(
+      new URL('/auth/error?message=' + encodeURIComponent('An unexpected error occurred. Please try again.'), origin)
     )
   }
 }
