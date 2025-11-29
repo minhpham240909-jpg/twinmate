@@ -48,9 +48,6 @@ export default function SignInForm() {
         return
       }
 
-      // Session is stored in localStorage by default (persists across browser restarts)
-      await new Promise(resolve => setTimeout(resolve, 300))
-
       // Check if user is admin to redirect to admin dashboard
       const userCheckResponse = await fetch('/api/admin/check')
       const userCheckData = await userCheckResponse.json()

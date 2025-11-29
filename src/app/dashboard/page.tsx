@@ -42,13 +42,14 @@ interface Group {
 // Profile completion check function
 const isProfileComplete = (profile: any): boolean => {
   if (!profile) return false
-  
+
   const hasBio = profile.bio && profile.bio.trim().length > 0
   const hasSubjects = profile.subjects && profile.subjects.length > 0
   const hasInterests = profile.interests && profile.interests.length > 0
   const hasAge = profile.age !== null && profile.age !== undefined
-  const hasRole = profile.role && profile.role.trim().length > 0
-  
+  // Check profileRole (user position like 'Student', 'Professional') NOT role (subscription 'FREE'/'PREMIUM')
+  const hasRole = profile.profileRole && profile.profileRole.trim().length > 0
+
   return hasBio && hasSubjects && hasInterests && hasAge && hasRole
 }
 

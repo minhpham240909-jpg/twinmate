@@ -14,6 +14,7 @@ export async function GET(request: Request) {
       const supabase = await createClient()
 
       // Exchange the code for a session
+      // Supabase SSR handles session cookies automatically via the setAll callback
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (error) {
@@ -23,6 +24,9 @@ export async function GET(request: Request) {
 
       if (data.user && data.session) {
         // Sync user to database
+        let redirectPath = '/dashboard'
+        let isNewUser = false
+
         try {
           let dbUser = await prisma.user.findUnique({
             where: { id: data.user.id },
@@ -61,29 +65,9 @@ export async function GET(request: Request) {
             })
 
             dbUser = result
+            isNewUser = true
+            redirectPath = '/onboarding'
             console.log('[Auth Callback] Created new user:', email, 'via', isGoogleOAuth ? 'Google OAuth' : 'Email/Password')
-            
-            // Redirect new users to onboarding
-            const response = NextResponse.redirect(new URL('/onboarding', requestUrl.origin))
-            const expires = new Date(data.session.expires_at! * 1000)
-            
-            response.cookies.set('sb-access-token', data.session.access_token, {
-              expires,
-              path: '/',
-              sameSite: 'lax',
-              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
-              secure: process.env.NODE_ENV === 'production',
-            })
-
-            response.cookies.set('sb-refresh-token', data.session.refresh_token, {
-              expires,
-              path: '/',
-              sameSite: 'lax',
-              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
-              secure: process.env.NODE_ENV === 'production',
-            })
-
-            return response
           } else {
             // Existing user - update emailVerified if confirmed by Supabase
             const wasUnverified = !dbUser.emailVerified
@@ -98,62 +82,66 @@ export async function GET(request: Request) {
             })
 
             if (wasUnverified && nowVerified) {
-              console.log('[Auth Callback] ✅ Email confirmed for user:', data.user.email)
+              console.log('[Auth Callback] Email confirmed for user:', data.user.email)
             }
 
             // Check if user is admin and redirect accordingly
-            const redirectUrl = dbUser.isAdmin ? '/admin' : '/dashboard'
-            const response = NextResponse.redirect(new URL(redirectUrl, requestUrl.origin))
-
-            const expires = new Date(data.session.expires_at! * 1000)
-
-            response.cookies.set('sb-access-token', data.session.access_token, {
-              expires,
-              path: '/',
-              sameSite: 'lax',
-              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
-              secure: process.env.NODE_ENV === 'production',
-            })
-
-            response.cookies.set('sb-refresh-token', data.session.refresh_token, {
-              expires,
-              path: '/',
-              sameSite: 'lax',
-              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
-              secure: process.env.NODE_ENV === 'production',
-            })
-
-            // Removed email logging for privacy
-            return response
+            redirectPath = dbUser.isAdmin ? '/admin' : '/dashboard'
           }
         } catch (dbError) {
           console.error('Database sync error:', dbError)
           // Continue anyway - user can be synced later
         }
 
-        // Fallback: redirect to dashboard if db check failed
-        const response = NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
+        // Use client-side redirect to ensure cookies are fully set before navigation
+        // This prevents the redirect loop issue with OAuth
+        const html = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0;url=${redirectPath}">
+              <title>Redirecting...</title>
+              <style>
+                body {
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  min-height: 100vh;
+                  margin: 0;
+                  background: #0f172a;
+                  color: white;
+                  font-family: system-ui, -apple-system, sans-serif;
+                }
+                .loader {
+                  width: 48px;
+                  height: 48px;
+                  border: 4px solid #3b82f6;
+                  border-top-color: transparent;
+                  border-radius: 50%;
+                  animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                  to { transform: rotate(360deg); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="loader"></div>
+              <script>
+                // Client-side redirect as backup
+                window.location.href = '${redirectPath}';
+              </script>
+            </body>
+          </html>
+        `
 
-        const expires = new Date(data.session.expires_at! * 1000)
-
-        response.cookies.set('sb-access-token', data.session.access_token, {
-          expires,
-          path: '/',
-          sameSite: 'lax',
-          httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
-          secure: process.env.NODE_ENV === 'production',
+        return new NextResponse(html, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html',
+          },
         })
-
-        response.cookies.set('sb-refresh-token', data.session.refresh_token, {
-          expires,
-          path: '/',
-          sameSite: 'lax',
-          httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
-          secure: process.env.NODE_ENV === 'production',
-        })
-
-        console.log('[OAuth Callback] ✅ Cookies set, redirecting to dashboard')
-        return response
       }
 
       // If no session, redirect to signin

@@ -11,6 +11,9 @@ export interface UserProfile {
   email: string
   name: string
   role: 'FREE' | 'PREMIUM'
+  // Profile role/position (e.g., 'Student', 'Professional', 'Teacher')
+  // Separate from subscription role ('FREE'/'PREMIUM')
+  profileRole?: string | null
   isAdmin?: boolean
   avatarUrl?: string | null
   bio?: string | null
@@ -61,9 +64,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Merge user data with profile data
         // Ensure we have at least basic user info even if profile is null
         if (data.user) {
+          // Extract Profile.role as profileRole (user position like 'Student', 'Professional')
+          // This is separate from User.role which is subscription type ('FREE'/'PREMIUM')
+          const profileRole = data.profile?.role || null
+
           setProfile({
             ...data.user,
             ...(data.profile || {}), // Use empty object if profile is null
+            // Ensure subscription role is preserved from user data
+            role: data.user.role,
+            // Map Profile.role to profileRole to avoid confusion
+            profileRole,
           })
         }
       } else {
