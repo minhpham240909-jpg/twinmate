@@ -48,6 +48,17 @@ export default function SignInForm() {
         return
       }
 
+      // Wait for session to be fully established in cookies
+      // This prevents the redirect loop where middleware doesn't detect the session
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Verify the session is actually set by getting the user again
+      const { data: sessionCheck } = await supabase.auth.getUser()
+      if (!sessionCheck.user) {
+        // Session not ready, wait a bit more
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+
       // Check if user is admin to redirect to admin dashboard
       const userCheckResponse = await fetch('/api/admin/check')
       const userCheckData = await userCheckResponse.json()
