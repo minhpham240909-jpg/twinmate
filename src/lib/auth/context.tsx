@@ -11,6 +11,7 @@ export interface UserProfile {
   email: string
   name: string
   role: 'FREE' | 'PREMIUM'
+  isAdmin?: boolean
   avatarUrl?: string | null
   bio?: string | null
   subjects?: string[]

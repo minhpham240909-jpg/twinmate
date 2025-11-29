@@ -279,8 +279,8 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     )
   }
@@ -294,19 +294,19 @@ export default function OnboardingPage() {
   const progress = ((currentStep + 1) / ONBOARDING_STEPS.length) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Progress Bar */}
         <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
+          <div className="flex justify-between text-sm text-gray-600 dark:text-slate-400 mb-2">
             <span>
               Step {currentStep + 1} of {ONBOARDING_STEPS.length}
             </span>
             <span>{Math.round(progress)}% complete</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 dark:bg-slate-800/50 rounded-full h-2">
             <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -315,20 +315,20 @@ export default function OnboardingPage() {
         {/* Form Card */}
         <FadeIn delay={0.1}>
           <GlowBorder color="#6366f1" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
-            <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="backdrop-blur-xl bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800/50 rounded-2xl shadow-xl dark:shadow-none p-8">
               <Bounce delay={0.1}>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">{step.title}</h2>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">{step.title}</h2>
               </Bounce>
               <Bounce delay={0.2}>
-                <p className="text-gray-600 mb-8">{step.description}</p>
+                <p className="text-gray-700 dark:text-slate-400 mb-8">{step.description}</p>
               </Bounce>
 
           <div className="space-y-6">
             {step.fields.map((field) => (
               <div key={field.name}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   {field.label}
-                  {field.required && <span className="text-red-500 ml-1">*</span>}
+                  {field.required && <span className="text-red-400 ml-1">*</span>}
                 </label>
 
                 {field.type === 'text' && (
@@ -337,8 +337,8 @@ export default function OnboardingPage() {
                     value={formData[field.name] || ''}
                     onChange={(e) => handleFieldChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                      errors[field.name] ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-3 backdrop-blur-xl bg-gray-50 dark:bg-slate-800/50 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-500 ${
+                      errors[field.name] ? 'border-red-500' : 'border-gray-300 dark:border-slate-700/50'
                     }`}
                   />
                 )}
@@ -351,8 +351,8 @@ export default function OnboardingPage() {
                     placeholder={field.placeholder}
                     min="13"
                     max="120"
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                      errors[field.name] ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-3 backdrop-blur-xl bg-gray-50 dark:bg-slate-800/50 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-500 ${
+                      errors[field.name] ? 'border-red-500' : 'border-gray-300 dark:border-slate-700/50'
                     }`}
                   />
                 )}
@@ -363,8 +363,8 @@ export default function OnboardingPage() {
                     onChange={(e) => handleFieldChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
                     rows={5}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none ${
-                      errors[field.name] ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-3 backdrop-blur-xl bg-gray-50 dark:bg-slate-800/50 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-500 ${
+                      errors[field.name] ? 'border-red-500' : 'border-gray-300 dark:border-slate-700/50'
                     }`}
                   />
                 )}
@@ -373,8 +373,8 @@ export default function OnboardingPage() {
                   <select
                     value={formData[field.name] || ''}
                     onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                      errors[field.name] ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-3 backdrop-blur-xl bg-gray-50 dark:bg-slate-800/50 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-slate-100 ${
+                      errors[field.name] ? 'border-red-500' : 'border-gray-300 dark:border-slate-700/50'
                     }`}
                   >
                     <option value="">Select {field.label}</option>
@@ -395,10 +395,10 @@ export default function OnboardingPage() {
                           key={option}
                           type="button"
                           onClick={() => toggleMultiSelect(field.name, option)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                             isSelected
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                              : 'backdrop-blur-xl bg-gray-100 dark:bg-slate-800/50 border border-gray-300 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700/50'
                           }`}
                         >
                           {option}
@@ -409,15 +409,15 @@ export default function OnboardingPage() {
                 )}
 
                 {errors[field.name] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[field.name]}</p>
+                  <p className="mt-1 text-sm text-red-400">{errors[field.name]}</p>
                 )}
               </div>
             ))}
           </div>
 
           {errors.submit && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{errors.submit}</p>
+            <div className="mt-6 p-4 backdrop-blur-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg">
+              <p className="text-sm text-red-700 dark:text-red-400">{errors.submit}</p>
             </div>
           )}
 
@@ -428,8 +428,8 @@ export default function OnboardingPage() {
               disabled={currentStep === 0 || saving}
               className={`px-6 py-3 rounded-lg font-medium transition-colors ${
                 currentStep === 0 || saving
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'backdrop-blur-xl bg-gray-100 dark:bg-slate-800/30 border border-gray-300 dark:border-slate-800/50 text-gray-400 dark:text-slate-600 cursor-not-allowed'
+                  : 'backdrop-blur-xl bg-gray-100 dark:bg-slate-800/50 border border-gray-300 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700/50'
               }`}
             >
               Back
@@ -439,7 +439,7 @@ export default function OnboardingPage() {
               <button
                 onClick={handleNext}
                 disabled={saving}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-cyan-600 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
               >
                 {saving ? (
                   <>
@@ -462,7 +462,7 @@ export default function OnboardingPage() {
         <div className="mt-6 text-center">
           <button
             onClick={() => router.push('/dashboard')}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-gray-600 dark:text-slate-500 hover:text-gray-900 dark:hover:text-slate-300 transition-colors"
           >
             Skip for now
           </button>

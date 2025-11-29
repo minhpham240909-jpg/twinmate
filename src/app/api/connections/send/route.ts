@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { isBlocked } from '@/lib/blocked-users'
 
 const sendRequestSchema = z.object({
   receiverId: z.string(),
@@ -48,7 +49,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { receiverId, message } = validation.data
-    console.log('Current user ID:', user.id, 'Receiver ID:', receiverId)
+
+    // SECURITY: Check if either user has blocked the other
+    const blocked = await isBlocked(user.id, receiverId)
+    if (blocked) {
+      return NextResponse.json(
+        { error: 'Unable to send connection request' },
+        { status: 403 }
+      )
+    }
 
     // Use transaction to prevent race conditions
     let match

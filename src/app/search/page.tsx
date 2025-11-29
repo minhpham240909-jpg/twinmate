@@ -264,10 +264,10 @@ export default function SearchPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 dark:text-slate-300">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -396,23 +396,23 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-gray-50 dark:bg-slate-800/50 backdrop-blur-xl shadow-lg border-b border-gray-200 dark:border-slate-700/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/dashboard')}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('title')}</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition flex items-center gap-2"
+              className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-slate-700/50 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600/50 rounded-lg transition flex items-center gap-2 backdrop-blur-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -422,7 +422,7 @@ export default function SearchPage() {
           </div>
           <button
             onClick={() => router.push('/dashboard')}
-            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg transition backdrop-blur-sm"
           >
             {tCommon('backToDashboard')}
           </button>
@@ -434,19 +434,19 @@ export default function SearchPage() {
         <div className="max-w-6xl mx-auto">
           {/* Independent Search Bar - Above Filters */}
           <div className="mb-6">
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick Search</h2>
-              <p className="text-sm text-gray-600 mb-4">Search by name, location, interests, subjects, or any profile field</p>
+            <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg dark:shadow-none p-6 border border-gray-200 dark:border-slate-700/50">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Quick Search</h2>
+              <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">Search by name, location, interests, subjects, or any profile field</p>
               <div className="relative">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('searchPlaceholder')}
-                  className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 pl-12 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                 />
                 <svg
-                  className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2"
+                  className="w-5 h-5 text-gray-500 dark:text-slate-400 absolute left-4 top-1/2 transform -translate-y-1/2"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -455,7 +455,7 @@ export default function SearchPage() {
                 </svg>
                 {isSearching && (
                   <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                    <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 )}
               </div>
@@ -464,33 +464,33 @@ export default function SearchPage() {
 
           {/* Divider */}
           <div className="flex items-center mb-6">
-            <div className="flex-1 border-t border-gray-300"></div>
-            <span className="px-4 text-sm text-gray-500 font-medium">OR</span>
-            <div className="flex-1 border-t border-gray-300"></div>
+            <div className="flex-1 border-t border-gray-200 dark:border-slate-700/50"></div>
+            <span className="px-4 text-sm text-gray-600 dark:text-slate-400 font-medium">OR</span>
+            <div className="flex-1 border-t border-gray-200 dark:border-slate-700/50"></div>
           </div>
 
           <div className={`grid gap-6 ${showFilters ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
             {/* Filters Sidebar */}
             {showFilters && (
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-xl shadow-sm p-6 sticky top-4">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Advanced Filters</h2>
+                <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg dark:shadow-none p-6 sticky top-4 border border-gray-200 dark:border-slate-700/50">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Advanced Filters</h2>
 
                 {/* Subjects */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Subjects
                     </label>
                     <button
                       onClick={() => setShowSubjectDescription(!showSubjectDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showSubjectDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showSubjectDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-blue-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
                       Filter partners by the subjects they&apos;re studying. Select multiple subjects to find partners interested in similar topics.
                     </p>
                   )}
@@ -501,9 +501,9 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedSubjects.includes(subject)}
                           onChange={() => toggleSubject(subject)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{subject}</span>
+                        <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{subject}</span>
                       </label>
                     ))}
                   </div>
@@ -512,32 +512,32 @@ export default function SearchPage() {
                     onChange={(e) => setSubjectCustomDescription(e.target.value)}
                     placeholder={t('subjectCustomDescPlaceholder')}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
                 {/* Skill Level */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Skill Level
                     </label>
                     <button
                       onClick={() => setShowSkillLevelDescription(!showSkillLevelDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showSkillLevelDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showSkillLevelDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-blue-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
                       Filter by the skill level of potential partners. Choose &quot;All Levels&quot; to see everyone, or select a specific level to find partners at a similar learning stage.
                     </p>
                   )}
                   <select
                     value={selectedSkillLevel}
                     onChange={(e) => setSelectedSkillLevel(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-900 dark:text-white backdrop-blur-sm"
                   >
                     <option value="">All Levels</option>
                     {skillLevels.map((level) => (
@@ -551,32 +551,32 @@ export default function SearchPage() {
                     onChange={(e) => setSkillLevelCustomDescription(e.target.value)}
                     placeholder={t('skillLevelCustomDescPlaceholder')}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
                 {/* Study Style */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Study Style
                     </label>
                     <button
                       onClick={() => setShowStudyStyleDescription(!showStudyStyleDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showStudyStyleDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showStudyStyleDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-purple-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-purple-500/10 rounded border border-purple-500/20">
                       Find partners who prefer similar study approaches. Collaborative learners enjoy group sessions, independent learners prefer self-study, and mixed learners are flexible.
                     </p>
                   )}
                   <select
                     value={selectedStudyStyle}
                     onChange={(e) => setSelectedStudyStyle(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-2"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-2 text-gray-900 dark:text-white backdrop-blur-sm"
                   >
                     <option value="">All Styles</option>
                     <option value="COLLABORATIVE">Collaborative (Group Study)</option>
@@ -588,25 +588,25 @@ export default function SearchPage() {
                     onChange={(e) => setStudyStyleCustomDescription(e.target.value)}
                     placeholder={t('studyStyleCustomDescPlaceholder')}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
                 {/* Learning Interests */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Learning Interests
                     </label>
                     <button
                       onClick={() => setShowInterestsDescription(!showInterestsDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showInterestsDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showInterestsDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-green-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-green-500/10 rounded border border-green-500/20">
                       Select learning activities and interests to find partners who share your preferred study methods. You can select multiple interests.
                     </p>
                   )}
@@ -617,9 +617,9 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedInterests.includes(interest)}
                           onChange={() => toggleInterest(interest)}
-                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          className="w-4 h-4 text-green-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-green-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{interest}</span>
+                        <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{interest}</span>
                       </label>
                     ))}
                   </div>
@@ -628,25 +628,25 @@ export default function SearchPage() {
                     onChange={(e) => setInterestsCustomDescription(e.target.value)}
                     placeholder={t('interestsCustomDescPlaceholder')}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-xs"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
                 {/* Availability */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Availability
                     </label>
                     <button
                       onClick={() => setShowAvailabilityDescription(!showAvailabilityDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showAvailabilityDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showAvailabilityDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-indigo-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-indigo-500/10 rounded border border-indigo-500/20">
                       Filter partners by the days they&apos;re available to study. Select the days that work best for you to find partners with matching schedules.
                     </p>
                   )}
@@ -657,9 +657,9 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedAvailability.includes(day)}
                           onChange={() => toggleAvailability(day)}
-                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          className="w-4 h-4 text-indigo-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-indigo-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{day.slice(0, 3)}</span>
+                        <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{day.slice(0, 3)}</span>
                       </label>
                     ))}
                   </div>
@@ -668,14 +668,14 @@ export default function SearchPage() {
                     value={availableHoursFilter}
                     onChange={(e) => setAvailableHoursFilter(e.target.value)}
                     placeholder="e.g., Morning, Evening, 9am-5pm"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Filter by preferred study hours</p>
+                  <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Filter by preferred study hours</p>
                 </div>
 
                 {/* School Filter */}
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-4 pb-4 border-b border-gray-200 dark:border-slate-700/50">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                     School/University
                   </label>
                   <textarea
@@ -683,14 +683,14 @@ export default function SearchPage() {
                     onChange={(e) => setSchoolFilter(e.target.value)}
                     placeholder={t('schoolPlaceholder')}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Find partners from the same school</p>
+                  <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Find partners from the same school</p>
                 </div>
 
                 {/* Languages Filter */}
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-4 pb-4 border-b border-gray-200 dark:border-slate-700/50">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                     {t('languages')}
                   </label>
                   <textarea
@@ -698,26 +698,26 @@ export default function SearchPage() {
                     onChange={(e) => setLanguagesFilter(e.target.value)}
                     placeholder={t('languagesPlaceholder')}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Find partners who speak these languages</p>
+                  <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Find partners who speak these languages</p>
                 </div>
 
                 {/* Goals Filter - NEW */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Learning Goals
                     </label>
                     <button
                       onClick={() => setShowGoalsDescription(!showGoalsDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showGoalsDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showGoalsDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-orange-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-orange-500/10 rounded border border-orange-500/20">
                       Find partners with aligned learning goals. Select goals that match your objectives to find motivated study partners.
                     </p>
                   )}
@@ -728,9 +728,9 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedGoals.includes(goal)}
                           onChange={() => toggleGoal(goal)}
-                          className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                          className="w-4 h-4 text-orange-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-orange-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{goal}</span>
+                        <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{goal}</span>
                       </label>
                     ))}
                   </div>
@@ -739,25 +739,25 @@ export default function SearchPage() {
                 {/* Age Range Filter - NEW */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Age Range
                     </label>
                     <button
                       onClick={() => setShowAgeDescription(!showAgeDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showAgeDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showAgeDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-teal-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-teal-500/10 rounded border border-teal-500/20">
                       Filter by age group to find partners in similar life stages. Choose an age range that fits your preference.
                     </p>
                   )}
                   <select
                     value={selectedAgeRange}
                     onChange={(e) => setSelectedAgeRange(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 dark:text-white backdrop-blur-sm"
                   >
                     <option value="">All Ages</option>
                     {ageRanges.map((range) => (
@@ -771,18 +771,18 @@ export default function SearchPage() {
                 {/* Role Filter - NEW */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Role
                     </label>
                     <button
                       onClick={() => setShowRoleDescription(!showRoleDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showRoleDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showRoleDescription && (
-                    <p className="text-xs text-gray-600 mb-2 p-2 bg-pink-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-pink-500/10 rounded border border-pink-500/20">
                       Find partners with similar roles. Students can connect with other students, teachers with educators, etc.
                     </p>
                   )}
@@ -793,29 +793,29 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedRoles.includes(role)}
                           onChange={() => toggleRole(role)}
-                          className="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
+                          className="w-4 h-4 text-pink-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-pink-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{role}</span>
+                        <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{role}</span>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 {/* Location Filter - NEW */}
-                <div className="mb-6 pb-6 border-b border-gray-200">
+                <div className="mb-6 pb-6 border-b border-gray-200 dark:border-slate-700/50">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
                       Location
                     </label>
                     <button
                       onClick={() => setShowLocationDescription(!showLocationDescription)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-400 hover:underline"
                     >
                       {showLocationDescription ? t('hideInfo') : t('showInfo')}
                     </button>
                   </div>
                   {showLocationDescription && (
-                    <p className="text-xs text-gray-600 mb-3 p-2 bg-cyan-50 rounded">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-3 p-2 bg-cyan-500/10 rounded border border-cyan-500/20">
                       Find study partners in your city, state, or country. Great for finding local partners or those in similar time zones.
                     </p>
                   )}
@@ -825,30 +825,30 @@ export default function SearchPage() {
                       value={locationCity}
                       onChange={(e) => setLocationCity(e.target.value)}
                       placeholder="City (e.g., Boston, London, Tokyo)"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                     />
                     <input
                       type="text"
                       value={locationState}
                       onChange={(e) => setLocationState(e.target.value)}
                       placeholder="State/Province (e.g., California, Ontario)"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                     />
                     <input
                       type="text"
                       value={locationCountry}
                       onChange={(e) => setLocationCountry(e.target.value)}
                       placeholder="Country (e.g., USA, Canada, UK)"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">Filter by city, state, or country to find nearby study partners</p>
+                  <p className="text-xs text-gray-600 dark:text-slate-400 mt-2">Filter by city, state, or country to find nearby study partners</p>
                 </div>
 
                 <button
                   onClick={handleFindPartner}
                   disabled={isSearching}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   {isSearching ? t('searching') : t('searchPartners')}
                 </button>
@@ -858,15 +858,15 @@ export default function SearchPage() {
 
             {/* Results */}
             <div className={showFilters ? 'lg:col-span-2' : 'lg:col-span-1'}>
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg dark:shadow-none p-6 mb-6 border border-gray-200 dark:border-slate-700/50">
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                     {t('availableStudyPartners')} {partners.length > 0 && `(${partners.length})`}
                   </h2>
                   <button
                     onClick={loadRandomPartners}
                     disabled={isLoadingRandom}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
                     title={t('loadNewRandomPartners')}
                   >
                     <svg className={`w-4 h-4 ${isLoadingRandom ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -875,36 +875,36 @@ export default function SearchPage() {
                     {isLoadingRandom ? 'Loading...' : t('refresh')}
                   </button>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-700 dark:text-slate-300">
                   {t('connectWithLearners')}
                 </p>
               </div>
 
               {/* Error Messages */}
               {searchError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl p-4 mb-4 backdrop-blur-sm">
                   <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm text-red-700">{searchError}</p>
+                    <p className="text-sm text-red-700 dark:text-red-300">{searchError}</p>
                   </div>
                 </div>
               )}
 
               {randomError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl p-4 mb-4 backdrop-blur-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="text-sm text-red-700">{randomError}</p>
+                      <p className="text-sm text-red-700 dark:text-red-300">{randomError}</p>
                     </div>
                     <button
                       onClick={loadRandomPartners}
                       disabled={isLoadingRandom}
-                      className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                     >
                       {isLoadingRandom ? 'Retrying...' : 'Retry'}
                     </button>
@@ -918,19 +918,19 @@ export default function SearchPage() {
                 <div className="space-y-4">
                   {/* Show loading state when initially loading */}
                   {isLoadingRandom && partners.length === 0 ? (
-                    <div className="bg-gray-50 rounded-xl p-12 text-center">
-                      <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl p-12 text-center border border-gray-200 dark:border-slate-700/50">
+                      <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Loading Partners...
                       </h3>
-                      <p className="text-gray-600">
+                      <p className="text-gray-700 dark:text-slate-300">
                         Finding study partners for you
                       </p>
                     </div>
                   ) : partners.length > 0 ? (
                     partners.map((partner, index) => {
                       const cardContent = (
-                        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all border border-gray-200">
+                        <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg dark:shadow-none p-6 hover:shadow-xl transition-all border border-gray-200 dark:border-slate-700/50">
                           <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
                           <PartnerAvatar
@@ -941,39 +941,39 @@ export default function SearchPage() {
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-gray-900">{partner.user.name}</h3>
+                              <h3 className="font-semibold text-gray-900 dark:text-white">{partner.user.name}</h3>
                               {partner.matchScore && partner.matchScore > 0 && (
                                 <PulseOptimized onlyWhenVisible={true}>
-                                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full font-medium border border-green-500/30">
                                     {partner.matchScore}% Match
                                   </span>
                                 </PulseOptimized>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600 mb-2">
+                            <p className="text-sm text-gray-700 dark:text-slate-300 mb-2">
                               {partner.skillLevel.charAt(0) + partner.skillLevel.slice(1).toLowerCase()} • {partner.studyStyle.charAt(0) + partner.studyStyle.slice(1).toLowerCase().replace('_', ' ')}
                             </p>
                             {partner.subjects.length > 0 && (
                               <div className="flex flex-wrap gap-2 mb-3">
                                 {partner.subjects.slice(0, 3).map((subject, idx) => (
-                                  <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full hover:scale-105 transition-transform cursor-default">
+                                  <span key={idx} className="px-3 py-1 bg-blue-500/20 text-blue-600 dark:text-blue-300 text-xs rounded-full hover:scale-105 transition-transform cursor-default border border-blue-500/30">
                                     {subject}
                                   </span>
                                 ))}
                                 {partner.subjects.length > 3 && (
-                                  <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                  <span className="px-3 py-1 bg-gray-100 dark:bg-slate-700/50 text-gray-700 dark:text-slate-300 text-xs rounded-full border border-gray-200 dark:border-slate-600/50">
                                     +{partner.subjects.length - 3} more
                                   </span>
                                 )}
                               </div>
                             )}
                             {partner.matchReasons && partner.matchReasons.length > 0 && (
-                              <p className="text-xs text-green-600 mb-2">
+                              <p className="text-xs text-green-600 dark:text-green-400 mb-2">
                                 ✓ {partner.matchReasons.join(', ')}
                               </p>
                             )}
                             {partner.bio && (
-                              <p className="text-sm text-gray-700 line-clamp-2">
+                              <p className="text-sm text-gray-700 dark:text-slate-300 line-clamp-2">
                                 {partner.bio}
                               </p>
                             )}
@@ -982,13 +982,13 @@ export default function SearchPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => router.push(`/profile/${partner.user.id}`)}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 hover:scale-105 transition-all whitespace-nowrap shadow-sm"
+                            className="px-4 py-2 bg-gray-100 dark:bg-slate-700/50 text-gray-700 dark:text-slate-200 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600/50 hover:scale-105 transition-all whitespace-nowrap shadow-lg backdrop-blur-sm"
                           >
                             {t('viewProfile')}
                           </button>
                           {partner.isAlreadyPartner ? (
                             <PulseOptimized onlyWhenVisible={true}>
-                              <div className="px-4 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium whitespace-nowrap flex items-center gap-2 shadow-sm">
+                              <div className="px-4 py-2 bg-green-500/20 text-green-400 text-sm rounded-lg font-medium whitespace-nowrap flex items-center gap-2 shadow-lg border border-green-500/30">
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
@@ -999,7 +999,7 @@ export default function SearchPage() {
                             <button
                               onClick={() => handleConnect(partner.user.id)}
                               disabled={sendingRequest === partner.user.id}
-                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-md font-medium"
+                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-medium"
                             >
                               {sendingRequest === partner.user.id ? t('sending') : t('connect')}
                             </button>
@@ -1023,16 +1023,16 @@ export default function SearchPage() {
                       )
                     })
                   ) : (
-                  <div className="bg-gray-50 rounded-xl p-12 text-center">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl p-12 text-center border border-gray-200 dark:border-slate-700/50">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                       {t('noPartnersFound')}
                     </h3>
-                    <p className="text-gray-600 mb-6">
+                    <p className="text-gray-700 dark:text-slate-300 mb-6">
                       {searchQuery || selectedSubjects.length > 0 || selectedInterests.length > 0
                         ? t('noPartnersFoundWithFilters')
                         : t('noPartnersFoundDescription')}
@@ -1040,7 +1040,7 @@ export default function SearchPage() {
                     {!searchQuery && selectedSubjects.length === 0 && selectedInterests.length === 0 && (
                       <button
                         onClick={loadRandomPartners}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg"
                       >
                         Load Random Partners
                       </button>

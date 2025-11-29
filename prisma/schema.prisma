@@ -75,6 +75,11 @@ model User {
   twoFactorSecret String? // TOTP secret (encrypted)
   twoFactorBackupCodes String[] @default([]) // Backup codes for recovery
 
+  // Admin System (CEO Control Panel)
+  isAdmin Boolean @default(false) // Whether user has admin access
+  adminGrantedAt DateTime? // When admin access was granted
+  adminGrantedBy String? // Who granted admin access (user ID)
+
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -109,11 +114,23 @@ model User {
   messageReadStatus     MessageReadStatus[]
   typingIndicators      TypingIndicator[]
 
+  // Admin system relations
+  adminAuditLogs        AdminAuditLog[]      @relation("AdminActions")
+  createdAnnouncements  Announcement[]       @relation("CreatedAnnouncements")
+  reportsFiled          Report[]             @relation("ReportsFiled")
+  reportsAgainst        Report[]             @relation("ReportsAgainst")
+  reportsHandled        Report[]             @relation("ReportsHandled")
+
+  // Feedback relations
+  feedbackSubmitted     Feedback[]           @relation("UserFeedback")
+  feedbackReviewed      Feedback[]           @relation("FeedbackReviewer")
+
   @@index([email])
   @@index([googleId])
   @@index([role])
   @@index([deactivatedAt])
   @@index([twoFactorEnabled])
+  @@index([isAdmin])
 }
 
 model Profile {
@@ -1362,3 +1379,306 @@ model TypingIndicator {
 // CREATE POLICY "Users can delete their own flashcards"
 //   ON "SessionFlashcard" FOR DELETE
 //   USING ("userId" = auth.uid()::text);
+
+// ==========================================
+// ADMIN SYSTEM (CEO Control Panel)
+// ==========================================
+
+// Admin Audit Log - Track all admin actions for accountability
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  adminId   String
+  admin     User     @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  action    String   // e.g., "user_banned", "post_deleted", "announcement_created"
+  targetType String  // e.g., "user", "post", "group", "message"
+  targetId  String   // ID of the affected entity
+  details   Json?    // Additional context/details as JSON
+  ipAddress String?  // IP address for security tracking
+  userAgent String?  // Browser/device info
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([targetType])
+  @@index([createdAt])
+}
+
+// System Announcements - Messages from CEO/Admin to all users
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  ACTIVE
+  SCHEDULED
+  ARCHIVED
+}
+
+model Announcement {
+  id          String               @id @default(uuid())
+  title       String
+  content     String               @db.Text
+  priority    AnnouncementPriority @default(NORMAL)
+  status      AnnouncementStatus   @default(DRAFT)
+
+  // Targeting
+  targetAll   Boolean              @default(true) // Show to all users
+  targetRole  String?              // Target specific role (FREE, PREMIUM)
+
+  // Display settings
+  showBanner  Boolean              @default(false) // Show as top banner
+  ctaLabel    String?              // Call-to-action button text
+  ctaUrl      String?              // Call-to-action URL
+
+  // Scheduling
+  startsAt    DateTime?
+  expiresAt   DateTime?
+
+  // Metadata
+  createdById String               // Admin user ID who created
+  createdBy   User                 @relation("CreatedAnnouncements", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  // Track who has seen/dismissed
+  dismissals  AnnouncementDismissal[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([startsAt])
+  @@index([expiresAt])
+}
+
+model AnnouncementDismissal {
+  id             String       @id @default(uuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  dismissedAt    DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+}
+
+// User Reports - For content moderation
+enum ReportType {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  FAKE_ACCOUNT
+  SCAM
+  HATE_SPEECH
+  VIOLENCE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+model Report {
+  id          String       @id @default(uuid())
+
+  // Who filed the report
+  reporterId  String
+  reporter    User         @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  // Who/what is being reported
+  reportedUserId String?   // If reporting a user
+  reportedUser   User?     @relation("ReportsAgainst", fields: [reportedUserId], references: [id], onDelete: SetNull)
+
+  // What type of content
+  contentType String       // "user", "post", "message", "group", "comment"
+  contentId   String       // ID of the reported content
+
+  // Report details
+  type        ReportType
+  description String?      @db.Text
+  evidence    String[]     @default([]) // URLs to screenshots, etc.
+
+  // Admin handling
+  status      ReportStatus @default(PENDING)
+  handledById String?
+  handledBy   User?        @relation("ReportsHandled", fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt   DateTime?
+  resolution  String?      @db.Text // Admin notes on resolution
+  actionTaken String?      // What action was taken (warning, ban, content_removed, etc.)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([contentType, contentId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// User Warnings - Track warnings issued to users
+model UserWarning {
+  id          String   @id @default(uuid())
+  userId      String
+  issuedById  String   // Admin who issued the warning
+  reason      String   @db.Text
+  severity    Int      @default(1) // 1 = mild, 2 = moderate, 3 = severe
+  reportId    String?  // Optional link to related report
+
+  // Expiration (some warnings expire)
+  expiresAt   DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([issuedById])
+  @@index([createdAt])
+}
+
+// User Bans - Track temporary and permanent bans
+enum BanType {
+  TEMPORARY
+  PERMANENT
+}
+
+model UserBan {
+  id          String   @id @default(uuid())
+  userId      String   @unique // One active ban per user
+  issuedById  String   // Admin who issued the ban
+  type        BanType
+  reason      String   @db.Text
+  reportId    String?  // Optional link to related report
+
+  // For temporary bans
+  expiresAt   DateTime?
+
+  // For appeals
+  appealMessage String? @db.Text
+  appealedAt  DateTime?
+  appealStatus String? // "pending", "approved", "denied"
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([issuedById])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+// ==========================================
+// CONTENT MODERATION
+// ==========================================
+
+enum ContentType {
+  DIRECT_MESSAGE  // Partner/DM messages
+  GROUP_MESSAGE   // Group chat messages
+  SESSION_MESSAGE // Study session chat
+  POST            // Community posts
+  COMMENT         // Post comments
+}
+
+enum ModerationStatus {
+  PENDING   // Awaiting review
+  APPROVED  // Content is acceptable
+  REMOVED   // Content was removed
+  WARNING   // User was warned
+}
+
+enum FlagReason {
+  AI_DETECTED      // Automatically flagged by AI
+  USER_REPORTED    // Reported by another user
+  KEYWORD_MATCH    // Matched banned keywords
+  MANUAL_REVIEW    // Flagged by admin for review
+}
+
+// Flagged Content - Messages/posts flagged for moderation
+model FlaggedContent {
+  id            String           @id @default(uuid())
+
+  // Content reference (polymorphic)
+  contentType   ContentType
+  contentId     String           // ID of the message/post
+  content       String           @db.Text // Cached content for review
+
+  // Who sent the content
+  senderId      String
+  senderEmail   String?
+  senderName    String?
+
+  // Conversation context
+  conversationId String?         // Group ID, partner ID, or session ID
+  conversationType String?       // "group", "partner", "session"
+
+  // Flag details
+  flagReason    FlagReason
+  flaggedAt     DateTime         @default(now())
+
+  // AI moderation results (from OpenAI)
+  aiCategories  Json?            // Categories flagged by AI (sexual, violence, hate, etc.)
+  aiScore       Float?           // Confidence score 0-1
+
+  // Admin review
+  status        ModerationStatus @default(PENDING)
+  reviewedById  String?          // Admin who reviewed
+  reviewedAt    DateTime?
+  reviewNotes   String?          @db.Text
+  actionTaken   String?          // "none", "deleted", "warned", "banned"
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([status])
+  @@index([contentType])
+  @@index([senderId])
+  @@index([flaggedAt])
+  @@index([contentType, status])
+  @@map("flagged_content")
+}
+
+// ==========================================
+// USER FEEDBACK
+// ==========================================
+
+enum FeedbackStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  ARCHIVED
+}
+
+model Feedback {
+  id          String         @id @default(uuid())
+
+  // Who submitted the feedback
+  userId      String
+  user        User           @relation("UserFeedback", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Feedback content
+  rating      Int            // 1-5 star rating
+  message     String         @db.Text
+  screenshots String[]       @default([]) // URLs to uploaded screenshots
+
+  // Admin handling
+  status      FeedbackStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy  User?          @relation("FeedbackReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt  DateTime?
+  adminNotes  String?        @db.Text
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([rating])
+  @@index([createdAt])
+}

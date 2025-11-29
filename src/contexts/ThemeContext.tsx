@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
-type Theme = 'LIGHT' | 'DARK' | 'SYSTEM'
+type Theme = 'LIGHT' | 'DARK'
 
 interface ThemeContextType {
   theme: Theme
@@ -13,27 +13,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('SYSTEM')
+  const [theme, setThemeState] = useState<Theme>('LIGHT')
   const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light')
 
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme && ['LIGHT', 'DARK', 'SYSTEM'].includes(savedTheme)) {
+    if (savedTheme && ['LIGHT', 'DARK'].includes(savedTheme)) {
       setThemeState(savedTheme)
     }
   }, [])
 
-  // Calculate effective theme based on user preference and system preference
+  // Calculate effective theme based on user preference
   useEffect(() => {
     const calculateEffectiveTheme = () => {
       if (theme === 'LIGHT') return 'light'
       if (theme === 'DARK') return 'dark'
-      
-      // SYSTEM - check system preference
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark'
-      }
+
+      // Default to light theme
       return 'light'
     }
 
@@ -45,23 +42,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
-    }
-
-    // Listen for system theme changes if theme is SYSTEM
-    if (theme === 'SYSTEM') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleChange = (e: MediaQueryListEvent) => {
-        const newTheme = e.matches ? 'dark' : 'light'
-        setEffectiveTheme(newTheme)
-        if (newTheme === 'dark') {
-          document.documentElement.classList.add('dark')
-        } else {
-          document.documentElement.classList.remove('dark')
-        }
-      }
-
-      mediaQuery.addEventListener('change', handleChange)
-      return () => mediaQuery.removeEventListener('change', handleChange)
     }
   }, [theme])
 

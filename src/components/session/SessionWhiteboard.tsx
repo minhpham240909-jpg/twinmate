@@ -521,17 +521,17 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   return (
     <div className="flex flex-col h-full gap-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-800/40 backdrop-blur-xl rounded-xl border border-slate-700/50 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="flex bg-gray-100 p-1 rounded-lg">
+          <div className="flex bg-slate-900/50 backdrop-blur-sm p-1 rounded-lg border border-slate-700/50">
             {(['pen', 'eraser', 'line', 'circle', 'rectangle', 'text'] as Tool[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTool(t)}
                 className={`p-2 rounded-md transition-all ${
-                  tool === t 
-                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-gray-200' 
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                  tool === t
+                    ? 'bg-blue-600/80 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
                 title={t.charAt(0).toUpperCase() + t.slice(1)}
               >
@@ -545,7 +545,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
             ))}
           </div>
 
-          <div className="w-px h-8 bg-gray-200 mx-2" />
+          <div className="w-px h-8 bg-slate-700/50 mx-2" />
 
           <div className="flex items-center gap-3">
             <input
@@ -571,7 +571,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
           <button
             onClick={handleUndo}
             disabled={!actions.some(a => a.userId === (user?.id || 'anonymous'))}
-            className="px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed backdrop-blur-sm"
             title="Undo"
           >
             ↩️
@@ -579,21 +579,21 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
           <button
             onClick={handleRedo}
             disabled={redoStack.length === 0}
-            className="px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed backdrop-blur-sm"
             title="Redo"
           >
             ↪️
           </button>
-          <div className="w-px h-8 bg-gray-200 mx-1" />
+          <div className="w-px h-8 bg-slate-700/50 mx-1" />
           <button
             onClick={handleClear}
-            className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+            className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg font-medium transition-colors backdrop-blur-sm"
           >
             Clear
           </button>
           <button
             onClick={handleDownload}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+            className="px-4 py-2 bg-blue-600/80 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors backdrop-blur-sm"
           >
             Save Image
           </button>
@@ -601,9 +601,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       </div>
 
       {/* Canvas Container */}
-      <div 
-        ref={containerRef} 
-        className="flex-1 relative bg-white rounded-xl border border-gray-200 shadow-inner overflow-hidden min-h-[500px]"
+      <div
+        ref={containerRef}
+        className="flex-1 relative bg-slate-900/30 backdrop-blur-sm rounded-xl border border-slate-700/50 shadow-inner overflow-hidden min-h-[500px]"
       >
         <canvas
           ref={canvasRef}
@@ -619,16 +619,16 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
         {showTextInput && (
           <div
-            className="absolute bg-white p-3 rounded-lg shadow-xl border border-gray-200 z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-2"
+            className="absolute bg-slate-800/90 backdrop-blur-xl p-3 rounded-lg shadow-xl border border-slate-700/50 z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-2"
             style={{ left: textPos.x, top: textPos.y }}
           >
             {/* Drag Handle */}
-            <div 
+            <div
                 onMouseDown={handleTextDragStart}
-                className="w-full h-4 bg-gray-100 rounded-t-md cursor-move flex justify-center items-center hover:bg-gray-200 transition-colors"
+                className="w-full h-4 bg-slate-900/50 rounded-t-md cursor-move flex justify-center items-center hover:bg-slate-900/70 transition-colors"
                 title="Drag to move"
             >
-                <div className="w-8 h-1 bg-gray-300 rounded-full" />
+                <div className="w-8 h-1 bg-slate-600 rounded-full" />
             </div>
 
             <div className="flex gap-2">
@@ -641,12 +641,12 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
                   if (e.key === 'Escape') setShowTextInput(false)
                 }}
                 placeholder="Type something..."
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none min-w-[200px]"
+                className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 outline-none min-w-[200px] backdrop-blur-sm"
                 autoFocus
               />
               <button
                 onClick={handleAddText}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="px-4 py-2 bg-blue-600/80 text-white rounded-lg hover:bg-blue-600 font-medium backdrop-blur-sm"
               >
                 Add
               </button>

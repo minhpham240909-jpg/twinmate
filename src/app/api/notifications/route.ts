@@ -2,8 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { PAGINATION } from '@/lib/constants'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  // SECURITY: Rate limit notification fetches
+  const rateLimitResult = await rateLimit(request, {
+    ...RateLimitPresets.lenient, // 100 requests per minute
+    keyPrefix: 'notifications',
+  })
+  
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

@@ -79,19 +79,19 @@ export default function TestRealtimePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        <div className="bg-white dark:bg-white/5 rounded-xl shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 p-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
             🔴 Real-time Database Test
           </h1>
 
           {/* Connection Status */}
-          <div className={`p-4 rounded-lg mb-6 ${isConnected ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-            <p className={`font-semibold ${isConnected ? 'text-green-800' : 'text-yellow-800'}`}>
+          <div className={`p-4 rounded-lg mb-6 ${isConnected ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30' : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-500/30'}`}>
+            <p className={`font-semibold ${isConnected ? 'text-green-800 dark:text-green-300' : 'text-yellow-800 dark:text-yellow-300'}`}>
               {isConnected ? '✅ Connected to Realtime' : '⚠️ Not Connected'}
             </p>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 dark:text-slate-300 mt-1">
               Database: Supabase PostgreSQL (REAL)
             </p>
           </div>
@@ -99,7 +99,7 @@ export default function TestRealtimePage() {
           {/* Join Room */}
           {!isConnected && (
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                 Enter your name to join
               </label>
               <div className="flex gap-2">
@@ -107,7 +107,7 @@ export default function TestRealtimePage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-white/5 text-gray-900 dark:text-white"
                   placeholder="Your name"
                 />
                 <button
@@ -122,17 +122,17 @@ export default function TestRealtimePage() {
 
           {/* Online Users */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               👥 Online Users ({onlineUsers.length})
             </h3>
             <div className="flex flex-wrap gap-2">
               {onlineUsers.length === 0 ? (
-                <p className="text-gray-500 text-sm">No users online yet</p>
+                <p className="text-gray-500 dark:text-slate-400 text-sm">No users online yet</p>
               ) : (
                 onlineUsers.map((user, idx) => (
                   <div
                     key={idx}
-                    className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-2"
+                    className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-medium flex items-center gap-2 border border-green-200 dark:border-green-500/30"
                   >
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                     {user.name}
@@ -144,7 +144,7 @@ export default function TestRealtimePage() {
 
           {/* Send Test Message */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               💬 Send Test Message
             </h3>
             <div className="flex gap-2">
@@ -153,7 +153,7 @@ export default function TestRealtimePage() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendTestMessage()}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-white/5 text-gray-900 dark:text-white"
                 placeholder="Type a message..."
                 disabled={!username}
               />
@@ -166,23 +166,23 @@ export default function TestRealtimePage() {
               </button>
             </div>
             {!username && (
-              <p className="text-sm text-gray-500 mt-2">Enter your name above to send messages</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">Enter your name above to send messages</p>
             )}
           </div>
 
           {/* Messages */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               📨 Messages ({messages.length})
             </h3>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {messages.length === 0 ? (
-                <p className="text-gray-500 text-sm">No messages yet. Send one above!</p>
+                <p className="text-gray-500 dark:text-slate-400 text-sm">No messages yet. Send one above!</p>
               ) : (
                 messages.map((msg, idx) => (
-                  <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700">{msg.content}</p>
-                    <p className="text-xs text-gray-400 mt-1">
+                  <div key={idx} className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-white/10">
+                    <p className="text-sm text-gray-700 dark:text-slate-200">{msg.content}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">
                       {new Date(msg.createdAt).toLocaleTimeString()}
                     </p>
                   </div>
@@ -192,9 +192,9 @@ export default function TestRealtimePage() {
           </div>
 
           {/* Instructions */}
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-semibold text-blue-900 mb-2">📝 Test Instructions:</h4>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+            <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">📝 Test Instructions:</h4>
+            <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
               <li>Enter your name and click &quot;Join Room&quot;</li>
               <li>Open this page in another browser tab</li>
               <li>You&apos;ll see yourself appear in &quot;Online Users&quot;</li>
@@ -206,7 +206,7 @@ export default function TestRealtimePage() {
           <div className="mt-4 flex gap-2">
             <Link
               href="/"
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10"
             >
               ← Back to Home
             </Link>

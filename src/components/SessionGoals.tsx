@@ -104,11 +104,11 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Study Goals</h3>
+        <h3 className="text-lg font-semibold text-white">Study Goals</h3>
         <div className="flex gap-2">
           <button
             onClick={() => setShowAddGoal(!showAddGoal)}
-            className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+            className="px-3 py-1 bg-blue-600/80 text-white text-sm rounded-lg hover:bg-blue-600 transition backdrop-blur-sm"
           >
             {showAddGoal ? 'Cancel' : '+ Add Goal'}
           </button>
@@ -117,13 +117,13 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
 
       {/* Add Goal Form */}
       {showAddGoal && (
-        <form onSubmit={handleCreateGoal} className="mb-4 p-4 bg-gray-50 rounded-lg">
+        <form onSubmit={handleCreateGoal} className="mb-4 p-4 bg-slate-800/40 backdrop-blur-xl rounded-lg border border-slate-700/50">
           <input
             type="text"
             value={newGoalTitle}
             onChange={(e) => setNewGoalTitle(e.target.value)}
             placeholder="Goal title..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg mb-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm"
             required
           />
           <textarea
@@ -131,12 +131,12 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
             onChange={(e) => setNewGoalDescription(e.target.value)}
             placeholder="Description (optional)..."
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg mb-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm"
           />
           <button
             type="submit"
             disabled={!newGoalTitle.trim() || creating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600/80 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 backdrop-blur-sm"
           >
             {creating ? 'Adding...' : 'Add Goal'}
           </button>
@@ -145,7 +145,7 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
 
       {/* Goals List */}
       {goals.length === 0 ? (
-        <div className="text-center text-gray-500 py-12">
+        <div className="text-center text-slate-400 py-12">
           <p>📝 No goals set yet</p>
           <p className="text-sm mt-2">Add goals to track your progress</p>
         </div>
@@ -154,8 +154,8 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
           {goals.map((goal) => (
             <div
               key={goal.id}
-              className={`p-4 border rounded-lg ${
-                goal.isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
+              className={`p-4 border rounded-lg backdrop-blur-sm ${
+                goal.isCompleted ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-800/40 border-slate-700/50'
               }`}
             >
               <div className="flex items-start gap-3">
@@ -163,23 +163,23 @@ export default function SessionGoals({ sessionId, goals, onGoalsUpdate }: Sessio
                   type="checkbox"
                   checked={goal.isCompleted}
                   onChange={() => handleToggleGoal(goal.id)}
-                  className="mt-1 w-5 h-5 cursor-pointer"
+                  className="mt-1 w-5 h-5 cursor-pointer accent-blue-600"
                 />
                 <div className="flex-1">
                   <h4
                     className={`font-medium ${
-                      goal.isCompleted ? 'line-through text-gray-500' : 'text-gray-900'
+                      goal.isCompleted ? 'line-through text-slate-500' : 'text-white'
                     }`}
                   >
                     {goal.title}
                   </h4>
                   {goal.description && (
-                    <p className="text-sm text-gray-600 mt-1">{goal.description}</p>
+                    <p className="text-sm text-slate-400 mt-1">{goal.description}</p>
                   )}
                 </div>
                 <button
                   onClick={() => handleDeleteGoal(goal.id)}
-                  className="text-red-600 hover:text-red-700 text-sm"
+                  className="text-red-400 hover:text-red-300 text-sm"
                   title="Delete goal"
                 >
                   🗑️

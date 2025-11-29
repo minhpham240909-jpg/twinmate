@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { authenticator } from 'otplib'
 import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import { isAccountLocked, recordFailedAttempt, clearLockout, formatLockoutMessage } from '@/lib/account-lockout'
 
 // Encryption helpers for decrypting 2FA secret
@@ -169,8 +170,21 @@ export async function POST(request: NextRequest) {
           secret: decryptedSecret,
         })
 
-        // Check if it's a backup code
-        const isBackupCode = existingUser.twoFactorBackupCodes.includes(twoFactorCode.toUpperCase())
+        // Check if it's a backup code (backup codes are stored hashed with bcrypt)
+        let matchedBackupCodeIndex = -1
+        if (!isValidTOTP) {
+          for (let i = 0; i < existingUser.twoFactorBackupCodes.length; i++) {
+            const isMatch = await bcrypt.compare(
+              twoFactorCode.toUpperCase(),
+              existingUser.twoFactorBackupCodes[i]
+            )
+            if (isMatch) {
+              matchedBackupCodeIndex = i
+              break
+            }
+          }
+        }
+        const isBackupCode = matchedBackupCodeIndex !== -1
 
         if (!isValidTOTP && !isBackupCode) {
           // Invalid 2FA code - sign out and record failed attempt
@@ -202,12 +216,12 @@ export async function POST(request: NextRequest) {
         }
 
         // If backup code was used, remove it from the list
-        if (isBackupCode) {
+        if (isBackupCode && matchedBackupCodeIndex !== -1) {
           await prisma.user.update({
             where: { id: existingUser.id },
             data: {
               twoFactorBackupCodes: existingUser.twoFactorBackupCodes.filter(
-                (code) => code !== twoFactorCode.toUpperCase()
+                (_, index) => index !== matchedBackupCodeIndex
               ),
             },
           })

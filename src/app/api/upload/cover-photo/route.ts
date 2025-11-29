@@ -29,15 +29,10 @@ export async function POST(request: NextRequest) {
     // Parse form data
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const userId = formData.get('userId') as string
 
-    // Verify user is uploading their own cover photo
-    if (userId && userId !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
-    }
+    // SECURITY FIX: Always use authenticated user's ID
+    // Ignore any userId from form data to prevent IDOR attacks
+    const targetUserId = user.id
 
     // Comprehensive file validation
     const validation = await validateImageFile(file, FILE_SIZE_LIMITS.COVER_PHOTO)
@@ -53,7 +48,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Generate safe filename
-    const fileName = `${user.id}-cover-${generateSafeFilename(user.id, file.name)}`
+    const fileName = `${targetUserId}-cover-${generateSafeFilename(targetUserId, file.name)}`
     const filePath = `cover-photos/${fileName}`
 
     // Upload to Supabase Storage
@@ -67,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (uploadError) {
       console.error('Upload error:', uploadError)
       return NextResponse.json(
-        { error: 'Upload failed', details: uploadError.message },
+        { error: 'Upload failed. Please try again.' },
         { status: 500 }
       )
     }
@@ -79,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Update user's coverPhotoUrl in database
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: targetUserId },
       data: { coverPhotoUrl: urlData.publicUrl } as any,
     })
 

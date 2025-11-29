@@ -224,10 +224,10 @@ export default function StudyCallPage() {
 
   if (loading || loadingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">{t('loadingStudyCall')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-900 dark:text-white">{t('loadingStudyCall')}</p>
         </div>
       </div>
     )
@@ -238,15 +238,15 @@ export default function StudyCallPage() {
   const isHost = session.createdBy.id === user.id
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
+    <div className="h-screen bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
+      <div className="bg-gray-50 dark:bg-slate-900/95 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-white/10">
         <div className="flex items-center gap-3">
-          <h1 className="text-white font-semibold text-lg">{session.title}</h1>
+          <h1 className="text-gray-900 dark:text-white font-semibold text-lg">{session.title}</h1>
           <Pulse>
             <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full font-medium">{t('live')}</span>
           </Pulse>
-          <span className="text-gray-400 text-sm">{remoteUsers.size + 1} {remoteUsers.size !== 0 ? t('participantsPlural') : t('participant')}</span>
+          <span className="text-gray-600 dark:text-slate-400 text-sm">{remoteUsers.size + 1} {remoteUsers.size !== 0 ? t('participantsPlural') : t('participant')}</span>
         </div>
         <div className="flex items-center gap-3">
           <Bounce>
@@ -269,26 +269,26 @@ export default function StudyCallPage() {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Video Call Area (Floating/Resizable) */}
-        <div className={`${activeFeature ? 'w-1/3' : 'flex-1'} relative bg-black transition-all duration-300`}>
+        <div className={`${activeFeature ? 'w-1/3' : 'flex-1'} relative bg-slate-950 transition-all duration-300`}>
           {isConnecting && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50">
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
               <div className="text-center">
-                <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                <p className="text-white text-sm">{t('connecting')}</p>
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-gray-900 dark:text-white text-sm">{t('connecting')}</p>
               </div>
             </div>
           )}
 
           {connectionError && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-white dark:bg-slate-950">
               <div className="text-center max-w-md p-6">
                 <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-white text-xl font-semibold mb-2">{t('connectionFailed')}</h3>
-                <p className="text-white/70 mb-6">{connectionError}</p>
+                <h3 className="text-gray-900 dark:text-white text-xl font-semibold mb-2">{t('connectionFailed')}</h3>
+                <p className="text-gray-700 dark:text-slate-300 mb-6">{connectionError}</p>
                 <button onClick={joinCall} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                   {t('retry')}
                 </button>
@@ -318,12 +318,12 @@ export default function StudyCallPage() {
           {/* Video Controls (Bottom) */}
           {isConnected && (
             <FadeIn delay={0.3}>
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+              <div className="absolute bottom-0 left-0 right-0 bg-gray-50 dark:bg-slate-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 p-4">
                 <div className="flex items-center justify-center gap-3">
                   <Bounce delay={0}>
                     <button
                       onClick={toggleAudio}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 ${localAudioEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 ${localAudioEnabled ? 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10' : 'bg-red-600 hover:bg-red-700'}`}
                       title={localAudioEnabled ? t('mute') : t('unmute')}
                     >
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,7 +339,7 @@ export default function StudyCallPage() {
                   <Bounce delay={0.1}>
                     <button
                       onClick={toggleVideo}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 ${localVideoEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 ${localVideoEnabled ? 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10' : 'bg-red-600 hover:bg-red-700'}`}
                       title={localVideoEnabled ? t('stopVideo') : t('startVideo')}
                     >
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,7 +351,7 @@ export default function StudyCallPage() {
                   <Bounce delay={0.2}>
                     <button
                       onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 relative ${isScreenSharing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 relative ${isScreenSharing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10'}`}
                       title={isScreenSharing ? t('stopSharing') : t('shareScreen')}
                     >
                       {isScreenSharing && (
@@ -372,28 +372,28 @@ export default function StudyCallPage() {
 
         {/* Study Features Panel */}
         {activeFeature && (
-          <div className="flex-1 bg-white flex flex-col overflow-hidden">
+          <div className="flex-1 bg-gray-50 dark:bg-slate-900 flex flex-col overflow-hidden">
             {/* Feature Tabs */}
-            <div className="bg-gray-50 border-b flex overflow-x-auto">
-              <button onClick={() => setActiveFeature('timer')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'timer' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+            <div className="bg-gray-50 dark:bg-slate-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-white/10 flex overflow-x-auto">
+              <button onClick={() => setActiveFeature('timer')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'timer' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 ⏱️ {t('timer')}
               </button>
-              <button onClick={() => setActiveFeature('goals')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'goals' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('goals')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'goals' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 ✅ {t('goals')} ({session.goals.filter((g) => g.isCompleted).length}/{session.goals.length})
               </button>
-              <button onClick={() => setActiveFeature('chat')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'chat' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('chat')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'chat' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 💬 {t('chat')}
               </button>
-              <button onClick={() => setActiveFeature('flashcards')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'flashcards' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('flashcards')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'flashcards' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 📚 Flashcards
               </button>
-              <button onClick={() => setActiveFeature('notes')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'notes' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('notes')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'notes' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 📝 Notes
               </button>
-              <button onClick={() => setActiveFeature('whiteboard')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'whiteboard' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
+              <button onClick={() => setActiveFeature('whiteboard')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'whiteboard' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 🎨 Whiteboard
               </button>
-              <button onClick={() => setActiveFeature(null)} className="px-4 py-3 text-gray-400 hover:text-gray-600 hover:scale-110 transition-all">
+              <button onClick={() => setActiveFeature(null)} className="px-4 py-3 text-gray-600 dark:text-slate-500 hover:text-gray-900 dark:hover:text-slate-300 hover:scale-110 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -437,7 +437,7 @@ export default function StudyCallPage() {
           <Bounce>
             <div className="absolute top-20 right-4 z-10">
               <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                <div className="bg-white rounded-lg shadow-lg p-2 space-y-2">
+                <div className="bg-white dark:bg-slate-900/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-lg shadow-lg p-2 space-y-2">
                   <Bounce delay={0}>
                     <button onClick={() => setActiveFeature('timer')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('timer')}>
                       <span className="text-xl">⏱️</span>
@@ -509,7 +509,7 @@ function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: unkno
 
   return (
     <GlowBorder color={hasVideo ? "#3b82f6" : "#8b5cf6"} intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-      <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video">
+      <div className="relative bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden aspect-video">
         {hasVideo ? (
           <div ref={videoRef} className="w-full h-full" />
         ) : (
@@ -520,9 +520,9 @@ function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: unkno
           </div>
         )}
 
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-50/80 dark:bg-slate-900/80 backdrop-blur-sm p-2">
           <div className="flex items-center justify-between">
-            <span className="text-white text-xs font-medium">{name}</span>
+            <span className="text-gray-900 dark:text-white text-xs font-medium">{name}</span>
             {!hasAudio && (
               <Pulse>
                 <div className="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center">

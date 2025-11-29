@@ -4,17 +4,32 @@ import { prisma } from '@/lib/prisma'
 import { StudyStyle } from '@prisma/client'
 import { z } from 'zod'
 import { invalidateUserCache } from '@/lib/cache'
+import {
+  MAX_BIO_LENGTH,
+  MAX_ARRAY_ITEMS,
+  MAX_ARRAY_ITEM_LENGTH,
+  MAX_CUSTOM_DESCRIPTION_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+  bioSchema,
+  limitedArraySchema,
+  customDescriptionSchema,
+  httpUrlSchema,
+} from '@/lib/security/input-validation'
+
+// Create a safe array schema with limits
+const safeArraySchema = limitedArraySchema(MAX_ARRAY_ITEMS, MAX_ARRAY_ITEM_LENGTH)
 
 const profileSchema = z.object({
   userId: z.string(),
-  name: z.string().min(1),
-  bio: z.string().optional().nullable(),
-  avatarUrl: z.string().optional().nullable(),
-  age: z.number().int().min(1).max(150).optional().nullable(), // NEW: Age field
-  role: z.string().optional().nullable(), // NEW: Role/position field
-  subjects: z.array(z.string()).default([]),
-  interests: z.array(z.string()).default([]),
-  goals: z.array(z.string()).default([]),
+  name: z.string().min(1).max(MAX_NAME_LENGTH, `Name must be ${MAX_NAME_LENGTH} characters or less`),
+  bio: bioSchema, // Limited to MAX_BIO_LENGTH characters
+  avatarUrl: httpUrlSchema, // Validate HTTP(S) URLs only
+  age: z.number().int().min(1).max(150).optional().nullable(),
+  role: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().nullable(),
+  subjects: safeArraySchema, // Limited array
+  interests: safeArraySchema, // Limited array
+  goals: safeArraySchema, // Limited array
   skillLevel: z.union([
     z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
     z.literal(''),
@@ -27,20 +42,20 @@ const profileSchema = z.object({
     z.undefined(),
     z.null()
   ]).optional(),
-  availableDays: z.array(z.string()).default([]),
-  availableHours: z.string().optional().nullable(),
-  subjectCustomDescription: z.string().optional().nullable(),
-  skillLevelCustomDescription: z.string().optional().nullable(),
-  studyStyleCustomDescription: z.string().optional().nullable(),
-  interestsCustomDescription: z.string().optional().nullable(),
-  availabilityCustomDescription: z.string().optional().nullable(),
-  // NEW: Add more about yourself fields
-  aboutYourselfItems: z.array(z.string()).optional().default([]),
-  aboutYourself: z.string().optional().nullable(),
-  // NEW: School and Languages
-  school: z.string().optional().nullable(),
-  languages: z.string().optional().nullable(),
-  // NEW: Post Privacy
+  availableDays: safeArraySchema, // Limited array
+  availableHours: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().nullable(),
+  subjectCustomDescription: customDescriptionSchema,
+  skillLevelCustomDescription: customDescriptionSchema,
+  studyStyleCustomDescription: customDescriptionSchema,
+  interestsCustomDescription: customDescriptionSchema,
+  availabilityCustomDescription: customDescriptionSchema,
+  // About yourself fields with limits
+  aboutYourselfItems: safeArraySchema.optional().default([]),
+  aboutYourself: z.string().max(MAX_BIO_LENGTH).optional().nullable(),
+  // School and Languages with limits
+  school: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().nullable(),
+  languages: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().nullable(),
+  // Post Privacy
   postPrivacy: z.enum(['PUBLIC', 'PARTNERS_ONLY']).optional(),
 })
 

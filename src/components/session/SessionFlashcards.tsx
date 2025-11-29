@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { toast } from 'react-hot-toast'
@@ -70,18 +70,18 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
   }, [loading, flashcards.length])
 
   // Watch for new cards while in results mode to auto-switch back
-  const prevFlashcardsLengthRef = useState(0)
+  const prevFlashcardsLengthRef = useRef(flashcards.length)
   useEffect(() => {
-      if (viewMode === 'results' && flashcards.length > 0) {
+      if (viewMode === 'results' && flashcards.length > prevFlashcardsLengthRef.current) {
           // If cards were added (length increased), reset to study mode
-          // We can just reset everything
           setViewMode('study')
           setCurrentIndex(0)
           setResults([])
           setCorrectCount(0)
           toast('New cards added! Restarting deck.', { icon: '🔄' })
       }
-  }, [flashcards.length]) 
+      prevFlashcardsLengthRef.current = flashcards.length
+  }, [flashcards.length, viewMode]) 
 
   const loadFlashcards = async () => {
     try {
@@ -187,7 +187,7 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -198,13 +198,13 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
       <div className="max-w-4xl mx-auto space-y-8 p-4">
         <div className="flex justify-between items-center">
             <div>
-                <h2 className="text-2xl font-bold text-gray-900">Manage Flashcards</h2>
-                <p className="text-gray-500">Create cards for the study group</p>
+                <h2 className="text-2xl font-bold text-white">Manage Flashcards</h2>
+                <p className="text-slate-400">Create cards for the study group</p>
             </div>
             <div className="flex gap-3">
                 <button
                   onClick={() => setViewMode('study')}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors flex items-center gap-2 backdrop-blur-sm"
                   disabled={flashcards.length === 0}
                 >
                   <span>Preview Mode</span>
@@ -214,25 +214,25 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
         </div>
 
         {/* Create Form */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Add New Card</h3>
+        <div className="bg-slate-800/40 backdrop-blur-xl p-6 rounded-xl shadow-sm border border-slate-700/50">
+            <h3 className="text-lg font-semibold mb-4 text-white">Add New Card</h3>
             <form onSubmit={handleCreateCard} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Front (Question)</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">Front (Question)</label>
                         <textarea
                             value={formData.front}
                             onChange={e => setFormData({...formData, front: e.target.value})}
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none h-32"
+                            className="w-full px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-700/50 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none h-32 backdrop-blur-sm"
                             placeholder="What is the capital of France?"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Back (Answer)</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">Back (Answer)</label>
                         <textarea
                             value={formData.back}
                             onChange={e => setFormData({...formData, back: e.target.value})}
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none h-32"
+                            className="w-full px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-700/50 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none h-32 backdrop-blur-sm"
                             placeholder="Paris"
                         />
                     </div>
@@ -241,7 +241,7 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                     <button
                         type="submit"
                         disabled={isSubmitting || !formData.front || !formData.back}
-                        className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2.5 bg-blue-600/80 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
                     >
                         {isSubmitting ? 'Adding...' : 'Add Card'}
                     </button>
@@ -251,28 +251,28 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
 
         {/* List */}
         <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Current Deck ({flashcards.length})</h3>
+            <h3 className="text-lg font-semibold text-white">Current Deck ({flashcards.length})</h3>
             {flashcards.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <p className="text-gray-500">No flashcards yet. Create one above!</p>
+                <div className="text-center py-12 bg-slate-800/20 rounded-xl border-2 border-dashed border-slate-700/50 backdrop-blur-sm">
+                    <p className="text-slate-400">No flashcards yet. Create one above!</p>
                 </div>
             ) : (
                 <div className="grid gap-4">
                     {flashcards.map((card, idx) => (
-                        <div key={card.id} className="group bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex justify-between items-start gap-4">
+                        <div key={card.id} className="group bg-slate-800/40 backdrop-blur-sm p-4 rounded-lg border border-slate-700/50 shadow-sm hover:shadow-md transition-shadow flex justify-between items-start gap-4">
                             <div className="flex gap-4 flex-1">
-                                <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-xs font-medium text-gray-500">
+                                <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-slate-700/50 rounded text-xs font-medium text-slate-400">
                                     {idx + 1}
                                 </span>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                                    <div className="text-sm"><span className="font-medium text-gray-900">Q:</span> <span className="text-gray-600">{card.front}</span></div>
-                                    <div className="text-sm"><span className="font-medium text-gray-900">A:</span> <span className="text-gray-600">{card.back}</span></div>
+                                    <div className="text-sm"><span className="font-medium text-white">Q:</span> <span className="text-slate-300">{card.front}</span></div>
+                                    <div className="text-sm"><span className="font-medium text-white">A:</span> <span className="text-slate-300">{card.back}</span></div>
                                 </div>
                             </div>
                             {/* Allow delete for everyone for now to ensure functionality is accessible as requested */}
                             <button
                                 onClick={() => handleDeleteCard(card.id)}
-                                className="text-gray-400 hover:text-red-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                className="text-slate-400 hover:text-red-400 transition-colors p-1 opacity-0 group-hover:opacity-100"
                                 title="Delete card"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -290,25 +290,25 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
   if (flashcards.length === 0) {
     return (
         <div className="flex flex-col items-center justify-center h-96 text-center p-8">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <div className="w-20 h-20 bg-slate-800/40 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
                 <span className="text-3xl">📭</span>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Flashcards Yet</h3>
-            <p className="text-gray-500 max-w-md">
+            <h3 className="text-xl font-semibold text-white mb-2">No Flashcards Yet</h3>
+            <p className="text-slate-400 max-w-md">
                 No flashcards have been created for this session yet. Be the first to add one!
             </p>
-            
+
             <div className="flex flex-col gap-3 mt-6">
-                <button 
+                <button
                     onClick={() => setViewMode('manage')}
-                    className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all"
+                    className="px-6 py-2.5 bg-blue-600/80 text-white font-medium rounded-lg hover:bg-blue-600 transition-all backdrop-blur-sm"
                 >
                     Create Flashcards
                 </button>
-                
-                 <button 
+
+                 <button
                     onClick={loadFlashcards}
-                    className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm"
+                    className="px-6 py-2.5 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 text-slate-200 font-medium rounded-lg hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                     Check for New Cards
@@ -321,41 +321,41 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
   // RESULTS MODE
   if (viewMode === 'results') {
       const percentage = Math.round((correctCount / flashcards.length) * 100)
-      
+
       return (
           <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 animate-in fade-in zoom-in-95 duration-300">
-              <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6 text-5xl shadow-lg">
+              <div className="w-24 h-24 bg-yellow-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-6 text-5xl shadow-lg border border-yellow-500/30">
                   {percentage >= 80 ? '🏆' : percentage >= 50 ? '👍' : '📚'}
               </div>
-              
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Session Complete!</h2>
-              <p className="text-gray-500 mb-8">Here is how you performed:</p>
-              
+
+              <h2 className="text-3xl font-bold text-white mb-2">Session Complete!</h2>
+              <p className="text-slate-400 mb-8">Here is how you performed:</p>
+
               <div className="grid grid-cols-3 gap-4 w-full max-w-md mb-8">
-                  <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                      <div className="text-2xl font-bold text-green-600">{correctCount}</div>
-                      <div className="text-xs text-green-800 uppercase font-semibold">Correct</div>
+                  <div className="bg-green-500/10 backdrop-blur-sm p-4 rounded-xl border border-green-500/30">
+                      <div className="text-2xl font-bold text-green-400">{correctCount}</div>
+                      <div className="text-xs text-green-300 uppercase font-semibold">Correct</div>
                   </div>
-                  <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                      <div className="text-2xl font-bold text-red-600">{flashcards.length - correctCount}</div>
-                      <div className="text-xs text-red-800 uppercase font-semibold">Incorrect</div>
+                  <div className="bg-red-500/10 backdrop-blur-sm p-4 rounded-xl border border-red-500/30">
+                      <div className="text-2xl font-bold text-red-400">{flashcards.length - correctCount}</div>
+                      <div className="text-xs text-red-300 uppercase font-semibold">Incorrect</div>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                      <div className="text-2xl font-bold text-blue-600">{percentage}%</div>
-                      <div className="text-xs text-blue-800 uppercase font-semibold">Score</div>
+                  <div className="bg-blue-500/10 backdrop-blur-sm p-4 rounded-xl border border-blue-500/30">
+                      <div className="text-2xl font-bold text-blue-400">{percentage}%</div>
+                      <div className="text-xs text-blue-300 uppercase font-semibold">Score</div>
                   </div>
               </div>
-              
+
               <div className="flex gap-4">
                   <button
                       onClick={handleRestartDeck}
-                      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                      className="px-6 py-3 bg-blue-600/80 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all shadow-lg backdrop-blur-sm"
                   >
                       Restart Deck
                   </button>
                   <button
                       onClick={() => setViewMode('manage')}
-                      className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all"
+                      className="px-6 py-3 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 text-slate-200 font-semibold rounded-xl hover:bg-slate-800/60 transition-all"
                   >
                       Manage Cards
                   </button>
@@ -373,18 +373,18 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
       {/* Header & Controls */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
-            <div className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+            <div className="px-3 py-1 bg-blue-500/20 backdrop-blur-sm text-blue-300 rounded-full text-sm font-medium border border-blue-500/30">
                 Card {currentIndex + 1} / {flashcards.length}
             </div>
-            <button 
+            <button
                 onClick={() => setViewMode('manage')}
-                className="text-sm text-gray-500 hover:text-gray-900 underline"
+                className="text-sm text-slate-400 hover:text-white underline"
             >
                 Add/Edit Cards
             </button>
         </div>
-        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
+        <div className="w-32 h-2 bg-slate-800/50 backdrop-blur-sm rounded-full overflow-hidden border border-slate-700/50">
+            <div className="h-full bg-blue-600/80 transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -399,17 +399,17 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
           style={{ transformStyle: 'preserve-3d' }}
         >
           {/* FRONT */}
-          <div className="absolute inset-0 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-12 flex flex-col" style={{ backfaceVisibility: 'hidden' }}>
+          <div className="absolute inset-0 bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-700/50 p-8 md:p-12 flex flex-col" style={{ backfaceVisibility: 'hidden' }}>
             <div className="flex-1 flex flex-col items-center justify-center text-center space-y-8">
                 <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-gray-400 text-sm font-semibold uppercase tracking-wider">Question</h3>
+                    <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">Question</h3>
                     {isCreator && (
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                        <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full font-medium border border-green-500/30">
                             You created this
                         </span>
                     )}
                 </div>
-                <div className="text-2xl md:text-3xl font-medium text-gray-900 leading-relaxed max-w-xl">
+                <div className="text-2xl md:text-3xl font-medium text-white leading-relaxed max-w-xl">
                     {currentCard.front}
                 </div>
                 
@@ -417,12 +417,12 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                 <div className="w-full max-w-md mt-8" onClick={(e) => e.stopPropagation()}>
                     {isCreator ? (
                         <div className="flex flex-col items-center gap-4">
-                            <p className="text-sm text-gray-500 italic">
+                            <p className="text-sm text-slate-400 italic">
                                 Since you created this card, you can flip it immediately.
                             </p>
                             <button
                                 onClick={handleRevealForCreator}
-                                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95"
+                                className="px-8 py-3 bg-blue-600/80 hover:bg-blue-600 text-white font-semibold rounded-xl shadow-lg transition-all transform active:scale-95 backdrop-blur-sm"
                             >
                                 Flip Card ↻
                             </button>
@@ -434,13 +434,13 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
                                 value={userAnswer}
                                 onChange={(e) => setUserAnswer(e.target.value)}
                                 placeholder="Type your answer here..."
-                                className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-lg text-center placeholder:text-gray-400"
+                                className="w-full px-6 py-4 bg-slate-900/50 border-2 border-slate-700/50 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all text-lg text-center backdrop-blur-sm"
                                 autoFocus
                             />
                             <button
                                 type="submit"
                                 disabled={!userAnswer.trim()}
-                                className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                                className="mt-4 w-full py-3 bg-blue-600/80 hover:bg-blue-600 text-white font-semibold rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:shadow-none backdrop-blur-sm"
                             >
                                 Check Answer
                             </button>
@@ -491,7 +491,7 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
       
       {/* Instructions footer */}
       {!isFlipped && (
-        <p className="text-center text-gray-400 text-sm mt-8">
+        <p className="text-center text-slate-500 text-sm mt-8">
           {isCreator ? 'You can flip this card anytime.' : 'Type your answer and press Enter to reveal the solution'}
         </p>
       )}

@@ -1,6 +1,8 @@
 // API Route: Google OAuth Sign In
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { setOAuthStateCookie } from '@/lib/security/oauth-state'
+import logger from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +13,9 @@ export async function GET(request: NextRequest) {
     const origin = requestUrl.origin
     const redirectUrl = `${origin}/auth/callback`
 
+    // Generate and store OAuth state for CSRF protection
+    const state = await setOAuthStateCookie()
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -18,6 +23,7 @@ export async function GET(request: NextRequest) {
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
+          state: state, // Include state for CSRF protection
         },
         // Note: Supabase automatically confirms OAuth emails
         // Email verification for OAuth users happens at the Supabase project settings level
@@ -25,17 +31,18 @@ export async function GET(request: NextRequest) {
     })
 
     if (error) {
+      logger.error('Google OAuth initiation failed', { error: error.message })
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Failed to initiate sign in. Please try again.' },
         { status: 400 }
       )
     }
 
     return NextResponse.redirect(data.url)
   } catch (error) {
-    console.error('Google OAuth error:', error)
+    logger.error('Google OAuth error', error instanceof Error ? error : new Error(String(error)))
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }
     )
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { isBlocked } from '@/lib/blocked-users'
 
 const declineRequestSchema = z.object({
   matchId: z.string()
@@ -53,6 +54,16 @@ export async function POST(request: NextRequest) {
     if (match.receiverId !== user.id) {
       return NextResponse.json(
         { error: 'You are not authorized to decline this request' },
+        { status: 403 }
+      )
+    }
+
+    // SECURITY: Check if either user has blocked the other
+    // (decline should still work but we reject silently for blocked users)
+    const blocked = await isBlocked(user.id, match.senderId)
+    if (blocked) {
+      return NextResponse.json(
+        { error: 'Unable to process this request' },
         { status: 403 }
       )
     }

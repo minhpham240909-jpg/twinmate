@@ -586,10 +586,10 @@ export default function GroupsPage() {
   // Only show loading screen if we don't have cached groups to display
   if (loading && myGroups.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 dark:text-slate-300">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -598,20 +598,20 @@ export default function GroupsPage() {
   if (!user && !loading) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/dashboard')}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('title')}</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
           </div>
           <div className="flex gap-2">
             {groupInvites.length > 0 && (
@@ -619,10 +619,10 @@ export default function GroupsPage() {
                 <Pulse>
                   <button
                     onClick={() => setShowInvitesModal(true)}
-                    className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 hover:scale-105 transition-all relative shadow-lg"
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm rounded-lg hover:from-purple-700 hover:to-pink-700 hover:scale-105 transition-all relative shadow-lg shadow-purple-500/20"
                   >
                     Invites
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold border-2 border-gray-50 dark:border-slate-900">
                       {groupInvites.length}
                     </span>
                   </button>
@@ -632,14 +632,14 @@ export default function GroupsPage() {
             <Bounce>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-lg font-medium"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
               >
                 {t('createGroup')}
               </button>
             </Bounce>
             <button
               onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition border border-gray-200 dark:border-white/10"
             >
               {tCommon('backToDashboard')}
             </button>
@@ -653,21 +653,21 @@ export default function GroupsPage() {
           {/* Tabs */}
           <FadeIn delay={0.1}>
             <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-              <div className="bg-white rounded-xl shadow-sm mb-6">
-                <div className="border-b border-gray-200">
+              <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl mb-6 shadow-lg dark:shadow-none">
+                <div className="border-b border-gray-200 dark:border-white/10">
                   <nav className="flex items-center justify-between">
                     <div className="flex">
                       <button
                         onClick={() => setActiveTab('my-groups')}
                         className={`px-6 py-4 text-sm font-medium transition-all hover:scale-105 ${
                           activeTab === 'my-groups'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-600 hover:text-gray-900'
+                            ? 'text-blue-400 border-b-2 border-blue-500'
+                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                       >
                         {t('myGroups')} {myGroups.length > 0 && (
                           <Pulse>
-                            <span className="ml-1 text-blue-600">({myGroups.length})</span>
+                            <span className="ml-1 text-blue-400">({myGroups.length})</span>
                           </Pulse>
                         )}
                       </button>
@@ -675,8 +675,8 @@ export default function GroupsPage() {
                         onClick={() => setActiveTab('find-groups')}
                         className={`px-6 py-4 text-sm font-medium transition-all hover:scale-105 ${
                           activeTab === 'find-groups'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-600 hover:text-gray-900'
+                            ? 'text-blue-400 border-b-2 border-blue-500'
+                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                       >
                         {t('findGroups')}
@@ -686,7 +686,7 @@ export default function GroupsPage() {
                   <button
                     onClick={handleForceDeleteAll}
                     disabled={forceDeleting}
-                    className="mr-4 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="mr-4 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-red-500/20"
                   >
                     {forceDeleting ? (
                       <>
@@ -715,23 +715,23 @@ export default function GroupsPage() {
               <div className="grid md:grid-cols-2 gap-6 mb-8">
                 {myGroups.length === 0 ? (
                   <Bounce>
-                    <div className="col-span-2 bg-white rounded-xl shadow-sm p-12 text-center">
-                      <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="col-span-2 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-12 text-center shadow-lg dark:shadow-none">
+                      <div className="w-20 h-20 bg-purple-500/20 border border-purple-400/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         {t('noGroups')}
                       </h3>
-                      <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                      <p className="text-gray-700 dark:text-slate-300 mb-6 max-w-md mx-auto">
                         {t('noGroupsDesc')}
                       </p>
                       <div className="flex gap-4 justify-center">
                         <Bounce delay={0.1}>
                           <button
                             onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 hover:scale-105 transition-all shadow-lg"
+                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20"
                           >
                             {t('createGroup')}
                           </button>
@@ -739,7 +739,7 @@ export default function GroupsPage() {
                         <Bounce delay={0.2}>
                           <button
                             onClick={() => setActiveTab('find-groups')}
-                            className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 hover:scale-105 transition-all shadow-lg"
+                            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 hover:scale-105 transition-all shadow-lg shadow-purple-500/20"
                           >
                             {t('findGroups')}
                           </button>
@@ -751,11 +751,11 @@ export default function GroupsPage() {
                   myGroups.map((group, index) => (
                   <FadeIn key={group.id} delay={index * 0.05}>
                     <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                      <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
+                      <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 hover:bg-gray-50 dark:hover:bg-white/10 transition-all shadow-lg dark:shadow-none">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{group.name}</h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{group.name}</h3>
+                      <div className="flex items-center gap-4 text-sm text-gray-700 dark:text-slate-300 mb-3">
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -763,14 +763,14 @@ export default function GroupsPage() {
                           {group.memberCount} {t('members')}
                         </span>
                         <Pulse>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                          <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full font-medium border border-blue-400/30">
                             {group.subject}
                           </span>
                         </Pulse>
                       </div>
                     </div>
                     <Bounce delay={index * 0.1}>
-                      <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-white/10">
                         {group.avatarUrl ? (
                           <img src={group.avatarUrl} alt={group.name} className="w-full h-full object-cover" />
                         ) : (
@@ -789,7 +789,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.1}>
                         <button
                           onClick={() => router.push(`/chat/groups?conversation=${group.id}`)}
-                          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 hover:scale-105 transition-all shadow-md font-medium"
+                          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 hover:scale-105 transition-all shadow-lg shadow-green-500/20 font-medium"
                         >
                           {t('openChat')}
                         </button>
@@ -799,7 +799,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.2}>
                         <button
                           onClick={() => handleLeaveGroup(group.id)}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 hover:scale-105 transition-all shadow-md font-medium"
+                          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 hover:scale-105 transition-all shadow-lg shadow-red-500/20 font-medium"
                         >
                           {t('leaveGroup')}
                         </button>
@@ -808,7 +808,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.2}>
                         <button
                           onClick={() => handleJoinGroup(group.id)}
-                          className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-md font-medium"
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
                         >
                           {t('joinGroup')}
                         </button>
@@ -817,7 +817,7 @@ export default function GroupsPage() {
                     <Bounce delay={index * 0.1 + 0.3}>
                       <button
                         onClick={() => router.push(`/groups/${group.id}`)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all font-medium"
+                        className="px-4 py-2 border border-white/10 bg-slate-800 text-slate-200 text-sm rounded-lg hover:bg-slate-700 hover:scale-105 transition-all font-medium"
                       >
                         View Group
                       </button>
@@ -826,7 +826,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.4}>
                         <button
                           onClick={() => handleShowManage(group)}
-                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 hover:scale-105 transition-all shadow-md font-medium"
+                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 hover:scale-105 transition-all shadow-lg shadow-purple-500/20 font-medium"
                         >
                           {t('manage')}
                         </button>
@@ -846,25 +846,25 @@ export default function GroupsPage() {
           {activeTab === 'find-groups' && (
             <div>
               {/* Search Filters */}
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('searchFilters')}</h2>
+              <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 mb-6 shadow-lg dark:shadow-none">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('searchFilters')}</h2>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('subject')}</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('subject')}</label>
                     <input
                       type="text"
                       value={searchSubject}
                       onChange={(e) => setSearchSubject(e.target.value)}
                       placeholder="e.g., Mathematics"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('skillLevel')}</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('skillLevel')}</label>
                     <select
                       value={searchSkillLevel}
                       onChange={(e) => setSearchSkillLevel(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                     >
                       <option value="">{t('anyLevel')}</option>
                       <option value="Beginner">Beginner</option>
@@ -874,39 +874,39 @@ export default function GroupsPage() {
                     </select>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject Description</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Subject Description</label>
                     <input
                       type="text"
                       value={searchSubjectDesc}
                       onChange={(e) => setSearchSubjectDesc(e.target.value)}
                       placeholder={t('searchSubjectPlaceholder')}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Description</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skill Level Description</label>
                     <input
                       type="text"
                       value={searchSkillLevelDesc}
                       onChange={(e) => setSearchSkillLevelDesc(e.target.value)}
                       placeholder={t('searchSkillLevelPlaceholder')}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('description')}</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('description')}</label>
                     <input
                       type="text"
                       value={searchDescription}
                       onChange={(e) => setSearchDescription(e.target.value)}
                       placeholder={t('searchGroupDescPlaceholder')}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                     />
                   </div>
                 </div>
                 <button
                   onClick={handleFindGroups}
-                  className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="mt-4 w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/20"
                 >
                   Search Groups
                 </button>
@@ -918,11 +918,11 @@ export default function GroupsPage() {
                   {searchResults.map((group, index) => (
                     <FadeIn key={group.id} delay={index * 0.05}>
                       <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all">
+                        <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 hover:bg-gray-50 dark:hover:bg-white/10 transition-all shadow-lg dark:shadow-none">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{group.name}</h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{group.name}</h3>
+                        <div className="flex items-center gap-4 text-sm text-gray-700 dark:text-slate-300 mb-3">
                           <span className="flex items-center gap-1">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -930,21 +930,21 @@ export default function GroupsPage() {
                             {group.memberCount}/{group.maxMembers} {t('members')}
                           </span>
                           <Pulse>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                            <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full font-medium border border-blue-400/30">
                               {group.subject}
                             </span>
                           </Pulse>
                         </div>
                         {group.description && (
-                          <p className="text-sm text-gray-600 mb-2">{group.description}</p>
+                          <p className="text-sm text-gray-700 dark:text-slate-300 mb-2">{group.description}</p>
                         )}
                         {group.subjectCustomDescription && (
-                          <p className="text-xs text-gray-500 mb-1">
+                          <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
                             <span className="font-medium">Subject: </span>{group.subjectCustomDescription}
                           </p>
                         )}
                         {group.skillLevelCustomDescription && (
-                          <p className="text-xs text-gray-500 mb-1">
+                          <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
                             <span className="font-medium">Skill Level: </span>{group.skillLevelCustomDescription}
                           </p>
                         )}
@@ -956,7 +956,7 @@ export default function GroupsPage() {
                         <Bounce delay={index * 0.1 + 0.1}>
                           <button
                             onClick={() => handleLeaveGroup(group.id)}
-                            className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 hover:scale-105 transition-all shadow-md font-medium"
+                            className="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 hover:scale-105 transition-all shadow-lg shadow-red-500/20 font-medium"
                           >
                             {t('leaveGroup')}
                           </button>
@@ -965,7 +965,7 @@ export default function GroupsPage() {
                         <Bounce delay={index * 0.1 + 0.1}>
                           <button
                             onClick={() => handleJoinGroup(group.id)}
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-md font-medium"
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
                           >
                             {t('joinGroup')}
                           </button>
@@ -974,7 +974,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.2}>
                         <button
                           onClick={() => router.push(`/groups/${group.id}`)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all font-medium"
+                          className="px-4 py-2 border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 hover:scale-105 transition-all font-medium"
                         >
                           View Group
                         </button>
@@ -993,13 +993,13 @@ export default function GroupsPage() {
 
       {/* Create Group Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 my-8">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl max-w-2xl w-full p-6 my-8 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Create Study Group</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Study Group</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1009,7 +1009,7 @@ export default function GroupsPage() {
 
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Group Name</label>
                 <input
                   id="group-name-field"
                   type="text"
@@ -1022,15 +1022,15 @@ export default function GroupsPage() {
                     }
                   }}
                   placeholder="e.g., Calculus Study Group"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Group Avatar (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Group Avatar (Optional)</label>
                 <div className="flex items-center gap-4">
                   {avatarPreview && (
-                    <img src={avatarPreview} alt={t('avatarPreview')} className="w-16 h-16 rounded-xl object-cover" />
+                    <img src={avatarPreview} alt={t('avatarPreview')} className="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-white/10" />
                   )}
                   <input
                     id="avatar-field"
@@ -1043,14 +1043,14 @@ export default function GroupsPage() {
                         document.getElementById('subject-field')?.focus()
                       }
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Max 5MB. JPEG, PNG, WebP, or GIF.</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Max 5MB. JPEG, PNG, WebP, or GIF.</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Subject</label>
                 <input
                   id="subject-field"
                   type="text"
@@ -1063,12 +1063,12 @@ export default function GroupsPage() {
                     }
                   }}
                   placeholder="e.g., Mathematics, Physics, Computer Science"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject Description (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Subject Description (Optional)</label>
                 <textarea
                   id="subject-desc-field"
                   rows={2}
@@ -1081,12 +1081,12 @@ export default function GroupsPage() {
                     }
                   }}
                   placeholder={t('subjectDetailsPlaceholder')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Group Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Group Description</label>
                 <textarea
                   id="group-desc-field"
                   rows={3}
@@ -1099,17 +1099,17 @@ export default function GroupsPage() {
                     }
                   }}
                   placeholder={t('groupDescriptionPlaceholder')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Suggestion</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skill Level Suggestion</label>
                 <select
                   id="skill-level-field"
                   value={skillLevel}
                   onChange={(e) => setSkillLevel(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                 >
                   <option value="">{t('noPreference')}</option>
                   <option value="Beginner">Beginner</option>
@@ -1120,7 +1120,7 @@ export default function GroupsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Skill Level Description (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skill Level Description (Optional)</label>
                 <textarea
                   id="skill-level-desc-field"
                   rows={2}
@@ -1133,12 +1133,12 @@ export default function GroupsPage() {
                     }
                   }}
                   placeholder="e.g., High school level, College freshman, etc."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Max Members</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Max Members</label>
                 <input
                   id="max-members-field"
                   type="number"
@@ -1152,12 +1152,12 @@ export default function GroupsPage() {
                   }}
                   min={2}
                   max={50}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Invite Members (Optional) - Press Enter to Create</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Invite Members (Optional) - Press Enter to Create</label>
                 <div className="relative">
                   <input
                     id="invite-members-field"
@@ -1175,18 +1175,18 @@ export default function GroupsPage() {
                       }
                     }}
                     placeholder={t('inviteUsernamePlaceholder')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                   />
                   {showSuggestions && usernameSuggestions.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                       {usernameSuggestions.map((user) => (
                         <button
                           key={user.id}
                           onClick={() => handleInviteUser(user.name)}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-between"
                         >
-                          <span className="font-medium">{user.name}</span>
-                          <span className="text-sm text-gray-500">{user.email}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{user.name}</span>
+                          <span className="text-sm text-gray-600 dark:text-slate-400">{user.email}</span>
                         </button>
                       ))}
                     </div>
@@ -1198,12 +1198,12 @@ export default function GroupsPage() {
                     {invitedUsers.map((username) => (
                       <span
                         key={username}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm border border-blue-400/30"
                       >
                         {username}
                         <button
                           onClick={() => removeInvitedUser(username)}
-                          className="hover:text-blue-900"
+                          className="hover:text-blue-100"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1219,13 +1219,13 @@ export default function GroupsPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCreateGroup}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/20"
               >
                 Create Group
               </button>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition border border-gray-200 dark:border-white/10"
               >
                 Cancel
               </button>
@@ -1236,13 +1236,13 @@ export default function GroupsPage() {
 
       {/* Group Details Modal */}
       {showDetailsModal && selectedGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Group Details</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Group Details</h2>
               <button
                 onClick={() => setShowDetailsModal(false)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1252,62 +1252,62 @@ export default function GroupsPage() {
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Group Name</h3>
-                <p className="text-lg font-semibold text-gray-900">{selectedGroup.name}</p>
+                <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Group Name</h3>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedGroup.name}</p>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Subject</h3>
-                <p className="text-gray-900">{selectedGroup.subject}</p>
+                <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Subject</h3>
+                <p className="text-gray-900 dark:text-white">{selectedGroup.subject}</p>
               </div>
 
               {selectedGroup.subjectCustomDescription && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Subject Description</h3>
-                  <p className="text-gray-700">{selectedGroup.subjectCustomDescription}</p>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Subject Description</h3>
+                  <p className="text-gray-700 dark:text-slate-300">{selectedGroup.subjectCustomDescription}</p>
                 </div>
               )}
 
               {selectedGroup.description && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Group Description</h3>
-                  <p className="text-gray-700">{selectedGroup.description}</p>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Group Description</h3>
+                  <p className="text-gray-700 dark:text-slate-300">{selectedGroup.description}</p>
                 </div>
               )}
 
               {selectedGroup.skillLevel && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Skill Level</h3>
-                  <p className="text-gray-900">{selectedGroup.skillLevel}</p>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Skill Level</h3>
+                  <p className="text-gray-900 dark:text-white">{selectedGroup.skillLevel}</p>
                 </div>
               )}
 
               {selectedGroup.skillLevelCustomDescription && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Skill Level Description</h3>
-                  <p className="text-gray-700">{selectedGroup.skillLevelCustomDescription}</p>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Skill Level Description</h3>
+                  <p className="text-gray-700 dark:text-slate-300">{selectedGroup.skillLevelCustomDescription}</p>
                 </div>
               )}
 
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Created By</h3>
-                <p className="text-gray-900">{selectedGroup.ownerName}</p>
+                <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">Created By</h3>
+                <p className="text-gray-900 dark:text-white">{selectedGroup.ownerName}</p>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Members ({selectedGroup.memberCount})</h3>
+                <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-2">Members ({selectedGroup.memberCount})</h3>
                 <div className="space-y-2">
                   {selectedGroup.membersList?.map((member) => (
-                    <div key={member.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                    <div key={member.id} className="flex items-center gap-3 p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg">
                       <PartnerAvatar
                         avatarUrl={member.avatarUrl || null}
                         name={member.name}
                         size="sm"
                         showStatus={false}
                       />
-                      <span className="text-gray-900">{member.name}</span>
+                      <span className="text-gray-900 dark:text-white">{member.name}</span>
                       {member.role === 'OWNER' && (
-                        <span className="ml-auto px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Owner</span>
+                        <span className="ml-auto px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-400/30">Owner</span>
                       )}
                     </div>
                   ))}
@@ -1318,7 +1318,7 @@ export default function GroupsPage() {
             <div className="mt-6">
               <button
                 onClick={() => setShowDetailsModal(false)}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition border border-gray-200 dark:border-white/10"
               >
                 Close
               </button>
@@ -1329,13 +1329,13 @@ export default function GroupsPage() {
 
       {/* Manage Group Modal */}
       {showManageModal && selectedGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Manage Group</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Manage Group</h2>
               <button
                 onClick={() => setShowManageModal(false)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1345,7 +1345,7 @@ export default function GroupsPage() {
 
             {/* Invite Section */}
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Invite Members</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Invite Members</h3>
               <div className="relative">
                 <input
                   type="text"
@@ -1354,18 +1354,18 @@ export default function GroupsPage() {
                   onBlur={() => setTimeout(() => setShowManageSuggestions(false), 200)}
                   onFocus={() => manageInviteUsername.length >= 2 && setShowManageSuggestions(true)}
                   placeholder={t('inviteUserPlaceholder')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                 />
                 {showManageSuggestions && manageUserSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {manageUserSuggestions.map((user) => (
                       <button
                         key={user.id}
                         onClick={() => handleInviteFromManage(user.name)}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-between"
                       >
-                        <span className="font-medium">{user.name}</span>
-                        <span className="text-sm text-gray-500">{user.email}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{user.name}</span>
+                        <span className="text-sm text-gray-600 dark:text-slate-400">{user.email}</span>
                       </button>
                     ))}
                   </div>
@@ -1375,10 +1375,10 @@ export default function GroupsPage() {
 
             {/* Members List */}
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Current Members ({selectedGroup.memberCount})</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Current Members ({selectedGroup.memberCount})</h3>
               <div className="space-y-2">
                 {selectedGroup.membersList?.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div key={member.id} className="flex items-center justify-between p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg">
                     <button
                       onClick={() => {
                         setShowManageModal(false)
@@ -1391,7 +1391,7 @@ export default function GroupsPage() {
                           }
                         }, 100)
                       }}
-                      className="flex items-center gap-3 hover:bg-gray-100 rounded-lg p-1 -m-1 transition-colors"
+                      className="flex items-center gap-3 hover:bg-white/5 rounded-lg p-1 -m-1 transition-colors"
                     >
                       <div className="relative">
                         <PartnerAvatar
@@ -1402,22 +1402,22 @@ export default function GroupsPage() {
                         />
                         {/* Online/Offline indicator */}
                         {member.onlineStatus === 'ONLINE' ? (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full"></div>
                         ) : (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-slate-600 border-2 border-slate-900 rounded-full"></div>
                         )}
                       </div>
                       <div className="text-left">
-                        <span className="text-gray-900 font-medium">{member.name}</span>
+                        <span className="text-gray-900 dark:text-white font-medium">{member.name}</span>
                         {member.role === 'OWNER' && (
-                          <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Owner</span>
+                          <span className="ml-2 px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-400/30">Owner</span>
                         )}
                       </div>
                     </button>
                     {member.role !== 'OWNER' && (
                       <button
                         onClick={() => handleKickMember(member.id)}
-                        className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
+                        className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-500/20"
                       >
                         Kick
                       </button>
@@ -1432,13 +1432,13 @@ export default function GroupsPage() {
               <button
                 onClick={() => handleDeleteGroup(selectedGroup.id)}
                 disabled={deletingGroup}
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/20"
               >
                 {deletingGroup ? 'Deleting Group...' : 'Delete Group'}
               </button>
               <button
                 onClick={() => setShowManageModal(false)}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition border border-gray-200 dark:border-white/10"
               >
                 Close
               </button>
@@ -1449,13 +1449,13 @@ export default function GroupsPage() {
 
       {/* Group Invites Modal */}
       {showInvitesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Group Invitations</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Group Invitations</h2>
               <button
                 onClick={() => setShowInvitesModal(false)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1465,19 +1465,19 @@ export default function GroupsPage() {
 
             {groupInvites.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-600">No pending invitations</p>
+                <p className="text-gray-700 dark:text-slate-300">No pending invitations</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {groupInvites.map((invite) => (
-                  <div key={invite.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={invite.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{invite.groupName}</h3>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{invite.groupName}</h3>
+                        <p className="text-sm text-gray-700 dark:text-slate-300 mt-1">
                           Invited by <span className="font-medium">{invite.inviterName}</span>
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">
                           {new Date(invite.createdAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -1485,13 +1485,13 @@ export default function GroupsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleRespondToInvite(invite.id, true)}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                        className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/20"
                       >
                         Accept
                       </button>
                       <button
                         onClick={() => handleRespondToInvite(invite.id, false)}
-                        className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition"
+                        className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition border border-gray-200 dark:border-white/10"
                       >
                         Decline
                       </button>
@@ -1504,7 +1504,7 @@ export default function GroupsPage() {
             <div className="mt-6">
               <button
                 onClick={() => setShowInvitesModal(false)}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition border border-gray-200 dark:border-white/10"
               >
                 Close
               </button>

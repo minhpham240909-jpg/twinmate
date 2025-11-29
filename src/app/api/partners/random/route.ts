@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getBlockedUserIds } from '@/lib/blocked-users'
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,6 +31,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // SECURITY: Get blocked user IDs to exclude
+    const blockedUserIds = await getBlockedUserIds(user.id)
+
     // Separate ACCEPTED partners from pending/other connections
     const acceptedPartnerIds = new Set<string>()
     const pendingOrOtherUserIds = new Set<string>()
@@ -45,6 +49,9 @@ export async function GET(request: NextRequest) {
         pendingOrOtherUserIds.add(otherUserId)
       }
     })
+
+    // Add blocked users to exclusion set
+    blockedUserIds.forEach(id => pendingOrOtherUserIds.add(id))
 
     // Get random partners excluding current user and pending/rejected connections (but include ACCEPTED partners)
     const randomPartners = await prisma.profile.findMany({
@@ -76,39 +83,84 @@ export async function GET(request: NextRequest) {
         subjects: true,
         interests: true,
         goals: true,
+        availableDays: true,
         skillLevel: true,
         studyStyle: true,
       }
     })
 
-    // Calculate match scores for each partner (same logic as search API)
+    // Check if user's profile is complete enough for meaningful matching
+    const hasSubjects = Array.isArray(currentUserProfile?.subjects) && currentUserProfile.subjects.length > 0
+    const hasInterests = Array.isArray(currentUserProfile?.interests) && currentUserProfile.interests.length > 0
+    const hasGoals = Array.isArray(currentUserProfile?.goals) && currentUserProfile.goals.length > 0
+    const hasSkillLevel = !!currentUserProfile?.skillLevel
+    const hasStudyStyle = !!currentUserProfile?.studyStyle
+
+    // Profile is incomplete if missing ALL key matching criteria
+    const profileIncomplete = !hasSubjects && !hasInterests && !hasGoals && !hasSkillLevel && !hasStudyStyle
+    const missingFields: string[] = []
+    if (!hasSubjects) missingFields.push('subjects')
+    if (!hasInterests) missingFields.push('interests')
+    if (!hasGoals) missingFields.push('goals')
+    if (!hasSkillLevel) missingFields.push('skill level')
+    if (!hasStudyStyle) missingFields.push('study style')
+
+    // Calculate match scores for each partner (same improved algorithm as search API)
     const partnersWithScores = randomPartners.map(profile => {
       let matchScore = 0
       const matchReasons: string[] = []
 
       if (currentUserProfile) {
-        // Match subjects - ensure arrays exist and sanitize
+        // Match subjects with diminishing returns (first 2 = 12pts each, rest = 4pts each, max 32)
         const profileSubjects = Array.isArray(profile.subjects) ? profile.subjects : []
         const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
         const commonSubjects = profileSubjects.filter((subject: string) =>
           currentSubjects.includes(subject)
         )
         if (commonSubjects.length > 0) {
-          const subjectScore = commonSubjects.length * 20
+          const firstTwo = Math.min(commonSubjects.length, 2) * 12
+          const additional = Math.max(0, commonSubjects.length - 2) * 4
+          const subjectScore = Math.min(firstTwo + additional, 32)
           matchScore += subjectScore
           matchReasons.push(`${commonSubjects.length} shared subject(s)`)
         }
 
-        // Match interests - ensure arrays exist and sanitize
+        // Match interests with diminishing returns (first 2 = 8pts each, rest = 3pts each, max 22)
         const profileInterests = Array.isArray(profile.interests) ? profile.interests : []
         const currentInterests = Array.isArray(currentUserProfile.interests) ? currentUserProfile.interests : []
         const commonInterests = profileInterests.filter((interest: string) =>
           currentInterests.includes(interest)
         )
         if (commonInterests.length > 0) {
-          const interestScore = commonInterests.length * 15
+          const firstTwo = Math.min(commonInterests.length, 2) * 8
+          const additional = Math.max(0, commonInterests.length - 2) * 3
+          const interestScore = Math.min(firstTwo + additional, 22)
           matchScore += interestScore
           matchReasons.push(`${commonInterests.length} shared interest(s)`)
+        }
+
+        // Match goals (max 16 points)
+        const profileGoals = Array.isArray(profile.goals) ? profile.goals : []
+        const currentGoals = Array.isArray(currentUserProfile.goals) ? currentUserProfile.goals : []
+        const commonGoals = profileGoals.filter((goal: string) =>
+          currentGoals.includes(goal)
+        )
+        if (commonGoals.length > 0) {
+          const goalScore = Math.min(commonGoals.length * 8, 16)
+          matchScore += goalScore
+          matchReasons.push(`${commonGoals.length} shared goal(s)`)
+        }
+
+        // Match availability/days (max 15 points)
+        const profileDays = Array.isArray(profile.availableDays) ? profile.availableDays : []
+        const currentDays = Array.isArray(currentUserProfile.availableDays) ? currentUserProfile.availableDays : []
+        const commonDays = profileDays.filter((day: string) =>
+          currentDays.includes(day)
+        )
+        if (commonDays.length > 0) {
+          const dayScore = Math.min(commonDays.length * 3, 15)
+          matchScore += dayScore
+          matchReasons.push(`${commonDays.length} matching day(s)`)
         }
 
         // Match skill level - 10 points if matches
@@ -119,11 +171,11 @@ export async function GET(request: NextRequest) {
           matchReasons.push('Same skill level')
         }
 
-        // Match study style - 10 points if matches
+        // Match study style - 5 points if matches
         if (currentUserProfile.studyStyle &&
             profile.studyStyle &&
             profile.studyStyle === currentUserProfile.studyStyle) {
-          matchScore += 10
+          matchScore += 5
           matchReasons.push('Same study style')
         }
 
@@ -169,7 +221,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       partners: selectedPartners,
-      count: selectedPartners.length
+      count: selectedPartners.length,
+      // Flag to indicate if user's profile is incomplete for meaningful matching
+      profileIncomplete,
+      missingFields: profileIncomplete ? missingFields : [],
     }, {
       headers: {
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',

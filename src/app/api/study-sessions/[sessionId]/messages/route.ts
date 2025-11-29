@@ -4,6 +4,37 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
+// Content moderation scan (async, non-blocking)
+async function scanSessionMessageContent(
+  messageId: string,
+  content: string,
+  senderId: string,
+  senderEmail: string | undefined,
+  senderName: string | undefined,
+  sessionId: string
+) {
+  try {
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/moderation/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        contentType: 'SESSION_MESSAGE',
+        contentId: messageId,
+        senderId,
+        senderEmail,
+        senderName,
+        conversationId: sessionId,
+        conversationType: 'session',
+      }),
+    }).catch((err) => {
+      console.error('[Moderation] Session message scan failed:', err)
+    })
+  } catch (error) {
+    console.error('[Moderation] Error initiating session message scan:', error)
+  }
+}
+
 // SECURITY: Validation schema for session messages
 const createMessageSchema = z.object({
   content: z.string().min(1, 'Message required').max(5000, 'Message too long'),
@@ -154,6 +185,16 @@ export async function POST(
         },
       },
     })
+
+    // Scan message content for moderation (non-blocking)
+    scanSessionMessageContent(
+      message.id,
+      content.trim(),
+      user.id,
+      message.sender.email || undefined,
+      message.sender.name || undefined,
+      sessionId
+    )
 
     // Create notifications for other participants (async, don't wait)
     const otherParticipants = await prisma.sessionParticipant.findMany({

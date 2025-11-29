@@ -340,21 +340,21 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-25 z-40"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-white rounded-xl shadow-2xl z-50 flex flex-col">
+      <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl z-50 flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-slate-700/50">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+            <h3 className="text-lg font-semibold text-slate-100">Notifications</h3>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded transition"
+              className="p-1 hover:bg-slate-700/50 rounded transition"
             >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -366,14 +366,14 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
                   type="checkbox"
                   checked={notifications.length > 0 && selectedNotifications.size === notifications.length}
                   onChange={handleSelectAll}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-500 bg-slate-700 border-slate-600 rounded focus:ring-blue-500/50"
                 />
-                <span className="text-sm text-gray-700">Select All</span>
+                <span className="text-sm text-slate-300">Select All</span>
               </label>
               {notifications.some(n => !n.isRead) && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   Mark all read
                 </button>
@@ -386,23 +386,23 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Loading...</p>
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-sm text-slate-400">Loading...</p>
             </div>
           ) : notifications.length === 0 ? (
             <div className="p-8 text-center">
-              <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-12 h-12 text-slate-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <p className="text-sm font-medium text-gray-900 mb-1">No system notifications</p>
+              <p className="text-sm font-medium text-slate-300 mb-1">No system notifications</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-700/50">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 hover:bg-gray-50 transition ${
-                    !notification.isRead ? 'bg-blue-50' : ''
+                  className={`p-4 hover:bg-slate-700/30 transition ${
+                    !notification.isRead ? 'bg-slate-700/20' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -413,17 +413,17 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
                         e.stopPropagation()
                         handleSelectNotification(notification.id)
                       }}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1 flex-shrink-0"
+                      className="w-4 h-4 text-blue-500 bg-slate-700 border-slate-600 rounded focus:ring-blue-500/50 mt-1 flex-shrink-0"
                     />
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-1">
-                        <h4 className="text-sm font-semibold text-gray-900">{notification.title}</h4>
+                        <h4 className="text-sm font-semibold text-slate-200">{notification.title}</h4>
                         {!notification.isRead && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full mt-1"></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 mb-2">{notification.message}</p>
-                      <p className="text-xs text-gray-500">{getTimeAgo(notification.createdAt)}</p>
+                      <p className="text-sm text-slate-300 mb-2">{notification.message}</p>
+                      <p className="text-xs text-slate-500">{getTimeAgo(notification.createdAt)}</p>
 
                       {/* Connection Request Actions */}
                       {notification.type === 'CONNECTION_REQUEST' && !notification.isRead && notification.relatedMatchId && (
@@ -442,7 +442,7 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
                               e.stopPropagation()
                               handleDeclineConnection(notification.relatedMatchId!, notification.id)
                             }}
-                            className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300 transition"
+                            className="flex-1 px-3 py-1.5 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition"
                           >
                             Decline
                           </button>
@@ -456,7 +456,7 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
                             e.stopPropagation()
                             handleNotificationClick(notification)
                           }}
-                          className="mt-2 text-xs text-blue-600 hover:underline"
+                          className="mt-2 text-xs text-blue-400 hover:text-blue-300 transition-colors"
                         >
                           View
                         </button>
@@ -471,13 +471,13 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
 
         {/* Footer with Delete Button */}
         {notifications.length > 0 && (
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-slate-700/50">
             <button
               onClick={handleDeleteSelected}
               disabled={selectedNotifications.size === 0}
               className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition ${
                 selectedNotifications.size === 0
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  ? 'bg-slate-700/30 text-slate-500 cursor-not-allowed'
                   : 'bg-red-600 text-white hover:bg-red-700'
               }`}
             >

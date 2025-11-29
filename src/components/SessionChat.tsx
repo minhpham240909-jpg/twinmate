@@ -402,9 +402,9 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
       />
       
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900/20">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
+          <div className="text-center text-slate-400 py-12">
             <p>💬 No messages yet</p>
             <p className="text-sm mt-2">Start the conversation!</p>
           </div>
@@ -440,15 +440,15 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
                   {/* Message Content */}
                   <div className="relative">
                     {!isOwnMessage && (
-                      <p className="text-xs text-gray-600 mb-1">{message.sender.name}</p>
+                      <p className="text-xs text-slate-400 mb-1">{message.sender.name}</p>
                     )}
                     <div
                       className={`px-4 py-2 rounded-lg relative group ${
                         isDeleted
-                          ? 'bg-gray-200 text-gray-500 italic'
+                          ? 'bg-slate-800/40 text-slate-500 italic backdrop-blur-sm'
                           : isOwnMessage
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
+                          ? 'bg-blue-600/80 text-white backdrop-blur-sm'
+                          : 'bg-slate-800/60 text-slate-100 backdrop-blur-sm'
                       }`}
                       onClick={() => {
                         if (!isDeleted && canDelete) {
@@ -475,7 +475,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                       {formatTime(message.createdAt)}
                     </p>
                   </div>
@@ -488,20 +488,20 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 p-4 bg-white">
+      <div className="border-t border-slate-700/50 p-4 bg-slate-800/40 backdrop-blur-xl">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder={isOnline ? "Type a message... (Press Enter to send)" : "Offline - Cannot send messages"}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm"
             disabled={sending || !isOnline}
           />
           <button
             type="submit"
             disabled={!newMessage.trim() || sending || !isOnline}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-blue-600/80 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
             title={!isOnline ? 'Cannot send messages while offline' : ''}
           >
             {sending ? 'Sending...' : 'Send'}

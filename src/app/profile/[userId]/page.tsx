@@ -9,6 +9,7 @@ import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
+import ReportModal from '@/components/ReportModal'
 import { sanitizeBio, sanitizeText } from '@/lib/sanitize'
 
 type UserProfile = {
@@ -98,6 +99,7 @@ export default function UserProfilePage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null)
   const [showMatchDetails, setShowMatchDetails] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -304,10 +306,10 @@ export default function UserProfilePage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <p className="text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -315,18 +317,18 @@ export default function UserProfilePage() {
 
   if (error || !profileData) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-200">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-white/5 backdrop-blur-xl rounded-2xl shadow-xl dark:shadow-none p-8 text-center border border-gray-200 dark:border-white/10">
+          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+            <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h1>
-          <p className="text-gray-600 mb-6">{error || 'This user profile could not be found.'}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Profile Not Found</h1>
+          <p className="text-gray-600 dark:text-slate-400 mb-6">{error || 'This user profile could not be found.'}</p>
           <button
             onClick={() => router.back()}
-            className="inline-block px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition font-semibold"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:shadow-lg transition font-semibold"
           >
             Go Back
           </button>
@@ -339,21 +341,21 @@ export default function UserProfilePage() {
   const isOwnProfile = currentUser?.id === userId
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header Navigation */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
           <button
             onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors -ml-2"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors -ml-2"
           >
-            <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-900 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div className="ml-4">
-            <h1 className="text-xl font-bold text-gray-900">{viewedUser.name}</h1>
-            <p className="text-sm text-gray-500">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{viewedUser.name}</h1>
+            <p className="text-sm text-gray-600 dark:text-slate-400">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
           </div>
         </div>
       </header>
@@ -393,11 +395,11 @@ export default function UserProfilePage() {
 
             {/* Cover Photo Menu */}
             {showCoverPhotoMenu && (
-              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]">
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-900/95 backdrop-blur-xl rounded-lg shadow-xl dark:shadow-none border border-gray-200 dark:border-white/10 overflow-hidden z-[9999]">
                 {coverPhotoUrl && (
                   <button
                     onClick={handleSeeCoverPhoto}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -409,7 +411,7 @@ export default function UserProfilePage() {
                 {isOwnProfile && (
                   <button
                     onClick={handleUploadCoverPhoto}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -459,7 +461,7 @@ export default function UserProfilePage() {
                 <button
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  className="absolute bottom-0 right-0 w-10 h-10 bg-black rounded-full flex items-center justify-center shadow-lg border-4 border-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                  className="absolute bottom-0 right-0 w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-950 hover:shadow-xl transition-all disabled:opacity-50"
                 >
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -491,7 +493,7 @@ export default function UserProfilePage() {
               <div className="absolute right-0 top-4 flex gap-3">
                 <button
                   onClick={() => router.push('/profile/edit')}
-                  className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm shadow-lg"
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm shadow-lg"
                 >
                   Edit profile
                 </button>
@@ -502,14 +504,14 @@ export default function UserProfilePage() {
 
         {/* User Info */}
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{sanitizeText(viewedUser.name)}</h1>
-          <p className="text-gray-500 text-sm mb-3">@{sanitizeText(viewedUser.email.split('@')[0])}</p>
-          
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{sanitizeText(viewedUser.name)}</h1>
+          <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">@{sanitizeText(viewedUser.email.split('@')[0])}</p>
+
           {profile?.bio && (
-            <p className="text-gray-900 mb-3 whitespace-pre-wrap leading-relaxed">{sanitizeBio(profile.bio)}</p>
+            <p className="text-gray-700 dark:text-slate-300 mb-3 whitespace-pre-wrap leading-relaxed">{sanitizeBio(profile.bio)}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-3">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-slate-400 mb-3">
             {profile?.school && (
               <div className="flex items-center gap-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -536,31 +538,31 @@ export default function UserProfilePage() {
             <div className="flex gap-6 text-sm mb-4">
               {(profile?.subjects && profile.subjects.length > 0) && (
                 <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-blue-50 rounded-lg">
+                  <div className="px-4 py-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
                     <Pulse>
-                      <span className="font-semibold text-blue-600">{profile.subjects.length}</span>
+                      <span className="font-semibold text-blue-400">{profile.subjects.length}</span>
                     </Pulse>
-                    <span className="text-gray-500 ml-1">{profile.subjects.length === 1 ? 'subject' : 'subjects'}</span>
+                    <span className="text-gray-600 dark:text-slate-400 ml-1">{profile.subjects.length === 1 ? 'subject' : 'subjects'}</span>
                   </div>
                 </GlowBorder>
               )}
               {(profile?.interests && profile.interests.length > 0) && (
                 <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-purple-50 rounded-lg">
+                  <div className="px-4 py-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
                     <Pulse>
-                      <span className="font-semibold text-purple-600">{profile.interests.length}</span>
+                      <span className="font-semibold text-purple-400">{profile.interests.length}</span>
                     </Pulse>
-                    <span className="text-gray-500 ml-1">{profile.interests.length === 1 ? 'interest' : 'interests'}</span>
+                    <span className="text-gray-600 dark:text-slate-400 ml-1">{profile.interests.length === 1 ? 'interest' : 'interests'}</span>
                   </div>
                 </GlowBorder>
               )}
               {profileData.matchScore > 0 && (
                 <GlowBorder color="#10b981" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-green-50 rounded-lg">
+                  <div className="px-4 py-2 bg-green-500/20 rounded-lg border border-green-500/30">
                     <Pulse>
-                      <span className="font-semibold text-green-600">{profileData.matchScore}%</span>
+                      <span className="font-semibold text-green-400">{profileData.matchScore}%</span>
                     </Pulse>
-                    <span className="text-gray-500 ml-1">match</span>
+                    <span className="text-gray-600 dark:text-slate-400 ml-1">match</span>
                   </div>
                 </GlowBorder>
               )}
@@ -573,7 +575,7 @@ export default function UserProfilePage() {
               <div className="mb-4">
                 <button
                   onClick={() => setShowMatchDetails(!showMatchDetails)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 rounded-xl transition-all duration-200 group border border-green-200/50"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-green-500/20 to-blue-500/20 hover:from-green-500/30 hover:to-blue-500/30 rounded-xl transition-all duration-200 group border border-green-500/30"
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
@@ -581,10 +583,10 @@ export default function UserProfilePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <span className="font-semibold text-gray-900">Match Details</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">Match Details</span>
                   </div>
                   <svg
-                    className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${showMatchDetails ? 'rotate-180' : ''}`}
+                    className={`w-5 h-5 text-gray-600 dark:text-slate-400 transition-transform duration-200 ${showMatchDetails ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -599,11 +601,11 @@ export default function UserProfilePage() {
                     showMatchDetails ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'
                   }`}
                 >
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <div className="bg-white dark:bg-white/5 backdrop-blur-xl rounded-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none">
                     <div className="p-5 space-y-4">
                       {/* Subjects Match */}
                       {profileData.matchDetails.subjects.count > 0 && (
-                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
                           <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -611,16 +613,16 @@ export default function UserProfilePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm font-semibold text-gray-900">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {profileData.matchDetails.subjects.count} Shared Subject{profileData.matchDetails.subjects.count !== 1 ? 's' : ''}
                               </span>
-                              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                              <span className="text-xs font-bold text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full border border-blue-500/30">
                                 +{profileData.matchDetails.subjects.score} pts
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
                               {profileData.matchDetails.subjects.items.map((subject, idx) => (
-                                <span key={idx} className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full font-medium border border-blue-500/30">
                                   {subject}
                                 </span>
                               ))}
@@ -631,7 +633,7 @@ export default function UserProfilePage() {
 
                       {/* Interests Match */}
                       {profileData.matchDetails.interests.count > 0 && (
-                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
                           <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -639,16 +641,16 @@ export default function UserProfilePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm font-semibold text-gray-900">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {profileData.matchDetails.interests.count} Shared Interest{profileData.matchDetails.interests.count !== 1 ? 's' : ''}
                               </span>
-                              <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                              <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-1 rounded-full border border-purple-500/30">
                                 +{profileData.matchDetails.interests.score} pts
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
                               {profileData.matchDetails.interests.items.map((interest, idx) => (
-                                <span key={idx} className="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full font-medium">
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-purple-500/20 text-purple-400 rounded-full font-medium border border-purple-500/30">
                                   {interest}
                                 </span>
                               ))}
@@ -659,7 +661,7 @@ export default function UserProfilePage() {
 
                       {/* Goals Match */}
                       {profileData.matchDetails.goals.count > 0 && (
-                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
                           <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -667,14 +669,14 @@ export default function UserProfilePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm font-semibold text-gray-900">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {profileData.matchDetails.goals.count} Shared Goal{profileData.matchDetails.goals.count !== 1 ? 's' : ''}
                               </span>
-                              <span className="text-xs text-gray-500 italic">Informational</span>
+                              <span className="text-xs text-gray-600 dark:text-slate-400 italic">Informational</span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
                               {profileData.matchDetails.goals.items.map((goal, idx) => (
-                                <span key={idx} className="text-xs px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-medium">
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-full font-medium border border-amber-500/30">
                                   {goal}
                                 </span>
                               ))}
@@ -685,7 +687,7 @@ export default function UserProfilePage() {
 
                       {/* Skill Level Match */}
                       {profileData.matchDetails.skillLevel.matches && (
-                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
                           <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -693,13 +695,13 @@ export default function UserProfilePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-semibold text-gray-900">Same Skill Level</span>
-                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">Same Skill Level</span>
+                              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-full border border-emerald-500/30">
                                 +10 pts
                               </span>
                             </div>
-                            <p className="text-xs text-gray-600">
-                              Both at <span className="font-semibold text-emerald-700">{profileData.matchDetails.skillLevel.value}</span> level
+                            <p className="text-xs text-gray-600 dark:text-slate-400">
+                              Both at <span className="font-semibold text-emerald-400">{profileData.matchDetails.skillLevel.value}</span> level
                             </p>
                           </div>
                         </div>
@@ -707,7 +709,7 @@ export default function UserProfilePage() {
 
                       {/* Study Style Match */}
                       {profileData.matchDetails.studyStyle.matches && (
-                        <div className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
                           <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -715,13 +717,13 @@ export default function UserProfilePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-semibold text-gray-900">Same Study Style</span>
-                              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">Same Study Style</span>
+                              <span className="text-xs font-bold text-indigo-400 bg-indigo-500/20 px-2 py-1 rounded-full border border-indigo-500/30">
                                 +10 pts
                               </span>
                             </div>
-                            <p className="text-xs text-gray-600">
-                              Both prefer <span className="font-semibold text-indigo-700">{profileData.matchDetails.studyStyle.value}</span> style
+                            <p className="text-xs text-gray-600 dark:text-slate-400">
+                              Both prefer <span className="font-semibold text-indigo-400">{profileData.matchDetails.studyStyle.value}</span> style
                             </p>
                           </div>
                         </div>
@@ -734,7 +736,7 @@ export default function UserProfilePage() {
                         !profileData.matchDetails.skillLevel.matches &&
                         !profileData.matchDetails.studyStyle.matches && (
                         <div className="text-center py-4">
-                          <p className="text-sm text-gray-500">No specific matches found</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">No specific matches found</p>
                         </div>
                       )}
                     </div>
@@ -752,7 +754,7 @@ export default function UserProfilePage() {
                   <button
                     onClick={handleCancelConnection}
                     disabled={sendingConnection}
-                    className="px-6 py-2.5 bg-gray-200 text-gray-900 rounded-full font-semibold hover:bg-gray-300 hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-md"
+                    className="px-6 py-2.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-full font-semibold hover:bg-gray-200 dark:hover:bg-slate-700 hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-md border border-gray-200 dark:border-white/10"
                   >
                     {sendingConnection ? 'Cancelling...' : 'Cancel Request'}
                   </button>
@@ -760,7 +762,7 @@ export default function UserProfilePage() {
                   <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 9999 }}>
                     <button
                       onClick={handleMessage}
-                      className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
+                      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -773,26 +775,36 @@ export default function UserProfilePage() {
                     <button
                       onClick={handleSendConnection}
                       disabled={sendingConnection}
-                      className="px-6 py-2.5 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-lg"
+                      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-lg"
                     >
                       {sendingConnection ? 'Connecting...' : tCommon('connect')}
                     </button>
                   </Bounce>
                 )}
+                {/* Report User Button */}
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="px-4 py-2.5 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 rounded-full font-medium hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 hover:scale-105 transition-all text-sm border border-gray-200 dark:border-white/10"
+                  title={t('reportUser') || 'Report User'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                  </svg>
+                </button>
               </div>
             </Bounce>
           )}
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-white/10">
           <div className="flex">
             <button
               onClick={() => setActiveTab('about')}
               className={`px-4 py-4 font-semibold text-sm relative transition-all hover:scale-105 ${
                 activeTab === 'about'
-                  ? 'text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-300'
               }`}
             >
               {t('about')}
@@ -804,13 +816,13 @@ export default function UserProfilePage() {
               onClick={() => setActiveTab('posts')}
               className={`px-4 py-4 font-semibold text-sm relative transition-all hover:scale-105 ${
                 activeTab === 'posts'
-                  ? 'text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-300'
               }`}
             >
               {t('posts')} {posts.length > 0 && (
                 <Pulse>
-                  <span className="ml-1 text-blue-600">({posts.length})</span>
+                  <span className="ml-1 text-blue-400">({posts.length})</span>
                 </Pulse>
               )}
               {activeTab === 'posts' && (
@@ -828,8 +840,8 @@ export default function UserProfilePage() {
             {/* About Yourself */}
             {profile?.aboutYourself && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">More About Me</h3>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{profile.aboutYourself}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">More About Me</h3>
+                <p className="text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{profile.aboutYourself}</p>
               </div>
             )}
 
@@ -837,11 +849,11 @@ export default function UserProfilePage() {
             {profile?.aboutYourselfItems && profile.aboutYourselfItems.length > 0 && (
               <FadeIn delay={0.1}>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">Tags</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Tags</h3>
                   <div className="flex flex-wrap gap-2">
                     {profile.aboutYourselfItems.map((item, index) => (
                       <Bounce key={index} delay={index * 0.05}>
-                        <span className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 hover:scale-105 transition-all cursor-default">
+                        <span className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700 hover:scale-105 transition-all cursor-default border border-gray-200 dark:border-white/10">
                           {item}
                         </span>
                       </Bounce>
@@ -855,11 +867,11 @@ export default function UserProfilePage() {
             {profile?.subjects && profile.subjects.length > 0 && (
               <FadeIn delay={0.1}>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{t('subjects')}</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{t('subjects')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {profile.subjects.map((subject, index) => (
                       <Bounce key={index} delay={index * 0.05}>
-                        <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-100 hover:scale-105 transition-all cursor-default">
+                        <span className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium hover:bg-blue-500/30 hover:scale-105 transition-all cursor-default border border-blue-500/30">
                           {subject}
                         </span>
                       </Bounce>
@@ -873,11 +885,11 @@ export default function UserProfilePage() {
             {profile?.interests && profile.interests.length > 0 && (
               <FadeIn delay={0.2}>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{t('interests')}</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{t('interests')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {profile.interests.map((interest, index) => (
                       <Bounce key={index} delay={index * 0.05}>
-                        <span className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-100 hover:scale-105 transition-all cursor-default">
+                        <span className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium hover:bg-purple-500/30 hover:scale-105 transition-all cursor-default border border-purple-500/30">
                           {interest}
                         </span>
                       </Bounce>
@@ -890,8 +902,8 @@ export default function UserProfilePage() {
             {/* Languages */}
             {profile?.languages && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{t('languages')}</h3>
-                <p className="text-gray-700">{profile.languages}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{t('languages')}</h3>
+                <p className="text-gray-700 dark:text-slate-300">{profile.languages}</p>
               </div>
             )}
 
@@ -900,7 +912,7 @@ export default function UserProfilePage() {
               <div className="pt-4">
                 <button
                   onClick={() => setShowFullProfile(!showFullProfile)}
-                  className="w-full py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm"
+                  className="w-full py-3 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800/50 rounded-lg transition-colors font-medium text-sm border border-gray-200 dark:border-white/10"
                 >
                   {showFullProfile ? 'Show less' : 'Show more'}
                 </button>
@@ -909,14 +921,14 @@ export default function UserProfilePage() {
 
             {/* Full Profile Details */}
             {showFullProfile && !isOwnProfile && profile && (
-              <div className="pt-4 border-t border-gray-200 space-y-6">
+              <div className="pt-4 border-t border-gray-200 dark:border-white/10 space-y-6">
                 {/* Goals */}
                 {profile.goals && profile.goals.length > 0 && (
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">Learning Goals</h3>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Learning Goals</h3>
                     <div className="flex flex-wrap gap-2">
                       {profile.goals.map((goal, index) => (
-                        <span key={index} className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium">
+                        <span key={index} className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-full text-sm font-medium border border-green-500/30">
                           {goal}
                         </span>
                       ))}
@@ -927,26 +939,26 @@ export default function UserProfilePage() {
                 {/* Skill Level */}
                 {profile.skillLevel && (
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">Skill Level</h3>
-                    <p className="text-gray-700">{profile.skillLevel}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Skill Level</h3>
+                    <p className="text-gray-700 dark:text-slate-300">{profile.skillLevel}</p>
                   </div>
                 )}
 
                 {/* Study Style */}
                 {profile.studyStyle && (
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">Study Style</h3>
-                    <p className="text-gray-700">{profile.studyStyle}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Study Style</h3>
+                    <p className="text-gray-700 dark:text-slate-300">{profile.studyStyle}</p>
                   </div>
                 )}
 
                 {/* Available Days */}
                 {profile.availableDays && profile.availableDays.length > 0 && (
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">Available Days</h3>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Available Days</h3>
                     <div className="flex flex-wrap gap-2">
                       {profile.availableDays.map((day, index) => (
-                        <span key={index} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium">
+                        <span key={index} className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-full text-sm font-medium border border-indigo-500/30">
                           {day}
                         </span>
                       ))}
@@ -959,12 +971,12 @@ export default function UserProfilePage() {
             {/* Empty State */}
             {!profile?.bio && !profile?.aboutYourself && (!profile?.aboutYourselfItems || profile.aboutYourselfItems.length === 0) && (
               <div className="text-center py-16">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200 dark:border-white/10">
+                  <svg className="w-8 h-8 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <p className="text-gray-500">{t('noAboutInfo')}</p>
+                <p className="text-gray-600 dark:text-slate-400">{t('noAboutInfo')}</p>
               </div>
             )}
           </div>
@@ -974,14 +986,14 @@ export default function UserProfilePage() {
               posts.map((post, index) => (
                 <FadeIn key={post.id} delay={index * 0.05}>
                   <GlowBorder color="#e5e7eb" animated={false}  style={{ borderRadius: 12 }}>
-                    <div className="border-b border-gray-200 py-6 px-4 hover:bg-gray-50 transition-all cursor-pointer rounded-lg">
-                  <p className="text-gray-900 mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+                    <div className="border-b border-gray-200 dark:border-white/10 py-6 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer rounded-lg">
+                  <p className="text-gray-700 dark:text-slate-300 mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
 
                   {/* Post Images */}
                   {post.imageUrls && post.imageUrls.length > 0 && (
                     <div className={`grid gap-2 mb-4 rounded-2xl overflow-hidden ${post.imageUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                       {post.imageUrls.map((url, index) => (
-                        <div key={index} className="relative aspect-video bg-gray-100">
+                        <div key={index} className="relative aspect-video bg-gray-100 dark:bg-slate-800">
                           <img
                             src={url}
                             alt={`Post image ${index + 1}`}
@@ -993,7 +1005,7 @@ export default function UserProfilePage() {
                   )}
 
                   {/* Post Stats */}
-                  <div className="flex items-center gap-6 text-sm text-gray-500">
+                  <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-slate-400">
                     {post._count.likes > 0 ? (
                       <Pulse>
                         <span className="flex items-center gap-2 hover:text-red-500 hover:scale-110 transition-all cursor-pointer">
@@ -1045,7 +1057,7 @@ export default function UserProfilePage() {
                         {post._count.reposts}
                       </span>
                     )}
-                    <span className="ml-auto text-xs text-gray-400">
+                    <span className="ml-auto text-xs text-slate-500">
                       {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                   </div>
@@ -1055,17 +1067,28 @@ export default function UserProfilePage() {
               ))
             ) : (
               <div className="text-center py-16">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200 dark:border-white/10">
+                  <svg className="w-8 h-8 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <p className="text-gray-500">{t('noPosts')}</p>
+                <p className="text-gray-600 dark:text-slate-400">{t('noPosts')}</p>
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Report Modal */}
+      {!isOwnProfile && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          contentType="user"
+          contentId={userId}
+          contentPreview={viewedUser.name}
+        />
+      )}
     </div>
   )
 }

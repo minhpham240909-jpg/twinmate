@@ -168,7 +168,7 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading notes...</div>
+        <div className="text-slate-400">Loading notes...</div>
       </div>
     )
   }
@@ -177,23 +177,23 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold">Shared Notes</h3>
+        <h3 className="text-xl font-semibold text-white">Shared Notes</h3>
         <div className="flex items-center gap-3">
           {saving && (
-            <span className="text-sm text-gray-500 flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-slate-400 flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               Saving...
             </span>
           )}
           {lastSaved && !saving && (
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-slate-400">
               Last saved: {new Date(lastSaved).toLocaleTimeString()}
             </span>
           )}
           <button
             onClick={handleManualSave}
             disabled={saving}
-            className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg font-medium transition-colors"
+            className="px-4 py-2 text-sm bg-blue-600/80 hover:bg-blue-600 disabled:bg-blue-600/30 text-white rounded-lg font-medium transition-colors backdrop-blur-sm"
           >
             Save Now
           </button>
@@ -202,18 +202,18 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
 
       {/* Conflict Warning */}
       {conflictWarning && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center justify-between backdrop-blur-sm">
           <div>
-            <p className="text-sm font-medium text-yellow-800">
+            <p className="text-sm font-medium text-yellow-400">
               This note was updated by another user
             </p>
-            <p className="text-xs text-yellow-600">
+            <p className="text-xs text-yellow-500/80">
               Your changes may conflict with theirs. Click refresh to see the latest version.
             </p>
           </div>
           <button
             onClick={handleRefresh}
-            className="px-3 py-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors"
+            className="px-3 py-1 text-sm bg-yellow-600/80 hover:bg-yellow-600 text-white rounded transition-colors backdrop-blur-sm"
           >
             Refresh
           </button>
@@ -222,14 +222,14 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm">
+        <div className="p-4 bg-red-500/10 text-red-400 rounded-lg text-sm border border-red-500/30 backdrop-blur-sm">
           {error}
         </div>
       )}
 
       {/* Note Info */}
       {note && note.lastEditedBy && (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-slate-400">
           Last edited {new Date(note.lastEditedAt).toLocaleString()} • Version {note.version}
         </div>
       )}
@@ -241,7 +241,7 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
           placeholder="Note Title"
-          className="w-full px-4 py-3 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 text-lg font-semibold bg-slate-800/40 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-xl"
         />
       </div>
 
@@ -251,28 +251,28 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
           value={content}
           onChange={(e) => handleContentChange(e.target.value)}
           placeholder="Start typing your notes here... (Markdown supported)"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
+          className="w-full px-4 py-3 bg-slate-800/40 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none font-mono text-sm backdrop-blur-xl"
           rows={20}
         />
-        <div className="mt-2 text-xs text-gray-500">
+        <div className="mt-2 text-xs text-slate-400">
           💡 Tip: Changes are automatically saved as you type. Notes are shared with all session participants.
         </div>
       </div>
 
       {/* Formatting Help */}
       <details className="text-sm">
-        <summary className="cursor-pointer text-gray-600 hover:text-gray-900 font-medium">
+        <summary className="cursor-pointer text-slate-300 hover:text-white font-medium">
           Markdown Formatting Guide
         </summary>
-        <div className="mt-3 p-4 bg-gray-50 rounded-lg space-y-2 text-xs text-gray-600">
-          <div><code className="bg-gray-200 px-2 py-1 rounded"># Heading 1</code> - Large heading</div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">## Heading 2</code> - Medium heading</div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">**bold**</code> - <strong>Bold text</strong></div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">*italic*</code> - <em>Italic text</em></div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">- Item</code> - Bullet list</div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">1. Item</code> - Numbered list</div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">`code`</code> - Inline code</div>
-          <div><code className="bg-gray-200 px-2 py-1 rounded">```code block```</code> - Code block</div>
+        <div className="mt-3 p-4 bg-slate-800/40 backdrop-blur-sm rounded-lg space-y-2 text-xs text-slate-400 border border-slate-700/50">
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300"># Heading 1</code> - Large heading</div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">## Heading 2</code> - Medium heading</div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">**bold**</code> - <strong>Bold text</strong></div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">*italic*</code> - <em>Italic text</em></div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">- Item</code> - Bullet list</div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">1. Item</code> - Numbered list</div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">`code`</code> - Inline code</div>
+          <div><code className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">```code block```</code> - Code block</div>
         </div>
       </details>
     </div>

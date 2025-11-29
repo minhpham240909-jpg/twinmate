@@ -71,15 +71,15 @@ export function EmailVerificationBanner() {
   }
 
   return (
-    <div className="bg-yellow-50 border-b border-yellow-200">
+    <div className="bg-yellow-500/10 backdrop-blur-md border-b border-yellow-500/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="flex-shrink-0">
-              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <AlertCircle className="h-5 w-5 text-yellow-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-yellow-800">
+              <p className="text-sm text-yellow-100">
                 <span className="font-medium">Email verification required.</span>{' '}
                 Please verify your email address to access all features. Check your inbox for the verification link.
               </p>
@@ -90,7 +90,7 @@ export function EmailVerificationBanner() {
             <button
               onClick={handleResend}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-yellow-800 bg-yellow-100 border border-yellow-300 rounded-lg hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-yellow-100 bg-yellow-600/30 backdrop-blur-sm border border-yellow-500/40 rounded-lg hover:bg-yellow-600/40 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Mail className="h-4 w-4" />
               {loading ? 'Sending...' : 'Resend Email'}
@@ -98,7 +98,7 @@ export function EmailVerificationBanner() {
 
             <button
               onClick={() => setDismissed(true)}
-              className="inline-flex items-center justify-center p-1.5 text-yellow-600 hover:bg-yellow-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
+              className="inline-flex items-center justify-center p-1.5 text-yellow-300 hover:bg-yellow-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-colors backdrop-blur-sm"
               aria-label="Dismiss"
             >
               <X className="h-5 w-5" />

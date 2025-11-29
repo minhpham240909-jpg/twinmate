@@ -3,11 +3,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { getOrSetCached, userProfileKey, CACHE_TTL } from '@/lib/cache'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  // SECURITY: Rate limit profile views to prevent scraping
+  const rateLimitResult = await rateLimit(request, {
+    ...RateLimitPresets.lenient, // 100 requests per minute
+    keyPrefix: 'profile-view',
+  })
+  
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const { userId } = await params
 
@@ -40,6 +54,7 @@ export async function GET(
           avatarUrl: true,
           coverPhotoUrl: true,
           role: true,
+          isAdmin: true,
           profile: true,
           createdAt: true,
           presence: {
@@ -63,6 +78,7 @@ export async function GET(
             // @ts-ignore - coverPhotoUrl exists in schema but Prisma client needs regeneration
             coverPhotoUrl: true,
             role: true,
+            isAdmin: true,
             profile: true,
           createdAt: true,
         },
@@ -108,6 +124,7 @@ export async function GET(
             name: true,
             avatarUrl: true,
             role: true,
+            isAdmin: true,
             profile: true,
             createdAt: true,
             presence: {
@@ -342,6 +359,7 @@ export async function GET(
         avatarUrl: dbUser.avatarUrl,
         coverPhotoUrl: dbUser.coverPhotoUrl || null,
         role: dbUser.role,
+        isAdmin: dbUser.isAdmin || false,
         onlineStatus,
       },
       profile: sanitizedProfile || null,

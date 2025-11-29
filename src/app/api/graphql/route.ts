@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/server'
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  introspection: true, // Enable GraphQL Playground in development
+  // SECURITY: Only enable introspection in development - prevents API structure exposure
+  introspection: process.env.NODE_ENV === 'development',
 })
 
 const handler = startServerAndCreateNextHandler<NextRequest>(server, {

@@ -285,10 +285,10 @@ export default function SessionRoomPage() {
 
   if (loading || loadingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('loadingSession')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 dark:text-slate-300">{t('loadingSession')}</p>
         </div>
       </div>
     )
@@ -312,38 +312,38 @@ export default function SessionRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={handleBackArrowClick}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 p-2 rounded-lg transition"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-blue-600">{session.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{session.title}</h1>
                 {session.description && (
-                  <p className="text-sm text-gray-600">{session.description}</p>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">{session.description}</p>
                 )}
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 text-xs rounded-full ${
-                  session.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                  session.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' :
-                  'bg-gray-100 text-gray-700'
+                <span className={`px-3 py-1 text-xs rounded-full border ${
+                  session.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                  session.status === 'SCHEDULED' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                  'bg-slate-700 text-slate-300'
                 }`}>
                   {session.status}
                 </span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-slate-300">
                   {session.participants.length} / {session.maxParticipants} participants
                 </span>
                 <PresenceIndicator sessionId={sessionId} />
@@ -356,7 +356,7 @@ export default function SessionRoomPage() {
                     setActiveSessionId(sessionId)
                     router.push('/dashboard')
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition text-sm"
                 >
                   {t('goToDashboard')}
                 </button>
@@ -382,15 +382,15 @@ export default function SessionRoomPage() {
             <div className="col-span-2">
               <FadeIn delay={0.1}>
                 <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                  <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden shadow-lg dark:shadow-none">
                     {/* Tabs */}
-                    <nav className="flex overflow-x-auto border-b border-gray-200">
+                    <nav className="flex overflow-x-auto border-b border-gray-200 dark:border-white/10">
                       <button
                         onClick={() => setActiveTab('timer')}
                         className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all hover:scale-105 ${
                           activeTab === 'timer'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-600 hover:text-gray-900'
+                            ? 'text-blue-400 border-b-2 border-blue-400'
+                            : 'text-slate-400 hover:text-white'
                         }`}
                       >
                         ⏱️ {t('timer')}
@@ -399,8 +399,8 @@ export default function SessionRoomPage() {
                     onClick={() => setActiveTab('chat')}
                     className={`px-6 py-4 text-sm font-medium relative whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'chat'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     💬 {t('chat')}
@@ -416,8 +416,8 @@ export default function SessionRoomPage() {
                     onClick={() => setActiveTab('goals')}
                     className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'goals'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     {t('goals')} ({session.goals.filter(g => g.isCompleted).length}/{session.goals.length})
@@ -426,8 +426,8 @@ export default function SessionRoomPage() {
                     onClick={() => setActiveTab('participants')}
                     className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'participants'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     {t('participants')} ({session.participants.length})
@@ -436,8 +436,8 @@ export default function SessionRoomPage() {
                     onClick={() => setActiveTab('flashcards')}
                     className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'flashcards'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     📚 Flashcards
@@ -446,8 +446,8 @@ export default function SessionRoomPage() {
                     onClick={() => setActiveTab('notes')}
                     className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'notes'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     📝 Notes
@@ -456,8 +456,8 @@ export default function SessionRoomPage() {
                     onClick={() => setActiveTab('whiteboard')}
                     className={`px-6 py-4 text-sm font-medium whitespace-nowrap flex-shrink-0 ${
                       activeTab === 'whiteboard'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'text-blue-400 border-b-2 border-blue-400'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     🎨 Whiteboard
@@ -490,12 +490,12 @@ export default function SessionRoomPage() {
 
                   {activeTab === 'participants' && (
                     <div>
-                      <h3 className="text-lg font-semibold mb-4">{t('participants')}</h3>
+                      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('participants')}</h3>
                       <div className="space-y-3">
                         {session.participants.map(participant => (
                           <div
                             key={participant.id}
-                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                            className="flex items-center gap-3 p-3 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition shadow-lg dark:shadow-none"
                           >
                             {participant.avatarUrl ? (
                               <img
@@ -509,13 +509,13 @@ export default function SessionRoomPage() {
                               </div>
                             )}
                             <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{participant.name}</h4>
-                              <p className="text-xs text-gray-500">{participant.role}</p>
+                              <h4 className="font-medium text-gray-900 dark:text-white">{participant.name}</h4>
+                              <p className="text-xs text-gray-600 dark:text-slate-400">{participant.role}</p>
                             </div>
                             {onlineUsers.has(participant.userId) ? (
                               <span className="w-2 h-2 bg-green-500 rounded-full" title={tCommon('online')}></span>
                             ) : (
-                              <span className="w-2 h-2 bg-gray-300 rounded-full" title={tCommon('offline')}></span>
+                              <span className="w-2 h-2 bg-slate-600 rounded-full" title={tCommon('offline')}></span>
                             )}
                           </div>
                         ))}
@@ -542,24 +542,24 @@ export default function SessionRoomPage() {
 
             {/* Sidebar */}
             <div className="col-span-1">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">{t('sessionInfo')}</h3>
+              <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 shadow-lg dark:shadow-none">
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('sessionInfo')}</h3>
 
                 <div className="space-y-4">
                   {session.subject && (
                     <div>
-                      <p className="text-sm text-gray-500">{t('subject')}</p>
-                      <p className="font-medium text-gray-900">{session.subject}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400">{t('subject')}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{session.subject}</p>
                     </div>
                   )}
 
                   <div>
-                    <p className="text-sm text-gray-500">{t('type')}</p>
-                    <p className="font-medium text-gray-900">{session.type.replace('_', ' ')}</p>
+                    <p className="text-sm text-gray-600 dark:text-slate-400">{t('type')}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{session.type.replace('_', ' ')}</p>
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-500">{t('host')}</p>
+                    <p className="text-sm text-gray-600 dark:text-slate-400">{t('host')}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {session.createdBy.avatarUrl ? (
                         <img
@@ -572,18 +572,18 @@ export default function SessionRoomPage() {
                           {session.createdBy.name[0]}
                         </div>
                       )}
-                      <p className="font-medium text-gray-900">{session.createdBy.name}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{session.createdBy.name}</p>
                     </div>
                   </div>
 
                   {session.tags.length > 0 && (
                     <div>
-                      <p className="text-sm text-gray-500 mb-2">{t('tags')}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-2">{t('tags')}</p>
                       <div className="flex flex-wrap gap-2">
                         {session.tags.map((tag, index) => (
                           <span
                             key={index}
-                            className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
+                            className="px-2 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-full"
                           >
                             {tag}
                           </span>
@@ -593,8 +593,8 @@ export default function SessionRoomPage() {
                   )}
 
                   <div>
-                    <p className="text-sm text-gray-500">{t('started')}</p>
-                    <p className="font-medium text-gray-900">
+                    <p className="text-sm text-gray-600 dark:text-slate-400">{t('started')}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
                       {new Date(session.startedAt).toLocaleString()}
                     </p>
                   </div>
@@ -602,8 +602,8 @@ export default function SessionRoomPage() {
               </div>
 
               {/* Session Timer - Small Display (Read-only) */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">{t('timer')}</h3>
+              <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 mt-6 shadow-lg dark:shadow-none">
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('timer')}</h3>
                 <SessionTimer
                   sessionId={sessionId}
                   isHost={isHost}
@@ -613,13 +613,13 @@ export default function SessionRoomPage() {
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">{t('quickActions')}</h3>
+              <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 mt-6 shadow-lg dark:shadow-none">
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('quickActions')}</h3>
                 <div className="space-y-2">
                   {isHost && (
                     <button
                       onClick={() => setShowInviteModal(true)}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition text-sm"
                     >
                       👥 {t('invitePartnersAction')}
                     </button>
@@ -638,13 +638,13 @@ export default function SessionRoomPage() {
                         toast('Join the video call first to share your screen')
                       }
                     }}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                    className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition text-sm"
                   >
                     🖥️ {t('shareScreen')}
                   </button>
                   <button
                     onClick={() => setActiveTab('goals')}
-                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
+                    className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition text-sm"
                   >
                     ✅ {t('viewGoals')}
                   </button>
@@ -669,17 +669,17 @@ export default function SessionRoomPage() {
 
       {/* Leave Session Confirmation Modal */}
       {showLeaveModal && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('leaveSessionTitle')}</h2>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl max-w-md w-full p-6 shadow-lg dark:shadow-none">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('leaveSessionTitle')}</h2>
+            <p className="text-gray-700 dark:text-slate-300 mb-6">
               {t('leaveSessionMessage')}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLeaveModal(false)}
                 disabled={isLeaving}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
               >
                 {tCommon('cancel')}
               </button>
@@ -809,11 +809,11 @@ function InvitePartnersModal({
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl max-w-md w-full p-6 my-8">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-slate-900 border border-white/10 rounded-xl max-w-md w-full p-6 my-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">{t('invitePartnersModal')}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-xl font-bold text-white">{t('invitePartnersModal')}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -827,38 +827,38 @@ function InvitePartnersModal({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={t('searchPartnersModal')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 bg-slate-800 border border-white/10 text-white placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
           {/* Selected count */}
           {selectedInvites.length > 0 && (
-            <p className="text-sm text-blue-600">
+            <p className="text-sm text-blue-400">
               {selectedInvites.length} {selectedInvites.length > 1 ? t('partnersSelected') : t('partnerSelected')}
             </p>
           )}
 
           {/* Partners and Group Members List */}
-          <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+          <div className="max-h-96 overflow-y-auto border border-white/10 rounded-lg bg-slate-800/50">
             {loadingInvites ? (
-              <p className="p-4 text-sm text-gray-500 text-center">{tCommon('loading')}</p>
+              <p className="p-4 text-sm text-slate-400 text-center">{tCommon('loading')}</p>
             ) : (
               <>
                 {/* Study Partners Section */}
                 {filteredPartners.length > 0 && (
                   <div>
-                    <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                    <p className="px-3 py-2 text-xs font-semibold text-slate-400 bg-slate-800 sticky top-0">
                       {t('studyPartners')}
                     </p>
                     {filteredPartners.map((partner) => (
                       <label
                         key={partner.id}
-                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-slate-700/50 cursor-pointer transition"
                       >
                         <input
                           type="checkbox"
                           checked={selectedInvites.includes(partner.id)}
                           onChange={() => toggleInvite(partner.id)}
-                          className="w-4 h-4 text-blue-600"
+                          className="w-4 h-4 text-blue-600 bg-slate-700 border-white/10 rounded"
                         />
                         {partner.avatarUrl ? (
                           <img
@@ -872,8 +872,8 @@ function InvitePartnersModal({
                           </div>
                         )}
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{partner.name}</p>
-                          <p className="text-xs text-gray-500">{partner.email}</p>
+                          <p className="text-sm font-medium text-white">{partner.name}</p>
+                          <p className="text-xs text-slate-400">{partner.email}</p>
                         </div>
                       </label>
                     ))}
@@ -883,19 +883,19 @@ function InvitePartnersModal({
                 {/* Group Members Section */}
                 {filteredGroupMembers.length > 0 && (
                   <div>
-                    <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                    <p className="px-3 py-2 text-xs font-semibold text-slate-400 bg-slate-800 sticky top-0">
                       {t('groupMembers')}
                     </p>
                     {filteredGroupMembers.map((member) => (
                       <label
                         key={member.id}
-                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-slate-700/50 cursor-pointer transition"
                       >
                         <input
                           type="checkbox"
                           checked={selectedInvites.includes(member.id)}
                           onChange={() => toggleInvite(member.id)}
-                          className="w-4 h-4 text-blue-600"
+                          className="w-4 h-4 text-blue-600 bg-slate-700 border-white/10 rounded"
                         />
                         {member.avatarUrl ? (
                           <img
@@ -909,8 +909,8 @@ function InvitePartnersModal({
                           </div>
                         )}
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                          <p className="text-xs text-gray-500">{member.email}</p>
+                          <p className="text-sm font-medium text-white">{member.name}</p>
+                          <p className="text-xs text-slate-400">{member.email}</p>
                         </div>
                       </label>
                     ))}
@@ -919,7 +919,7 @@ function InvitePartnersModal({
 
                 {/* No results */}
                 {filteredPartners.length === 0 && filteredGroupMembers.length === 0 && (
-                  <p className="p-4 text-sm text-gray-500 text-center">
+                  <p className="p-4 text-sm text-slate-400 text-center">
                     {searchTerm ? t('noMatches') : t('noPartnersAvailable')}
                   </p>
                 )}
@@ -931,14 +931,14 @@ function InvitePartnersModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+            className="flex-1 px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-slate-800 transition"
           >
             {tCommon('cancel')}
           </button>
           <button
             onClick={handleInvite}
             disabled={inviting || selectedInvites.length === 0}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50"
           >
             {inviting ? t('inviting') : t('invite')}
           </button>

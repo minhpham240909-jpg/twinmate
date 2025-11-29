@@ -478,10 +478,10 @@ function PartnersChatContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -490,20 +490,20 @@ function PartnersChatContent() {
   if (!user) return null
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="h-screen bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 flex-shrink-0">
+      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/chat')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-gray-700 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               {tChat('partnerChat')}
             </h1>
           </div>
@@ -513,9 +513,9 @@ function PartnersChatContent() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Partner List Sidebar */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-80 bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-white/10 flex flex-col overflow-hidden">
           {/* Search Bar */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-white/10">
             <PartnerSearchBar onConversationSelect={handleSearchConversationSelect} />
           </div>
 
@@ -523,20 +523,20 @@ function PartnersChatContent() {
           <div className="flex-1 overflow-y-auto">
             {loadingConversations ? (
               <div className="p-8 text-center">
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">{tCommon('loading')}</p>
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
               </div>
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-600">{t('noConversationsYet')}</p>
+                <p className="text-sm text-gray-700 dark:text-slate-300">{t('noConversationsYet')}</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-200 dark:divide-white/5">
                 {conversations.map((conv, index) => (
                   <FastFadeIn key={conv.id} delay={index * 0.02} direction="right">
                     {conv.unreadCount > 0 ? (
@@ -546,8 +546,8 @@ function PartnersChatContent() {
                             handleSelectConversation(conv)
                             router.push(`/chat/partners?conversation=${conv.id}`)
                           }}
-                          className={`w-full p-4 text-left hover:bg-gray-50 transition ${
-                            selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                          className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-slate-800 transition ${
+                            selectedConversation?.id === conv.id ? 'bg-blue-100 dark:bg-blue-500/10 border-l-4 border-blue-500' : ''
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -560,14 +560,14 @@ function PartnersChatContent() {
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
-                                <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
+                                <h3 className="font-semibold text-gray-900 dark:text-white truncate">{conv.name}</h3>
+                                <span className="text-xs text-gray-600 dark:text-slate-400">{formatTime(conv.lastMessageTime)}</span>
                               </div>
                               <div className="flex items-center justify-between">
-                                <p className="text-sm text-gray-600 truncate">{conv.lastMessage || t('noMessages')}</p>
+                                <p className="text-sm text-gray-700 dark:text-slate-300 truncate">{conv.lastMessage || t('noMessages')}</p>
                                 {conv.unreadCount > 0 && (
                                   <FastPulse>
-                                    <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-bold">
+                                    <span className="ml-2 px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs rounded-full font-bold">
                                       {conv.unreadCount}
                                     </span>
                                   </FastPulse>
@@ -583,8 +583,8 @@ function PartnersChatContent() {
                           handleSelectConversation(conv)
                           router.push(`/chat/partners?conversation=${conv.id}`)
                         }}
-                        className={`w-full p-4 text-left hover:bg-gray-50 transition ${
-                          selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                        className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-slate-800 transition ${
+                          selectedConversation?.id === conv.id ? 'bg-blue-100 dark:bg-blue-500/10 border-l-4 border-blue-500' : ''
                         }`}
                       >
                         <div className="flex items-start gap-3">
@@ -597,11 +597,11 @@ function PartnersChatContent() {
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <h3 className="font-semibold text-gray-900 truncate">{conv.name}</h3>
-                              <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
+                              <h3 className="font-semibold text-gray-900 dark:text-white truncate">{conv.name}</h3>
+                              <span className="text-xs text-gray-600 dark:text-slate-400">{formatTime(conv.lastMessageTime)}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <p className="text-sm text-gray-600 truncate">{conv.lastMessage || t('noMessages')}</p>
+                              <p className="text-sm text-gray-700 dark:text-slate-300 truncate">{conv.lastMessage || t('noMessages')}</p>
                             </div>
                           </div>
                         </div>
@@ -615,11 +615,11 @@ function PartnersChatContent() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-950">
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="flex-shrink-0 p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+              <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between bg-gray-50 dark:bg-slate-900">
                 <div className="flex items-center gap-3">
                   <PartnerAvatar
                     avatarUrl={selectedConversation.avatarUrl}
@@ -629,8 +629,8 @@ function PartnersChatContent() {
                     showStatus={true}
                   />
                   <div>
-                    <h3 className="font-semibold text-gray-900">{selectedConversation.name}</h3>
-                    <p className="text-xs text-gray-500">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConversation.name}</h3>
+                    <p className="text-xs text-gray-600 dark:text-slate-400">
                       {selectedConversation.onlineStatus === 'ONLINE' ? t('online') : t('offline')}
                     </p>
                   </div>
@@ -639,7 +639,7 @@ function PartnersChatContent() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => startCall('AUDIO')}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
                       title={t('audioCall')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -648,7 +648,7 @@ function PartnersChatContent() {
                     </button>
                     <button
                       onClick={() => startCall('VIDEO')}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
                       title={t('videoCall')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,13 +680,13 @@ function PartnersChatContent() {
                     <div ref={messagesContainerRef} className="h-full overflow-y-auto overflow-x-hidden p-4">
                       {loadingMessages ? (
                         <div className="flex items-center justify-center h-full">
-                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       ) : messages.length === 0 ? (
                         <div className="flex items-center justify-center h-full">
                           <div className="text-center">
-                            <p className="text-gray-500">{t('noMessages')}</p>
-                            <p className="text-sm text-gray-400 mt-1">{t('sendMessageToStart')}</p>
+                            <p className="text-gray-700 dark:text-slate-300">{t('noMessages')}</p>
+                            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{t('sendMessageToStart')}</p>
                           </div>
                         </div>
                       ) : (
@@ -697,11 +697,11 @@ function PartnersChatContent() {
                               <button
                                 onClick={loadMoreMessages}
                                 disabled={loadingMoreMessages}
-                                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 text-sm bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-white/10 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
                               >
                                 {loadingMoreMessages ? (
                                   <>
-                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="w-4 h-4 border-2 border-gray-600 dark:border-slate-400 border-t-transparent rounded-full animate-spin"></div>
                                     {tCommon('loading')}
                                   </>
                                 ) : (
@@ -726,13 +726,13 @@ function PartnersChatContent() {
 
                               return (
                                 <div key={msg.id} className="flex justify-center">
-                                  <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-center">
+                                  <div className="bg-gray-100 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 rounded-lg px-4 py-3 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                       <span className="text-lg">{callIcon}</span>
-                                      <p className="text-sm text-gray-700 font-medium">{msg.content}</p>
+                                      <p className="text-sm text-gray-700 dark:text-slate-300 font-medium">{msg.content}</p>
                                       <span className="text-lg">{callStatusIcon}</span>
                                     </div>
-                                    <span className="text-xs text-gray-500 mt-1 block">
+                                    <span className="text-xs text-gray-600 dark:text-slate-400 mt-1 block">
                                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   </div>
@@ -750,10 +750,10 @@ function PartnersChatContent() {
                                     <div
                                       className={`rounded-2xl px-4 py-2 ${
                                         isDeleted
-                                          ? 'bg-gray-200 text-gray-500 italic'
+                                          ? 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-500 italic border border-gray-200 dark:border-white/10'
                                           : isOwnMessage
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-100 text-gray-900'
+                                          ? 'bg-blue-100 dark:bg-blue-900/30 text-gray-900 dark:text-white'
+                                          : 'bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-slate-300 border border-gray-200 dark:border-white/10'
                                       } ${!isDeleted && canDelete ? 'cursor-pointer' : ''}`}
                                       onClick={() => {
                                         if (!isDeleted && canDelete) {
@@ -764,7 +764,7 @@ function PartnersChatContent() {
                                       <p className="text-sm whitespace-pre-wrap break-words">
                                         {isDeleted ? t('messageDeleted') : msg.content}
                                       </p>
-                                      <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-blue-200' : 'text-gray-500'}`}>
+                                      <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-gray-600 dark:text-blue-100' : 'text-gray-600 dark:text-slate-400'}`}>
                                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                       </span>
 
@@ -796,7 +796,7 @@ function PartnersChatContent() {
                         <div className="absolute bottom-4 right-4 z-10">
                           <button
                             onClick={scrollToBottom}
-                            className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+                            className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg text-white rounded-full shadow-lg flex items-center justify-center transition-all"
                           >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -808,7 +808,7 @@ function PartnersChatContent() {
                   </div>
 
                   {/* Message Input */}
-                  <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
+                  <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900">
                     <div className="flex items-center gap-2">
                       {/* Hidden file input */}
                       <input
@@ -823,11 +823,11 @@ function PartnersChatContent() {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingFile}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
+                        className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition disabled:opacity-50"
                         title="Attach file or image"
                       >
                         {uploadingFile ? (
-                          <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-5 h-5 border-2 border-gray-600 dark:border-slate-400 border-t-transparent rounded-full animate-spin"></div>
                         ) : (
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -848,12 +848,12 @@ function PartnersChatContent() {
                           }
                         }}
                         placeholder={t('typeMessageHint')}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-2 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       <button
                         onClick={handleSendMessage}
                         disabled={!message.trim()}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -867,13 +867,13 @@ function PartnersChatContent() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('selectConversation')}</h3>
-                <p className="text-gray-600">{tChat('selectPartnerToStart')}</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('selectConversation')}</h3>
+                <p className="text-gray-700 dark:text-slate-300">{tChat('selectPartnerToStart')}</p>
               </div>
             </div>
           )}
@@ -886,10 +886,10 @@ function PartnersChatContent() {
 export default function PartnersChatPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     }>

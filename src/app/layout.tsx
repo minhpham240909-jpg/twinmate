@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import { AuthProvider } from "@/lib/auth/context";
 import { Toaster } from "react-hot-toast";
 import FloatingSessionButton from "@/components/FloatingSessionButton";
@@ -15,6 +16,7 @@ import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { PresenceProvider } from "@/components/presence/PresenceProvider";
 import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import { PostHogProvider } from "@/components/providers/PostHogProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,48 +59,52 @@ export default function RootLayout({
         <WebVitalsReporter />
         <GlobalErrorHandler />
         <ErrorBoundary>
-          <ThemeProvider>
-            <NetworkProvider>
-              <AuthProvider>
-                <SettingsProvider>
-                  <IntlProvider>
-                    <PresenceProvider>
-                      <BackgroundSessionProvider>
-                        <OfflineIndicator />
-                        {children}
-                        <FloatingSessionButton />
-                        <IncomingCallModal />
-                      <Toaster
-                      position="top-right"
-                      toastOptions={{
-                        duration: 4000,
-                        style: {
-                          background: '#363636',
-                          color: '#fff',
-                        },
-                        success: {
-                          duration: 3000,
-                          iconTheme: {
-                            primary: '#10b981',
-                            secondary: '#fff',
-                          },
-                        },
-                        error: {
-                          duration: 4000,
-                          iconTheme: {
-                            primary: '#ef4444',
-                            secondary: '#fff',
-                          },
-                        },
-                      }}
-                      />
-                      </BackgroundSessionProvider>
-                    </PresenceProvider>
-                  </IntlProvider>
-                </SettingsProvider>
-              </AuthProvider>
-            </NetworkProvider>
-          </ThemeProvider>
+          <Suspense fallback={null}>
+            <PostHogProvider>
+              <ThemeProvider>
+                <NetworkProvider>
+                  <AuthProvider>
+                    <SettingsProvider>
+                      <IntlProvider>
+                        <PresenceProvider>
+                          <BackgroundSessionProvider>
+                            <OfflineIndicator />
+                            {children}
+                            <FloatingSessionButton />
+                            <IncomingCallModal />
+                            <Toaster
+                              position="top-right"
+                              toastOptions={{
+                                duration: 4000,
+                                style: {
+                                  background: '#363636',
+                                  color: '#fff',
+                                },
+                                success: {
+                                  duration: 3000,
+                                  iconTheme: {
+                                    primary: '#10b981',
+                                    secondary: '#fff',
+                                  },
+                                },
+                                error: {
+                                  duration: 4000,
+                                  iconTheme: {
+                                    primary: '#ef4444',
+                                    secondary: '#fff',
+                                  },
+                                },
+                              }}
+                            />
+                          </BackgroundSessionProvider>
+                        </PresenceProvider>
+                      </IntlProvider>
+                    </SettingsProvider>
+                  </AuthProvider>
+                </NetworkProvider>
+              </ThemeProvider>
+            </PostHogProvider>
+          </Suspense>
         </ErrorBoundary>
       </body>
     </html>

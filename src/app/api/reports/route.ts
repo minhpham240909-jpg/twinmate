@@ -1,0 +1,217 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
+import { ReportType } from '@prisma/client'
+
+// POST /api/reports - Create a new report
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { contentType, contentId, reportedUserId, type, description } = body
+
+    // Validate required fields
+    if (!contentType || !contentId || !type) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields: contentType, contentId, type' },
+        { status: 400 }
+      )
+    }
+
+    // Validate content type
+    const validContentTypes = ['user', 'post', 'message', 'group', 'comment']
+    if (!validContentTypes.includes(contentType)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid content type' },
+        { status: 400 }
+      )
+    }
+
+    // Validate report type
+    const validTypes: ReportType[] = ['SPAM', 'HARASSMENT', 'INAPPROPRIATE_CONTENT', 'FAKE_ACCOUNT', 'SCAM', 'HATE_SPEECH', 'VIOLENCE', 'OTHER']
+    if (!validTypes.includes(type)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid report type' },
+        { status: 400 }
+      )
+    }
+
+    // Get the database user
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+      select: { id: true },
+    })
+
+    if (!dbUser) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+    }
+
+    // Prevent self-reporting
+    if (contentType === 'user' && contentId === dbUser.id) {
+      return NextResponse.json(
+        { success: false, error: 'You cannot report yourself' },
+        { status: 400 }
+      )
+    }
+
+    // Check if user already reported this content
+    const existingReport = await prisma.report.findFirst({
+      where: {
+        reporterId: dbUser.id,
+        contentType,
+        contentId,
+        status: 'PENDING',
+      },
+    })
+
+    if (existingReport) {
+      return NextResponse.json(
+        { success: false, error: 'You have already reported this content' },
+        { status: 400 }
+      )
+    }
+
+    // Validate the content exists based on type
+    let validContent = false
+    let actualReportedUserId = reportedUserId
+
+    switch (contentType) {
+      case 'user':
+        const reportedUser = await prisma.user.findUnique({
+          where: { id: contentId },
+          select: { id: true },
+        })
+        validContent = !!reportedUser
+        actualReportedUserId = contentId
+        break
+
+      case 'post':
+        const post = await prisma.post.findUnique({
+          where: { id: contentId },
+          select: { id: true, userId: true },
+        })
+        validContent = !!post
+        actualReportedUserId = post?.userId
+        break
+
+      case 'message':
+        // Messages can be DM or group messages (same model)
+        const message = await prisma.message.findUnique({
+          where: { id: contentId },
+          select: { id: true, senderId: true },
+        })
+        if (message) {
+          validContent = true
+          actualReportedUserId = message.senderId
+        }
+        break
+
+      case 'group':
+        const group = await prisma.group.findUnique({
+          where: { id: contentId },
+          select: { id: true, ownerId: true },
+        })
+        validContent = !!group
+        actualReportedUserId = group?.ownerId
+        break
+
+      case 'comment':
+        const comment = await prisma.postComment.findUnique({
+          where: { id: contentId },
+          select: { id: true, userId: true },
+        })
+        validContent = !!comment
+        actualReportedUserId = comment?.userId
+        break
+
+      default:
+        validContent = false
+    }
+
+    if (!validContent) {
+      return NextResponse.json(
+        { success: false, error: 'Content not found' },
+        { status: 404 }
+      )
+    }
+
+    // Create the report
+    const report = await prisma.report.create({
+      data: {
+        reporterId: dbUser.id,
+        reportedUserId: actualReportedUserId,
+        contentType,
+        contentId,
+        type: type as ReportType,
+        description: description || null,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Report submitted successfully',
+      reportId: report.id,
+    })
+  } catch (error) {
+    console.error('Error creating report:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to create report' },
+      { status: 500 }
+    )
+  }
+}
+
+// GET /api/reports - Get user's own reports
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+      select: { id: true },
+    })
+
+    if (!dbUser) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+    }
+
+    const reports = await prisma.report.findMany({
+      where: { reporterId: dbUser.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        contentType: true,
+        type: true,
+        status: true,
+        createdAt: true,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      reports,
+    })
+  } catch (error) {
+    console.error('Error fetching reports:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch reports' },
+      { status: 500 }
+    )
+  }
+}

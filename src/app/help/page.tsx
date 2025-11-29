@@ -143,24 +143,24 @@ export default function HelpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-16">
+      <div className="bg-gray-50 dark:bg-gradient-to-r dark:from-slate-800/80 dark:via-slate-700/80 dark:to-slate-800/80 backdrop-blur-xl text-gray-900 dark:text-white py-16 border-b border-gray-200 dark:border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold mb-4">Help & Support</h1>
-          <p className="text-xl text-blue-100 mb-8">
+          <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-slate-100">Help & Support</h1>
+          <p className="text-xl text-gray-700 dark:text-slate-300 mb-8">
             Find answers to common questions or get in touch with our support team
           </p>
-          
+
           {/* Search */}
           <div className="relative max-w-2xl">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-slate-400 h-5 w-5" />
             <input
               type="text"
               placeholder="Search for help..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-12 pr-4 py-3 rounded-lg bg-white dark:bg-slate-800/60 backdrop-blur-sm text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 border border-gray-300 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
             />
           </div>
         </div>
@@ -170,41 +170,41 @@ export default function HelpPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content - FAQs */}
           <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
-            
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-6">Frequently Asked Questions</h2>
+
             {filteredFaqs.length === 0 ? (
-              <div className="bg-white rounded-lg p-8 text-center">
-                <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No results found for "{searchQuery}"</p>
-                <p className="text-sm text-gray-500 mt-2">Try different keywords or contact support below</p>
+              <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-gray-200 dark:border-slate-700/50 rounded-lg p-8 text-center shadow-lg dark:shadow-none">
+                <HelpCircle className="h-12 w-12 text-gray-500 dark:text-slate-400 mx-auto mb-4" />
+                <p className="text-gray-900 dark:text-slate-300">No results found for "{searchQuery}"</p>
+                <p className="text-sm text-gray-600 dark:text-slate-400 mt-2">Try different keywords or contact support below</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {filteredFaqs.map((category, catIndex) => (
-                  <div key={catIndex} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                      <h3 className="font-semibold text-gray-900">{category.category}</h3>
+                  <div key={catIndex} className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-gray-200 dark:border-slate-700/50 rounded-lg shadow-xl dark:shadow-none overflow-hidden">
+                    <div className="bg-gray-100 dark:bg-slate-700/30 px-6 py-3 border-b border-gray-200 dark:border-slate-600/50">
+                      <h3 className="font-semibold text-gray-900 dark:text-slate-200">{category.category}</h3>
                     </div>
-                    <div className="divide-y divide-gray-200">
+                    <div className="divide-y divide-gray-200 dark:divide-slate-700/50">
                       {category.questions.map((faq, qIndex) => {
                         const faqId = catIndex * 100 + qIndex
                         const isExpanded = expandedFaq === faqId
-                        
+
                         return (
                           <div key={qIndex}>
                             <button
                               onClick={() => setExpandedFaq(isExpanded ? null : faqId)}
-                              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors"
                             >
-                              <span className="font-medium text-gray-900">{faq.q}</span>
+                              <span className="font-medium text-gray-900 dark:text-slate-200">{faq.q}</span>
                               {isExpanded ? (
-                                <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                                <ChevronUp className="h-5 w-5 text-gray-600 dark:text-slate-400 flex-shrink-0" />
                               ) : (
-                                <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                                <ChevronDown className="h-5 w-5 text-gray-600 dark:text-slate-400 flex-shrink-0" />
                               )}
                             </button>
                             {isExpanded && (
-                              <div className="px-6 pb-4 text-gray-600">
+                              <div className="px-6 pb-4 text-gray-700 dark:text-slate-300">
                                 {faq.a}
                               </div>
                             )}
@@ -221,19 +221,19 @@ export default function HelpPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Quick Links */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Quick Links</h3>
+            <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-gray-200 dark:border-slate-700/50 rounded-lg shadow-xl dark:shadow-none p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-200 mb-4">Quick Links</h3>
               <div className="space-y-3">
                 <a
                   href="/terms"
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                  className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                 >
                   <BookOpen className="h-5 w-5" />
                   Terms of Service
                 </a>
                 <a
                   href="/privacy"
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                  className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                 >
                   <BookOpen className="h-5 w-5" />
                   Privacy Policy
@@ -242,11 +242,11 @@ export default function HelpPage() {
             </div>
 
             {/* Contact Support */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Contact Support</h3>
+            <div className="bg-white dark:bg-slate-800/40 backdrop-blur-xl border border-gray-200 dark:border-slate-700/50 rounded-lg shadow-xl dark:shadow-none p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-200 mb-4">Contact Support</h3>
               <form onSubmit={handleSubmitContact} className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Name
                   </label>
                   <input
@@ -255,12 +255,12 @@ export default function HelpPage() {
                     required
                     value={contactForm.name}
                     onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-700/50 border border-gray-300 dark:border-slate-600/50 rounded-lg text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Email
                   </label>
                   <input
@@ -269,12 +269,12 @@ export default function HelpPage() {
                     required
                     value={contactForm.email}
                     onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-700/50 border border-gray-300 dark:border-slate-600/50 rounded-lg text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Subject
                   </label>
                   <input
@@ -283,12 +283,12 @@ export default function HelpPage() {
                     required
                     value={contactForm.subject}
                     onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-700/50 border border-gray-300 dark:border-slate-600/50 rounded-lg text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Message
                   </label>
                   <textarea
@@ -297,24 +297,24 @@ export default function HelpPage() {
                     rows={4}
                     value={contactForm.message}
                     onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-700/50 border border-gray-300 dark:border-slate-600/50 rounded-lg text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Mail className="h-5 w-5" />
                   {submitting ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
 
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700/50">
+                <p className="text-sm text-gray-700 dark:text-slate-300">
                   Or email us directly at{' '}
-                  <a href="mailto:support@clerva.com" className="text-blue-600 hover:text-blue-700">
+                  <a href="mailto:support@clerva.com" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                     support@clerva.com
                   </a>
                 </p>

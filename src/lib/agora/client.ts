@@ -59,14 +59,19 @@ export function createAgoraClient(): IAgoraRTCClient {
   const EXCEPTION_THROTTLE_MS = 1000 // Throttle exceptions to prevent spam
   
   client.on('exception', (event: any) => {
+    // Skip empty exceptions (common in Safari during normal WebRTC operation)
+    if (!event || (typeof event === 'object' && Object.keys(event).length === 0)) {
+      return
+    }
+
     const now = Date.now()
-    
+
     // Throttle exception logging to prevent infinite loops
     if (now - lastExceptionTime < EXCEPTION_THROTTLE_MS) {
       return // Skip this exception to prevent spam
     }
     lastExceptionTime = now
-    
+
     console.error('Agora SDK exception:', event)
     // Log CSP violations if detected
     if (event.msg && typeof event.msg === 'string' && event.msg.includes('CSP')) {

@@ -13,7 +13,6 @@ export default function SignInForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: true, // Default to true (better UX - most users want to stay logged in)
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,107 +22,44 @@ export default function SignInForm() {
     setError('')
     setLoading(true)
 
-    console.log('[SignIn] Starting signin process...')
-    console.log('[SignIn] Email:', formData.email)
-
     try {
-      // First check via API if account exists (provides better error messages)
-      console.log('[SignIn] Checking account existence via API...')
-      const apiResponse = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      })
-
-      const apiData = await apiResponse.json()
-
-      if (!apiResponse.ok) {
-        console.error('[SignIn] API error:', apiData.error)
-        setError(apiData.error || 'Invalid credentials')
-        setLoading(false)
-        return
-      }
-
-      // If API check passed, proceed with client-side Supabase signin
-      console.log('[SignIn] Calling Supabase signInWithPassword...')
+      // Sign in with Supabase client (single call, no double signin)
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       })
 
-      console.log('[SignIn] Supabase response:', {
-        hasUser: !!data.user,
-        hasSession: !!data.session,
-        error: signInError
-      })
-
       if (signInError) {
-        console.error('[SignIn] Authentication error:', signInError)
-        setError(signInError.message || 'Invalid credentials')
+        // Handle specific error cases
+        if (signInError.message?.includes('Invalid login credentials')) {
+          setError('Invalid email or password')
+        } else if (signInError.message?.includes('Email not confirmed')) {
+          setError('Please verify your email before signing in')
+        } else {
+          setError(signInError.message || 'Invalid credentials')
+        }
         setLoading(false)
         return
       }
 
       if (!data.user) {
-        console.error('[SignIn] No user returned from Supabase')
         setError('Sign in failed. Please try again.')
         setLoading(false)
         return
       }
 
-      console.log('[SignIn] ✅ Sign in successful! User:', data.user.email)
-
-      // Handle "Remember Me" functionality
-      if (data.session && !formData.rememberMe) {
-        console.log('[SignIn] Remember me is OFF - moving session to sessionStorage')
-        // User doesn't want to be remembered - use sessionStorage instead of localStorage
-        // This means the session will be cleared when the browser closes
-
-        try {
-          // Get the session data
-          const sessionData = {
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-            expires_at: data.session.expires_at,
-            expires_in: data.session.expires_in,
-            token_type: data.session.token_type,
-            user: data.session.user,
-          }
-
-          // Store in sessionStorage (will be cleared when browser closes)
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('sb-session', JSON.stringify(sessionData))
-
-            // Clear from localStorage to ensure session doesn't persist
-            const localStorageKeys = Object.keys(localStorage)
-            localStorageKeys.forEach(key => {
-              if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
-                localStorage.removeItem(key)
-              }
-            })
-          }
-        } catch (storageError) {
-          console.error('[SignIn] Error managing session storage:', storageError)
-          // Continue anyway - worst case they stay logged in (not critical)
-        }
-      } else {
-        console.log('[SignIn] Remember me is ON - session will persist in localStorage')
-        // rememberMe is true (default) - Supabase already stores in localStorage by default
-        // No action needed - the session will persist across browser restarts
-      }
-
-      console.log('[SignIn] Waiting for session to stabilize...')
+      // Session is stored in localStorage by default (persists across browser restarts)
       await new Promise(resolve => setTimeout(resolve, 300))
 
-      console.log('[SignIn] ✅ Redirecting to dashboard...')
+      // Check if user is admin to redirect to admin dashboard
+      const userCheckResponse = await fetch('/api/admin/check')
+      const userCheckData = await userCheckResponse.json()
+
+      const redirectUrl = userCheckData.isAdmin ? '/admin' : '/dashboard'
 
       // Force a full page navigation to ensure everything reloads
-      window.location.href = '/dashboard'
+      window.location.href = redirectUrl
     } catch (err) {
-      console.error('[SignIn] Unexpected error:', err)
       setError('Network error. Please try again.')
       setLoading(false)
     }
@@ -181,16 +117,7 @@ export default function SignInForm() {
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-                className="rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0 focus:ring-offset-transparent cursor-pointer"
-              />
-              <span className="ml-2 text-sm text-slate-300">Remember me</span>
-            </label>
+          <div className="flex items-center justify-end">
             <Link href="/auth/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
               Forgot password?
             </Link>

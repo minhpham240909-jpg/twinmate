@@ -67,11 +67,11 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
       case 'OWNER':
-        return 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300'
+        return 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
       case 'ADMIN':
-        return 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-300'
+        return 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
       default:
-        return 'bg-gray-100 text-gray-700 border border-gray-200'
+        return 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
     }
   }
 
@@ -82,14 +82,14 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
       <div className="flex items-center justify-center min-h-screen px-4 py-6">
         {/* Backdrop - lighter and more subtle */}
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
 
         {/* Modal - Professional Design */}
-        <div className="relative bg-white rounded-2xl shadow-2xl transform transition-all w-full max-w-md border border-gray-100">
+        <div className="relative bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-2xl transform transition-all w-full max-w-md border border-slate-700/50">
           {/* Header - Modern gradient */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5 rounded-t-2xl">
+          <div className="bg-gradient-to-r from-slate-700/80 to-slate-600/80 backdrop-blur-sm px-6 py-5 rounded-t-2xl border-b border-slate-700/50">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -98,9 +98,9 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
                   </svg>
                   <h3 className="text-lg font-bold text-white">Group Members</h3>
                 </div>
-                <p className="text-sm text-blue-100">{groupName}</p>
+                <p className="text-sm text-slate-300">{groupName}</p>
                 {!loading && (
-                  <p className="text-xs text-blue-200 mt-1">{members.length} {members.length === 1 ? 'member' : 'members'}</p>
+                  <p className="text-xs text-slate-400 mt-1">{members.length} {members.length === 1 ? 'member' : 'members'}</p>
                 )}
               </div>
               <button
@@ -118,17 +118,17 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
           <div className="px-4 py-4 max-h-[500px] overflow-y-auto">
             {loading ? (
               <div className="py-12 text-center">
-                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                <p className="text-sm text-gray-600 font-medium">{tCommon('loading')}</p>
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-sm text-slate-300 font-medium">{tCommon('loading')}</p>
               </div>
             ) : members.length === 0 ? (
               <div className="py-12 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-slate-700/40 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-600 font-medium">{t('noMembers')}</p>
+                <p className="text-sm text-slate-300 font-medium">{t('noMembers')}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -136,7 +136,7 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
                   <button
                     key={member.id}
                     onClick={() => handleViewProfile(member.id)}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all text-left group border border-transparent hover:border-blue-200 hover:shadow-md"
+                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-700/40 hover:backdrop-blur-sm rounded-xl transition-all text-left group border border-slate-700/30 hover:border-slate-600 hover:shadow-lg"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <div className="relative">
@@ -153,7 +153,7 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                        <p className="font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
                           {member.name}
                         </p>
                       </div>
@@ -162,14 +162,14 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
                           {member.role === 'OWNER' ? t('owner') : member.role === 'ADMIN' ? t('admin') : 'Member'}
                         </span>
                         {member.onlineStatus && (
-                          <span className={`text-xs font-medium ${member.onlineStatus === 'ONLINE' ? 'text-green-600' : 'text-gray-500'}`}>
+                          <span className={`text-xs font-medium ${member.onlineStatus === 'ONLINE' ? 'text-green-400' : 'text-slate-500'}`}>
                             {member.onlineStatus === 'ONLINE' ? '● Online' : '○ Offline'}
                           </span>
                         )}
                       </div>
                     </div>
                     <svg
-                      className="w-5 h-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0"
+                      className="w-5 h-5 text-slate-400 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -183,8 +183,8 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
           </div>
 
           {/* Footer - subtle info */}
-          <div className="px-6 py-3 bg-gray-50 rounded-b-2xl border-t border-gray-100">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="px-6 py-3 bg-slate-900/30 backdrop-blur-sm rounded-b-2xl border-t border-slate-700/50">
+            <p className="text-xs text-slate-400 text-center">
               Click on a member to view their profile
             </p>
           </div>

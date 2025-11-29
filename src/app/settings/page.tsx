@@ -34,7 +34,12 @@ import {
   RotateCcw,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  MessageCircleHeart,
+  Star,
+  Upload,
+  Image,
+  Trash2
 } from 'lucide-react'
 
 // Types
@@ -102,7 +107,7 @@ interface UserSettings {
   tagPrivacy?: 'EVERYONE' | 'CONNECTIONS' | 'NOBODY'
   contentFiltering?: string[]
   // Accessibility
-  theme?: 'LIGHT' | 'DARK' | 'SYSTEM'
+  theme?: 'LIGHT' | 'DARK'
   fontSize?: 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE'
   highContrast?: boolean
   reducedMotion?: boolean
@@ -133,6 +138,7 @@ type TabId =
   | 'data'
   | 'history'
   | 'integrations'
+  | 'feedback'
 
 export default function SettingsPage() {
   const { user, loading, profile } = useAuth()
@@ -290,14 +296,14 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [key]: value }))
 
     // Sync theme with global theme provider immediately
-    if (key === 'theme' && (value === 'LIGHT' || value === 'DARK' || value === 'SYSTEM')) {
-      setGlobalTheme(value)
+    if (key === 'theme' && (value === 'LIGHT' || value === 'DARK')) {
+      setGlobalTheme(value as 'LIGHT' | 'DARK')
     }
   }
 
   // Sync settings theme with global theme on load
   useEffect(() => {
-    if (settings.theme && (settings.theme === 'LIGHT' || settings.theme === 'DARK' || settings.theme === 'SYSTEM')) {
+    if (settings.theme && (settings.theme === 'LIGHT' || settings.theme === 'DARK')) {
       if (settings.theme !== currentTheme) {
         setGlobalTheme(settings.theme)
       }
@@ -379,7 +385,7 @@ export default function SettingsPage() {
         await refreshSettings()
 
         // Re-sync theme with ThemeContext after refresh
-        if (data.settings.theme && (data.settings.theme === 'LIGHT' || data.settings.theme === 'DARK' || data.settings.theme === 'SYSTEM')) {
+        if (data.settings.theme && (data.settings.theme === 'LIGHT' || data.settings.theme === 'DARK')) {
           setGlobalTheme(data.settings.theme)
         }
 
@@ -417,10 +423,10 @@ export default function SettingsPage() {
 
   if (loading || loadingSettings) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-slate-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -439,22 +445,15 @@ export default function SettingsPage() {
     { id: 'data', label: t('data'), icon: Database, color: 'from-slate-500 to-gray-500' },
     { id: 'history', label: 'History', icon: History, color: 'from-zinc-500 to-slate-500' },
     { id: 'integrations', label: t('integrations'), icon: Link2, color: 'from-cyan-500 to-blue-500' },
+    { id: 'feedback', label: t('feedback'), icon: MessageCircleHeart, color: 'from-emerald-500 to-teal-500' },
   ]
 
   const { effectiveTheme } = useTheme()
   
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      effectiveTheme === 'dark' 
-        ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-zinc-900' 
-        : 'bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20'
-    }`}>
+    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* Header */}
-      <header className={`backdrop-blur-lg border-b sticky top-0 z-50 shadow-sm transition-colors duration-300 ${
-        effectiveTheme === 'dark'
-          ? 'bg-gray-900/80 border-gray-700/50'
-          : 'bg-white/80 border-gray-200/50'
-      }`}>
+      <header className="backdrop-blur-xl bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-200/50 dark:border-slate-800/50 sticky top-0 z-50 shadow-sm transition-colors duration-300">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
@@ -462,25 +461,15 @@ export default function SettingsPage() {
                 onClick={() => router.push('/dashboard')}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`p-2 rounded-xl transition-colors duration-200 ${
-                  effectiveTheme === 'dark'
-                    ? 'hover:bg-gray-800'
-                    : 'hover:bg-gray-100/80'
-                }`}
+                className="p-2 rounded-xl hover:bg-gray-100/50 dark:hover:bg-slate-800/50 transition-colors duration-200"
               >
-                <ArrowLeft className={`w-5 h-5 transition-colors duration-300 ${
-                  effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                }`} />
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-300 transition-colors duration-300" />
               </motion.button>
               <div>
-                <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent ${
-                  effectiveTheme === 'dark' ? 'dark:text-blue-400' : ''
-                }`}>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   {t('title')}
                 </h1>
-                <p className={`text-xs mt-0.5 transition-colors duration-300 ${
-                  effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                }`}>
+                <p className="text-xs mt-0.5 text-gray-700 dark:text-slate-200 transition-colors duration-300">
                   Manage your account settings and preferences
                 </p>
               </div>
@@ -514,7 +503,7 @@ export default function SettingsPage() {
                         disabled={saving}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium shadow-md"
+                        className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-gray-900 dark:text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium shadow-md"
                       >
                         {saving ? (
                           <>
@@ -543,11 +532,7 @@ export default function SettingsPage() {
           <aside className="w-full lg:w-72 flex-shrink-0">
             <FadeIn delay={0.1}>
               <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
-                <nav className={`backdrop-blur-lg rounded-2xl shadow-lg border p-3 sticky top-24 transition-colors duration-300 ${
-                  effectiveTheme === 'dark'
-                    ? 'bg-gray-900/80 border-gray-700/50'
-                    : 'bg-white/80 border-gray-200/50'
-                }`}>
+                <nav className="backdrop-blur-xl bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl shadow-lg p-3 sticky top-24 transition-colors duration-300">
               <div className="space-y-1">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
@@ -560,10 +545,8 @@ export default function SettingsPage() {
                       whileTap={{ scale: 0.98 }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 relative overflow-hidden group ${
                         isActive
-                          ? 'bg-gradient-to-r ' + tab.color + ' text-white shadow-lg shadow-blue-500/20'
-                          : effectiveTheme === 'dark'
-                          ? 'text-gray-300 hover:bg-gray-800/80'
-                          : 'text-gray-700 hover:bg-gray-50/80'
+                          ? 'bg-gradient-to-r ' + tab.color + ' text-gray-900 dark:text-white shadow-lg shadow-blue-500/10 dark:shadow-blue-500/20'
+                          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100/50 dark:hover:bg-slate-800/50'
                       }`}
                     >
                       {isActive && (
@@ -574,28 +557,22 @@ export default function SettingsPage() {
                           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                         />
                       )}
-                      <div className={`relative z-10 flex items-center gap-3 ${isActive ? 'text-white' : ''}`}>
+                      <div className={`relative z-10 flex items-center gap-3 ${isActive ? 'text-gray-900 dark:text-white' : ''}`}>
                         <div className={`p-2 rounded-lg ${
-                          isActive 
-                            ? 'bg-white/20' 
-                            : effectiveTheme === 'dark'
-                            ? 'bg-gray-800 group-hover:bg-gray-700'
-                            : 'bg-gray-100 group-hover:bg-gray-200'
+                          isActive
+                            ? 'bg-gray-200/50 dark:bg-white/20'
+                            : 'bg-gray-100/50 dark:bg-slate-800/50 group-hover:bg-gray-200/50 dark:group-hover:bg-slate-700/50'
                         }`}>
                           <Icon className={`w-5 h-5 ${
-                            isActive 
-                              ? 'text-white' 
-                              : effectiveTheme === 'dark'
-                              ? 'text-gray-400'
-                              : 'text-gray-600'
+                            isActive
+                              ? 'text-gray-900 dark:text-white'
+                              : 'text-gray-500 dark:text-slate-400'
                           }`} />
                         </div>
                         <span className={`font-medium ${
-                          isActive 
-                            ? 'text-white' 
-                            : effectiveTheme === 'dark'
-                            ? 'text-gray-300'
-                            : 'text-gray-700'
+                          isActive
+                            ? 'text-gray-900 dark:text-white'
+                            : 'text-gray-600 dark:text-slate-300'
                         }`}>{tab.label}</span>
                       </div>
                     </motion.button>
@@ -617,11 +594,7 @@ export default function SettingsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.2 }}
-                  className={`backdrop-blur-lg rounded-2xl shadow-lg border p-6 sm:p-8 lg:p-10 transition-colors duration-300 ${
-                    effectiveTheme === 'dark'
-                      ? 'bg-gray-900/80 border-gray-700/50'
-                      : 'bg-white/80 border-gray-200/50'
-                  }`}
+                  className="backdrop-blur-xl bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl shadow-lg p-6 sm:p-8 lg:p-10 transition-colors duration-300"
                 >
               <AnimatePresence mode="wait">
                 {activeTab === 'account' && (
@@ -680,6 +653,11 @@ export default function SettingsPage() {
                     <IntegrationsSettings settings={settings} updateSetting={updateSetting} />
                   </motion.div>
                 )}
+                {activeTab === 'feedback' && (
+                  <motion.div key="feedback" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <FeedbackSettings />
+                  </motion.div>
+                )}
               </AnimatePresence>
                 </motion.div>
               </GlowBorder>
@@ -704,7 +682,7 @@ export default function SettingsPage() {
                   disabled={saving}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium"
+                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-full shadow-2xl hover:shadow-blue-500/30 dark:shadow-blue-500/50 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium"
                 >
                   {saving ? (
                     <>
@@ -738,11 +716,11 @@ function SettingSection({ title, description, children }: { title: string; descr
     <div className="mb-10 last:mb-0">
       <div className="mb-6">
         <h2 className={`text-2xl font-bold mb-2 transition-colors duration-300 ${
-          effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+          effectiveTheme === 'dark' ? 'text-gray-900 dark:text-gray-100' : 'text-gray-900'
         }`}>{title}</h2>
         {description && (
           <p className={`text-sm leading-relaxed max-w-2xl transition-colors duration-300 ${
-            effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            effectiveTheme === 'dark' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-600'
           }`}>{description}</p>
         )}
       </div>
@@ -782,7 +760,7 @@ function ToggleSetting({
         }`}>{label}</label>
         {description && (
           <p className={`text-xs leading-relaxed transition-colors duration-300 ${
-            effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+            effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-500'
           }`}>{description}</p>
         )}
       </div>
@@ -839,7 +817,7 @@ function SelectSetting({
         effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
       }`}>{label}</label>
       {description && <p className={`text-xs mb-3 leading-relaxed transition-colors duration-300 ${
-        effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+        effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-500'
       }`}>{description}</p>}
       <select
         value={value}
@@ -916,7 +894,7 @@ function NumberSetting({
         effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
       }`}>{label}</label>
       {description && <p className={`text-xs mb-3 leading-relaxed transition-colors duration-300 ${
-        effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+        effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-500'
       }`}>{description}</p>}
       <div className="flex items-center gap-3">
         <input
@@ -932,7 +910,7 @@ function NumberSetting({
           }`}
         />
         {suffix && <span className={`text-sm font-medium transition-colors duration-300 ${
-          effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-600'
         }`}>{suffix}</span>}
       </div>
     </motion.div>
@@ -1392,7 +1370,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   disabled={loading}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
                 >
                   {loading ? 'Sending...' : 'Resend Verification'}
                 </motion.button>
@@ -1458,7 +1436,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                 onClick={() => setShowChangePassword(!showChangePassword)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
               >
                 {showChangePassword ? 'Cancel' : 'Change Password'}
               </motion.button>
@@ -1498,7 +1476,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                 disabled={loading}
                 whileHover={{ scale: loading ? 1 : 1.02 }}
                 whileTap={{ scale: loading ? 1 : 0.98 }}
-                className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
               >
                 {loading ? 'Changing...' : 'Change Password'}
               </motion.button>
@@ -1518,7 +1496,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
               onClick={() => setShowChangeEmail(!showChangeEmail)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
             >
               {showChangeEmail ? 'Cancel' : 'Change Email'}
             </motion.button>
@@ -1538,7 +1516,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
               <button
                 onClick={handleChangeEmail}
                 disabled={loading}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                className="w-full px-4 py-2 bg-blue-600 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {loading ? 'Sending...' : 'Send Verification Email'}
               </button>
@@ -1558,8 +1536,8 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
               disabled={loading}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
                 twoFactorEnabled
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                  ? 'bg-red-600 text-gray-900 dark:text-white hover:bg-red-700'
+                  : 'bg-green-600 text-gray-900 dark:text-white hover:bg-green-700'
               }`}
             >
               {loading ? 'Updating...' : twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
@@ -1591,7 +1569,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   loadActiveSessions()
                 }
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              className="px-4 py-2 bg-blue-600 text-gray-900 dark:text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
             >
               {showActiveSessions ? 'Hide' : 'View Sessions'}
             </button>
@@ -1670,7 +1648,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
               <button
                 onClick={handleDeactivateAccount}
                 disabled={loading}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition disabled:opacity-50"
+                className="px-4 py-2 bg-red-600 text-gray-900 dark:text-white rounded-lg text-sm font-medium hover:bg-red-700 transition disabled:opacity-50"
               >
                 {loading ? 'Deactivating...' : 'Deactivate'}
               </button>
@@ -1729,7 +1707,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                     <button
                       onClick={handleVerify2FA}
                       disabled={loading || twoFactorVerificationCode.length !== 6}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
                     >
                       {loading ? 'Verifying...' : 'Verify & Enable'}
                     </button>
@@ -1775,7 +1753,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
 
                 <button
                   onClick={handleClose2FAModal}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                  className="w-full px-4 py-2 bg-blue-600 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-blue-700 transition"
                 >
                   Done
                 </button>
@@ -1820,7 +1798,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                     <button
                       onClick={handleVerify2FA}
                       disabled={loading || !twoFactorVerificationCode}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50"
+                      className="flex-1 px-4 py-2 bg-red-600 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50"
                     >
                       {loading ? 'Disabling...' : 'Disable 2FA'}
                     </button>
@@ -2332,19 +2310,19 @@ function CommunitySettings({ settings, updateSetting }: { settings: UserSettings
 function AccessibilitySettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
   const t = useTranslations('settings')
   const { effectiveTheme } = useTheme()
-  const currentTheme = settings.theme || 'SYSTEM'
-  
+  const currentTheme = settings.theme || 'LIGHT'
+
   const themeOptions = [
     {
       value: 'LIGHT' as const,
-      label: t('light'),
+      label: 'Default',
       icon: Sun,
       gradient: 'from-yellow-400 via-orange-300 to-amber-200',
       bgGradient: 'from-white via-blue-50/30 to-indigo-50/20',
       previewBg: 'bg-white',
       previewText: 'text-gray-900',
       previewBorder: 'border-gray-200',
-      description: 'Bright and clean interface'
+      description: 'Clean light interface'
     },
     {
       value: 'DARK' as const,
@@ -2352,21 +2330,10 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
       icon: Moon,
       gradient: 'from-indigo-600 via-purple-600 to-blue-800',
       bgGradient: 'from-gray-900 via-slate-900 to-zinc-900',
-      previewBg: 'bg-gray-900',
+      previewBg: 'bg-slate-950',
       previewText: 'text-gray-100',
       previewBorder: 'border-gray-700',
-      description: 'Easy on the eyes'
-    },
-    {
-      value: 'SYSTEM' as const,
-      label: t('systemDefault'),
-      icon: Monitor,
-      gradient: 'from-gray-400 via-slate-500 to-gray-600',
-      bgGradient: 'from-gray-100 via-slate-100 to-gray-200',
-      previewBg: effectiveTheme === 'dark' ? 'bg-gray-900' : 'bg-white',
-      previewText: effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900',
-      previewBorder: effectiveTheme === 'dark' ? 'border-gray-700' : 'border-gray-200',
-      description: 'Follows system preference'
+      description: 'Dark slate theme with glassmorphism'
     }
   ]
 
@@ -2376,7 +2343,7 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
         {/* Beautiful Theme Selector */}
         <div className="mb-6">
           <label className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
-            effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+            effectiveTheme === 'dark' ? 'text-gray-900 dark:text-gray-100' : 'text-gray-900'
           }`}>{t('theme')}</label>
           <p className={`text-xs mb-4 leading-relaxed transition-colors duration-300 ${
             effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
@@ -2393,10 +2360,10 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
                   whileTap={{ scale: 0.98 }}
                   className={`relative p-5 rounded-2xl border-2 transition-all duration-300 overflow-hidden group ${
                     isSelected
-                      ? 'border-blue-500 shadow-lg shadow-blue-500/20 bg-gradient-to-br ' + option.bgGradient
+                      ? 'border-blue-500 shadow-lg shadow-blue-500/10 dark:shadow-blue-500/20 bg-gradient-to-br ' + option.bgGradient
                       : effectiveTheme === 'dark'
                       ? 'border-gray-700 hover:border-gray-600 bg-gray-800/50 hover:bg-gray-800'
-                      : 'border-gray-200 hover:border-gray-300 bg-white/50 hover:bg-white'
+                      : 'border-gray-200 hover:border-gray-300 bg-gray-50/50 hover:bg-white'
                   }`}
                 >
                   {/* Background gradient effect */}
@@ -2409,7 +2376,7 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
                       animate={{ scale: 1 }}
                       className="absolute top-3 right-3 w-6 h-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg"
                     >
-                      <Check className="w-4 h-4 text-white" />
+                      <Check className="w-4 h-4 text-gray-900 dark:text-white" />
                     </motion.div>
                   )}
 
@@ -2418,12 +2385,12 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
                     isSelected 
                       ? 'bg-gradient-to-br ' + option.gradient + ' shadow-lg' 
                       : effectiveTheme === 'dark'
-                      ? 'bg-gray-800 group-hover:bg-gray-700'
+                      ? 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gray-700'
                       : 'bg-gray-100 group-hover:bg-gray-200'
                   }`}>
                     <Icon className={`w-6 h-6 transition-colors duration-300 ${
                       isSelected 
-                        ? 'text-white' 
+                        ? 'text-gray-900 dark:text-white' 
                         : effectiveTheme === 'dark'
                         ? 'text-gray-400'
                         : 'text-gray-600'
@@ -2434,14 +2401,14 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
                   <div className="relative mb-2">
                     <h3 className={`font-semibold text-base transition-colors duration-300 ${
                       isSelected 
-                        ? effectiveTheme === 'dark' ? 'text-white' : 'text-gray-900'
-                        : effectiveTheme === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        ? effectiveTheme === 'dark' ? 'text-gray-900 dark:text-white' : 'text-gray-900'
+                        : effectiveTheme === 'dark' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900'
                     }`}>
                       {option.label}
                     </h3>
                     <p className={`text-xs mt-1 transition-colors duration-300 ${
                       isSelected 
-                        ? effectiveTheme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                        ? effectiveTheme === 'dark' ? 'text-gray-600 dark:text-gray-300' : 'text-gray-600'
                         : effectiveTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                     }`}>
                       {option.description}
@@ -2450,72 +2417,48 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
 
                   {/* Preview - Mini UI Mockup */}
                   <div className={`relative mt-4 p-3 rounded-lg border transition-all duration-300 ${
-                    option.value === 'LIGHT' 
-                      ? 'bg-white border-gray-200' 
-                      : option.value === 'DARK'
-                      ? 'bg-gray-900 border-gray-700'
-                      : effectiveTheme === 'dark'
-                      ? 'bg-gray-900 border-gray-700'
-                      : 'bg-white border-gray-200'
+                    option.value === 'LIGHT'
+                      ? 'bg-white border-gray-200'
+                      : 'bg-white dark:bg-slate-950 border-gray-200 dark:border-slate-800'
                   }`}>
                     {/* Window chrome */}
                     <div className="flex items-center gap-1.5 mb-3">
                       <div className={`w-2 h-2 rounded-full ${
-                        option.value === 'LIGHT' ? 'bg-red-400' : 
-                        option.value === 'DARK' ? 'bg-red-500' : 
-                        effectiveTheme === 'dark' ? 'bg-red-500' : 'bg-red-400'
+                        option.value === 'LIGHT' ? 'bg-red-400' : 'bg-red-500'
                       }`} />
                       <div className={`w-2 h-2 rounded-full ${
-                        option.value === 'LIGHT' ? 'bg-yellow-400' : 
-                        option.value === 'DARK' ? 'bg-yellow-500' : 
-                        effectiveTheme === 'dark' ? 'bg-yellow-500' : 'bg-yellow-400'
+                        option.value === 'LIGHT' ? 'bg-yellow-400' : 'bg-yellow-500'
                       }`} />
                       <div className={`w-2 h-2 rounded-full ${
-                        option.value === 'LIGHT' ? 'bg-green-400' : 
-                        option.value === 'DARK' ? 'bg-green-500' : 
-                        effectiveTheme === 'dark' ? 'bg-green-500' : 'bg-green-400'
+                        option.value === 'LIGHT' ? 'bg-green-400' : 'bg-green-500'
                       }`} />
                       <div className={`flex-1 h-2 rounded ${
-                        option.value === 'LIGHT' ? 'bg-gray-100' : 
-                        option.value === 'DARK' ? 'bg-gray-800' : 
-                        effectiveTheme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'
+                        option.value === 'LIGHT' ? 'bg-gray-100' : 'bg-gray-50 dark:bg-slate-900'
                       }`} />
                     </div>
-                    
+
                     {/* Content preview */}
                     <div className={`space-y-2 ${
-                      option.value === 'LIGHT' ? 'text-gray-900' : 
-                      option.value === 'DARK' ? 'text-gray-100' : 
-                      effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+                      option.value === 'LIGHT' ? 'text-gray-900' : 'text-gray-900 dark:text-gray-100'
                     }`}>
                       {/* Header bar */}
                       <div className={`h-2 rounded ${
-                        option.value === 'LIGHT' ? 'bg-blue-100' : 
-                        option.value === 'DARK' ? 'bg-blue-900/50' : 
-                        effectiveTheme === 'dark' ? 'bg-blue-900/50' : 'bg-blue-100'
+                        option.value === 'LIGHT' ? 'bg-blue-100' : 'bg-blue-900/50'
                       }`} style={{ width: '100%' }} />
-                      
+
                       {/* Content lines */}
                       <div className={`h-1.5 rounded ${
-                        option.value === 'LIGHT' ? 'bg-gray-200' : 
-                        option.value === 'DARK' ? 'bg-gray-700' : 
-                        effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                        option.value === 'LIGHT' ? 'bg-gray-200' : 'bg-gray-100 dark:bg-slate-800'
                       }`} style={{ width: '85%' }} />
                       <div className={`h-1.5 rounded ${
-                        option.value === 'LIGHT' ? 'bg-gray-200' : 
-                        option.value === 'DARK' ? 'bg-gray-700' : 
-                        effectiveTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                        option.value === 'LIGHT' ? 'bg-gray-200' : 'bg-gray-100 dark:bg-slate-800'
                       }`} style={{ width: '70%' }} />
-                      
+
                       {/* Button preview */}
                       <div className={`mt-2 h-2.5 rounded ${
-                        option.value === 'LIGHT' 
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500' 
-                          : option.value === 'DARK'
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                          : effectiveTheme === 'dark'
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                          : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                        option.value === 'LIGHT'
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                          : 'bg-gradient-to-r from-blue-600 to-purple-600'
                       }`} style={{ width: '50%' }} />
                     </div>
                   </div>
@@ -3295,7 +3238,7 @@ function DeletedMessagesHistory() {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => conv.messages[0] && handleRestore(conv.messages[0].id)}
-                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-3 py-1 text-sm bg-green-600 text-gray-900 dark:text-white rounded hover:bg-green-700"
               >
                 Restore
               </button>
@@ -3377,7 +3320,7 @@ function DeletedGroupsHistory() {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => handleRestore(group.id)}
-                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-3 py-1 text-sm bg-green-600 text-gray-900 dark:text-white rounded hover:bg-green-700"
               >
                 Restore
               </button>
@@ -3513,14 +3456,14 @@ function DeletedPostsHistory() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleRestorePost(post.id)}
-                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
+                      className="px-3 py-1.5 text-sm bg-green-600 text-gray-900 dark:text-white rounded hover:bg-green-700 transition font-medium"
                       title={t('restorePost')}
                     >
                       {t('restore')}
                     </button>
                     <button
                       onClick={() => handlePermanentlyDeletePost(post.id)}
-                      className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
+                      className="px-3 py-1.5 text-sm bg-red-600 text-gray-900 dark:text-white rounded hover:bg-red-700 transition font-medium"
                       title={t('permanentlyDelete')}
                     >
                       {t('deleteForever')}
@@ -3681,6 +3624,398 @@ function CommunityActivityHistory() {
         </div>
       )}
     </div>
+  )
+}
+
+// Feedback Settings
+function FeedbackSettings() {
+  const t = useTranslations('settings')
+  const { effectiveTheme } = useTheme()
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [message, setMessage] = useState('')
+  const [screenshots, setScreenshots] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [feedbackHistory, setFeedbackHistory] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
+
+  // Fetch feedback history
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await fetch('/api/feedback')
+        if (response.ok) {
+          const data = await response.json()
+          setFeedbackHistory(data.feedback || [])
+        }
+      } catch (error) {
+        console.error('Error fetching feedback history:', error)
+      } finally {
+        setLoadingHistory(false)
+      }
+    }
+    fetchHistory()
+  }, [])
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    if (screenshots.length + files.length > 5) {
+      toast.error(t('feedbackMaxScreenshots'))
+      return
+    }
+
+    setUploading(true)
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast.error(t('feedbackOnlyImages'))
+          continue
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(t('feedbackImageTooLarge'))
+          continue
+        }
+
+        // Upload to Supabase storage
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('bucket', 'feedback-screenshots')
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setScreenshots(prev => [...prev, data.url])
+        } else {
+          toast.error(t('feedbackUploadFailed'))
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading screenshots:', error)
+      toast.error(t('feedbackUploadFailed'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeScreenshot = (index: number) => {
+    setScreenshots(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async () => {
+    if (rating === 0) {
+      toast.error(t('feedbackSelectRating'))
+      return
+    }
+
+    if (message.trim().length < 10) {
+      toast.error(t('feedbackMessageTooShort'))
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating,
+          message: message.trim(),
+          screenshots,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(t('feedbackSubmitted'))
+        setRating(0)
+        setMessage('')
+        setScreenshots([])
+        // Refresh history
+        const historyResponse = await fetch('/api/feedback')
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
+          setFeedbackHistory(historyData.feedback || [])
+        }
+      } else {
+        toast.error(data.error || t('feedbackSubmitFailed'))
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      toast.error(t('feedbackSubmitFailed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+      case 'REVIEWED':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+      case 'RESOLVED':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+      case 'ARCHIVED':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+    }
+  }
+
+  return (
+    <>
+      <SettingSection
+        title={t('feedbackTitle')}
+        description={t('feedbackDescription')}
+      >
+        {/* Rating */}
+        <div className={`p-6 rounded-xl border transition-colors ${
+          effectiveTheme === 'dark'
+            ? 'bg-slate-800/50 border-slate-700/50'
+            : 'bg-gray-50/50 border-gray-200/50'
+        }`}>
+          <label className={`block text-sm font-semibold mb-3 ${
+            effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+          }`}>
+            {t('feedbackRating')}
+          </label>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="transition-transform hover:scale-110"
+              >
+                <Star
+                  className={`w-8 h-8 transition-colors ${
+                    star <= (hoverRating || rating)
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : effectiveTheme === 'dark'
+                        ? 'text-slate-600'
+                        : 'text-gray-300'
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+          <p className={`text-xs mt-2 ${
+            effectiveTheme === 'dark' ? 'text-slate-400' : 'text-gray-500'
+          }`}>
+            {rating === 0 ? t('feedbackClickToRate') : t('feedbackYouRated', { rating })}
+          </p>
+        </div>
+
+        {/* Message */}
+        <div className={`p-6 rounded-xl border transition-colors ${
+          effectiveTheme === 'dark'
+            ? 'bg-slate-800/50 border-slate-700/50'
+            : 'bg-gray-50/50 border-gray-200/50'
+        }`}>
+          <label className={`block text-sm font-semibold mb-3 ${
+            effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+          }`}>
+            {t('feedbackMessage')}
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={t('feedbackPlaceholder')}
+            rows={5}
+            maxLength={5000}
+            className={`w-full px-4 py-3 rounded-lg border transition-colors resize-none ${
+              effectiveTheme === 'dark'
+                ? 'bg-slate-700/50 border-slate-600/50 text-slate-100 placeholder-slate-400'
+                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+            } focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
+          />
+          <p className={`text-xs mt-2 text-right ${
+            effectiveTheme === 'dark' ? 'text-slate-400' : 'text-gray-500'
+          }`}>
+            {message.length}/5000
+          </p>
+        </div>
+
+        {/* Screenshots */}
+        <div className={`p-6 rounded-xl border transition-colors ${
+          effectiveTheme === 'dark'
+            ? 'bg-slate-800/50 border-slate-700/50'
+            : 'bg-gray-50/50 border-gray-200/50'
+        }`}>
+          <label className={`block text-sm font-semibold mb-3 ${
+            effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
+          }`}>
+            {t('feedbackScreenshots')}
+            <span className={`font-normal ml-2 ${
+              effectiveTheme === 'dark' ? 'text-slate-400' : 'text-gray-500'
+            }`}>
+              ({t('feedbackOptional')})
+            </span>
+          </label>
+
+          {/* Upload button */}
+          <div className="mb-4">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+              id="screenshot-upload"
+              disabled={uploading || screenshots.length >= 5}
+            />
+            <label
+              htmlFor="screenshot-upload"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                uploading || screenshots.length >= 5
+                  ? 'opacity-50 cursor-not-allowed'
+                  : effectiveTheme === 'dark'
+                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              {uploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  {t('feedbackUploading')}
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  {t('feedbackUploadScreenshot')}
+                </>
+              )}
+            </label>
+            <p className={`text-xs mt-2 ${
+              effectiveTheme === 'dark' ? 'text-slate-400' : 'text-gray-500'
+            }`}>
+              {t('feedbackUploadHint')}
+            </p>
+          </div>
+
+          {/* Screenshot previews */}
+          {screenshots.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {screenshots.map((url, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={url}
+                    alt={`Screenshot ${index + 1}`}
+                    className="w-full h-24 object-cover rounded-lg border border-gray-200 dark:border-slate-700"
+                  />
+                  <button
+                    onClick={() => removeScreenshot(index)}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Submit button */}
+        <motion.button
+          onClick={handleSubmit}
+          disabled={submitting || rating === 0 || message.trim().length < 10}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className={`w-full py-3 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+            submitting || rating === 0 || message.trim().length < 10
+              ? 'opacity-50 cursor-not-allowed bg-gray-400 text-gray-600'
+              : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg'
+          }`}
+        >
+          {submitting ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {t('feedbackSubmitting')}
+            </>
+          ) : (
+            <>
+              <MessageCircleHeart className="w-5 h-5" />
+              {t('feedbackSubmit')}
+            </>
+          )}
+        </motion.button>
+      </SettingSection>
+
+      {/* Feedback History */}
+      <SettingSection
+        title={t('feedbackHistory')}
+        description={t('feedbackHistoryDescription')}
+      >
+        {loadingHistory ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : feedbackHistory.length === 0 ? (
+          <div className={`text-center py-8 rounded-xl border ${
+            effectiveTheme === 'dark'
+              ? 'bg-slate-800/30 border-slate-700/50 text-slate-400'
+              : 'bg-gray-50 border-gray-200 text-gray-500'
+          }`}>
+            <MessageCircleHeart className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>{t('feedbackNoHistory')}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {feedbackHistory.map((feedback) => (
+              <div
+                key={feedback.id}
+                className={`p-4 rounded-xl border transition-colors ${
+                  effectiveTheme === 'dark'
+                    ? 'bg-slate-800/50 border-slate-700/50'
+                    : 'bg-gray-50/50 border-gray-200/50'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= feedback.rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300 dark:text-slate-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(feedback.status)}`}>
+                      {feedback.status}
+                    </span>
+                  </div>
+                  <span className={`text-xs ${
+                    effectiveTheme === 'dark' ? 'text-slate-400' : 'text-gray-500'
+                  }`}>
+                    {new Date(feedback.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className={`text-sm line-clamp-2 ${
+                  effectiveTheme === 'dark' ? 'text-slate-300' : 'text-gray-700'
+                }`}>
+                  {feedback.message}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </SettingSection>
+    </>
   )
 }
 

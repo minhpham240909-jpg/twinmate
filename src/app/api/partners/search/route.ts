@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
+import { getBlockedUserIds } from '@/lib/blocked-users'
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
@@ -133,6 +134,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // SECURITY: Get blocked user IDs to exclude from search
+    const blockedUserIds = await getBlockedUserIds(user.id)
+
     // Get existing matches to filter out
     const { data: existingMatches } = await supabase
       .from('Match')
@@ -150,6 +154,9 @@ export async function POST(request: NextRequest) {
         pendingOrOtherUserIds.add(otherUserId)
       }
     })
+
+    // Add blocked users to exclusion set
+    blockedUserIds.forEach(id => pendingOrOtherUserIds.add(id))
 
     // Build Supabase query
     let query = supabase
@@ -317,18 +324,64 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // First get total count WITHOUT pagination
-    const { count: totalCount, error: countError } = await supabase
+    // Apply pagination to main query with count
+    const skip = (page - 1) * limit
+
+    // Get total count from filtered query (without pagination)
+    // Clone the query for counting by rebuilding it
+    let countQuery = supabase
       .from('Profile')
       .select('userId', { count: 'exact', head: true })
       .neq('userId', user.id)
+
+    // Apply same exclusions to count query
+    if (pendingOrOtherUserIds.size > 0) {
+      countQuery = countQuery.not('userId', 'in', `(${Array.from(pendingOrOtherUserIds).join(',')})`)
+    }
+
+    // Apply same filters to count query
+    if (subjects && subjects.length > 0) {
+      countQuery = countQuery.overlaps('subjects', subjects)
+    }
+    if (skillLevel && skillLevel !== '') {
+      countQuery = countQuery.eq('skillLevel', skillLevel)
+    }
+    if (studyStyle && studyStyle !== '') {
+      countQuery = countQuery.eq('studyStyle', studyStyle)
+    }
+    if (interests && interests.length > 0) {
+      countQuery = countQuery.overlaps('interests', interests)
+    }
+    if (availability && availability.length > 0) {
+      countQuery = countQuery.overlaps('availableDays', availability)
+    }
+    if (goals && goals.length > 0) {
+      countQuery = countQuery.overlaps('goals', goals)
+    }
+    if (role && role.length > 0) {
+      countQuery = countQuery.in('role', role)
+    }
+    if (ageRange && ageRange !== '') {
+      const ageRanges: Record<string, { min: number; max: number }> = {
+        'under-18': { min: 0, max: 17 },
+        '18-24': { min: 18, max: 24 },
+        '25-34': { min: 25, max: 34 },
+        '35-44': { min: 35, max: 44 },
+        '45+': { min: 45, max: 999 }
+      }
+      const range = ageRanges[ageRange]
+      if (range) {
+        countQuery = countQuery.gte('age', range.min).lte('age', range.max)
+      }
+    }
+
+    const { count: totalCount, error: countError } = await countQuery
 
     if (countError) {
       logger.error('Partner search count query error', countError)
     }
 
     // Apply pagination to main query
-    const skip = (page - 1) * limit
     query = query.range(skip, skip + limit - 1).order('updatedAt', { ascending: false })
 
     const { data: profiles, error: profileError } = await query
@@ -370,52 +423,100 @@ export async function POST(request: NextRequest) {
     // Get current user's profile for compatibility scoring
     const { data: myProfile } = await supabase
       .from('Profile')
-      .select('subjects, interests, studyStyle, skillLevel')
+      .select('subjects, interests, studyStyle, skillLevel, goals, availableDays')
       .eq('userId', user.id)
       .single()
+
+    // Check if user's profile is complete enough for meaningful matching
+    const hasSubjects = Array.isArray(myProfile?.subjects) && myProfile.subjects.length > 0
+    const hasInterests = Array.isArray(myProfile?.interests) && myProfile.interests.length > 0
+    const hasGoals = Array.isArray(myProfile?.goals) && myProfile.goals.length > 0
+    const hasSkillLevel = !!myProfile?.skillLevel
+    const hasStudyStyle = !!myProfile?.studyStyle
+
+    // Profile is incomplete if missing key matching criteria
+    const profileIncomplete = !hasSubjects && !hasInterests && !hasGoals && !hasSkillLevel && !hasStudyStyle
+    const missingFields: string[] = []
+    if (!hasSubjects) missingFields.push('subjects')
+    if (!hasInterests) missingFields.push('interests')
+    if (!hasGoals) missingFields.push('goals')
+    if (!hasSkillLevel) missingFields.push('skill level')
+    if (!hasStudyStyle) missingFields.push('study style')
 
     // All filtering is now done at database level, so we just use the sanitized profiles
     const filteredProfiles = sanitizedProfiles
 
-    // Calculate match scores
+    // Calculate match scores with improved algorithm
     const profilesWithScores = filteredProfiles.map(profile => {
       let matchScore = 0
       const matchReasons: string[] = []
 
-      const mySubjects = new Set(myProfile?.subjects || [])
-      const myInterests = new Set(myProfile?.interests || [])
+      const mySubjects = Array.isArray(myProfile?.subjects) ? myProfile.subjects : []
+      const myInterests = Array.isArray(myProfile?.interests) ? myProfile.interests : []
+      const myGoals = Array.isArray(myProfile?.goals) ? myProfile.goals : []
+      const myAvailableDays = Array.isArray(myProfile?.availableDays) ? myProfile.availableDays : []
 
-      // Score based on subject overlap
+      // Score based on subject overlap (diminishing returns: first 2 = 12pts each, rest = 4pts each, max 32)
       if (profile.subjects && profile.subjects.length > 0) {
         const subjectOverlap = profile.subjects.filter((s: string) =>
-          mySubjects.has(s)
+          mySubjects.includes(s)
         ).length
         if (subjectOverlap > 0) {
-          matchScore += subjectOverlap * 20
+          const firstTwo = Math.min(subjectOverlap, 2) * 12
+          const additional = Math.max(0, subjectOverlap - 2) * 4
+          const subjectScore = Math.min(firstTwo + additional, 32)
+          matchScore += subjectScore
           matchReasons.push(`${subjectOverlap} shared subject(s)`)
         }
       }
 
-      // Score based on interest overlap
+      // Score based on interest overlap (diminishing returns: first 2 = 8pts each, rest = 3pts each, max 22)
       if (profile.interests && profile.interests.length > 0) {
         const interestOverlap = profile.interests.filter((i: string) =>
-          myInterests.has(i)
+          myInterests.includes(i)
         ).length
         if (interestOverlap > 0) {
-          matchScore += interestOverlap * 15
+          const firstTwo = Math.min(interestOverlap, 2) * 8
+          const additional = Math.max(0, interestOverlap - 2) * 3
+          const interestScore = Math.min(firstTwo + additional, 22)
+          matchScore += interestScore
           matchReasons.push(`${interestOverlap} shared interest(s)`)
         }
       }
 
-      // Score based on skill level match
+      // Score based on goals overlap (max 16 points)
+      if (profile.goals && profile.goals.length > 0) {
+        const goalOverlap = profile.goals.filter((g: string) =>
+          myGoals.includes(g)
+        ).length
+        if (goalOverlap > 0) {
+          const goalScore = Math.min(goalOverlap * 8, 16)
+          matchScore += goalScore
+          matchReasons.push(`${goalOverlap} shared goal(s)`)
+        }
+      }
+
+      // Score based on availability/days overlap (max 15 points)
+      if (profile.availableDays && profile.availableDays.length > 0) {
+        const dayOverlap = profile.availableDays.filter((d: string) =>
+          myAvailableDays.includes(d)
+        ).length
+        if (dayOverlap > 0) {
+          const dayScore = Math.min(dayOverlap * 3, 15)
+          matchScore += dayScore
+          matchReasons.push(`${dayOverlap} matching day(s)`)
+        }
+      }
+
+      // Score based on skill level match (10 points)
       if (myProfile?.skillLevel && profile.skillLevel === myProfile.skillLevel) {
         matchScore += 10
         matchReasons.push('Same skill level')
       }
 
-      // Score based on study style match
+      // Score based on study style match (5 points)
       if (myProfile?.studyStyle && profile.studyStyle === myProfile.studyStyle) {
-        matchScore += 10
+        matchScore += 5
         matchReasons.push('Same study style')
       }
 
@@ -445,6 +546,9 @@ export async function POST(request: NextRequest) {
         total: totalCount || 0,
         totalPages: Math.ceil((totalCount || 0) / limit),
       },
+      // Flag to indicate if user's profile is incomplete for meaningful matching
+      profileIncomplete,
+      missingFields: profileIncomplete ? missingFields : [],
     }, {
       headers: {
         'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',

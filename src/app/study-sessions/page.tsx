@@ -225,10 +225,10 @@ export default function StudySessionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -237,25 +237,25 @@ export default function StudySessionsPage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/dashboard')}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-all"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('title')}</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
           </div>
           <Bounce delay={0.1}>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-medium shadow-md"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all font-medium"
             >
               {t('newSession')}
             </button>
@@ -277,9 +277,9 @@ export default function StudySessionsPage() {
                 style={{ borderRadius: 12 }}
                 className="mb-6"
               >
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                <div className="bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-xl p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                       {t('pendingInvitations')}
                     </h2>
                     <Pulse>
@@ -291,7 +291,7 @@ export default function StudySessionsPage() {
                   <div className="space-y-3">
                     {pendingInvites.map((invite, index) => (
                       <FadeIn key={invite.sessionId} delay={index * 0.1} direction="up">
-                        <div className="bg-white rounded-lg p-4 flex items-start justify-between gap-4 hover:shadow-md transition-shadow">
+                        <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-lg p-4 flex items-start justify-between gap-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-all shadow-lg dark:shadow-none">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <PartnerAvatar
@@ -301,24 +301,24 @@ export default function StudySessionsPage() {
                           showStatus={false}
                         />
                         <div>
-                          <p className="text-sm text-gray-600">
-                            <span className="font-semibold text-gray-900">
+                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                            <span className="font-semibold text-gray-900 dark:text-white">
                               {invite.inviter?.name || 'Someone'}
                             </span>{' '}
                             {t('invitedYouTo')}
                           </p>
-                          <h3 className="font-semibold text-gray-900">{invite.title}</h3>
+                          <h3 className="font-semibold text-gray-900 dark:text-white">{invite.title}</h3>
                         </div>
                       </div>
                       {invite.description && (
-                        <p className="text-sm text-gray-600 mb-2 ml-13">{invite.description}</p>
+                        <p className="text-sm text-gray-700 dark:text-slate-300 mb-2 ml-13">{invite.description}</p>
                       )}
                       <div className="flex items-center gap-2 ml-13">
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                        <span className="px-2 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-full">
                           {invite.type}
                         </span>
                         {invite.subject && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs rounded-full">
                             {invite.subject}
                           </span>
                         )}
@@ -328,14 +328,14 @@ export default function StudySessionsPage() {
                             <button
                               onClick={() => handleAcceptInvite(invite.sessionId)}
                               disabled={processingInvite === invite.sessionId}
-                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all disabled:opacity-50 font-medium"
+                              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 font-medium"
                             >
                               {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
                             </button>
                             <button
                               onClick={() => handleDeclineInvite(invite.sessionId)}
                               disabled={processingInvite === invite.sessionId}
-                              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 hover:scale-105 transition-all disabled:opacity-50 font-medium"
+                              className="px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 text-sm rounded-lg hover:scale-105 transition-all disabled:opacity-50 font-medium"
                             >
                               {processingInvite === invite.sessionId ? t('declining') : t('decline')}
                             </button>
@@ -350,29 +350,29 @@ export default function StudySessionsPage() {
           )}
 
           {/* Header for History */}
-          <div className="bg-white rounded-xl shadow-sm mb-6 p-6">
-            <h2 className="text-xl font-bold text-gray-900">{t('sessionHistory')}</h2>
-            <p className="text-sm text-gray-600 mt-1">{t('sessionHistoryDesc')}</p>
+          <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl mb-6 p-6 shadow-lg dark:shadow-none">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('sessionHistory')}</h2>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{t('sessionHistoryDesc')}</p>
           </div>
 
           {/* Sessions List */}
           <div className="grid md:grid-cols-2 gap-6">
             {filteredSessions.length === 0 ? (
-              <div className="col-span-2 bg-white rounded-xl shadow-sm p-12 text-center">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="col-span-2 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-12 text-center shadow-lg dark:shadow-none">
+                <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {t('noHistoryYet')}
                 </h3>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                <p className="text-gray-700 dark:text-slate-300 mb-6 max-w-md mx-auto">
                   {t('noHistoryDesc')}
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
                 >
                   {t('startSession')}
                 </button>
@@ -388,29 +388,29 @@ export default function StudySessionsPage() {
                     style={{ borderRadius: 12 }}
                     className="h-full"
                   >
-                    <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition h-full">
+                    <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 hover:bg-gray-100 dark:hover:bg-white/10 transition h-full shadow-lg dark:shadow-none">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{session.title}</h3>
                       {session.description && (
-                        <p className="text-sm text-gray-600 mb-3">{session.description}</p>
+                        <p className="text-sm text-gray-700 dark:text-slate-300 mb-3">{session.description}</p>
                       )}
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-slate-400">
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                           </svg>
                           {session.participantCount} / {session.maxParticipants}
                         </span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          session.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                          session.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
+                        <span className={`px-2 py-1 text-xs rounded-full border ${
+                          session.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                          session.status === 'SCHEDULED' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                          'bg-slate-700 text-slate-300 border-slate-600'
                         }`}>
                           {session.status}
                         </span>
                         {session.subject && (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-full">
                             {session.subject}
                           </span>
                         )}
@@ -421,7 +421,7 @@ export default function StudySessionsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setViewingSessionId(session.id)}
-                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition"
+                      className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 text-sm rounded-lg transition"
                     >
                       {t('viewDetails')}
                     </button>
@@ -561,11 +561,11 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl max-w-md w-full p-6 my-8">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl max-w-md w-full p-6 my-8 shadow-lg dark:shadow-none">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">{t('createStudySession')}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('createStudySession')}</h2>
+          <button onClick={onClose} className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -574,7 +574,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('titleRequired')}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('titleRequired')}</label>
             <input
               id="session-title-field"
               type="text"
@@ -587,12 +587,12 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                 }
               }}
               placeholder={t('titlePlaceholder')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-600 dark:placeholder:text-slate-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('description')}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('description')}</label>
             <textarea
               id="session-desc-field"
               value={description}
@@ -604,18 +604,18 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                 }
               }}
               placeholder={t('descPlaceholder')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-600 dark:placeholder:text-slate-500"
               rows={3}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('type')}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('type')}</label>
             <select
               id="session-type-field"
               value={type}
               onChange={(e) => setType(e.target.value as 'SOLO' | 'ONE_ON_ONE' | 'GROUP')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
             >
               <option value="SOLO">{t('solo')}</option>
               <option value="ONE_ON_ONE">{t('oneOnOne')}</option>
@@ -624,7 +624,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('subjectOptional')}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{t('subjectOptional')}</label>
             <input
               id="session-subject-field"
               type="text"
@@ -637,13 +637,13 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                 }
               }}
               placeholder={t('subjectPlaceholder')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-600 dark:placeholder:text-slate-500"
             />
           </div>
 
           {/* Invite Partners */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               {t('inviteOptional')}
             </label>
 
@@ -662,32 +662,32 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                 }
               }}
               placeholder={t('searchPartners')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-600 dark:placeholder:text-slate-500 mb-3"
             />
 
             {/* Selected count */}
             {selectedInvites.length > 0 && (
-              <p className="text-sm text-blue-600 mb-2">
+              <p className="text-sm text-blue-400 mb-2">
                 {selectedInvites.length} {selectedInvites.length > 1 ? t('partners') : t('partner')} {t('selected')}
               </p>
             )}
 
             {/* Partners and Group Members List */}
-            <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+            <div className="max-h-48 overflow-y-auto bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg">
               {loadingInvites ? (
-                <p className="p-4 text-sm text-gray-500 text-center">{tCommon('loading')}</p>
+                <p className="p-4 text-sm text-gray-600 dark:text-slate-400 text-center">{tCommon('loading')}</p>
               ) : (
                 <>
                   {/* Study Partners Section */}
                   {filteredPartners.length > 0 && (
                     <div>
-                      <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                      <p className="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-slate-400 bg-gray-100 dark:bg-slate-900 sticky top-0">
                         {t('studyPartners')}
                       </p>
                       {filteredPartners.map((partner) => (
                         <label
                           key={partner.id}
-                          className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer"
                         >
                           <input
                             type="checkbox"
@@ -703,8 +703,8 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                             showStatus={true}
                           />
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{partner.name}</p>
-                            <p className="text-xs text-gray-500">{partner.email}</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{partner.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-slate-400">{partner.email}</p>
                           </div>
                         </label>
                       ))}
@@ -714,13 +714,13 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                   {/* Group Members Section */}
                   {filteredGroupMembers.length > 0 && (
                     <div>
-                      <p className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                      <p className="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-slate-400 bg-gray-100 dark:bg-slate-900 sticky top-0">
                         {t('groupMembers')}
                       </p>
                       {filteredGroupMembers.map((member) => (
                         <label
                           key={member.id}
-                          className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer"
                         >
                           <input
                             type="checkbox"
@@ -735,8 +735,8 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                             showStatus={false}
                           />
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                            <p className="text-xs text-gray-500">{member.email}</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{member.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-slate-400">{member.email}</p>
                           </div>
                         </label>
                       ))}
@@ -745,7 +745,7 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
 
                   {/* No results */}
                   {filteredPartners.length === 0 && filteredGroupMembers.length === 0 && (
-                    <p className="p-4 text-sm text-gray-500 text-center">
+                    <p className="p-4 text-sm text-gray-600 dark:text-slate-400 text-center">
                       {searchTerm ? t('noMatches') : t('noPartnersAvailable')}
                     </p>
                   )}
@@ -758,14 +758,14 @@ function CreateSessionModal({ onClose, onSuccess }: { onClose: () => void, onSuc
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+            className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 rounded-lg transition"
           >
             {tCommon('cancel')}
           </button>
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50"
           >
             {creating ? t('creating') : t('createButton')}
           </button>

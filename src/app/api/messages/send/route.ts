@@ -5,6 +5,41 @@ import { MessageType } from '@prisma/client'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { CONTENT_LIMITS } from '@/lib/constants'
 import { sendMessageSchema, validateRequest, validateContent } from '@/lib/validation'
+import { isBlocked } from '@/lib/blocked-users'
+
+// Content moderation scan (async, non-blocking)
+async function scanMessageContent(
+  messageId: string,
+  content: string,
+  contentType: 'DIRECT_MESSAGE' | 'GROUP_MESSAGE',
+  senderId: string,
+  senderEmail: string | undefined,
+  senderName: string | undefined,
+  conversationId: string,
+  conversationType: string
+) {
+  try {
+    // Call moderation API in background (don't await to not block message sending)
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/moderation/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        contentType,
+        contentId: messageId,
+        senderId,
+        senderEmail,
+        senderName,
+        conversationId,
+        conversationType,
+      }),
+    }).catch((err) => {
+      console.error('[Moderation] Scan failed:', err)
+    })
+  } catch (error) {
+    console.error('[Moderation] Error initiating scan:', error)
+  }
+}
 
 export async function POST(req: NextRequest) {
   // Rate limiting: 20 messages per minute
@@ -61,6 +96,7 @@ export async function POST(req: NextRequest) {
       sender: {
         id: string
         name: string
+        email: string
         avatarUrl: string | null
       }
     }
@@ -97,11 +133,24 @@ export async function POST(req: NextRequest) {
             select: {
               id: true,
               name: true,
+              email: true,
               avatarUrl: true
             }
           }
         }
       })
+
+      // Scan message content for moderation (non-blocking)
+      scanMessageContent(
+        message.id,
+        content,
+        'GROUP_MESSAGE',
+        userId,
+        message.sender.email,
+        message.sender.name || undefined,
+        conversationId,
+        'group'
+      )
 
       // PERFORMANCE: Batch fetch group members and group data in parallel
       const [groupMembers, group] = await Promise.all([
@@ -142,6 +191,15 @@ export async function POST(req: NextRequest) {
       }
 
     } else if (conversationType === 'partner') {
+      // SECURITY: Check if either user has blocked the other
+      const blocked = await isBlocked(userId, conversationId)
+      if (blocked) {
+        return NextResponse.json(
+          { error: 'Unable to send message' },
+          { status: 403 }
+        )
+      }
+
       // Verify there's an accepted match
       const match = await prisma.match.findFirst({
         where: {
@@ -175,11 +233,24 @@ export async function POST(req: NextRequest) {
             select: {
               id: true,
               name: true,
+              email: true,
               avatarUrl: true
             }
           }
         }
       })
+
+      // Scan message content for moderation (non-blocking)
+      scanMessageContent(
+        message.id,
+        content,
+        'DIRECT_MESSAGE',
+        userId,
+        message.sender.email,
+        message.sender.name || undefined,
+        conversationId,
+        'partner'
+      )
 
       // PERFORMANCE: Use sender name from already-fetched message.sender (no additional query needed)
       await prisma.notification.create({

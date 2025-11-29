@@ -42,17 +42,17 @@ export default function ConfirmEmailPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
       <FastFadeIn delay={0.1}>
-        <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
+        <GlowBorder color="#60a5fa" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
           <div className="w-full max-w-md">
-            <div className="bg-white p-8 rounded-xl shadow-lg text-center">
+            <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-8 rounded-xl shadow-2xl text-center">
               {/* Email Icon */}
               <FastBounce delay={0.1}>
                 <FastPulse>
-                  <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <div className="mx-auto w-16 h-16 bg-blue-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
                     <svg
-                      className="w-8 h-8 text-blue-600"
+                      className="w-8 h-8 text-blue-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -68,31 +68,31 @@ export default function ConfirmEmailPage() {
                 </FastPulse>
               </FastBounce>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Check Your Email</h2>
 
-          <p className="text-gray-600 mb-6">
+          <p className="text-slate-300 mb-6">
             We've sent a confirmation email to{' '}
-            <span className="font-semibold text-gray-900">{email || 'your email address'}</span>
+            <span className="font-semibold text-white">{email || 'your email address'}</span>
           </p>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-            <h3 className="font-semibold text-blue-900 mb-2">Next Steps:</h3>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+          <div className="bg-blue-500/10 backdrop-blur-sm border border-blue-400/30 rounded-lg p-4 mb-6 text-left">
+            <h3 className="font-semibold text-blue-300 mb-2">Next Steps:</h3>
+            <ol className="text-sm text-blue-200 space-y-1 list-decimal list-inside">
               <li>Check your email inbox</li>
               <li>Click the confirmation link in the email</li>
               <li>You'll be automatically logged in to your account</li>
             </ol>
           </div>
 
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-slate-400 mb-4">
             Didn't receive the email? Check your spam folder.
           </p>
 
           {resendMessage && (
-            <div className={`mb-4 p-3 rounded-lg text-sm ${
+            <div className={`mb-4 p-3 rounded-lg text-sm backdrop-blur-sm ${
               resendMessage.includes('sent')
-                ? 'bg-green-50 border border-green-200 text-green-700'
-                : 'bg-red-50 border border-red-200 text-red-700'
+                ? 'bg-green-500/20 border border-green-400/30 text-green-300'
+                : 'bg-red-500/20 border border-red-400/30 text-red-300'
             }`}>
               {resendMessage}
             </div>
@@ -102,7 +102,7 @@ export default function ConfirmEmailPage() {
                 <button
                   onClick={handleResendEmail}
                   disabled={resending || !email}
-                  className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all mb-4 shadow-lg"
+                  className="w-full py-2 px-4 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-300 rounded-lg font-semibold hover:bg-blue-500/30 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all mb-4 shadow-lg shadow-blue-500/20"
                 >
                   {resending ? 'Sending...' : 'Resend Confirmation Email'}
                 </button>
@@ -110,7 +110,7 @@ export default function ConfirmEmailPage() {
 
               <Link
                 href="/auth/signin"
-                className="text-sm text-gray-600 hover:text-blue-600 font-medium"
+                className="text-sm text-slate-400 hover:text-blue-400 font-medium"
               >
                 Back to Sign In
               </Link>

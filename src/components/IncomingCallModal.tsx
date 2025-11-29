@@ -129,11 +129,11 @@ export default function IncomingCallModal() {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-75 z-[9999] flex items-center justify-center">
+      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center">
         {/* Modal */}
         <Bounce>
           <GlowBorder color="#3b82f6" animated={true}  style={{ borderRadius: 16 }}>
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div className="bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 p-8 max-w-md w-full mx-4">
               {/* Caller Avatar */}
               <div className="flex flex-col items-center mb-6">
                 <Pulse>
@@ -154,18 +154,18 @@ export default function IncomingCallModal() {
 
                 {/* Call Info */}
                 <Bounce delay={0.1}>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-white mb-2">
                     {incomingCall.callerName}
                   </h2>
                 </Bounce>
                 <Bounce delay={0.2}>
-                  <p className="text-gray-600 mb-1">
+                  <p className="text-slate-300 mb-1">
                     {incomingCall.isGroupCall ? 'Group Call' : 'Incoming Call'}
                   </p>
                 </Bounce>
                 <Bounce delay={0.3}>
                   <Pulse>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-slate-400">
                       {isRinging ? '📞 Ringing...' : 'Connecting...'}
                     </p>
                   </Pulse>
@@ -204,7 +204,7 @@ export default function IncomingCallModal() {
               </div>
 
               {/* Auto-dismiss timer (optional) */}
-              <p className="text-center text-xs text-gray-400 mt-4">
+              <p className="text-center text-xs text-slate-500 mt-4">
                 Call will timeout in 30 seconds
               </p>
             </div>

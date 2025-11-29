@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
 
 /**
  * Migration API: Remove deprecated onlineStatus field from Profile table
@@ -7,10 +8,34 @@ import { prisma } from '@/lib/prisma'
  * This endpoint removes the legacy onlineStatus column and its index.
  * UserPresence.status is now the single source of truth for online status.
  *
- * Security: This is an admin-only operation. In production, add authentication.
+ * SECURITY: Admin-only endpoint - requires isAdmin = true
  */
 export async function POST() {
   try {
+    // Verify authentication
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // CRITICAL: Verify user is admin before allowing any database operations
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true, deactivatedAt: true },
+    })
+
+    if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' },
+        { status: 403 }
+      )
+    }
+
     console.log('🔄 Starting migration: Remove onlineStatus from Profile table...')
 
     // Step 1: Drop the index on onlineStatus (if it exists)
@@ -77,9 +102,33 @@ export async function POST() {
   }
 }
 
-// GET endpoint to check if migration is needed
+// GET endpoint to check if migration is needed (Admin only)
 export async function GET() {
   try {
+    // Verify authentication
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // CRITICAL: Verify user is admin
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true, deactivatedAt: true },
+    })
+
+    if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' },
+        { status: 403 }
+      )
+    }
+
     const result = await prisma.$queryRawUnsafe<Array<{ column_name: string }>>(
       `
       SELECT column_name

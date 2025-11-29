@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { validateImageFile, generateSafeFilename, FILE_SIZE_LIMITS } from '@/lib/file-validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { invalidateUserCache } from '@/lib/cache'
+import { processAvatarImage, isImageProcessingAvailable } from '@/lib/security/image-processing'
+import logger from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   // Rate limiting: 10 uploads per hour
@@ -29,15 +31,10 @@ export async function POST(request: NextRequest) {
     // Parse form data
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const userId = formData.get('userId') as string
 
-    // Verify user is uploading their own avatar
-    if (userId && userId !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
-    }
+    // SECURITY FIX: Always use authenticated user's ID
+    // Ignore any userId from form data to prevent IDOR attacks
+    const targetUserId = user.id
 
     // Comprehensive file validation
     const validation = await validateImageFile(file, FILE_SIZE_LIMITS.AVATAR)
@@ -50,24 +47,44 @@ export async function POST(request: NextRequest) {
 
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    let buffer: Buffer = Buffer.from(arrayBuffer)
+    let contentType = file.type
 
-    // Generate safe filename
-    const fileName = generateSafeFilename(user.id, file.name)
+    // SECURITY: Process image to strip EXIF metadata (GPS, camera info, etc.)
+    const processingAvailable = await isImageProcessingAvailable()
+    if (processingAvailable) {
+      const processed = await processAvatarImage(buffer)
+      if (processed) {
+        buffer = Buffer.from(processed.buffer) // Ensure proper Buffer type
+        contentType = `image/${processed.format}`
+        logger.info('Avatar image processed', {
+          data: {
+            userId: targetUserId,
+            originalSize: arrayBuffer.byteLength,
+            processedSize: processed.size,
+            metadataStripped: processed.metadataStripped,
+          }
+        })
+      }
+    }
+
+    // Generate safe filename with appropriate extension
+    const extension = contentType.split('/')[1] || 'webp'
+    const fileName = `${targetUserId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${extension}`
     const filePath = `avatars/${fileName}`
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('user-uploads')
       .upload(filePath, buffer, {
-        contentType: file.type,
+        contentType,
         upsert: true,
       })
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
       return NextResponse.json(
-        { error: 'Upload failed', details: uploadError.message },
+        { error: 'Upload failed. Please try again.' },
         { status: 500 }
       )
     }
@@ -78,7 +95,7 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(filePath)
 
     // Invalidate user cache after avatar upload
-    await invalidateUserCache(user.id)
+    await invalidateUserCache(targetUserId)
 
     return NextResponse.json({
       success: true,

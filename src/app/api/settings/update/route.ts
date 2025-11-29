@@ -79,7 +79,7 @@ const updateSettingsSchema = z.object({
   contentFiltering: z.array(z.string()).nullable().optional().transform(val => val ?? []),
 
   // Accessibility
-  theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),
+  theme: z.enum(['LIGHT', 'DARK']).optional(),
   fontSize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'XLARGE']).optional(),
   highContrast: z.boolean().optional(),
   reducedMotion: z.boolean().optional(),

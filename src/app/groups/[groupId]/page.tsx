@@ -151,10 +151,10 @@ export default function ViewGroupPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading group...</p>
+          <p className="text-gray-700 dark:text-slate-400">Loading group...</p>
         </div>
       </div>
     )
@@ -162,18 +162,18 @@ export default function ViewGroupPage() {
 
   if (error || !groupData) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-200">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl p-8 text-center border border-gray-200 dark:border-white/20">
+          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Group Not Found</h1>
-          <p className="text-gray-600 mb-6">{error || 'This group could not be found.'}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Group Not Found</h1>
+          <p className="text-gray-700 dark:text-slate-300 mb-6">{error || 'This group could not be found.'}</p>
           <button
             onClick={() => router.push('/groups')}
-            className="inline-block px-6 py-3 bg-black text-white rounded-full hover:bg-gray-800 transition font-semibold"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:from-blue-700 hover:to-purple-700 transition font-semibold shadow-lg hover:shadow-xl"
           >
             Back to Groups
           </button>
@@ -185,24 +185,24 @@ export default function ViewGroupPage() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'OWNER':
-        return 'bg-purple-100 text-purple-800'
+        return 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
       case 'ADMIN':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-slate-500/20 text-slate-300 border border-slate-400/30'
     }
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header Navigation */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+      <header className="sticky top-0 z-50 bg-gray-50 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
           <button
             onClick={() => router.push('/groups')}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors -ml-2"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors -ml-2"
           >
-            <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -221,14 +221,14 @@ export default function ViewGroupPage() {
             )}
           </div>
           <div className="ml-3">
-            <h1 className="text-lg font-bold text-gray-900">{groupData.name}</h1>
-            <p className="text-xs text-gray-500">{groupData.memberCount} {groupData.memberCount === 1 ? 'member' : 'members'}</p>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">{groupData.name}</h1>
+            <p className="text-xs text-gray-600 dark:text-slate-400">{groupData.memberCount} {groupData.memberCount === 1 ? 'member' : 'members'}</p>
           </div>
         </div>
       </header>
 
       {/* Banner */}
-      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+      <div className="relative h-52 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
         {groupData.avatarUrl && (
           <img
             src={groupData.avatarUrl}
@@ -236,7 +236,7 @@ export default function ViewGroupPage() {
             className="w-full h-full object-cover"
           />
         )}
-        <div className="absolute inset-0 bg-black/5"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
       </div>
 
       {/* Group Header */}
@@ -244,7 +244,7 @@ export default function ViewGroupPage() {
         <div className="relative -mt-24 mb-4">
           {/* Group Avatar */}
           <div className="inline-block relative">
-            <div className="w-40 h-40 rounded-full bg-white p-1 shadow-xl">
+            <div className="w-40 h-40 rounded-full bg-slate-900 p-1 shadow-xl border-2 border-white/20">
               {groupData.avatarUrl ? (
                 <img
                   src={groupData.avatarUrl}
@@ -263,13 +263,13 @@ export default function ViewGroupPage() {
 
         {/* Group Info */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{groupData.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{groupData.name}</h1>
 
           {groupData.description && (
-            <p className="text-gray-900 mb-3 whitespace-pre-wrap leading-relaxed">{groupData.description}</p>
+            <p className="text-gray-700 dark:text-slate-200 mb-3 whitespace-pre-wrap leading-relaxed">{groupData.description}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-slate-400 mb-4">
             <div className="flex items-center gap-1">
               <Users size={16} />
               <span>{groupData.memberCount}/{groupData.maxMembers} members</span>
@@ -287,7 +287,7 @@ export default function ViewGroupPage() {
             <button
               onClick={handleJoinGroup}
               disabled={actionLoading || groupData.memberCount >= groupData.maxMembers}
-              className="w-full md:w-auto px-8 py-3 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {actionLoading ? 'Joining...' : groupData.memberCount >= groupData.maxMembers ? 'Group Full' : 'Join Group'}
             </button>
@@ -295,7 +295,7 @@ export default function ViewGroupPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleMessage}
-                className="flex-1 md:flex-none px-8 py-3 bg-black text-white rounded-full font-semibold hover:bg-gray-800 hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 md:flex-none px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
                 Message
@@ -304,7 +304,7 @@ export default function ViewGroupPage() {
                 <button
                   onClick={handleLeaveGroup}
                   disabled={actionLoading}
-                  className="flex-1 md:flex-none px-8 py-3 border-2 border-gray-300 text-gray-900 rounded-full font-semibold hover:bg-gray-50 hover:scale-105 transition-all shadow disabled:opacity-50"
+                  className="flex-1 md:flex-none px-8 py-3 border-2 border-white/20 text-white rounded-full font-semibold hover:bg-white/10 hover:scale-105 transition-all shadow-lg disabled:opacity-50"
                 >
                   {actionLoading ? 'Leaving...' : 'Leave Group'}
                 </button>
@@ -314,9 +314,9 @@ export default function ViewGroupPage() {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
+        <div className="border-b border-gray-200 dark:border-white/10 mb-6">
           <nav className="flex gap-8">
-            <button className="pb-3 border-b-2 border-black font-semibold text-sm">
+            <button className="pb-3 border-b-2 border-blue-500 font-semibold text-sm text-gray-900 dark:text-white">
               About
             </button>
           </nav>
@@ -328,60 +328,60 @@ export default function ViewGroupPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Subject */}
             <div>
-              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
-                <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                  <Book size={20} className="text-blue-600" />
+              <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-semibold mb-2">
+                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center border border-blue-400/30">
+                  <Book size={20} className="text-blue-400" />
                 </div>
                 <span>Subject</span>
               </div>
-              <p className="text-gray-900 ml-12">{groupData.subject}</p>
+              <p className="text-gray-900 dark:text-white ml-12">{groupData.subject}</p>
               {groupData.subjectCustomDescription && (
-                <p className="text-sm text-gray-600 ml-12 mt-1">{groupData.subjectCustomDescription}</p>
+                <p className="text-sm text-gray-600 dark:text-slate-400 ml-12 mt-1">{groupData.subjectCustomDescription}</p>
               )}
             </div>
 
             {/* Skill Level */}
             <div>
-              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
-                <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
-                  <TrendingUp size={20} className="text-green-600" />
+              <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-semibold mb-2">
+                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center border border-green-400/30">
+                  <TrendingUp size={20} className="text-green-400" />
                 </div>
                 <span>Skill Level</span>
               </div>
-              <p className="text-gray-900 ml-12">{groupData.skillLevel}</p>
+              <p className="text-gray-900 dark:text-white ml-12">{groupData.skillLevel}</p>
               {groupData.skillLevelCustomDescription && (
-                <p className="text-sm text-gray-600 ml-12 mt-1">{groupData.skillLevelCustomDescription}</p>
+                <p className="text-sm text-gray-600 dark:text-slate-400 ml-12 mt-1">{groupData.skillLevelCustomDescription}</p>
               )}
             </div>
 
             {/* Owner */}
             <div>
-              <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
-                <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">
-                  <UserCircle size={20} className="text-purple-600" />
+              <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-semibold mb-2">
+                <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center border border-purple-400/30">
+                  <UserCircle size={20} className="text-purple-400" />
                 </div>
                 <span>Group Owner</span>
               </div>
               <button
                 onClick={() => router.push(`/profile/${groupData.owner.id}`)}
-                className="flex items-center gap-3 ml-12 hover:bg-gray-50 p-2 -ml-2 rounded-lg transition-colors"
+                className="flex items-center gap-3 ml-12 hover:bg-gray-100 dark:hover:bg-white/10 p-2 -ml-2 rounded-lg transition-colors"
               >
                 {groupData.owner.avatarUrl ? (
                   <img src={groupData.owner.avatarUrl} alt={groupData.owner.name} className="w-10 h-10 rounded-full" />
                 ) : (
-                  <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                    <UserCircle size={24} className="text-gray-600" />
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                    <UserCircle size={24} className="text-gray-600 dark:text-slate-400" />
                   </div>
                 )}
-                <span className="text-gray-900 font-medium">{groupData.owner.name}</span>
+                <span className="text-gray-900 dark:text-white font-medium">{groupData.owner.name}</span>
               </button>
             </div>
           </div>
 
           {/* Members Section */}
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Members <span className="text-gray-500 font-normal">({groupData.memberCount})</span>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Members <span className="text-gray-600 dark:text-slate-400 font-normal">({groupData.memberCount})</span>
             </h2>
             <div className="space-y-2">
               {groupData.members.map((member) => (
@@ -395,32 +395,32 @@ export default function ViewGroupPage() {
                       router.push(`/profile/${member.id}`)
                     }
                   }}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors text-left bg-white dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-none"
                 >
                   <div className="relative">
                     {member.avatarUrl ? (
                       <img src={member.avatarUrl} alt={member.name} className="w-12 h-12 rounded-full" />
                     ) : (
-                      <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                        <UserCircle size={24} className="text-gray-600" />
+                      <div className="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                        <UserCircle size={24} className="text-gray-600 dark:text-slate-400" />
                       </div>
                     )}
                     {member.onlineStatus === 'ONLINE' && (
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-900 truncate">{member.name}</p>
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">{member.name}</p>
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
                         {member.role}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-600 dark:text-slate-400">
                       Joined {new Date(member.joinedAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>

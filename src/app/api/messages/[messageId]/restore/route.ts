@@ -32,9 +32,26 @@ export async function POST(
     }
 
     // Check if message belongs to user
-    if (message.senderId !== user.id && message.recipientId !== user.id) {
+    // For DMs: check senderId or recipientId
+    // For groups: check if user is a member of the group
+    let hasAccess = message.senderId === user.id || message.recipientId === user.id
+
+    if (!hasAccess && message.groupId) {
+      // Check group membership for group messages
+      const groupMember = await prisma.groupMember.findUnique({
+        where: {
+          groupId_userId: {
+            groupId: message.groupId,
+            userId: user.id,
+          },
+        },
+      })
+      hasAccess = !!groupMember
+    }
+
+    if (!hasAccess) {
       return NextResponse.json(
-        { error: 'You can only restore your own messages' },
+        { error: 'You can only restore messages you have access to' },
         { status: 403 }
       )
     }

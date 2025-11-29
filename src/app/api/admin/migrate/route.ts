@@ -1,12 +1,13 @@
 // One-time migration endpoint for collaboration features
 // This should be deleted after successful migration
+// SECURITY: Admin-only endpoint
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    // Verify authentication - only allow for admin or during initial setup
+    // Verify authentication
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -14,6 +15,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      )
+    }
+
+    // CRITICAL: Verify user is admin before allowing any database operations
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true, deactivatedAt: true },
+    })
+
+    if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' },
+        { status: 403 }
       )
     }
 

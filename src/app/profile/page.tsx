@@ -267,8 +267,8 @@ export default function MyProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
@@ -276,21 +276,21 @@ export default function MyProfilePage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header Navigation */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
           <button
             onClick={() => router.push('/dashboard')}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors -ml-2"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors -ml-2"
           >
-            <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-gray-900 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div className="ml-4">
-            <h1 className="text-xl font-bold text-gray-900">{profile?.name || user.email}</h1>
-            <p className="text-sm text-gray-500">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{profile?.name || user.email}</h1>
+            <p className="text-sm text-gray-600 dark:text-slate-400">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
           </div>
         </div>
       </header>
@@ -329,11 +329,11 @@ export default function MyProfilePage() {
 
           {/* Cover Photo Menu */}
           {showCoverPhotoMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]">
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 overflow-hidden z-[9999]">
               {coverPhotoUrl && (
                 <button
                   onClick={handleSeeCoverPhoto}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -344,7 +344,7 @@ export default function MyProfilePage() {
               )}
               <button
                 onClick={handleUploadCoverPhoto}
-                className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -405,10 +405,10 @@ export default function MyProfilePage() {
 
             {/* Avatar Menu */}
             {showAvatarMenu && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]">
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 overflow-hidden z-[9999]">
                 <button
                   onClick={handleUploadAvatar}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -420,7 +420,7 @@ export default function MyProfilePage() {
                     router.push('/profile/edit')
                     setShowAvatarMenu(false)
                   }}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -434,14 +434,14 @@ export default function MyProfilePage() {
 
         {/* User Info */}
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{profile?.name || user.email || 'User'}</h1>
-          <p className="text-gray-500 text-sm mb-3">@{user.email?.split('@')[0]}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{profile?.name || user.email || 'User'}</h1>
+          <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">@{user.email?.split('@')[0]}</p>
 
           {profile?.bio && (
-            <p className="text-gray-900 mb-3 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+            <p className="text-gray-700 dark:text-slate-300 mb-3 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-3">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-slate-400 mb-3">
             {(profile as any)?.school && (
               <div className="flex items-center gap-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -468,21 +468,21 @@ export default function MyProfilePage() {
             <div className="flex gap-6 text-sm mb-4">
               {((profile as any)?.subjects && (profile as any).subjects.length > 0) && (
                 <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-blue-50 rounded-lg">
+                  <div className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg">
                     <Pulse>
-                      <span className="font-semibold text-blue-600">{(profile as any).subjects.length}</span>
+                      <span className="font-semibold text-blue-400">{(profile as any).subjects.length}</span>
                     </Pulse>
-                    <span className="text-gray-500 ml-1">{(profile as any).subjects.length === 1 ? 'subject' : 'subjects'}</span>
+                    <span className="text-gray-700 dark:text-slate-300 ml-1">{(profile as any).subjects.length === 1 ? 'subject' : 'subjects'}</span>
                   </div>
                 </GlowBorder>
               )}
               {((profile as any)?.interests && (profile as any).interests.length > 0) && (
                 <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-purple-50 rounded-lg">
+                  <div className="px-4 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg">
                     <Pulse>
-                      <span className="font-semibold text-purple-600">{(profile as any).interests.length}</span>
+                      <span className="font-semibold text-purple-400">{(profile as any).interests.length}</span>
                     </Pulse>
-                    <span className="text-gray-500 ml-1">{(profile as any).interests.length === 1 ? 'interest' : 'interests'}</span>
+                    <span className="text-gray-700 dark:text-slate-300 ml-1">{(profile as any).interests.length === 1 ? 'interest' : 'interests'}</span>
                   </div>
                 </GlowBorder>
               )}
@@ -492,15 +492,15 @@ export default function MyProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-t border-gray-200 sticky top-14 bg-white z-40">
+      <div className="border-t border-gray-200 dark:border-white/10 sticky top-14 bg-gray-50 dark:bg-slate-900 z-40">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex">
             <button
               onClick={() => setActiveTab('about')}
               className={`flex-1 py-4 text-center font-semibold transition-all hover:scale-105 ${
                 activeTab === 'about'
-                  ? 'text-gray-900 border-b-2 border-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-gray-900 dark:text-white border-b-2 border-blue-500'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-300'
               }`}
             >
               {t('about')}
@@ -509,13 +509,13 @@ export default function MyProfilePage() {
               onClick={() => setActiveTab('posts')}
               className={`flex-1 py-4 text-center font-semibold transition-all hover:scale-105 ${
                 activeTab === 'posts'
-                  ? 'text-gray-900 border-b-2 border-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-gray-900 dark:text-white border-b-2 border-blue-500'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-300'
               }`}
             >
               {t('posts')} {posts.length > 0 && (
                 <Pulse>
-                  <span className="ml-1 text-blue-600">({posts.length})</span>
+                  <span className="ml-1 text-blue-400">({posts.length})</span>
                 </Pulse>
               )}
             </button>
@@ -530,14 +530,14 @@ export default function MyProfilePage() {
             {/* Bio */}
             {profile?.bio && (
               <div>
-                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+                <p className="text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
               </div>
             )}
 
             {/* About Yourself */}
             {(profile as any)?.aboutYourself && (
               <div>
-                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{(profile as any).aboutYourself}</p>
+                <p className="text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{(profile as any).aboutYourself}</p>
               </div>
             )}
 
@@ -548,7 +548,7 @@ export default function MyProfilePage() {
                   <div className="flex flex-wrap gap-2 mt-4">
                     {(profile as any).aboutYourselfItems.map((item: string, index: number) => (
                       <Bounce key={index} delay={index * 0.05}>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:scale-105 transition-all cursor-default">
+                        <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-sm font-medium hover:scale-105 transition-all cursor-default">
                           {item}
                         </span>
                       </Bounce>
@@ -560,16 +560,16 @@ export default function MyProfilePage() {
 
             {/* Additional Info */}
             {profile && (((profile as any).subjects?.length > 0) || ((profile as any).interests?.length > 0) || (profile as any).languages) && (
-              <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/10 space-y-4">
                 {/* Subjects */}
                 {(profile as any).subjects?.length > 0 && (
                   <FadeIn delay={0.1}>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">{t('subjects')}</h3>
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('subjects')}</h3>
                       <div className="flex flex-wrap gap-2">
                         {(profile as any).subjects.map((subject: string, index: number) => (
                           <Bounce key={index} delay={index * 0.05}>
-                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:scale-105 transition-all cursor-default">
+                            <span className="px-3 py-1 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-white/10 rounded-full text-sm hover:scale-105 transition-all cursor-default">
                               {subject}
                             </span>
                           </Bounce>
@@ -583,11 +583,11 @@ export default function MyProfilePage() {
                 {(profile as any).interests?.length > 0 && (
                   <FadeIn delay={0.2}>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">{t('interests')}</h3>
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('interests')}</h3>
                       <div className="flex flex-wrap gap-2">
                         {(profile as any).interests.map((interest: string, index: number) => (
                           <Bounce key={index} delay={index * 0.05}>
-                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:scale-105 transition-all cursor-default">
+                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm hover:scale-105 transition-all cursor-default">
                               {interest}
                             </span>
                           </Bounce>
@@ -600,8 +600,8 @@ export default function MyProfilePage() {
                 {/* Languages */}
                 {(profile as any).languages && (
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{t('languages')}</h3>
-                    <p className="text-gray-700">{(profile as any).languages}</p>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('languages')}</h3>
+                    <p className="text-gray-700 dark:text-slate-300">{(profile as any).languages}</p>
                   </div>
                 )}
               </div>
@@ -610,10 +610,10 @@ export default function MyProfilePage() {
             {/* Show message if no about info */}
             {!profile?.bio && !(profile as any)?.aboutYourself && (!(profile as any)?.aboutYourselfItems || (profile as any).aboutYourselfItems.length === 0) && (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">{t('noAboutInfo')}</p>
+                <p className="text-gray-600 dark:text-slate-400 mb-4">{t('noAboutInfo')}</p>
                 <button
                   onClick={() => router.push('/profile/edit')}
-                  className="text-blue-600 hover:underline font-medium"
+                  className="text-blue-500 dark:text-blue-400 hover:underline font-medium"
                 >
                   {t('addInfoToProfile')}
                 </button>
@@ -624,13 +624,13 @@ export default function MyProfilePage() {
           <div className="space-y-4">
             {loadingPosts ? (
               <div className="text-center py-8">
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
               </div>
             ) : posts && posts.length > 0 ? (
               posts.map((post, index) => (
                 <FadeIn key={post.id} delay={index * 0.05}>
-                  <GlowBorder color="#e5e7eb" animated={false}  style={{ borderRadius: 12 }}>
-                    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <GlowBorder color="#3b82f6" animated={false}  style={{ borderRadius: 12 }}>
+                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-4 bg-white dark:bg-white/5 shadow-lg dark:shadow-none backdrop-blur-xl">
                   {/* Post Header with Three-Dot Menu */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -641,16 +641,16 @@ export default function MyProfilePage() {
                         onlineStatus={(user as any).onlineStatus as 'ONLINE' | 'OFFLINE'}
                         showStatus={false}
                       />
-                      <span className="font-medium text-gray-900">{profile?.name || user.email}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{profile?.name || user.email}</span>
                     </div>
 
                     {/* Three-Dot Menu */}
                     <div className="relative">
                       <button
                         onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
-                        className="p-2 hover:bg-gray-100 rounded-full transition"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition"
                       >
-                        <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-gray-600 dark:text-slate-400" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                         </svg>
                       </button>
@@ -661,14 +661,14 @@ export default function MyProfilePage() {
                             className="fixed inset-0 z-10"
                             onClick={() => setOpenMenuPostId(null)}
                           />
-                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 py-1 z-20">
                             {/* Share */}
                             <button
                               onClick={() => {
                                 handleSharePost(post.id)
                                 setOpenMenuPostId(null)
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -679,7 +679,7 @@ export default function MyProfilePage() {
                             {/* Edit */}
                             <button
                               onClick={() => startEditPost(post)}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -693,7 +693,7 @@ export default function MyProfilePage() {
                                 handleDeletePost(post.id)
                                 setOpenMenuPostId(null)
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/20 flex items-center gap-2"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -712,25 +712,25 @@ export default function MyProfilePage() {
                       <textarea
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={4}
                         maxLength={5000}
                       />
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-600 dark:text-slate-400">
                           {editContent.length}/5000
                         </span>
                         <div className="flex gap-2">
                           <button
                             onClick={cancelEdit}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                            className="px-4 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
                           >
                             Cancel
                           </button>
                           <button
                             onClick={() => handleEditPost(post.id)}
                             disabled={!editContent.trim()}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
                           >
                             Save
                           </button>
@@ -739,7 +739,7 @@ export default function MyProfilePage() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-gray-800 mb-3 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+                      <p className="text-gray-700 dark:text-slate-300 mb-3 whitespace-pre-wrap leading-relaxed">{post.content}</p>
 
                       {/* Post Images */}
                       {post.imageUrls && post.imageUrls.length > 0 && (
@@ -761,9 +761,9 @@ export default function MyProfilePage() {
                           href={post.postUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block mb-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                          className="block mb-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition"
                         >
-                          <div className="flex items-center gap-2 text-blue-600 hover:text-blue-700">
+                          <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                             </svg>
@@ -775,7 +775,7 @@ export default function MyProfilePage() {
                   )}
 
                   {/* Post Stats */}
-                  <div className="flex items-center gap-4 text-sm text-gray-500 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-slate-400 pt-3 border-t border-gray-200 dark:border-white/10">
                     {post._count.likes > 0 ? (
                       <Pulse>
                         <span>❤️ {post._count.likes}</span>
@@ -805,10 +805,10 @@ export default function MyProfilePage() {
               ))
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">{t('noPosts')}</p>
+                <p className="text-gray-600 dark:text-slate-400 mb-4">{t('noPosts')}</p>
                 <button
                   onClick={() => router.push('/community')}
-                  className="text-blue-600 hover:underline font-medium"
+                  className="text-blue-500 dark:text-blue-400 hover:underline font-medium"
                 >
                   {t('createFirstPost')}
                 </button>

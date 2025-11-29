@@ -28,6 +28,50 @@ export const PAGINATION = {
 } as const
 
 /**
+ * Batch operation limits (for security)
+ */
+export const BATCH_LIMITS = {
+  /** Maximum items in a batch delete operation */
+  MAX_BATCH_DELETE: 50,
+  /** Maximum items in a batch update operation */
+  MAX_BATCH_UPDATE: 50,
+  /** Maximum recipients in a batch message */
+  MAX_BATCH_MESSAGE: 20,
+  /** Maximum invites that can be sent at once */
+  MAX_BATCH_INVITES: 10,
+} as const
+
+/**
+ * Enforce pagination limits on a requested limit value
+ * @param requestedLimit - The limit requested by the client
+ * @param maxLimit - Maximum allowed limit (defaults to PAGINATION.MAX_LIMIT)
+ * @param defaultLimit - Default limit if none provided (defaults to PAGINATION.DEFAULT_LIMIT)
+ */
+export function enforcePaginationLimit(
+  requestedLimit: number | undefined | null,
+  maxLimit: number = PAGINATION.MAX_LIMIT,
+  defaultLimit: number = PAGINATION.DEFAULT_LIMIT
+): number {
+  if (requestedLimit === undefined || requestedLimit === null || requestedLimit <= 0) {
+    return defaultLimit
+  }
+  return Math.min(requestedLimit, maxLimit)
+}
+
+/**
+ * Enforce batch operation limits
+ * @param items - The items to batch process
+ * @param maxItems - Maximum items allowed
+ * @returns Truncated array if needed
+ */
+export function enforceBatchLimit<T>(items: T[], maxItems: number): T[] {
+  if (items.length <= maxItems) {
+    return items
+  }
+  return items.slice(0, maxItems)
+}
+
+/**
  * Content length limits for user-generated content
  */
 export const CONTENT_LIMITS = {

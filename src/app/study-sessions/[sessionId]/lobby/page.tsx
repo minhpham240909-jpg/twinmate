@@ -506,10 +506,10 @@ export default function WaitingLobbyPage() {
 
   if (loading || loadingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('loadingWaitingLobby')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 dark:text-slate-300">{t('loadingWaitingLobby')}</p>
         </div>
       </div>
     )
@@ -522,28 +522,28 @@ export default function WaitingLobbyPage() {
   const seconds = timeRemaining % 60
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-gray-50 dark:bg-white/5 backdrop-blur-xl border-b border-gray-200 dark:border-white/10 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button onClick={() => router.push('/study-sessions')} className="text-gray-600 hover:text-gray-900">
+              <button onClick={() => router.push('/study-sessions')} className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-blue-600">{session.title}</h1>
-                <p className="text-sm text-gray-600">{t('waitingLobby')}</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{session.title}</h1>
+                <p className="text-sm text-gray-600 dark:text-slate-400">{t('waitingLobby')}</p>
               </div>
             </div>
 
             {/* Countdown Timer */}
             <div className="flex items-center gap-4">
-              <div className="px-4 py-2 bg-orange-100 rounded-lg">
-                <p className="text-xs text-orange-600 font-medium mb-1">{t('sessionExpiresIn')}</p>
-                <p className="text-2xl font-bold text-orange-700">
+              <div className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-lg backdrop-blur-sm">
+                <p className="text-xs text-orange-400 font-medium mb-1">{t('sessionExpiresIn')}</p>
+                <p className="text-2xl font-bold text-orange-300">
                   {minutes}:{seconds.toString().padStart(2, '0')}
                 </p>
               </div>
@@ -561,38 +561,38 @@ export default function WaitingLobbyPage() {
               {/* Session Details Card */}
               <FadeIn delay={0.1}>
                 <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">{t('sessionDetails')}</h2>
+                  <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-lg dark:shadow-sm p-6">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('sessionDetails')}</h2>
                 <div className="space-y-3">
                   {session.description && (
                     <div>
-                      <p className="text-sm text-gray-500">{t('description')}</p>
-                      <p className="text-gray-900">{session.description}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400">{t('description')}</p>
+                      <p className="text-gray-700 dark:text-slate-300">{session.description}</p>
                     </div>
                   )}
                   {session.subject && (
                     <div>
-                      <p className="text-sm text-gray-500">{t('subject')}</p>
-                      <p className="font-medium text-gray-900">{session.subject}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400">{t('subject')}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{session.subject}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-500">{t('type')}</p>
-                    <p className="font-medium text-gray-900">{session.type.replace('_', ' ')}</p>
+                    <p className="text-sm text-gray-600 dark:text-slate-400">{t('type')}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{session.type.replace('_', ' ')}</p>
                   </div>
                   {session.durationMinutes && (
                     <div>
-                      <p className="text-sm text-gray-500">{t('plannedDuration')}</p>
-                      <p className="font-medium text-gray-900">{session.durationMinutes} {t('minutes')}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400">{t('plannedDuration')}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{session.durationMinutes} {t('minutes')}</p>
                     </div>
                   )}
                   {session.goals.length > 0 && (
                     <div>
-                      <p className="text-sm text-gray-500 mb-2">{t('goals')}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-2">{t('goals')}</p>
                       <ul className="space-y-1">
                         {session.goals.map((goal) => (
-                          <li key={goal.id} className="flex items-center gap-2 text-gray-900">
-                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <li key={goal.id} className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                            <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                             {goal.title}
@@ -607,13 +607,13 @@ export default function WaitingLobbyPage() {
               </FadeIn>
 
               {/* Chat */}
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col h-[400px]">
-                <div className="bg-blue-600 px-6 py-3">
+              <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-lg dark:shadow-sm overflow-hidden flex flex-col h-[400px]">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3">
                   <h3 className="text-white font-semibold">{t('waitingRoomChat')}</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {messages.length === 0 && (
-                    <p className="text-center text-gray-400 text-sm py-8">{t('noMessagesYet')}</p>
+                    <p className="text-center text-gray-600 dark:text-slate-500 text-sm py-8">{t('noMessagesYet')}</p>
                   )}
                   {messages.map((msg) => (
                     <div key={msg.id} className="flex items-start gap-3">
@@ -624,14 +624,14 @@ export default function WaitingLobbyPage() {
                         showStatus={false}
                       />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{msg.senderName}</p>
-                        <p className="text-sm text-gray-700">{msg.content}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{msg.senderName}</p>
+                        <p className="text-sm text-gray-700 dark:text-slate-300">{msg.content}</p>
                       </div>
                     </div>
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
-                <div className="border-t p-4">
+                <div className="border-t border-gray-200 dark:border-white/10 p-4">
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -639,12 +639,12 @@ export default function WaitingLobbyPage() {
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                       placeholder={t('typeMessage')}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-600 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <button
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim() || sending}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50"
                     >
                       {t('send')}
                     </button>
@@ -658,11 +658,11 @@ export default function WaitingLobbyPage() {
               {/* Invite Button */}
               <FadeIn delay={0.2}>
                 <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                  <div className="bg-white rounded-xl shadow-sm p-6">
+                  <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-lg dark:shadow-sm p-6">
                     <Bounce>
                       <button
                         onClick={() => setShowInviteModal(true)}
-                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-lg"
+                        className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-2"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -678,18 +678,18 @@ export default function WaitingLobbyPage() {
               {isCreator && (
                 <FadeIn delay={0.3}>
                   <GlowBorder color="#10b981" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                    <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+                    <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl shadow-lg p-6 text-white border border-white/10">
                       <Bounce delay={0.1}>
                         <h3 className="text-lg font-bold mb-2">{t('readyToStart')}</h3>
                       </Bounce>
                       <Bounce delay={0.2}>
-                        <p className="text-sm opacity-90 mb-4">{t('startNotification')}</p>
+                        <p className="text-sm text-white/90 mb-4">{t('startNotification')}</p>
                       </Bounce>
                       <Bounce delay={0.3}>
                         <button
                           onClick={handleStartSession}
                           disabled={starting}
-                          className="w-full px-6 py-3 bg-white text-green-600 rounded-lg font-bold hover:bg-gray-100 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
+                          className="w-full px-6 py-3 bg-white/95 text-green-600 rounded-lg font-bold hover:bg-white hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
                         >
                           {starting ? t('starting') : t('startStudying')}
                         </button>
@@ -702,18 +702,18 @@ export default function WaitingLobbyPage() {
               {/* Participants */}
               <FadeIn delay={0.4}>
                 <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h3 className="text-lg font-semibold mb-4">
+                  <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-lg dark:shadow-sm p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                       {t('participants')} {session.participants.length > 0 && (
                         <Pulse>
-                          <span className="text-blue-600">({session.participants.length}/{session.maxParticipants})</span>
+                          <span className="text-blue-400">({session.participants.length}/{session.maxParticipants})</span>
                         </Pulse>
                       )}
                     </h3>
                     <div className="space-y-3">
                       {session.participants.map((participant, index) => (
                         <FadeIn key={participant.id} delay={index * 0.05}>
-                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/5">
                       <PartnerAvatar
                         avatarUrl={participant.avatarUrl}
                         name={participant.name}
@@ -721,19 +721,19 @@ export default function WaitingLobbyPage() {
                         showStatus={false}
                       />
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{participant.name}</h4>
-                        <p className="text-xs text-gray-500">{participant.role}</p>
+                        <h4 className="font-medium text-gray-900 dark:text-white">{participant.name}</h4>
+                        <p className="text-xs text-gray-600 dark:text-slate-400">{participant.role}</p>
                       </div>
                             {onlineUsers.has(participant.userId) ? (
                               <Pulse>
-                                <span className="w-2 h-2 bg-green-500 rounded-full" title={t('online')}></span>
+                                <span className="w-2 h-2 bg-green-400 rounded-full" title={t('online')}></span>
                               </Pulse>
                             ) : participant.status === 'JOINED' ? (
                               <Pulse>
-                                <span className="w-2 h-2 bg-yellow-500 rounded-full" title={t('joined')}></span>
+                                <span className="w-2 h-2 bg-yellow-400 rounded-full" title={t('joined')}></span>
                               </Pulse>
                             ) : (
-                              <span className="w-2 h-2 bg-gray-300 rounded-full" title={t('invited')}></span>
+                              <span className="w-2 h-2 bg-slate-600 rounded-full" title={t('invited')}></span>
                             )}
                           </div>
                         </FadeIn>
@@ -744,8 +744,8 @@ export default function WaitingLobbyPage() {
               </FadeIn>
 
               {/* Info Notice */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
+              <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 backdrop-blur-sm">
+                <p className="text-sm text-blue-600 dark:text-blue-300">
                   {isCreator
                     ? t('hostMessage')
                     : t('waitingForHost', { host: session.createdBy.name })}

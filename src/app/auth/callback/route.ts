@@ -1,10 +1,28 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { validateOAuthState, clearOAuthStateCookie } from '@/lib/security/oauth-state'
+import logger from '@/lib/logger'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const stateFromCallback = requestUrl.searchParams.get('state')
+
+  // Validate OAuth state parameter to prevent CSRF attacks
+  // Note: We only validate if state was provided (backwards compatible)
+  if (stateFromCallback) {
+    const stateValidation = await validateOAuthState(stateFromCallback)
+    if (!stateValidation.valid) {
+      logger.warn('OAuth state validation failed', { reason: stateValidation.reason })
+      return NextResponse.redirect(
+        new URL('/auth/error?message=' + encodeURIComponent('Invalid authentication request. Please try again.'), requestUrl.origin)
+      )
+    }
+  } else {
+    // Clear any existing state cookie if no state was provided
+    await clearOAuthStateCookie()
+  }
 
   if (code) {
     try {
@@ -68,16 +86,18 @@ export async function GET(request: Request) {
               expires,
               path: '/',
               sameSite: 'lax',
-              httpOnly: false,
+              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
+              secure: process.env.NODE_ENV === 'production',
             })
-            
+
             response.cookies.set('sb-refresh-token', data.session.refresh_token, {
               expires,
               path: '/',
               sameSite: 'lax',
-              httpOnly: false,
+              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
+              secure: process.env.NODE_ENV === 'production',
             })
-            
+
             return response
           } else {
             // Existing user - update emailVerified if confirmed by Supabase
@@ -95,13 +115,38 @@ export async function GET(request: Request) {
             if (wasUnverified && nowVerified) {
               console.log('[Auth Callback] ✅ Email confirmed for user:', data.user.email)
             }
+
+            // Check if user is admin and redirect accordingly
+            const redirectUrl = dbUser.isAdmin ? '/admin' : '/dashboard'
+            const response = NextResponse.redirect(new URL(redirectUrl, requestUrl.origin))
+
+            const expires = new Date(data.session.expires_at! * 1000)
+
+            response.cookies.set('sb-access-token', data.session.access_token, {
+              expires,
+              path: '/',
+              sameSite: 'lax',
+              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
+              secure: process.env.NODE_ENV === 'production',
+            })
+
+            response.cookies.set('sb-refresh-token', data.session.refresh_token, {
+              expires,
+              path: '/',
+              sameSite: 'lax',
+              httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
+              secure: process.env.NODE_ENV === 'production',
+            })
+
+            // Removed email logging for privacy
+            return response
           }
         } catch (dbError) {
           console.error('Database sync error:', dbError)
           // Continue anyway - user can be synced later
         }
 
-        // Set custom cookies with access and refresh tokens and redirect to dashboard
+        // Fallback: redirect to dashboard if db check failed
         const response = NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
 
         const expires = new Date(data.session.expires_at! * 1000)
@@ -110,14 +155,16 @@ export async function GET(request: Request) {
           expires,
           path: '/',
           sameSite: 'lax',
-          httpOnly: false, // Allow JavaScript to read for session sync
+          httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
+          secure: process.env.NODE_ENV === 'production',
         })
 
         response.cookies.set('sb-refresh-token', data.session.refresh_token, {
           expires,
           path: '/',
           sameSite: 'lax',
-          httpOnly: false, // Allow JavaScript to read for session sync
+          httpOnly: true, // SECURITY: Prevent XSS attacks from stealing tokens
+          secure: process.env.NODE_ENV === 'production',
         })
 
         console.log('[OAuth Callback] ✅ Cookies set, redirecting to dashboard')

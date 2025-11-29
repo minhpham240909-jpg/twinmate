@@ -26,8 +26,25 @@ export default function ResetPasswordPage() {
       return
     }
 
-    if (password.length < 8) {
-      toast.error(t('passwordMinLength'))
+    // Password requirements: 12+ chars, uppercase, lowercase, number, special char
+    if (password.length < 12) {
+      toast.error('Password must be at least 12 characters')
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      toast.error('Password must include an uppercase letter')
+      return
+    }
+    if (!/[a-z]/.test(password)) {
+      toast.error('Password must include a lowercase letter')
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      toast.error('Password must include a number')
+      return
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      toast.error('Password must include a special character')
       return
     }
 
@@ -60,29 +77,29 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
       <FastFadeIn delay={0.1}>
-        <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+        <GlowBorder color="#60a5fa" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
+          <div className="max-w-md w-full bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-8">
             <div className="text-center mb-8">
               <FastBounce delay={0.1}>
                 <FastPulse>
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 bg-blue-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
                 </FastPulse>
               </FastBounce>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Set New Password</h1>
-              <p className="text-gray-600">
+              <h1 className="text-3xl font-bold text-white mb-2">Set New Password</h1>
+              <p className="text-slate-300">
                 Choose a strong password to protect your account
               </p>
             </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
               New Password
             </label>
             <div className="relative">
@@ -92,15 +109,15 @@ export default function ResetPasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('enterNewPassword')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                className="w-full px-4 py-3 bg-slate-700/50 backdrop-blur-sm border border-slate-600/50 text-white placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
                 required
                 disabled={isLoading}
-                minLength={8}
+                minLength={12}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
               >
                 {showPassword ? (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,11 +131,11 @@ export default function ResetPasswordPage() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
+            <p className="text-xs text-slate-400 mt-1">12+ characters with uppercase, lowercase, number, and special character</p>
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
               Confirm Password
             </label>
             <input
@@ -127,10 +144,10 @@ export default function ResetPasswordPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder={t('confirmNewPassword')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-slate-700/50 backdrop-blur-sm border border-slate-600/50 text-white placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
               disabled={isLoading}
-              minLength={8}
+              minLength={12}
             />
           </div>
 
@@ -138,11 +155,11 @@ export default function ResetPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 hover:scale-105 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
+                className="w-full py-3 px-4 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 hover:bg-blue-500/30 hover:scale-105 text-blue-300 font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-blue-500/20"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
@@ -158,7 +175,7 @@ export default function ResetPasswordPage() {
           <div className="mt-6 text-center">
             <Link
               href="/auth/signin"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-sm text-blue-400 hover:text-blue-300 font-medium"
             >
               ← Back to Sign In
             </Link>

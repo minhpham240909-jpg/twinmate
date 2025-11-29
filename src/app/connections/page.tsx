@@ -126,10 +126,10 @@ export default function ConnectionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 dark:text-slate-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -144,20 +144,20 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="backdrop-blur-xl bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-800/50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/dashboard')}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-blue-600">{t('title')}</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
           </div>
         </div>
       </header>
@@ -167,14 +167,14 @@ export default function ConnectionsPage() {
         {/* Error Message */}
         {error && (
           <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-              <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="backdrop-blur-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-4 flex items-center gap-3">
+              <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               <button
                 onClick={fetchConnectionRequests}
-                className="ml-auto px-3 py-1 text-sm text-red-600 hover:text-red-700 font-medium"
+                className="ml-auto px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium transition-colors"
               >
                 {t('retry')}
               </button>
@@ -184,18 +184,18 @@ export default function ConnectionsPage() {
         <div className="max-w-4xl mx-auto">
           {/* Tabs */}
           <FadeIn delay={0.1}>
-            <div className="flex gap-4 mb-6 border-b border-gray-200">
+            <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-slate-800/50">
               <button
                 onClick={() => setActiveTab('received')}
                 className={`pb-3 px-4 font-medium transition-all hover:scale-105 ${
                   activeTab === 'received'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-blue-400 border-b-2 border-blue-400'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                 }`}
               >
                 {t('received')} {receivedRequests.length > 0 && (
                   <Pulse>
-                    <span className="ml-1 text-blue-600">({receivedRequests.length})</span>
+                    <span className="ml-1 text-blue-400">({receivedRequests.length})</span>
                   </Pulse>
                 )}
               </button>
@@ -203,13 +203,13 @@ export default function ConnectionsPage() {
                 onClick={() => setActiveTab('sent')}
                 className={`pb-3 px-4 font-medium transition-all hover:scale-105 ${
                   activeTab === 'sent'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-blue-400 border-b-2 border-blue-400'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                 }`}
               >
                 {t('sent')} {sentRequests.length > 0 && (
                   <Pulse>
-                    <span className="ml-1 text-blue-600">({sentRequests.length})</span>
+                    <span className="ml-1 text-blue-400">({sentRequests.length})</span>
                   </Pulse>
                 )}
               </button>
@@ -221,14 +221,14 @@ export default function ConnectionsPage() {
             <FadeIn delay={0.2}>
               <div className="space-y-4">
                 {receivedRequests.length === 0 ? (
-                  <div className="bg-white rounded-xl p-12 text-center">
-                    <p className="text-gray-600">{t('noPending')}</p>
+                  <div className="backdrop-blur-xl bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800/50 rounded-xl p-12 text-center">
+                    <p className="text-gray-700 dark:text-slate-400">{t('noPending')}</p>
                   </div>
                 ) : (
                   receivedRequests.map((request, index) => (
                     <FadeIn key={request.id} delay={index * 0.05}>
                       <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <div className="backdrop-blur-xl bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800/50 rounded-xl p-6 shadow-lg dark:shadow-none">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4">
                               {request.sender.avatarUrl ? (
@@ -242,17 +242,17 @@ export default function ConnectionsPage() {
                               ) : (
                                 <Bounce delay={index * 0.1}>
                                   <Pulse>
-                                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
                                       {getInitials(request.sender.name)}
                                     </div>
                                   </Pulse>
                                 </Bounce>
                               )}
                               <div>
-                                <h3 className="font-semibold text-gray-900">{request.sender.name}</h3>
-                                <p className="text-sm text-gray-600">{request.sender.email}</p>
+                                <h3 className="font-semibold text-gray-900 dark:text-slate-100">{request.sender.name}</h3>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">{request.sender.email}</p>
                                 {request.message && (
-                                  <p className="text-sm text-gray-700 mt-2">{request.message}</p>
+                                  <p className="text-sm text-gray-700 dark:text-slate-300 mt-2">{request.message}</p>
                                 )}
                               </div>
                             </div>
@@ -261,7 +261,7 @@ export default function ConnectionsPage() {
                                 <button
                                   onClick={() => handleAccept(request.id)}
                                   disabled={processingRequest === request.id}
-                                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
+                                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm rounded-lg hover:from-blue-600 hover:to-cyan-600 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
                                 >
                                   {processingRequest === request.id ? t('processing') : t('accept')}
                                 </button>
@@ -270,7 +270,7 @@ export default function ConnectionsPage() {
                                 <button
                                   onClick={() => handleDecline(request.id)}
                                   disabled={processingRequest === request.id}
-                                  className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                  className="px-4 py-2 backdrop-blur-xl bg-gray-100 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700/50 hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                 >
                                   {processingRequest === request.id ? t('processing') : t('decline')}
                                 </button>
@@ -291,14 +291,14 @@ export default function ConnectionsPage() {
             <FadeIn delay={0.2}>
               <div className="space-y-4">
                 {sentRequests.length === 0 ? (
-                  <div className="bg-white rounded-xl p-12 text-center">
-                    <p className="text-gray-600">{t('noSent')}</p>
+                  <div className="backdrop-blur-xl bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800/50 rounded-xl p-12 text-center">
+                    <p className="text-gray-700 dark:text-slate-400">{t('noSent')}</p>
                   </div>
                 ) : (
                   sentRequests.map((request, index) => (
                     <FadeIn key={request.id} delay={index * 0.05}>
                       <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
-                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <div className="backdrop-blur-xl bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800/50 rounded-xl p-6 shadow-lg dark:shadow-none">
                           <div className="flex items-start gap-4">
                             {request.receiver.avatarUrl ? (
                               <Bounce delay={index * 0.1}>
@@ -311,17 +311,17 @@ export default function ConnectionsPage() {
                             ) : (
                               <Bounce delay={index * 0.1}>
                                 <Pulse>
-                                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
                                     {getInitials(request.receiver.name)}
                                   </div>
                                 </Pulse>
                               </Bounce>
                             )}
                             <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900">{request.receiver.name}</h3>
-                              <p className="text-sm text-gray-600">{request.receiver.email}</p>
+                              <h3 className="font-semibold text-gray-900 dark:text-slate-100">{request.receiver.name}</h3>
+                              <p className="text-sm text-gray-600 dark:text-slate-400">{request.receiver.email}</p>
                               <Pulse>
-                                <p className="text-sm text-yellow-600 mt-2 font-medium">{t('pendingResponse')}</p>
+                                <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2 font-medium">{t('pendingResponse')}</p>
                               </Pulse>
                             </div>
                           </div>

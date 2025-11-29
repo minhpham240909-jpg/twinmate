@@ -78,7 +78,7 @@ export interface UserSettings {
   contentFiltering?: string[]
 
   // Accessibility
-  theme?: 'LIGHT' | 'DARK' | 'SYSTEM'
+  theme?: 'LIGHT' | 'DARK'
   fontSize?: 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE'
   highContrast?: boolean
   reducedMotion?: boolean
@@ -162,7 +162,7 @@ const defaultSettings: UserSettings = {
   commentPrivacy: 'EVERYONE',
   tagPrivacy: 'EVERYONE',
   contentFiltering: [],
-  theme: 'SYSTEM',
+  theme: 'LIGHT',
   fontSize: 'MEDIUM',
   highContrast: false,
   reducedMotion: false,
