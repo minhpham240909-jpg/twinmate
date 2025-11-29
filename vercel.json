@@ -11,10 +11,6 @@
     },
     {
       "path": "/api/cron/cleanup-presence",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-sessions",
       "schedule": "0 1 * * *"
     }
   ]
