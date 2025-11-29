@@ -4,13 +4,14 @@ import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
 import { getBlockedUserIds } from '@/lib/blocked-users'
-import { 
-  calculateMatchScore, 
-  countFilledFields, 
+import {
+  calculateMatchScore,
+  countFilledFields,
   getMissingFields,
   hasMinimumProfileData,
-  type ProfileData 
-} from '@/lib/matching/algorithm'
+  sortByMatchScore,
+  type ProfileData
+} from '@/lib/matching'
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
     // Add blocked users to exclusion set
     blockedUserIds.forEach(id => pendingOrOtherUserIds.add(id))
 
-    // Build Supabase query
+    // Build Supabase query - include all fields needed for enhanced matching
     let query = supabase
       .from('Profile')
       .select(`
@@ -182,6 +183,7 @@ export async function POST(request: NextRequest) {
         bio,
         school,
         languages,
+        timezone,
         aboutYourself,
         aboutYourselfItems,
         subjectCustomDescription,
@@ -427,21 +429,33 @@ export async function POST(request: NextRequest) {
       return profile
     })
 
-    // Get current user's profile for compatibility scoring
+    // Get current user's profile for compatibility scoring (include all matching fields)
     const { data: myProfile } = await supabase
       .from('Profile')
-      .select('subjects, interests, studyStyle, skillLevel, goals, availableDays')
+      .select('subjects, interests, studyStyle, skillLevel, goals, availableDays, availableHours, school, timezone')
       .eq('userId', user.id)
       .single()
 
-    // Check current user's profile completeness using the new algorithm
+    // Get current user's learning profile for strengths/weaknesses
+    const { data: myLearningProfile } = await supabase
+      .from('LearningProfile')
+      .select('strengths, weaknesses')
+      .eq('userId', user.id)
+      .single()
+
+    // Check current user's profile completeness using the enhanced algorithm
     const currentUserProfileData: ProfileData = {
       subjects: myProfile?.subjects,
       interests: myProfile?.interests,
       goals: myProfile?.goals,
       availableDays: myProfile?.availableDays,
+      availableHours: myProfile?.availableHours,
       skillLevel: myProfile?.skillLevel,
       studyStyle: myProfile?.studyStyle,
+      school: myProfile?.school,
+      timezone: myProfile?.timezone,
+      strengths: myLearningProfile?.strengths,
+      weaknesses: myLearningProfile?.weaknesses,
     }
     
     const currentUserFilledCount = countFilledFields(currentUserProfileData)
@@ -451,19 +465,22 @@ export async function POST(request: NextRequest) {
     // All filtering is now done at database level, so we just use the sanitized profiles
     const filteredProfiles = sanitizedProfiles
 
-    // Calculate match scores using the new centralized algorithm
+    // Calculate match scores using the enhanced algorithm
     const profilesWithScores = filteredProfiles.map(profile => {
-      // Prepare partner profile data
+      // Prepare partner profile data with all matching fields
       const partnerProfileData: ProfileData = {
         subjects: profile.subjects,
         interests: profile.interests,
         goals: profile.goals,
         availableDays: profile.availableDays,
+        availableHours: profile.availableHours,
         skillLevel: profile.skillLevel,
         studyStyle: profile.studyStyle,
+        school: profile.school,
+        timezone: profile.timezone,
       }
 
-      // Calculate match using the new algorithm
+      // Calculate match using the enhanced algorithm
       const matchResult = calculateMatchScore(currentUserProfileData, partnerProfileData)
 
       // Check if this user is an accepted partner
@@ -471,11 +488,14 @@ export async function POST(request: NextRequest) {
 
       return {
         ...profile,
-        // Match data - only show real values
+        // Match data from enhanced algorithm
         matchScore: matchResult.matchScore,
         matchReasons: matchResult.matchReasons,
         matchDataInsufficient: matchResult.matchDataInsufficient,
         matchDetails: matchResult.matchDetails,
+        matchTier: matchResult.matchTier,
+        componentScores: matchResult.componentScores,
+        summary: matchResult.summary,
         partnerMissingFields: matchResult.partnerMissingFields,
         // Partner status
         isAlreadyPartner,
@@ -484,16 +504,12 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Sort by match score (null scores go to the end)
-    profilesWithScores.sort((a, b) => {
-      const scoreA = a.matchScore ?? -1
-      const scoreB = b.matchScore ?? -1
-      return scoreB - scoreA
-    })
+    // Sort by match score using the utility function (highest first, nulls last)
+    const sortedProfiles = sortByMatchScore(profilesWithScores)
 
     return NextResponse.json({
       success: true,
-      profiles: profilesWithScores,
+      profiles: sortedProfiles,
       pagination: {
         page,
         limit,

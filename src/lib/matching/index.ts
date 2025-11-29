@@ -1,18 +1,41 @@
 /**
  * Partner Matching Module
- * 
- * Provides accurate matching algorithms based on real profile data.
+ *
+ * Exports the matching algorithm and utilities for finding compatible study partners.
+ * Uses weighted scoring across multiple profile components.
  */
 
 export {
+  // Main matching function
+  calculateMatchScore,
+
+  // Utility functions
+  jaccard,
+  getIntersection,
+  skillLevelCloseness,
+  studyStyleCompatibility,
+  timezoneProximity,
+  hasStringData,
+  hasArrayData,
+  countFilledFields,
+  getMissingFields,
+  hasMinimumProfileData,
+  getMatchTier,
+  formatSkillLevel,
+  formatStudyStyle,
+
+  // Sorting & filtering utilities
+  sortByMatchScore,
+  filterByMinScore,
+  weightedRandomSelect,
+
+  // Configuration
+  DEFAULT_WEIGHTS,
+
+  // Types
   type ProfileData,
   type MatchResult,
   type MatchDetails,
-  calculateMatchScore,
-  countFilledFields,
-  getMissingFields,
-  formatSkillLevel,
-  formatStudyStyle,
-  hasMinimumProfileData,
+  type MatchSummary,
+  type ComponentScore,
 } from './algorithm'
-
