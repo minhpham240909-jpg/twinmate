@@ -163,8 +163,10 @@ const COMPATIBLE_STUDY_STYLES: Record<string, string[]> = {
 
 /**
  * Minimum fields required for meaningful matching
+ * Increased from 2 to 3 to prevent false matches with mostly empty profiles
+ * User should have at least subjects + interests + one more field
  */
-const MIN_FIELDS_FOR_MATCHING = 2
+const MIN_FIELDS_FOR_MATCHING = 3
 
 /**
  * Match tier thresholds
@@ -396,9 +398,15 @@ export function calculateMatchScore(
   const partnerFilledCount = countFilledFields(partnerProfile)
 
   // Check if we have enough data
+  // Both profiles must have minimum fields AND at least one key array field (subjects or interests)
+  const currentHasKeyData = hasArrayData(currentUserProfile?.subjects) || hasArrayData(currentUserProfile?.interests)
+  const partnerHasKeyData = hasArrayData(partnerProfile?.subjects) || hasArrayData(partnerProfile?.interests)
+
   const canCalculate =
     currentFilledCount >= MIN_FIELDS_FOR_MATCHING &&
     partnerFilledCount >= MIN_FIELDS_FOR_MATCHING &&
+    currentHasKeyData &&
+    partnerHasKeyData &&
     currentUserProfile && partnerProfile
 
   // Initialize empty result for insufficient data case
@@ -752,8 +760,24 @@ export function calculateMatchScore(
   // Only count components where both profiles have data
   const activeComponents = Object.values(componentScores).filter(c => c.bothHaveData)
 
-  if (activeComponents.length === 0) {
-    return emptyResult
+  // Require at least 2 active components for a valid score
+  // AND at least one must be a major component (subjects or interests)
+  const hasSubjectsOrInterests =
+    componentScores.subjects?.bothHaveData || componentScores.interests?.bothHaveData
+
+  if (activeComponents.length < 2 || !hasSubjectsOrInterests) {
+    return {
+      ...emptyResult,
+      matchDataInsufficient: true,
+      matchReasons: [],
+      summary: {
+        totalMatched: 0,
+        totalComponents: activeComponents.length,
+        topMatches: [],
+        improvementAreas: [...currentUserMissingFields, ...partnerMissingFields].slice(0, 3),
+        compatibilityLevel: 'Unknown',
+      }
+    }
   }
 
   // Calculate weighted sum, normalized by active weights
@@ -765,7 +789,12 @@ export function calculateMatchScore(
     ? Math.round((totalWeightedScore / totalActiveWeight) * 100)
     : 0
 
-  const finalScore = Math.min(Math.max(normalizedScore, 0), 100)
+  // Apply a confidence penalty if we have limited data
+  // If less than 4 active components, reduce score slightly to indicate lower confidence
+  const confidenceFactor = activeComponents.length >= 4 ? 1.0 : 0.85 + (activeComponents.length * 0.05)
+  const adjustedScore = Math.round(normalizedScore * confidenceFactor)
+
+  const finalScore = Math.min(Math.max(adjustedScore, 0), 100)
   const matchTier = getMatchTier(finalScore)
 
   // Generate match reasons (only for components with actual matches)
