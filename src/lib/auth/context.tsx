@@ -129,15 +129,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Sign out via API (this will mark presence as offline)
-    await fetch('/api/auth/signout', { method: 'POST' })
-    
-    // Clear local state
-    setUser(null)
-    setProfile(null)
-    
-    // Redirect to home
-    router.push('/')
+    try {
+      // Sign out via API (this will mark presence as offline)
+      await fetch('/api/auth/signout', { method: 'POST' })
+
+      // Also sign out from client-side Supabase to clear cookies properly
+      await supabase.auth.signOut()
+
+      // Clear local state
+      setUser(null)
+      setProfile(null)
+
+      // Use window.location for a full page reload to ensure clean state
+      // This ensures all cached auth state is cleared
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Still try to redirect even if there's an error
+      window.location.href = '/'
+    }
   }
 
   return (
