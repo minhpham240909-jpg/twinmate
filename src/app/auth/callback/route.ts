@@ -1,28 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { validateOAuthState, clearOAuthStateCookie } from '@/lib/security/oauth-state'
-import logger from '@/lib/logger'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const stateFromCallback = requestUrl.searchParams.get('state')
 
-  // Validate OAuth state parameter to prevent CSRF attacks
-  // Note: We only validate if state was provided (backwards compatible)
-  if (stateFromCallback) {
-    const stateValidation = await validateOAuthState(stateFromCallback)
-    if (!stateValidation.valid) {
-      logger.warn('OAuth state validation failed', { reason: stateValidation.reason })
-      return NextResponse.redirect(
-        new URL('/auth/error?message=' + encodeURIComponent('Invalid authentication request. Please try again.'), requestUrl.origin)
-      )
-    }
-  } else {
-    // Clear any existing state cookie if no state was provided
-    await clearOAuthStateCookie()
-  }
+  // Note: Supabase handles OAuth CSRF protection internally with its own state parameter
+  // We don't need custom state validation - Supabase validates it during code exchange
 
   if (code) {
     try {

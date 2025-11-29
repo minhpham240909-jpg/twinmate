@@ -1,7 +1,6 @@
 // API Route: Google OAuth Sign In
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { setOAuthStateCookie } from '@/lib/security/oauth-state'
 import logger from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
@@ -13,8 +12,8 @@ export async function GET(request: NextRequest) {
     const origin = requestUrl.origin
     const redirectUrl = `${origin}/auth/callback`
 
-    // Generate and store OAuth state for CSRF protection
-    const state = await setOAuthStateCookie()
+    // Note: Supabase handles CSRF protection internally with its own state parameter
+    // We don't need to add custom state - it would conflict with Supabase's validation
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -23,10 +22,7 @@ export async function GET(request: NextRequest) {
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
-          state: state, // Include state for CSRF protection
         },
-        // Note: Supabase automatically confirms OAuth emails
-        // Email verification for OAuth users happens at the Supabase project settings level
       },
     })
 
