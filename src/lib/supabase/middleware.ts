@@ -48,16 +48,40 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))
   const isRootRoute = pathname === '/'
-  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+  const isAdminRoute = pathname.startsWith('/admin')
 
-  // Check if user is coming from admin (wants to view regular dashboard)
-  const fromAdmin = request.nextUrl.searchParams.get('from') === 'admin'
+  // Check if admin is entering "user view" mode (via ?from=admin parameter)
+  const enteringUserView = request.nextUrl.searchParams.get('from') === 'admin'
+
+  // Check if admin has a "user view" session cookie
+  const adminUserViewCookie = request.cookies.get('admin_user_view')?.value === 'true'
 
   // Auth redirect logic
   if (user) {
     // User is logged in
+
+    // If admin is entering user view mode, set the cookie and continue
+    if (enteringUserView) {
+      // Set cookie to remember user view mode
+      response.cookies.set('admin_user_view', 'true', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24, // 24 hours
+      })
+      return response
+    }
+
+    // If admin is going back to admin panel, clear the user view cookie
+    if (isAdminRoute && adminUserViewCookie) {
+      response.cookies.delete('admin_user_view')
+    }
+
+    // Redirect from auth pages or root
     if (isAuthRoute || isRootRoute) {
       // Check if user is admin - redirect to admin dashboard instead
+      // BUT if admin has user view cookie, redirect to dashboard (user view mode)
       const { data: userData } = await supabase
         .from('User')
         .select('isAdmin')
@@ -65,28 +89,19 @@ export async function updateSession(request: NextRequest) {
         .single()
 
       const url = request.nextUrl.clone()
-      if (userData?.isAdmin) {
+      if (userData?.isAdmin && !adminUserViewCookie) {
+        // Admin without user view cookie -> go to admin dashboard
         url.pathname = '/admin'
       } else {
+        // Regular user OR admin in user view mode -> go to user dashboard
         url.pathname = '/dashboard'
       }
       return NextResponse.redirect(url)
     }
 
-    // If admin user is accessing dashboard (not from admin view), redirect to admin
-    if (isDashboardRoute && !fromAdmin) {
-      const { data: userData } = await supabase
-        .from('User')
-        .select('isAdmin')
-        .eq('id', user.id)
-        .single()
-
-      if (userData?.isAdmin) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/admin'
-        return NextResponse.redirect(url)
-      }
-    }
+    // Note: We no longer redirect admins away from dashboard routes
+    // Admins can freely browse the app once they enter via "View as User"
+    // They return to admin by clicking the admin link in their profile dropdown
   } else {
     // User is NOT logged in
     if (!isAuthRoute && !isPublicRoute && !isRootRoute) {

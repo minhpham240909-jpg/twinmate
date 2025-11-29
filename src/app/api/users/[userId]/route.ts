@@ -219,7 +219,8 @@ export async function GET(
     }
 
     // Calculate match score with detailed breakdown (aligned with search API logic)
-    let matchScore = 0
+    let matchScore: number | null = null
+    let matchDataInsufficient = true
     const matchDetails = {
       subjects: {
         count: 0,
@@ -253,65 +254,87 @@ export async function GET(
         })
 
         if (currentUserProfile && dbUser.profile) {
-          // Match subjects - ensure arrays exist and sanitize
-          const profileSubjects = Array.isArray(dbUser.profile.subjects) ? dbUser.profile.subjects : []
-          const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
-          const commonSubjects = profileSubjects.filter((subject: string) =>
-            currentSubjects.includes(subject)
-          )
-          matchDetails.subjects.count = commonSubjects.length
-          matchDetails.subjects.items = commonSubjects
-          matchDetails.subjects.score = commonSubjects.length * 20 // 20 points per subject
+          // Check if current user has enough profile data for meaningful matching
+          const currentHasSubjects = Array.isArray(currentUserProfile.subjects) && currentUserProfile.subjects.length > 0
+          const currentHasInterests = Array.isArray(currentUserProfile.interests) && currentUserProfile.interests.length > 0
+          const currentHasGoals = Array.isArray(currentUserProfile.goals) && currentUserProfile.goals.length > 0
+          const currentHasSkillLevel = !!currentUserProfile.skillLevel
+          const currentHasStudyStyle = !!currentUserProfile.studyStyle
+          const currentFilledCount = [currentHasSubjects, currentHasInterests, currentHasGoals, currentHasSkillLevel, currentHasStudyStyle].filter(Boolean).length
 
-          // Match interests - ensure arrays exist and sanitize
-          const profileInterests = Array.isArray(dbUser.profile.interests) ? dbUser.profile.interests : []
-          const currentInterests = Array.isArray(currentUserProfile.interests) ? currentUserProfile.interests : []
-          const commonInterests = profileInterests.filter((interest: string) =>
-            currentInterests.includes(interest)
-          )
-          matchDetails.interests.count = commonInterests.length
-          matchDetails.interests.items = commonInterests
-          matchDetails.interests.score = commonInterests.length * 15 // 15 points per interest
+          // Check if viewed user has enough profile data
+          const viewedHasSubjects = Array.isArray(dbUser.profile.subjects) && dbUser.profile.subjects.length > 0
+          const viewedHasInterests = Array.isArray(dbUser.profile.interests) && dbUser.profile.interests.length > 0
+          const viewedHasGoals = Array.isArray(dbUser.profile.goals) && dbUser.profile.goals.length > 0
+          const viewedHasSkillLevel = !!dbUser.profile.skillLevel
+          const viewedHasStudyStyle = !!dbUser.profile.studyStyle
+          const viewedFilledCount = [viewedHasSubjects, viewedHasInterests, viewedHasGoals, viewedHasSkillLevel, viewedHasStudyStyle].filter(Boolean).length
 
-          // Match goals - informational only, not scored
-          const profileGoals = Array.isArray(dbUser.profile.goals) ? dbUser.profile.goals : []
-          const currentGoals = Array.isArray(currentUserProfile.goals) ? currentUserProfile.goals : []
-          const commonGoals = profileGoals.filter((goal: string) =>
-            currentGoals.includes(goal)
-          )
-          matchDetails.goals.count = commonGoals.length
-          matchDetails.goals.items = commonGoals
+          // Only calculate meaningful match if BOTH users have at least 2 criteria filled
+          const canCalculateMeaningfulMatch = currentFilledCount >= 2 && viewedFilledCount >= 2
+          matchDataInsufficient = !canCalculateMeaningfulMatch
 
-          // Match skill level - 10 points if matches
-          matchDetails.skillLevel.matches = Boolean(
-            currentUserProfile.skillLevel &&
-            dbUser.profile.skillLevel &&
-            dbUser.profile.skillLevel === currentUserProfile.skillLevel
-          )
-          matchDetails.skillLevel.value = dbUser.profile.skillLevel
-          const skillScore = matchDetails.skillLevel.matches ? 10 : 0
+          if (canCalculateMeaningfulMatch) {
+            // Match subjects - ensure arrays exist and sanitize
+            const profileSubjects = Array.isArray(dbUser.profile.subjects) ? dbUser.profile.subjects : []
+            const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
+            const commonSubjects = profileSubjects.filter((subject: string) =>
+              currentSubjects.includes(subject)
+            )
+            matchDetails.subjects.count = commonSubjects.length
+            matchDetails.subjects.items = commonSubjects
+            matchDetails.subjects.score = commonSubjects.length * 20 // 20 points per subject
 
-          // Match study style - 10 points if matches
-          matchDetails.studyStyle.matches = Boolean(
-            currentUserProfile.studyStyle &&
-            dbUser.profile.studyStyle &&
-            dbUser.profile.studyStyle === currentUserProfile.studyStyle
-          )
-          matchDetails.studyStyle.value = dbUser.profile.studyStyle
-          const styleScore = matchDetails.studyStyle.matches ? 10 : 0
+            // Match interests - ensure arrays exist and sanitize
+            const profileInterests = Array.isArray(dbUser.profile.interests) ? dbUser.profile.interests : []
+            const currentInterests = Array.isArray(currentUserProfile.interests) ? currentUserProfile.interests : []
+            const commonInterests = profileInterests.filter((interest: string) =>
+              currentInterests.includes(interest)
+            )
+            matchDetails.interests.count = commonInterests.length
+            matchDetails.interests.items = commonInterests
+            matchDetails.interests.score = commonInterests.length * 15 // 15 points per interest
 
-          // Calculate total match score (out of 100) - cap at 100
-          matchScore = Math.min(
-            matchDetails.subjects.score +
-            matchDetails.interests.score +
-            skillScore +
-            styleScore,
-            100
-          )
+            // Match goals - informational only, not scored
+            const profileGoals = Array.isArray(dbUser.profile.goals) ? dbUser.profile.goals : []
+            const currentGoals = Array.isArray(currentUserProfile.goals) ? currentUserProfile.goals : []
+            const commonGoals = profileGoals.filter((goal: string) =>
+              currentGoals.includes(goal)
+            )
+            matchDetails.goals.count = commonGoals.length
+            matchDetails.goals.items = commonGoals
+
+            // Match skill level - 10 points if matches
+            matchDetails.skillLevel.matches = Boolean(
+              currentUserProfile.skillLevel &&
+              dbUser.profile.skillLevel &&
+              dbUser.profile.skillLevel === currentUserProfile.skillLevel
+            )
+            matchDetails.skillLevel.value = dbUser.profile.skillLevel
+            const skillScore = matchDetails.skillLevel.matches ? 10 : 0
+
+            // Match study style - 10 points if matches
+            matchDetails.studyStyle.matches = Boolean(
+              currentUserProfile.studyStyle &&
+              dbUser.profile.studyStyle &&
+              dbUser.profile.studyStyle === currentUserProfile.studyStyle
+            )
+            matchDetails.studyStyle.value = dbUser.profile.studyStyle
+            const styleScore = matchDetails.studyStyle.matches ? 10 : 0
+
+            // Calculate total match score (out of 100) - cap at 100
+            matchScore = Math.min(
+              matchDetails.subjects.score +
+              matchDetails.interests.score +
+              skillScore +
+              styleScore,
+              100
+            )
+          }
         }
       } catch (error) {
         console.warn('Error calculating match score:', error)
-        // Continue with default values (matchScore = 0)
+        // Continue with default values (matchScore = null)
       }
     }
 
@@ -366,8 +389,9 @@ export async function GET(
       posts: userPosts || [],
       connectionStatus,
       connectionId,
-      matchScore,
-      matchDetails,
+      matchScore, // null if not enough data to calculate
+      matchDetails: matchDataInsufficient ? null : matchDetails,
+      matchDataInsufficient, // Flag for UI to show "Complete profile for match %" message
     })
   } catch (error) {
     console.error('Get user error:', error)

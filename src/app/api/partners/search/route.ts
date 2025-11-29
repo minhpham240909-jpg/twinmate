@@ -434,8 +434,11 @@ export async function POST(request: NextRequest) {
     const hasSkillLevel = !!myProfile?.skillLevel
     const hasStudyStyle = !!myProfile?.studyStyle
 
+    // Count how many matching criteria the current user has filled
+    const currentUserFilledCount = [hasSubjects, hasInterests, hasGoals, hasSkillLevel, hasStudyStyle].filter(Boolean).length
+
     // Profile is incomplete if missing key matching criteria
-    const profileIncomplete = !hasSubjects && !hasInterests && !hasGoals && !hasSkillLevel && !hasStudyStyle
+    const profileIncomplete = currentUserFilledCount < 2
     const missingFields: string[] = []
     if (!hasSubjects) missingFields.push('subjects')
     if (!hasInterests) missingFields.push('interests')
@@ -451,91 +454,112 @@ export async function POST(request: NextRequest) {
       let matchScore = 0
       const matchReasons: string[] = []
 
+      // Check if partner's profile has enough data for meaningful matching
+      const partnerHasSubjects = Array.isArray(profile.subjects) && profile.subjects.length > 0
+      const partnerHasInterests = Array.isArray(profile.interests) && profile.interests.length > 0
+      const partnerHasGoals = Array.isArray(profile.goals) && profile.goals.length > 0
+      const partnerHasSkillLevel = !!profile.skillLevel
+      const partnerHasStudyStyle = !!profile.studyStyle
+
+      // Count how many matching criteria the partner has filled
+      const partnerFilledCount = [partnerHasSubjects, partnerHasInterests, partnerHasGoals, partnerHasSkillLevel, partnerHasStudyStyle].filter(Boolean).length
+
+      // Only calculate meaningful match if BOTH users have at least 2 criteria filled
+      const canCalculateMeaningfulMatch = partnerFilledCount >= 2 && currentUserFilledCount >= 2
+      const matchDataInsufficient = !canCalculateMeaningfulMatch
+
       const mySubjects = Array.isArray(myProfile?.subjects) ? myProfile.subjects : []
       const myInterests = Array.isArray(myProfile?.interests) ? myProfile.interests : []
       const myGoals = Array.isArray(myProfile?.goals) ? myProfile.goals : []
       const myAvailableDays = Array.isArray(myProfile?.availableDays) ? myProfile.availableDays : []
 
-      // Score based on subject overlap (diminishing returns: first 2 = 12pts each, rest = 4pts each, max 32)
-      if (profile.subjects && profile.subjects.length > 0) {
-        const subjectOverlap = profile.subjects.filter((s: string) =>
-          mySubjects.includes(s)
-        ).length
-        if (subjectOverlap > 0) {
-          const firstTwo = Math.min(subjectOverlap, 2) * 12
-          const additional = Math.max(0, subjectOverlap - 2) * 4
-          const subjectScore = Math.min(firstTwo + additional, 32)
-          matchScore += subjectScore
-          matchReasons.push(`${subjectOverlap} shared subject(s)`)
+      if (canCalculateMeaningfulMatch) {
+        // Score based on subject overlap (diminishing returns: first 2 = 12pts each, rest = 4pts each, max 32)
+        if (profile.subjects && profile.subjects.length > 0) {
+          const subjectOverlap = profile.subjects.filter((s: string) =>
+            mySubjects.includes(s)
+          ).length
+          if (subjectOverlap > 0) {
+            const firstTwo = Math.min(subjectOverlap, 2) * 12
+            const additional = Math.max(0, subjectOverlap - 2) * 4
+            const subjectScore = Math.min(firstTwo + additional, 32)
+            matchScore += subjectScore
+            matchReasons.push(`${subjectOverlap} shared subject(s)`)
+          }
         }
-      }
 
-      // Score based on interest overlap (diminishing returns: first 2 = 8pts each, rest = 3pts each, max 22)
-      if (profile.interests && profile.interests.length > 0) {
-        const interestOverlap = profile.interests.filter((i: string) =>
-          myInterests.includes(i)
-        ).length
-        if (interestOverlap > 0) {
-          const firstTwo = Math.min(interestOverlap, 2) * 8
-          const additional = Math.max(0, interestOverlap - 2) * 3
-          const interestScore = Math.min(firstTwo + additional, 22)
-          matchScore += interestScore
-          matchReasons.push(`${interestOverlap} shared interest(s)`)
+        // Score based on interest overlap (diminishing returns: first 2 = 8pts each, rest = 3pts each, max 22)
+        if (profile.interests && profile.interests.length > 0) {
+          const interestOverlap = profile.interests.filter((i: string) =>
+            myInterests.includes(i)
+          ).length
+          if (interestOverlap > 0) {
+            const firstTwo = Math.min(interestOverlap, 2) * 8
+            const additional = Math.max(0, interestOverlap - 2) * 3
+            const interestScore = Math.min(firstTwo + additional, 22)
+            matchScore += interestScore
+            matchReasons.push(`${interestOverlap} shared interest(s)`)
+          }
         }
-      }
 
-      // Score based on goals overlap (max 16 points)
-      if (profile.goals && profile.goals.length > 0) {
-        const goalOverlap = profile.goals.filter((g: string) =>
-          myGoals.includes(g)
-        ).length
-        if (goalOverlap > 0) {
-          const goalScore = Math.min(goalOverlap * 8, 16)
-          matchScore += goalScore
-          matchReasons.push(`${goalOverlap} shared goal(s)`)
+        // Score based on goals overlap (max 16 points)
+        if (profile.goals && profile.goals.length > 0) {
+          const goalOverlap = profile.goals.filter((g: string) =>
+            myGoals.includes(g)
+          ).length
+          if (goalOverlap > 0) {
+            const goalScore = Math.min(goalOverlap * 8, 16)
+            matchScore += goalScore
+            matchReasons.push(`${goalOverlap} shared goal(s)`)
+          }
         }
-      }
 
-      // Score based on availability/days overlap (max 15 points)
-      if (profile.availableDays && profile.availableDays.length > 0) {
-        const dayOverlap = profile.availableDays.filter((d: string) =>
-          myAvailableDays.includes(d)
-        ).length
-        if (dayOverlap > 0) {
-          const dayScore = Math.min(dayOverlap * 3, 15)
-          matchScore += dayScore
-          matchReasons.push(`${dayOverlap} matching day(s)`)
+        // Score based on availability/days overlap (max 15 points)
+        if (profile.availableDays && profile.availableDays.length > 0) {
+          const dayOverlap = profile.availableDays.filter((d: string) =>
+            myAvailableDays.includes(d)
+          ).length
+          if (dayOverlap > 0) {
+            const dayScore = Math.min(dayOverlap * 3, 15)
+            matchScore += dayScore
+            matchReasons.push(`${dayOverlap} matching day(s)`)
+          }
         }
-      }
 
-      // Score based on skill level match (10 points)
-      if (myProfile?.skillLevel && profile.skillLevel === myProfile.skillLevel) {
-        matchScore += 10
-        matchReasons.push('Same skill level')
-      }
+        // Score based on skill level match (10 points)
+        if (myProfile?.skillLevel && profile.skillLevel === myProfile.skillLevel) {
+          matchScore += 10
+          matchReasons.push('Same skill level')
+        }
 
-      // Score based on study style match (5 points)
-      if (myProfile?.studyStyle && profile.studyStyle === myProfile.studyStyle) {
-        matchScore += 5
-        matchReasons.push('Same study style')
-      }
+        // Score based on study style match (5 points)
+        if (myProfile?.studyStyle && profile.studyStyle === myProfile.studyStyle) {
+          matchScore += 5
+          matchReasons.push('Same study style')
+        }
 
-      // Cap score at 100
-      matchScore = Math.min(matchScore, 100)
+        // Cap score at 100
+        matchScore = Math.min(matchScore, 100)
+      }
 
       // Check if this user is an accepted partner
       const isAlreadyPartner = acceptedPartnerIds.has(profile.userId)
 
       return {
         ...profile,
-        matchScore,
-        matchReasons,
+        matchScore: matchDataInsufficient ? null : matchScore, // null = not enough data
+        matchReasons: matchDataInsufficient ? [] : matchReasons,
+        matchDataInsufficient, // Flag for UI to show "Complete profile for match %" message
         isAlreadyPartner,
       }
     })
 
-    // Sort by match score
-    profilesWithScores.sort((a, b) => b.matchScore - a.matchScore)
+    // Sort by match score (null scores go to the end)
+    profilesWithScores.sort((a, b) => {
+      const scoreA = a.matchScore ?? -1
+      const scoreB = b.matchScore ?? -1
+      return scoreB - scoreA
+    })
 
     return NextResponse.json({
       success: true,

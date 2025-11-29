@@ -110,7 +110,26 @@ export async function GET(request: NextRequest) {
       let matchScore = 0
       const matchReasons: string[] = []
 
-      if (currentUserProfile) {
+      // Check if partner's profile has enough data for meaningful matching
+      const partnerHasSubjects = Array.isArray(profile.subjects) && profile.subjects.length > 0
+      const partnerHasInterests = Array.isArray(profile.interests) && profile.interests.length > 0
+      const partnerHasGoals = Array.isArray(profile.goals) && profile.goals.length > 0
+      const partnerHasSkillLevel = !!profile.skillLevel
+      const partnerHasStudyStyle = !!profile.studyStyle
+
+      // Count how many matching criteria the partner has filled
+      const partnerFilledCount = [partnerHasSubjects, partnerHasInterests, partnerHasGoals, partnerHasSkillLevel, partnerHasStudyStyle].filter(Boolean).length
+
+      // Count how many matching criteria the current user has filled
+      const currentUserFilledCount = [hasSubjects, hasInterests, hasGoals, hasSkillLevel, hasStudyStyle].filter(Boolean).length
+
+      // Only calculate meaningful match if BOTH users have at least 2 criteria filled
+      const canCalculateMeaningfulMatch = partnerFilledCount >= 2 && currentUserFilledCount >= 2
+
+      // Flag to indicate if this specific match can be calculated
+      const matchDataInsufficient = !canCalculateMeaningfulMatch
+
+      if (currentUserProfile && canCalculateMeaningfulMatch) {
         // Match subjects with diminishing returns (first 2 = 12pts each, rest = 4pts each, max 32)
         const profileSubjects = Array.isArray(profile.subjects) ? profile.subjects : []
         const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
@@ -203,8 +222,9 @@ export async function GET(request: NextRequest) {
 
       return {
         ...sanitizedProfile,
-        matchScore,
-        matchReasons,
+        matchScore: matchDataInsufficient ? null : matchScore, // null = not enough data
+        matchReasons: matchDataInsufficient ? [] : matchReasons,
+        matchDataInsufficient, // Flag for UI to show "Complete profile for match %" message
         isAlreadyPartner: acceptedPartnerIds.has(profile.userId)
       }
     })

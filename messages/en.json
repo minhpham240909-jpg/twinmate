@@ -30,7 +30,10 @@
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago",
-    "weeksAgo": "{count}w ago"
+    "weeksAgo": "{count}w ago",
+    "connect": "Connect",
+    "message": "Message",
+    "cancelRequest": "Cancel Request"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -959,6 +962,60 @@
     "alreadySentRequest": "You have already sent a connection request to this user. Please wait for their response.",
     "alreadyConnected": "You are already connected with this user!",
     "connectionRequestSent": "Connection request sent!"
+  },
+  "report": {
+    "title": "Report",
+    "subtitle": "Help us keep the community safe",
+    "selectReason": "Why are you reporting this?",
+    "selectReasonError": "Please select a reason for reporting",
+    "additionalDetails": "Additional details (optional)",
+    "additionalDetailsPlaceholder": "Provide any additional context that might help us understand the issue...",
+    "warning": "False reports may result in action against your account. Please only report genuine violations.",
+    "submitReport": "Submit Report",
+    "submitting": "Submitting...",
+    "reportSubmitted": "Report submitted successfully. Our team will review it.",
+    "reportFailed": "Failed to submit report",
+    "contentTypes": {
+      "user": "User",
+      "post": "Post",
+      "message": "Message",
+      "group": "Group",
+      "comment": "Comment"
+    },
+    "types": {
+      "HARASSMENT": {
+        "label": "Harassment or Bullying",
+        "description": "Threatening, intimidating, or targeting someone"
+      },
+      "SPAM": {
+        "label": "Spam",
+        "description": "Unwanted promotional content or repetitive messages"
+      },
+      "INAPPROPRIATE_CONTENT": {
+        "label": "Inappropriate Content",
+        "description": "Content that violates community guidelines"
+      },
+      "FAKE_ACCOUNT": {
+        "label": "Fake Account",
+        "description": "Impersonating someone or using a fake identity"
+      },
+      "HATE_SPEECH": {
+        "label": "Hate Speech",
+        "description": "Content promoting hatred against groups or individuals"
+      },
+      "VIOLENCE": {
+        "label": "Violence or Threats",
+        "description": "Content promoting violence or making threats"
+      },
+      "SCAM": {
+        "label": "Scam or Fraud",
+        "description": "Attempting to deceive or defraud users"
+      },
+      "OTHER": {
+        "label": "Other",
+        "description": "Something else not listed above"
+      }
+    }
   },
   "partners": {
     "title": "Study Partners",

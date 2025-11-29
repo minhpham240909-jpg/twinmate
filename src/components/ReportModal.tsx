@@ -34,13 +34,21 @@ export default function ReportModal({
   const t = useTranslations('report')
   const tCommon = useTranslations('common')
 
-  const [selectedType, setSelectedType] = useState<string>('')
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const handleTypeToggle = (value: string) => {
+    setSelectedTypes(prev =>
+      prev.includes(value)
+        ? prev.filter(t => t !== value)
+        : [...prev, value]
+    )
+  }
+
   const handleSubmit = async () => {
-    if (!selectedType) {
-      toast.error(t('selectReasonError') || 'Please select a reason for reporting')
+    if (selectedTypes.length === 0) {
+      toast.error(t('selectReasonError') || 'Please select at least one reason for reporting')
       return
     }
 
@@ -53,7 +61,8 @@ export default function ReportModal({
         body: JSON.stringify({
           contentType,
           contentId,
-          type: selectedType,
+          type: selectedTypes.join(','), // Send multiple types as comma-separated
+          types: selectedTypes, // Also send as array for backend flexibility
           description: description.trim() || undefined,
         }),
       })
@@ -63,7 +72,7 @@ export default function ReportModal({
       if (data.success) {
         toast.success(t('reportSubmitted') || 'Report submitted successfully. Our team will review it.')
         onClose()
-        setSelectedType('')
+        setSelectedTypes([])
         setDescription('')
       } else {
         toast.error(data.error || t('reportFailed') || 'Failed to submit report')
@@ -128,37 +137,39 @@ export default function ReportModal({
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
             {t('selectReason') || 'Why are you reporting this?'}
           </p>
-          {REPORT_TYPES.map((type) => (
-            <label
-              key={type.value}
-              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                selectedType === type.value
-                  ? 'border-red-500 bg-red-50 dark:bg-red-500/10'
-                  : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600'
-              }`}
-            >
-              <input
-                type="radio"
-                name="reportType"
-                value={type.value}
-                checked={selectedType === type.value}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="mt-1 w-4 h-4 text-red-500 focus:ring-red-500"
-              />
-              <div>
-                <p className={`font-medium ${
-                  selectedType === type.value
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-gray-900 dark:text-white'
-                }`}>
-                  {t(`types.${type.value}.label`) || type.label}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  {t(`types.${type.value}.description`) || type.description}
-                </p>
-              </div>
-            </label>
-          ))}
+          {REPORT_TYPES.map((type) => {
+            const isSelected = selectedTypes.includes(type.value)
+            return (
+              <label
+                key={type.value}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                  isSelected
+                    ? 'border-red-500 bg-red-50 dark:bg-red-500/10'
+                    : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  value={type.value}
+                  checked={isSelected}
+                  onChange={() => handleTypeToggle(type.value)}
+                  className="mt-1 w-4 h-4 text-red-500 focus:ring-red-500 rounded"
+                />
+                <div>
+                  <p className={`font-medium ${
+                    isSelected
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                    {t(`types.${type.value}.label`) || type.label}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    {t(`types.${type.value}.description`) || type.description}
+                  </p>
+                </div>
+              </label>
+            )
+          })}
         </div>
 
         {/* Additional Description */}
@@ -200,7 +211,7 @@ export default function ReportModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!selectedType || isSubmitting}
+            disabled={selectedTypes.length === 0 || isSubmitting}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
