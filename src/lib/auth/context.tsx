@@ -58,9 +58,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const response = await fetch(`/api/users/${userId}`)
+      // Add cache: 'no-store' to bypass any caching and get fresh profile data
+      const response = await fetch(`/api/users/${userId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
       if (response.ok) {
         const data = await response.json()
+        // Debug logging to diagnose production issue
+        console.log('[AuthContext] API response:', {
+          hasUser: !!data.user,
+          hasProfile: !!data.profile,
+          userRole: data.user?.role,
+          profileRole: data.profile?.role,
+          profileBio: data.profile?.bio ? 'has bio' : 'no bio',
+          profileSubjects: data.profile?.subjects?.length || 0,
+        })
+
         // Merge user data with profile data
         // Ensure we have at least basic user info even if profile is null
         if (data.user) {
@@ -68,14 +84,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // This is separate from User.role which is subscription type ('FREE'/'PREMIUM')
           const profileRole = data.profile?.role || null
 
-          setProfile({
+          const mergedProfile = {
             ...data.user,
             ...(data.profile || {}), // Use empty object if profile is null
             // Ensure subscription role is preserved from user data
             role: data.user.role,
             // Map Profile.role to profileRole to avoid confusion
             profileRole,
+          }
+
+          console.log('[AuthContext] Merged profile:', {
+            role: mergedProfile.role,
+            profileRole: mergedProfile.profileRole,
           })
+
+          setProfile(mergedProfile)
         }
       } else {
         // Log error but don't throw - let the UI handle it

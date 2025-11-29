@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getBlockedUserIds } from '@/lib/blocked-users'
+import { 
+  calculateMatchScore, 
+  countFilledFields, 
+  getMissingFields,
+  hasMinimumProfileData,
+  type ProfileData 
+} from '@/lib/matching/algorithm'
 
 export async function GET(request: NextRequest) {
   try {
@@ -76,7 +83,7 @@ export async function GET(request: NextRequest) {
       take: 100 // Get more to randomize from
     })
 
-    // Get current user's profile for match calculation - secure query using Prisma
+    // Get current user's profile for match calculation
     const currentUserProfile = await prisma.profile.findUnique({
       where: { userId: user.id },
       select: {
@@ -89,118 +96,25 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Check if user's profile is complete enough for meaningful matching
-    const hasSubjects = Array.isArray(currentUserProfile?.subjects) && currentUserProfile.subjects.length > 0
-    const hasInterests = Array.isArray(currentUserProfile?.interests) && currentUserProfile.interests.length > 0
-    const hasGoals = Array.isArray(currentUserProfile?.goals) && currentUserProfile.goals.length > 0
-    const hasSkillLevel = !!currentUserProfile?.skillLevel
-    const hasStudyStyle = !!currentUserProfile?.studyStyle
+    // Check current user's profile completeness
+    const currentUserFilledCount = countFilledFields(currentUserProfile)
+    const currentUserMissingFields = getMissingFields(currentUserProfile)
+    const currentUserProfileComplete = hasMinimumProfileData(currentUserProfile)
 
-    // Profile is incomplete if missing ALL key matching criteria
-    const profileIncomplete = !hasSubjects && !hasInterests && !hasGoals && !hasSkillLevel && !hasStudyStyle
-    const missingFields: string[] = []
-    if (!hasSubjects) missingFields.push('subjects')
-    if (!hasInterests) missingFields.push('interests')
-    if (!hasGoals) missingFields.push('goals')
-    if (!hasSkillLevel) missingFields.push('skill level')
-    if (!hasStudyStyle) missingFields.push('study style')
-
-    // Calculate match scores for each partner (same improved algorithm as search API)
+    // Calculate match scores for each partner using the new algorithm
     const partnersWithScores = randomPartners.map(profile => {
-      let matchScore = 0
-      const matchReasons: string[] = []
-
-      // Check if partner's profile has enough data for meaningful matching
-      const partnerHasSubjects = Array.isArray(profile.subjects) && profile.subjects.length > 0
-      const partnerHasInterests = Array.isArray(profile.interests) && profile.interests.length > 0
-      const partnerHasGoals = Array.isArray(profile.goals) && profile.goals.length > 0
-      const partnerHasSkillLevel = !!profile.skillLevel
-      const partnerHasStudyStyle = !!profile.studyStyle
-
-      // Count how many matching criteria the partner has filled
-      const partnerFilledCount = [partnerHasSubjects, partnerHasInterests, partnerHasGoals, partnerHasSkillLevel, partnerHasStudyStyle].filter(Boolean).length
-
-      // Count how many matching criteria the current user has filled
-      const currentUserFilledCount = [hasSubjects, hasInterests, hasGoals, hasSkillLevel, hasStudyStyle].filter(Boolean).length
-
-      // Only calculate meaningful match if BOTH users have at least 2 criteria filled
-      const canCalculateMeaningfulMatch = partnerFilledCount >= 2 && currentUserFilledCount >= 2
-
-      // Flag to indicate if this specific match can be calculated
-      const matchDataInsufficient = !canCalculateMeaningfulMatch
-
-      if (currentUserProfile && canCalculateMeaningfulMatch) {
-        // Match subjects with diminishing returns (first 2 = 12pts each, rest = 4pts each, max 32)
-        const profileSubjects = Array.isArray(profile.subjects) ? profile.subjects : []
-        const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
-        const commonSubjects = profileSubjects.filter((subject: string) =>
-          currentSubjects.includes(subject)
-        )
-        if (commonSubjects.length > 0) {
-          const firstTwo = Math.min(commonSubjects.length, 2) * 12
-          const additional = Math.max(0, commonSubjects.length - 2) * 4
-          const subjectScore = Math.min(firstTwo + additional, 32)
-          matchScore += subjectScore
-          matchReasons.push(`${commonSubjects.length} shared subject(s)`)
-        }
-
-        // Match interests with diminishing returns (first 2 = 8pts each, rest = 3pts each, max 22)
-        const profileInterests = Array.isArray(profile.interests) ? profile.interests : []
-        const currentInterests = Array.isArray(currentUserProfile.interests) ? currentUserProfile.interests : []
-        const commonInterests = profileInterests.filter((interest: string) =>
-          currentInterests.includes(interest)
-        )
-        if (commonInterests.length > 0) {
-          const firstTwo = Math.min(commonInterests.length, 2) * 8
-          const additional = Math.max(0, commonInterests.length - 2) * 3
-          const interestScore = Math.min(firstTwo + additional, 22)
-          matchScore += interestScore
-          matchReasons.push(`${commonInterests.length} shared interest(s)`)
-        }
-
-        // Match goals (max 16 points)
-        const profileGoals = Array.isArray(profile.goals) ? profile.goals : []
-        const currentGoals = Array.isArray(currentUserProfile.goals) ? currentUserProfile.goals : []
-        const commonGoals = profileGoals.filter((goal: string) =>
-          currentGoals.includes(goal)
-        )
-        if (commonGoals.length > 0) {
-          const goalScore = Math.min(commonGoals.length * 8, 16)
-          matchScore += goalScore
-          matchReasons.push(`${commonGoals.length} shared goal(s)`)
-        }
-
-        // Match availability/days (max 15 points)
-        const profileDays = Array.isArray(profile.availableDays) ? profile.availableDays : []
-        const currentDays = Array.isArray(currentUserProfile.availableDays) ? currentUserProfile.availableDays : []
-        const commonDays = profileDays.filter((day: string) =>
-          currentDays.includes(day)
-        )
-        if (commonDays.length > 0) {
-          const dayScore = Math.min(commonDays.length * 3, 15)
-          matchScore += dayScore
-          matchReasons.push(`${commonDays.length} matching day(s)`)
-        }
-
-        // Match skill level - 10 points if matches
-        if (currentUserProfile.skillLevel &&
-            profile.skillLevel &&
-            profile.skillLevel === currentUserProfile.skillLevel) {
-          matchScore += 10
-          matchReasons.push('Same skill level')
-        }
-
-        // Match study style - 5 points if matches
-        if (currentUserProfile.studyStyle &&
-            profile.studyStyle &&
-            profile.studyStyle === currentUserProfile.studyStyle) {
-          matchScore += 5
-          matchReasons.push('Same study style')
-        }
-
-        // Cap score at 100
-        matchScore = Math.min(matchScore, 100)
+      // Prepare partner profile data
+      const partnerProfileData: ProfileData = {
+        subjects: profile.subjects as string[] | null,
+        interests: profile.interests as string[] | null,
+        goals: profile.goals as string[] | null,
+        availableDays: profile.availableDays as string[] | null,
+        skillLevel: profile.skillLevel,
+        studyStyle: profile.studyStyle,
       }
+
+      // Calculate match using the new algorithm
+      const matchResult = calculateMatchScore(currentUserProfile, partnerProfileData)
 
       // SECURITY: Sanitize location data based on privacy settings
       const locationVisibility = (profile as any).location_visibility || 'private'
@@ -222,10 +136,16 @@ export async function GET(request: NextRequest) {
 
       return {
         ...sanitizedProfile,
-        matchScore: matchDataInsufficient ? null : matchScore, // null = not enough data
-        matchReasons: matchDataInsufficient ? [] : matchReasons,
-        matchDataInsufficient, // Flag for UI to show "Complete profile for match %" message
-        isAlreadyPartner: acceptedPartnerIds.has(profile.userId)
+        // Match data - only show real values
+        matchScore: matchResult.matchScore,
+        matchReasons: matchResult.matchReasons,
+        matchDataInsufficient: matchResult.matchDataInsufficient,
+        matchDetails: matchResult.matchDetails,
+        partnerMissingFields: matchResult.partnerMissingFields,
+        // Partner status
+        isAlreadyPartner: acceptedPartnerIds.has(profile.userId),
+        // Partner profile completeness
+        partnerProfileComplete: hasMinimumProfileData(partnerProfileData),
       }
     })
 
@@ -242,9 +162,10 @@ export async function GET(request: NextRequest) {
       success: true,
       partners: selectedPartners,
       count: selectedPartners.length,
-      // Flag to indicate if user's profile is incomplete for meaningful matching
-      profileIncomplete,
-      missingFields: profileIncomplete ? missingFields : [],
+      // Current user's profile status
+      currentUserProfileComplete,
+      currentUserFilledCount,
+      currentUserMissingFields,
     }, {
       headers: {
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',

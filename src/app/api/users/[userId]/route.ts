@@ -4,6 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { getOrSetCached, userProfileKey, CACHE_TTL } from '@/lib/cache'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { 
+  calculateMatchScore, 
+  countFilledFields, 
+  getMissingFields,
+  hasMinimumProfileData,
+  type ProfileData 
+} from '@/lib/matching/algorithm'
 
 export async function GET(
   request: NextRequest,
@@ -36,14 +43,60 @@ export async function GET(
       )
     }
 
-    // Get user with profile and posts (with caching)
+    // Check if this is the user fetching their own profile (bypass cache for fresh data)
+    const isSelfFetch = user.id === userId
     const cacheKey = userProfileKey(userId)
     let dbUser: any = null
-    
-    dbUser = await getOrSetCached(
-      cacheKey,
-      CACHE_TTL.USER_PROFILE,
-      async () => {
+
+    // For self-fetch, bypass cache to ensure fresh profile data (important for profile completion check)
+    if (isSelfFetch) {
+      console.log('[API] Self-fetch detected, bypassing cache for user:', userId)
+      try {
+        dbUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            coverPhotoUrl: true,
+            role: true,
+            isAdmin: true,
+            profile: true,
+            createdAt: true,
+            presence: {
+              select: {
+                status: true,
+              },
+            },
+          },
+        })
+      } catch (error) {
+        console.error('Error fetching own profile:', error)
+        // Fallback to cached version if direct fetch fails
+        dbUser = await getOrSetCached(cacheKey, CACHE_TTL.USER_PROFILE, async () => {
+          return await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              avatarUrl: true,
+              coverPhotoUrl: true,
+              role: true,
+              isAdmin: true,
+              profile: true,
+              createdAt: true,
+            },
+          })
+        })
+      }
+    } else {
+      // For viewing other profiles, use caching
+      dbUser = await getOrSetCached(
+        cacheKey,
+        CACHE_TTL.USER_PROFILE,
+        async () => {
         try {
           return await prisma.user.findUnique({
         where: { id: userId },
@@ -96,6 +149,7 @@ export async function GET(
         }
       }
     )
+    }
 
     // Ensure dbUser is not null before proceeding
     if (!dbUser) {
@@ -218,33 +272,13 @@ export async function GET(
       }
     }
 
-    // Calculate match score with detailed breakdown (aligned with search API logic)
+    // Calculate match score using the centralized algorithm
     let matchScore: number | null = null
     let matchDataInsufficient = true
-    const matchDetails = {
-      subjects: {
-        count: 0,
-        items: [] as string[],
-        score: 0,
-      },
-      interests: {
-        count: 0,
-        items: [] as string[],
-        score: 0,
-      },
-      goals: {
-        count: 0,
-        items: [] as string[],
-      },
-      skillLevel: {
-        matches: false,
-        value: null as string | null,
-      },
-      studyStyle: {
-        matches: false,
-        value: null as string | null,
-      },
-    }
+    let matchDetails: any = null
+    let matchReasons: string[] = []
+    let currentUserMissingFields: string[] = []
+    let viewedUserMissingFields: string[] = []
 
     if (user.id !== userId && dbUser.profile) {
       try {
@@ -254,83 +288,34 @@ export async function GET(
         })
 
         if (currentUserProfile && dbUser.profile) {
-          // Check if current user has enough profile data for meaningful matching
-          const currentHasSubjects = Array.isArray(currentUserProfile.subjects) && currentUserProfile.subjects.length > 0
-          const currentHasInterests = Array.isArray(currentUserProfile.interests) && currentUserProfile.interests.length > 0
-          const currentHasGoals = Array.isArray(currentUserProfile.goals) && currentUserProfile.goals.length > 0
-          const currentHasSkillLevel = !!currentUserProfile.skillLevel
-          const currentHasStudyStyle = !!currentUserProfile.studyStyle
-          const currentFilledCount = [currentHasSubjects, currentHasInterests, currentHasGoals, currentHasSkillLevel, currentHasStudyStyle].filter(Boolean).length
-
-          // Check if viewed user has enough profile data
-          const viewedHasSubjects = Array.isArray(dbUser.profile.subjects) && dbUser.profile.subjects.length > 0
-          const viewedHasInterests = Array.isArray(dbUser.profile.interests) && dbUser.profile.interests.length > 0
-          const viewedHasGoals = Array.isArray(dbUser.profile.goals) && dbUser.profile.goals.length > 0
-          const viewedHasSkillLevel = !!dbUser.profile.skillLevel
-          const viewedHasStudyStyle = !!dbUser.profile.studyStyle
-          const viewedFilledCount = [viewedHasSubjects, viewedHasInterests, viewedHasGoals, viewedHasSkillLevel, viewedHasStudyStyle].filter(Boolean).length
-
-          // Only calculate meaningful match if BOTH users have at least 2 criteria filled
-          const canCalculateMeaningfulMatch = currentFilledCount >= 2 && viewedFilledCount >= 2
-          matchDataInsufficient = !canCalculateMeaningfulMatch
-
-          if (canCalculateMeaningfulMatch) {
-            // Match subjects - ensure arrays exist and sanitize
-            const profileSubjects = Array.isArray(dbUser.profile.subjects) ? dbUser.profile.subjects : []
-            const currentSubjects = Array.isArray(currentUserProfile.subjects) ? currentUserProfile.subjects : []
-            const commonSubjects = profileSubjects.filter((subject: string) =>
-              currentSubjects.includes(subject)
-            )
-            matchDetails.subjects.count = commonSubjects.length
-            matchDetails.subjects.items = commonSubjects
-            matchDetails.subjects.score = commonSubjects.length * 20 // 20 points per subject
-
-            // Match interests - ensure arrays exist and sanitize
-            const profileInterests = Array.isArray(dbUser.profile.interests) ? dbUser.profile.interests : []
-            const currentInterests = Array.isArray(currentUserProfile.interests) ? currentUserProfile.interests : []
-            const commonInterests = profileInterests.filter((interest: string) =>
-              currentInterests.includes(interest)
-            )
-            matchDetails.interests.count = commonInterests.length
-            matchDetails.interests.items = commonInterests
-            matchDetails.interests.score = commonInterests.length * 15 // 15 points per interest
-
-            // Match goals - informational only, not scored
-            const profileGoals = Array.isArray(dbUser.profile.goals) ? dbUser.profile.goals : []
-            const currentGoals = Array.isArray(currentUserProfile.goals) ? currentUserProfile.goals : []
-            const commonGoals = profileGoals.filter((goal: string) =>
-              currentGoals.includes(goal)
-            )
-            matchDetails.goals.count = commonGoals.length
-            matchDetails.goals.items = commonGoals
-
-            // Match skill level - 10 points if matches
-            matchDetails.skillLevel.matches = Boolean(
-              currentUserProfile.skillLevel &&
-              dbUser.profile.skillLevel &&
-              dbUser.profile.skillLevel === currentUserProfile.skillLevel
-            )
-            matchDetails.skillLevel.value = dbUser.profile.skillLevel
-            const skillScore = matchDetails.skillLevel.matches ? 10 : 0
-
-            // Match study style - 10 points if matches
-            matchDetails.studyStyle.matches = Boolean(
-              currentUserProfile.studyStyle &&
-              dbUser.profile.studyStyle &&
-              dbUser.profile.studyStyle === currentUserProfile.studyStyle
-            )
-            matchDetails.studyStyle.value = dbUser.profile.studyStyle
-            const styleScore = matchDetails.studyStyle.matches ? 10 : 0
-
-            // Calculate total match score (out of 100) - cap at 100
-            matchScore = Math.min(
-              matchDetails.subjects.score +
-              matchDetails.interests.score +
-              skillScore +
-              styleScore,
-              100
-            )
+          // Prepare profile data for the algorithm
+          const currentUserProfileData: ProfileData = {
+            subjects: currentUserProfile.subjects as string[] | null,
+            interests: currentUserProfile.interests as string[] | null,
+            goals: currentUserProfile.goals as string[] | null,
+            availableDays: currentUserProfile.availableDays as string[] | null,
+            skillLevel: currentUserProfile.skillLevel,
+            studyStyle: currentUserProfile.studyStyle,
           }
+
+          const viewedUserProfileData: ProfileData = {
+            subjects: dbUser.profile.subjects as string[] | null,
+            interests: dbUser.profile.interests as string[] | null,
+            goals: dbUser.profile.goals as string[] | null,
+            availableDays: dbUser.profile.availableDays as string[] | null,
+            skillLevel: dbUser.profile.skillLevel,
+            studyStyle: dbUser.profile.studyStyle,
+          }
+
+          // Calculate match using the centralized algorithm
+          const matchResult = calculateMatchScore(currentUserProfileData, viewedUserProfileData)
+
+          matchScore = matchResult.matchScore
+          matchDataInsufficient = matchResult.matchDataInsufficient
+          matchDetails = matchResult.matchDetails
+          matchReasons = matchResult.matchReasons
+          currentUserMissingFields = matchResult.currentUserMissingFields
+          viewedUserMissingFields = matchResult.partnerMissingFields
         }
       } catch (error) {
         console.warn('Error calculating match score:', error)
@@ -389,9 +374,14 @@ export async function GET(
       posts: userPosts || [],
       connectionStatus,
       connectionId,
+      // Match data - only show real values
       matchScore, // null if not enough data to calculate
       matchDetails: matchDataInsufficient ? null : matchDetails,
+      matchReasons: matchDataInsufficient ? [] : matchReasons,
       matchDataInsufficient, // Flag for UI to show "Complete profile for match %" message
+      // Profile completeness info
+      currentUserMissingFields,
+      viewedUserMissingFields,
     })
   } catch (error) {
     console.error('Get user error:', error)

@@ -40,17 +40,45 @@ interface Group {
 }
 
 // Profile completion check function
+// Returns true only if user has filled in the essential profile fields
 const isProfileComplete = (profile: any): boolean => {
   if (!profile) return false
 
-  const hasBio = profile.bio && profile.bio.trim().length > 0
-  const hasSubjects = profile.subjects && profile.subjects.length > 0
-  const hasInterests = profile.interests && profile.interests.length > 0
-  const hasAge = profile.age !== null && profile.age !== undefined
+  // Check each field with proper null/undefined handling
+  const hasBio = Boolean(profile.bio && typeof profile.bio === 'string' && profile.bio.trim().length > 0)
+  const hasSubjects = Boolean(Array.isArray(profile.subjects) && profile.subjects.length > 0)
+  const hasInterests = Boolean(Array.isArray(profile.interests) && profile.interests.length > 0)
+  const hasAge = profile.age !== null && profile.age !== undefined && typeof profile.age === 'number'
   // Check profileRole (user position like 'Student', 'Professional') NOT role (subscription 'FREE'/'PREMIUM')
-  const hasRole = profile.profileRole && profile.profileRole.trim().length > 0
+  const hasRole = Boolean(profile.profileRole && typeof profile.profileRole === 'string' && profile.profileRole.trim().length > 0)
 
+  // All essential fields must be filled
   return hasBio && hasSubjects && hasInterests && hasAge && hasRole
+}
+
+// Get list of missing profile fields for display
+const getMissingProfileFields = (profile: any): string[] => {
+  if (!profile) return ['bio', 'subjects', 'interests', 'age', 'role']
+  
+  const missing: string[] = []
+  
+  if (!(profile.bio && typeof profile.bio === 'string' && profile.bio.trim().length > 0)) {
+    missing.push('bio')
+  }
+  if (!(Array.isArray(profile.subjects) && profile.subjects.length > 0)) {
+    missing.push('subjects')
+  }
+  if (!(Array.isArray(profile.interests) && profile.interests.length > 0)) {
+    missing.push('interests')
+  }
+  if (!(profile.age !== null && profile.age !== undefined && typeof profile.age === 'number')) {
+    missing.push('age')
+  }
+  if (!(profile.profileRole && typeof profile.profileRole === 'string' && profile.profileRole.trim().length > 0)) {
+    missing.push('role')
+  }
+  
+  return missing
 }
 
 export default function DashboardPage() {
@@ -137,14 +165,53 @@ export default function DashboardPage() {
 
   // Check profile completion and banner visibility
   const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false)
+  const [missingProfileFields, setMissingProfileFields] = useState<string[]>([])
 
   useEffect(() => {
-    if (!profile || typeof window === 'undefined') return
+    // Only check on client-side
+    if (typeof window === 'undefined') return
     
-    const profileComplete = isProfileComplete(profile)
+    // Check banner dismissed state early (before profile check)
     const bannerDismissed = localStorage.getItem('profileCompletionBannerDismissed') === 'true'
     
-    setShowCompleteProfileBanner(!profileComplete && !bannerDismissed)
+    // If banner was dismissed, don't show it
+    if (bannerDismissed) {
+      setShowCompleteProfileBanner(false)
+      return
+    }
+    
+    // If profile is still loading, wait for it
+    if (!profile) {
+      // For new users with no profile yet, show banner by default
+      // This ensures new users always see the banner
+      setShowCompleteProfileBanner(true)
+      setMissingProfileFields(['bio', 'subjects', 'interests', 'age', 'role'])
+      return
+    }
+
+    // Debug logging to diagnose production issue
+    console.log('[Dashboard] Profile data:', {
+      hasProfile: !!profile,
+      bio: profile.bio ? 'has bio' : 'no bio',
+      subjects: profile.subjects?.length || 0,
+      interests: profile.interests?.length || 0,
+      age: profile.age,
+      profileRole: profile.profileRole,
+      role: profile.role,
+    })
+
+    const profileComplete = isProfileComplete(profile)
+    const missing = getMissingProfileFields(profile)
+
+    console.log('[Dashboard] Banner decision:', {
+      profileComplete,
+      bannerDismissed,
+      shouldShowBanner: !profileComplete,
+      missingFields: missing,
+    })
+
+    setShowCompleteProfileBanner(!profileComplete)
+    setMissingProfileFields(missing)
   }, [profile])
 
   // Fetch data and cache to localStorage
@@ -973,27 +1040,33 @@ export default function DashboardPage() {
           {showCompleteProfileBanner && (
             <Bounce delay={0.2}>
               <GlowBorder
-                color="#10b981"
+                color="#f59e0b"
                 intensity="medium"
-                animated={false}
-
+                animated={true}
                 style={{ borderRadius: 16 }}
               >
-                <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">🎯</div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">{t('readyToStartJourney')}</h3>
-                  <p className="text-sm text-gray-700 dark:text-slate-300">{t('connectWithPartners')}</p>
+                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 backdrop-blur-xl border border-amber-200 dark:border-amber-500/30 rounded-2xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <span className="text-2xl">🎯</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-900 dark:text-white mb-1 text-lg">{t('readyToStartJourney')}</h3>
+                      <p className="text-sm text-gray-700 dark:text-slate-300 mb-2">{t('connectWithPartners')}</p>
+                      {missingProfileFields.length > 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          Missing: <span className="font-medium">{missingProfileFields.join(', ')}</span>
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleCompleteProfile}
+                      className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl hover:scale-105 whitespace-nowrap"
+                    >
+                      {t('completeProfile')}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={handleCompleteProfile}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition whitespace-nowrap"
-                >
-                  {t('completeProfile')}
-                </button>
-              </div>
-              </div>
               </GlowBorder>
             </Bounce>
           )}

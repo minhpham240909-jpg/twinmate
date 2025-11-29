@@ -22,15 +22,29 @@ interface Partner {
   subjects: string[]
   interests: string[]
   goals: string[]
-  skillLevel: string
-  studyStyle: string
+  skillLevel: string | null
+  studyStyle: string | null
   availableDays: string[]
   availableHours: string[]
   aboutYourself?: string | null
   aboutYourselfItems?: string[]
-  matchScore?: number
+  matchScore?: number | null  // null means insufficient data
   matchReasons?: string[]
+  matchDataInsufficient?: boolean  // Flag indicating insufficient profile data
+  partnerProfileComplete?: boolean  // Whether partner has enough profile data
   isAlreadyPartner?: boolean // Flag from backend if ACCEPTED connection exists
+}
+
+// Helper function to format skill level for display
+function formatSkillLevel(skillLevel: string | null | undefined): string {
+  if (!skillLevel || skillLevel.trim() === '') return ''
+  return skillLevel.charAt(0).toUpperCase() + skillLevel.slice(1).toLowerCase()
+}
+
+// Helper function to format study style for display
+function formatStudyStyle(studyStyle: string | null | undefined): string {
+  if (!studyStyle || studyStyle.trim() === '') return ''
+  return studyStyle.charAt(0).toUpperCase() + studyStyle.slice(1).toLowerCase().replace('_', ' ')
 }
 
 export default function SearchPage() {
@@ -83,6 +97,8 @@ export default function SearchPage() {
   const [sendingRequest, setSendingRequest] = useState<string | null>(null)
   const [isLoadingRandom, setIsLoadingRandom] = useState(true)
   const [randomError, setRandomError] = useState('')
+  const [currentUserProfileComplete, setCurrentUserProfileComplete] = useState(true)
+  const [currentUserMissingFields, setCurrentUserMissingFields] = useState<string[]>([])
 
   // Ref to track abort controller for cancelling in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -158,6 +174,14 @@ export default function SearchPage() {
 
       const data = await response.json()
       setPartners(data.partners || [])
+      
+      // Update profile completeness info from API response
+      if (data.currentUserProfileComplete !== undefined) {
+        setCurrentUserProfileComplete(data.currentUserProfileComplete)
+      }
+      if (data.currentUserMissingFields) {
+        setCurrentUserMissingFields(data.currentUserMissingFields)
+      }
 
       // Set error only if no partners found
       if (!data.partners || data.partners.length === 0) {
@@ -880,6 +904,33 @@ export default function SearchPage() {
                 </p>
               </div>
 
+              {/* Profile Incomplete Banner - Only show if profile is incomplete */}
+              {!currentUserProfileComplete && currentUserMissingFields.length > 0 && (
+                <BounceOptimized delay={0.1}>
+                  <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4 mb-4 backdrop-blur-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 bg-amber-100 dark:bg-amber-500/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-amber-800 dark:text-amber-300 mb-1">Complete Your Profile for Better Matches</h4>
+                        <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">
+                          Add your <span className="font-medium">{currentUserMissingFields.join(', ')}</span> to see accurate match percentages with other learners.
+                        </p>
+                        <button
+                          onClick={() => router.push('/profile/edit')}
+                          className="px-4 py-2 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition font-medium"
+                        >
+                          Complete Profile
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </BounceOptimized>
+              )}
+
               {/* Error Messages */}
               {searchError && (
                 <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl p-4 mb-4 backdrop-blur-sm">
@@ -929,6 +980,21 @@ export default function SearchPage() {
                     </div>
                   ) : partners.length > 0 ? (
                     partners.map((partner, index) => {
+                      // Check if partner has real profile data
+                      const hasSkillLevel = partner.skillLevel && partner.skillLevel.trim() !== ''
+                      const hasStudyStyle = partner.studyStyle && partner.studyStyle.trim() !== ''
+                      const hasRealMatchScore = partner.matchScore !== null && partner.matchScore !== undefined && !partner.matchDataInsufficient
+                      const hasMatchReasons = partner.matchReasons && partner.matchReasons.length > 0 && !partner.matchDataInsufficient
+                      
+                      // Format skill level and study style only if they exist
+                      const skillLevelDisplay = formatSkillLevel(partner.skillLevel)
+                      const studyStyleDisplay = formatStudyStyle(partner.studyStyle)
+                      
+                      // Build the info line (only show what's actually filled in)
+                      const infoItems: string[] = []
+                      if (skillLevelDisplay) infoItems.push(skillLevelDisplay)
+                      if (studyStyleDisplay) infoItems.push(studyStyleDisplay)
+                      
                       const cardContent = (
                         <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg dark:shadow-none p-6 hover:shadow-xl transition-all border border-gray-200 dark:border-slate-700/50">
                           <div className="flex items-start justify-between">
@@ -942,18 +1008,26 @@ export default function SearchPage() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-gray-900 dark:text-white">{partner.user.name}</h3>
-                              {partner.matchScore && partner.matchScore > 0 && (
+                              {/* Only show match score if we have real data */}
+                              {hasRealMatchScore && partner.matchScore! > 0 ? (
                                 <PulseOptimized onlyWhenVisible={true}>
                                   <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full font-medium border border-green-500/30">
                                     {partner.matchScore}% Match
                                   </span>
                                 </PulseOptimized>
-                              )}
+                              ) : partner.matchDataInsufficient ? (
+                                <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400 text-xs rounded-full border border-gray-200 dark:border-slate-600/50">
+                                  Profile incomplete
+                                </span>
+                              ) : null}
                             </div>
-                            <p className="text-sm text-gray-700 dark:text-slate-300 mb-2">
-                              {partner.skillLevel.charAt(0) + partner.skillLevel.slice(1).toLowerCase()} • {partner.studyStyle.charAt(0) + partner.studyStyle.slice(1).toLowerCase().replace('_', ' ')}
-                            </p>
-                            {partner.subjects.length > 0 && (
+                            {/* Only show info line if we have real data */}
+                            {infoItems.length > 0 && (
+                              <p className="text-sm text-gray-700 dark:text-slate-300 mb-2">
+                                {infoItems.join(' • ')}
+                              </p>
+                            )}
+                            {partner.subjects && partner.subjects.length > 0 && (
                               <div className="flex flex-wrap gap-2 mb-3">
                                 {partner.subjects.slice(0, 3).map((subject, idx) => (
                                   <span key={idx} className="px-3 py-1 bg-blue-500/20 text-blue-600 dark:text-blue-300 text-xs rounded-full hover:scale-105 transition-transform cursor-default border border-blue-500/30">
@@ -967,9 +1041,10 @@ export default function SearchPage() {
                                 )}
                               </div>
                             )}
-                            {partner.matchReasons && partner.matchReasons.length > 0 && (
+                            {/* Only show match reasons if we have real matching data */}
+                            {hasMatchReasons && (
                               <p className="text-xs text-green-600 dark:text-green-400 mb-2">
-                                ✓ {partner.matchReasons.join(', ')}
+                                ✓ {partner.matchReasons!.join(', ')}
                               </p>
                             )}
                             {partner.bio && (
@@ -1011,8 +1086,8 @@ export default function SearchPage() {
 
                       return (
                         <FadeInOptimized key={partner.id} delay={Math.min(index * 0.03, 0.3)}>
-                          {/* Only use ElectricBorder on high match scores (>80) */}
-                          {partner.matchScore && partner.matchScore > 80 ? (
+                          {/* Only use GlowBorder on high match scores (>80) with real data */}
+                          {hasRealMatchScore && partner.matchScore! > 80 ? (
                             <GlowBorderOptimized color="#10b981" animated={false}  style={{ borderRadius: 12 }} onlyWhenVisible={true}>
                               {cardContent}
                             </GlowBorderOptimized>
