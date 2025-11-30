@@ -4,6 +4,7 @@
 // CEO Control Panel - Real-time Analytics and Insights
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   BarChart3,
   Users,
@@ -21,6 +22,11 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
+  Eye,
+  AlertTriangle,
+  Search,
+  MousePointer,
+  ArrowRight,
 } from 'lucide-react'
 
 interface AnalyticsData {
@@ -50,6 +56,7 @@ interface GrowthDataPoint {
 }
 
 export default function AdminAnalyticsPage() {
+  const router = useRouter()
   const [stats, setStats] = useState<AnalyticsData | null>(null)
   const [growthData, setGrowthData] = useState<GrowthDataPoint[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -375,6 +382,61 @@ export default function AdminAnalyticsPage() {
                 <p className="text-sm text-gray-400">New This Month</p>
                 <p className="text-lg font-semibold text-white">{stats?.users.newThisMonth || 0}</p>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* User Behavior Analytics Link */}
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl border border-blue-500/30 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl">
+              <Eye className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">User Behavior Analytics</h2>
+              <p className="text-gray-400 text-sm">
+                Track page visits, feature usage, search queries, and detect suspicious activity
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/admin/analytics/user-behavior')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            View Details
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+            <MousePointer className="w-5 h-5 text-blue-400" />
+            <div>
+              <p className="text-sm text-gray-400">Page Visits</p>
+              <p className="text-white font-medium">Track all pages</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+            <Search className="w-5 h-5 text-purple-400" />
+            <div>
+              <p className="text-sm text-gray-400">Search Queries</p>
+              <p className="text-white font-medium">Monitor searches</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+            <Clock className="w-5 h-5 text-green-400" />
+            <div>
+              <p className="text-sm text-gray-400">Time Spent</p>
+              <p className="text-white font-medium">Session duration</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <div>
+              <p className="text-sm text-gray-400">Suspicious</p>
+              <p className="text-white font-medium">Detect spam</p>
             </div>
           </div>
         </div>

@@ -23,6 +23,7 @@ import {
   X,
   Check,
   RefreshCw,
+  Eye,
 } from 'lucide-react'
 
 interface UserData {
@@ -459,6 +460,19 @@ export default function AdminUsersPage() {
                               />
                               <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-lg border border-gray-600 z-20">
                                 <div className="py-1">
+                                  {/* View Details - Primary action */}
+                                  <button
+                                    onClick={() => {
+                                      router.push(`/admin/users/${user.id}`)
+                                      setOpenDropdown(null)
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-600 transition-colors text-blue-400"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    View Details
+                                  </button>
+                                  <div className="border-t border-gray-600 my-1" />
+                                  {/* Action options */}
                                   {getActionOptions(user).map((option) => (
                                     <button
                                       key={option.action}

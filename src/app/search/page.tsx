@@ -266,6 +266,19 @@ export default function SearchPage() {
     }
   }, [user, loading, loadRandomPartners])
 
+  // Refresh data when user returns to the page (e.g., after editing profile)
+  // This ensures the "Complete Profile" banner disappears after user completes their profile
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user && !loading) {
+        loadRandomPartners()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [user, loading, loadRandomPartners])
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/signin')
@@ -904,28 +917,22 @@ export default function SearchPage() {
                 </p>
               </div>
 
-              {/* Profile Incomplete Banner - Only show if profile is incomplete */}
-              {!currentUserProfileComplete && currentUserMissingFields.length > 0 && (
+              {/* Profile Incomplete Banner - Simple version */}
+              {!currentUserProfileComplete && (
                 <BounceOptimized delay={0.1}>
-                  <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4 mb-4 backdrop-blur-sm">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 bg-amber-100 dark:bg-amber-500/20 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
+                  <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="text-3xl">🎯</div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-amber-800 dark:text-amber-300 mb-1">Complete Your Profile for Better Matches</h4>
-                        <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">
-                          Add your <span className="font-medium">{currentUserMissingFields.join(', ')}</span> to see accurate match percentages with other learners.
-                        </p>
-                        <button
-                          onClick={() => router.push('/profile/edit')}
-                          className="px-4 py-2 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition font-medium"
-                        >
-                          Complete Profile
-                        </button>
+                        <h4 className="font-bold text-gray-900 dark:text-white mb-1">{t('readyToStartJourney')}</h4>
+                        <p className="text-sm text-gray-700 dark:text-slate-300">{t('connectWithPartners')}</p>
                       </div>
+                      <button
+                        onClick={() => router.push('/profile/edit')}
+                        className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition whitespace-nowrap"
+                      >
+                        {t('completeProfile')}
+                      </button>
                     </div>
                   </div>
                 </BounceOptimized>

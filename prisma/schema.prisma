@@ -1646,6 +1646,240 @@ model FlaggedContent {
 }
 
 // ==========================================
+// USER ACTIVITY TRACKING (Analytics & Behavioral)
+// ==========================================
+
+// Page Visit Tracking
+model UserPageVisit {
+  id          String   @id @default(uuid())
+  userId      String
+
+  // Page info
+  path        String   // e.g., "/search", "/messages", "/profile"
+  pageName    String?  // Human readable name e.g., "Find Partner", "Messages"
+  referrer    String?  // Where user came from
+
+  // Session info
+  sessionId   String?  // Browser session ID
+  deviceId    String?  // Device session ID
+
+  // Timing
+  enteredAt   DateTime @default(now())
+  exitedAt    DateTime? // When user left the page
+  duration    Int?     // Time spent in seconds
+
+  // Context
+  query       String?  // URL query params
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([path])
+  @@index([createdAt])
+  @@index([userId, path])
+  @@index([userId, createdAt])
+  @@map("user_page_visits")
+}
+
+// Feature Usage Tracking
+model UserFeatureUsage {
+  id          String   @id @default(uuid())
+  userId      String
+
+  // Feature info
+  feature     String   // e.g., "partner_search", "send_message", "create_post"
+  category    String   // e.g., "matching", "messaging", "community", "profile"
+  action      String   // e.g., "click", "submit", "view", "create", "update", "delete"
+
+  // Target info (optional)
+  targetType  String?  // e.g., "user", "post", "group", "session"
+  targetId    String?  // ID of the target entity
+
+  // Additional data
+  metadata    Json?    // Any additional context
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([feature])
+  @@index([category])
+  @@index([createdAt])
+  @@index([userId, feature])
+  @@index([userId, createdAt])
+  @@map("user_feature_usage")
+}
+
+// Search Query Tracking
+model UserSearchQuery {
+  id          String   @id @default(uuid())
+  userId      String
+
+  // Search info
+  query       String   // The search query
+  searchType  String   // "partner", "group", "post", "message"
+
+  // Filters applied
+  filters     Json?    // Any filters used (subjects, skill level, etc.)
+
+  // Results
+  resultCount Int?     // Number of results returned
+  clickedResults String[] @default([]) // IDs of results user clicked
+
+  // Context
+  pagePath    String?  // Where the search was performed
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([searchType])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("user_search_queries")
+}
+
+// User Session Analytics (aggregate stats per session)
+model UserSessionAnalytics {
+  id              String   @id @default(uuid())
+  userId          String
+  sessionId       String   @unique // Browser session ID
+
+  // Session timing
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+  totalDuration   Int?     // Total session duration in seconds
+  activeTime      Int      @default(0) // Time user was actively engaged (not idle)
+
+  // Page stats
+  pagesVisited    Int      @default(0)
+  uniquePages     Int      @default(0)
+
+  // Feature usage
+  featuresUsed    Int      @default(0)
+  searchesMade    Int      @default(0)
+  messagesSent    Int      @default(0)
+  postsCreated    Int      @default(0)
+
+  // Device info
+  deviceId        String?
+  userAgent       String?
+  ipAddress       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([startedAt])
+  @@index([userId, startedAt])
+  @@map("user_session_analytics")
+}
+
+// Suspicious Activity Log
+enum SuspiciousActivityType {
+  RAPID_MESSAGING       // Sending many messages too quickly (spam)
+  DUPLICATE_CONTENT     // Posting same content multiple times
+  MASS_CONNECTION_REQUESTS // Sending too many connection requests
+  LOGIN_FROM_NEW_LOCATION // Login from unusual location
+  MULTIPLE_FAILED_LOGINS  // Multiple failed login attempts
+  PROFILE_SPAM          // Suspicious profile content
+  UNUSUAL_SEARCH_PATTERN // Unusual search behavior
+  CONTENT_FLAGGED       // Content flagged by AI moderation
+  RAPID_REPORTING       // Filing many reports in short time
+  BULK_ACTIONS          // Too many actions in short time
+}
+
+enum SuspiciousActivitySeverity {
+  LOW       // Just tracking, no action needed
+  MEDIUM    // Review recommended
+  HIGH      // Action recommended
+  CRITICAL  // Immediate action required
+}
+
+model SuspiciousActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+
+  // Activity details
+  type        SuspiciousActivityType
+  severity    SuspiciousActivitySeverity @default(LOW)
+
+  // Context
+  description String   @db.Text
+  metadata    Json?    // Additional context data
+
+  // Detection info
+  detectedBy  String   // "system", "ai", "admin", "rate_limiter"
+  confidence  Float?   // 0-1 confidence score (for AI detection)
+
+  // Related entities
+  relatedType String?  // "message", "post", "connection_request", etc.
+  relatedId   String?  // ID of the related entity
+
+  // Admin handling
+  isReviewed  Boolean  @default(false)
+  reviewedById String?
+  reviewedAt  DateTime?
+  actionTaken String?  // What action was taken if any
+
+  // IP/Device tracking
+  ipAddress   String?
+  userAgent   String?
+  deviceId    String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([severity])
+  @@index([isReviewed])
+  @@index([createdAt])
+  @@index([userId, type])
+  @@index([severity, isReviewed])
+  @@map("suspicious_activity_logs")
+}
+
+// User Activity Summary (daily aggregates for dashboard)
+model UserActivitySummary {
+  id              String   @id @default(uuid())
+  userId          String
+  date            DateTime @db.Date // Day of activity
+
+  // Session stats
+  totalSessions   Int      @default(0)
+  totalDuration   Int      @default(0) // Total time in seconds
+  avgSessionLength Int     @default(0)
+
+  // Page views
+  totalPageViews  Int      @default(0)
+  uniquePageViews Int      @default(0)
+
+  // Feature usage
+  searchCount     Int      @default(0)
+  messagesSent    Int      @default(0)
+  messagesReceived Int     @default(0)
+  postsCreated    Int      @default(0)
+  postsLiked      Int      @default(0)
+  commentsCreated Int      @default(0)
+  connectionsSent Int      @default(0)
+  connectionsAccepted Int  @default(0)
+  groupsJoined    Int      @default(0)
+  sessionsJoined  Int      @default(0)
+
+  // Engagement metrics
+  profileViews    Int      @default(0) // Views of this user's profile by others
+  engagementScore Float    @default(0) // Calculated engagement metric
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
+  @@map("user_activity_summaries")
+}
+
+// ==========================================
 // USER FEEDBACK
 // ==========================================
 
