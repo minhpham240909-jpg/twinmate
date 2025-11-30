@@ -57,7 +57,7 @@ const isProfileComplete = (profile: any): boolean => {
 }
 
 export default function DashboardPage() {
-  const { user, profile, loading, configError, signOut } = useAuth()
+  const { user, profile, loading, configError, profileError, signOut } = useAuth()
   const router = useRouter()
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
@@ -526,8 +526,31 @@ export default function DashboardPage() {
     )
   }
 
-  // Show loading if user exists but profile is still loading
-  if (user && !profile) {
+  // Show error if profile failed to load (timeout, network error, etc.)
+  if (user && profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+        <div className="text-center max-w-md p-8">
+          <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Connection Error</h2>
+          <p className="text-gray-700 dark:text-slate-300 mb-6">{profileError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-500/20"
+          >
+            {tCommon('refreshPage')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading if user exists but profile is still loading (and no error)
+  if (user && !profile && !profileError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
         <div className="text-center">

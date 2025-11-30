@@ -22,7 +22,29 @@ import {
   AlertTriangle,
   Home,
   MessageSquare,
+  RefreshCw,
 } from 'lucide-react'
+
+// Fetch with timeout to prevent infinite loading
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs}ms`)
+    }
+    throw error
+  }
+}
 
 interface AdminUser {
   id: string
@@ -97,30 +119,38 @@ export default function AdminLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Verify admin access on mount
-  useEffect(() => {
-    async function checkAdminAccess() {
-      try {
-        const response = await fetch('/api/admin/check')
-        const data = await response.json()
+  const checkAdminAccess = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetchWithTimeout('/api/admin/check', {}, 15000)
+      const data = await response.json()
 
-        if (!data.isAdmin) {
-          // Not an admin, redirect to home
-          router.replace('/')
-          return
-        }
-
-        setIsAdmin(true)
-        setAdminUser(data.user)
-      } catch (error) {
-        console.error('Error checking admin access:', error)
+      if (!data.isAdmin) {
+        // Not an admin, redirect to home
         router.replace('/')
-      } finally {
-        setIsLoading(false)
+        return
       }
-    }
 
+      setIsAdmin(true)
+      setAdminUser(data.user)
+    } catch (error) {
+      console.error('Error checking admin access:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to verify admin access'
+      if (errorMessage.includes('timed out')) {
+        setError('Connection timed out. The server may be slow or unavailable.')
+      } else {
+        setError(errorMessage)
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     checkAdminAccess()
   }, [router])
 
@@ -160,6 +190,34 @@ export default function AdminLayout({
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-gray-400">Verifying admin access...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state with retry
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 max-w-md text-center px-4">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-red-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-white">Connection Error</h2>
+          <p className="text-gray-400">{error}</p>
+          <button
+            onClick={checkAdminAccess}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Try Again
+          </button>
+          <button
+            onClick={() => router.replace('/')}
+            className="text-gray-400 hover:text-white text-sm transition-colors"
+          >
+            Return to Home
+          </button>
         </div>
       </div>
     )

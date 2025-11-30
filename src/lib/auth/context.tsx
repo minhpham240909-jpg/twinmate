@@ -13,6 +13,27 @@ const isSupabaseConfigured = () => {
   return url && key && !url.includes('placeholder') && url.startsWith('https://')
 }
 
+// Fetch with timeout to prevent infinite loading
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`)
+    }
+    throw error
+  }
+}
+
 export interface UserProfile {
   id: string
   email: string
@@ -49,6 +70,7 @@ interface AuthContextType {
   profile: UserProfile | null
   loading: boolean
   configError: boolean
+  profileError: string | null
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -60,20 +82,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [configError, setConfigError] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   // Note: Presence heartbeat is handled by PresenceProvider in root layout
 
   const fetchProfile = async (userId: string) => {
+    setProfileError(null)
     try {
       // Add cache: 'no-store' to bypass any caching and get fresh profile data
-      const response = await fetch(`/api/users/${userId}`, {
+      // Use fetchWithTimeout to prevent infinite loading in production
+      const response = await fetchWithTimeout(`/api/users/${userId}`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
         },
-      })
+      }, 15000) // 15 second timeout
       if (response.ok) {
         const data = await response.json()
         // Debug logging to diagnose production issue
@@ -113,12 +138,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Log error but don't throw - let the UI handle it
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('Error fetching profile:', response.status, errorData)
-        // Set a minimal profile with just user info if we have it
-        // This prevents blank page but shows error state
+        setProfileError(`Failed to load profile: ${errorData.error || 'Server error'}`)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
-      // Network error - don't set profile, let UI show error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      if (errorMessage.includes('timed out')) {
+        setProfileError('Connection timed out. Please check your internet connection.')
+      } else {
+        setProfileError(`Failed to load profile: ${errorMessage}`)
+      }
     }
   }
 
@@ -210,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, configError, signOut, refreshUser }}>
+    <AuthContext.Provider value={{ user, profile, loading, configError, profileError, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
