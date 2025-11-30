@@ -105,7 +105,14 @@ export async function GET(request: NextRequest) {
         studyStyle: true,
         school: true,
         timezone: true,
+        languages: true,
+        role: true,
         isLookingForPartner: true,
+        // Location fields for proximity matching
+        location_lat: true,
+        location_lng: true,
+        location_city: true,
+        location_country: true,
       }
     })
 
@@ -129,9 +136,16 @@ export async function GET(request: NextRequest) {
       studyStyle: currentUserProfile?.studyStyle,
       school: currentUserProfile?.school,
       timezone: currentUserProfile?.timezone,
+      languages: currentUserProfile?.languages as string[] | null,
+      role: currentUserProfile?.role,
       isLookingForPartner: currentUserProfile?.isLookingForPartner,
       strengths: currentUserLearningProfile?.strengths as string[] | null,
       weaknesses: currentUserLearningProfile?.weaknesses as string[] | null,
+      // Location fields for proximity matching
+      location_lat: currentUserProfile?.location_lat,
+      location_lng: currentUserProfile?.location_lng,
+      location_city: currentUserProfile?.location_city,
+      location_country: currentUserProfile?.location_country,
     }
 
     // Check current user's profile completeness
@@ -155,9 +169,16 @@ export async function GET(request: NextRequest) {
         studyStyle: profile.studyStyle,
         school: profile.school,
         timezone: profile.timezone,
+        languages: profile.languages as string[] | null,
+        role: profile.role,
         isLookingForPartner: profile.isLookingForPartner,
         strengths: partnerLearningProfile?.strengths as string[] | null,
         weaknesses: partnerLearningProfile?.weaknesses as string[] | null,
+        // Location fields for proximity matching
+        location_lat: profile.location_lat,
+        location_lng: profile.location_lng,
+        location_city: profile.location_city,
+        location_country: profile.location_country,
       }
 
       // Calculate match using the enhanced algorithm

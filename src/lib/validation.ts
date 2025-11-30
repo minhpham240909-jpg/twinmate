@@ -213,16 +213,24 @@ export function validatePaginationLimit(
  * @returns Validation result with error message if invalid
  */
 export function validateContent(
-  content: string,
+  content: string | undefined | null,
   maxLength: number,
   fieldName: string = 'Content'
 ): { valid: boolean; error?: string } {
+  // Handle undefined/null content
+  if (content === undefined || content === null) {
+    return {
+      valid: false,
+      error: `${fieldName} cannot be empty`
+    }
+  }
+
   const trimmed = content.trim()
-  
+
   if (trimmed.length === 0) {
-    return { 
-      valid: false, 
-      error: `${fieldName} cannot be empty` 
+    return {
+      valid: false,
+      error: `${fieldName} cannot be empty`
     }
   }
   

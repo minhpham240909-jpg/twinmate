@@ -461,6 +461,20 @@ export default function MyProfilePage() {
             {(profile as any)?.role && (
               <span>{(profile as any).role}</span>
             )}
+            {/* Location */}
+            {((profile as any)?.location_city || (profile as any)?.location_state || (profile as any)?.location_country) && (
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>
+                  {[(profile as any).location_city, (profile as any).location_state, (profile as any).location_country]
+                    .filter(Boolean)
+                    .join(', ')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Quick Stats */}
@@ -602,6 +616,62 @@ export default function MyProfilePage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('languages')}</h3>
                     <p className="text-gray-700 dark:text-slate-300">{(profile as any).languages}</p>
+                  </div>
+                )}
+
+                {/* Goals */}
+                {(profile as any).goals?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Learning Goals</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(profile as any).goals.map((goal: string, index: number) => (
+                        <span key={index} className="px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-sm">
+                          {goal}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skill Level - Show custom description if available */}
+                {((profile as any).skillLevelCustomDescription || (profile as any).skillLevel) && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Skill Level</h3>
+                    <p className="text-gray-700 dark:text-slate-300">
+                      {(profile as any).skillLevelCustomDescription || (profile as any).skillLevel}
+                    </p>
+                  </div>
+                )}
+
+                {/* Study Style - Show custom description if available */}
+                {((profile as any).studyStyleCustomDescription || (profile as any).studyStyle) && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Study Style</h3>
+                    <p className="text-gray-700 dark:text-slate-300">
+                      {(profile as any).studyStyleCustomDescription || (profile as any).studyStyle}
+                    </p>
+                  </div>
+                )}
+
+                {/* Available Days */}
+                {(profile as any).availableDays?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Available Days</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(profile as any).availableDays.map((day: string, index: number) => (
+                        <span key={index} className="px-3 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full text-sm">
+                          {day}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Available Hours */}
+                {(profile as any).availableHours?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Available Hours</h3>
+                    <p className="text-gray-700 dark:text-slate-300">{(profile as any).availableHours.join(', ')}</p>
                   </div>
                 )}
               </div>

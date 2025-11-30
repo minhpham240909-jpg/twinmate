@@ -1430,6 +1430,7 @@ model Announcement {
   // Targeting
   targetAll   Boolean              @default(true) // Show to all users
   targetRole  String?              // Target specific role (FREE, PREMIUM)
+  targetUserIds String[]           @default([]) // Specific user IDs to target (in addition to role targeting)
 
   // Display settings
   showBanner  Boolean              @default(false) // Show as top banner

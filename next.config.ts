@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Bundle Analyzer - Optional (only loads if installed)
 // To use: npm install --save-dev @next/bundle-analyzer && ANALYZE=true npm run build
@@ -215,5 +216,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Export with bundle analyzer wrapper
-export default withBundleAnalyzer(nextConfig);
+// Sentry configuration options
+const sentryWebpackPluginOptions = {
+  // Suppresses source map uploading logs during build
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Only upload source maps in production
+  dryRun: process.env.NODE_ENV !== 'production',
+  // Hides source maps from generated client bundles
+  hideSourceMaps: true,
+  // Automatically tree-shake Sentry logger statements
+  disableLogger: true,
+};
+
+// Export with Sentry and bundle analyzer wrappers
+// Sentry wraps first, then bundle analyzer
+const configWithSentry = process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
+  : nextConfig;
+
+export default withBundleAnalyzer(configWithSentry);

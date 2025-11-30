@@ -46,11 +46,59 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // Also dismiss all active announcements
+      const activeAnnouncements = await prisma.announcement.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true }
+      })
+
+      // Create dismissals for announcements not yet dismissed
+      for (const announcement of activeAnnouncements) {
+        await prisma.announcementDismissal.upsert({
+          where: {
+            announcementId_userId: {
+              announcementId: announcement.id,
+              userId: user.id
+            }
+          },
+          update: {},
+          create: {
+            announcementId: announcement.id,
+            userId: user.id
+          }
+        })
+      }
+
       return NextResponse.json({
         success: true,
         message: 'All notifications marked as read'
       })
     } else if (notificationId) {
+      // Check if this is an announcement dismissal (ID starts with "announcement-")
+      if (notificationId.startsWith('announcement-')) {
+        const announcementId = notificationId.replace('announcement-', '')
+
+        // Create dismissal record
+        await prisma.announcementDismissal.upsert({
+          where: {
+            announcementId_userId: {
+              announcementId,
+              userId: user.id
+            }
+          },
+          update: {},
+          create: {
+            announcementId,
+            userId: user.id
+          }
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: 'Announcement dismissed'
+        })
+      }
+
       // Mark specific notification as read
       const notification = await prisma.notification.findUnique({
         where: { id: notificationId }

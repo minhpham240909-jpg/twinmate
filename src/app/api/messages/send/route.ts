@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // Create group message
+      // Create group message with delivery timestamp
       message = await prisma.message.create({
         data: {
           content,
@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
           groupId: conversationId,
           fileUrl,
           fileName,
-          fileSize
+          fileSize,
+          deliveredAt: new Date(), // Mark as delivered to server immediately
         },
         include: {
           sender: {
@@ -217,7 +218,7 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // Create DM message
+      // Create DM message with delivery timestamp
       message = await prisma.message.create({
         data: {
           content,
@@ -226,7 +227,8 @@ export async function POST(req: NextRequest) {
           recipientId: conversationId,
           fileUrl,
           fileName,
-          fileSize
+          fileSize,
+          deliveredAt: new Date(), // Mark as delivered to server immediately
         },
         include: {
           sender: {

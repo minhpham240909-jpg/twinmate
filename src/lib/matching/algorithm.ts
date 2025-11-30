@@ -100,6 +100,9 @@ export interface MatchDetails {
   availableHours: { count: number; items: string[]; score: number; bothHaveData: boolean }
   skillLevel: { matches: boolean; compatible: boolean; value: string | null; bothHaveData: boolean }
   studyStyle: { matches: boolean; compatible: boolean; value: string | null; bothHaveData: boolean }
+  location: { sameCity: boolean; sameCountry: boolean; distanceKm: number | null; score: number; bothHaveData: boolean }
+  languages: { count: number; items: string[]; score: number; bothHaveData: boolean }
+  role: { matches: boolean; value: string | null; bothHaveData: boolean }
   school: { matches: boolean; value: string | null; bothHaveData: boolean }
   timezone: { matches: boolean; offset: number; bothHaveData: boolean }
   strengthsWeaknesses: { complementary: number; items: string[]; bothHaveData: boolean }
@@ -123,17 +126,26 @@ export interface MatchSummary {
  * These can be tuned based on what matters most for study partners
  */
 export const DEFAULT_WEIGHTS = {
-  subjects: 0.28,           // Most important - what they study together
-  interests: 0.18,          // Learning interests alignment
-  goals: 0.14,              // Study goals alignment
-  availableDays: 0.10,      // Schedule compatibility (days)
-  availableHours: 0.08,     // Schedule compatibility (hours)
-  skillLevel: 0.08,         // Skill level compatibility
-  studyStyle: 0.05,         // Study style compatibility
-  strengthsWeaknesses: 0.04, // Complementary skills
+  subjects: 0.24,           // Most important - what they study together
+  interests: 0.15,          // Learning interests alignment
+  goals: 0.12,              // Study goals alignment
+  availableDays: 0.09,      // Schedule compatibility (days)
+  availableHours: 0.06,     // Schedule compatibility (hours)
+  skillLevel: 0.06,         // Skill level compatibility
+  location: 0.06,           // Location proximity (nearby users)
+  languages: 0.06,          // Shared languages for communication
+  role: 0.04,               // Same role (Student, Professional, etc.)
+  studyStyle: 0.04,         // Study style compatibility
+  strengthsWeaknesses: 0.03, // Complementary skills
   school: 0.03,             // Same school bonus
   timezone: 0.02,           // Timezone proximity
 } as const
+
+/**
+ * Maximum distance in km for location matching
+ * Users beyond this distance get 0 location score
+ */
+const MAX_LOCATION_DISTANCE_KM = 500
 
 /**
  * Skill level ordering for compatibility scoring
@@ -243,6 +255,89 @@ export function studyStyleCompatibility(a: string | null | undefined, b: string 
   if (compatibleWith.includes(styleB)) return 0.7  // Compatible
 
   return 0.3  // Different but not incompatible
+}
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * Returns distance in kilometers
+ */
+export function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371 // Earth's radius in km
+  const toRad = (deg: number) => deg * Math.PI / 180
+
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) ** 2
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return R * c
+}
+
+/**
+ * Calculate location proximity score
+ * Returns score 0-1 based on distance between users
+ * - Same city: 1.0
+ * - Within 50km: 0.9
+ * - Within 100km: 0.7
+ * - Within 200km: 0.5
+ * - Within 500km: 0.3
+ * - Beyond 500km: 0
+ */
+export function locationProximity(
+  lat1: number | null | undefined,
+  lng1: number | null | undefined,
+  lat2: number | null | undefined,
+  lng2: number | null | undefined,
+  city1?: string | null,
+  city2?: string | null,
+  country1?: string | null,
+  country2?: string | null
+): { score: number; distanceKm: number | null; sameCity: boolean; sameCountry: boolean } {
+  // Check for same city first (highest match)
+  const sameCity = !!(city1 && city2 &&
+    city1.toLowerCase().trim() === city2.toLowerCase().trim())
+
+  const sameCountry = !!(country1 && country2 &&
+    country1.toLowerCase().trim() === country2.toLowerCase().trim())
+
+  if (sameCity) {
+    return { score: 1.0, distanceKm: 0, sameCity: true, sameCountry: true }
+  }
+
+  // If we have coordinates, calculate distance
+  if (lat1 != null && lng1 != null && lat2 != null && lng2 != null) {
+    const distance = calculateDistance(lat1, lng1, lat2, lng2)
+
+    let score = 0
+    if (distance <= 50) {
+      score = 0.9
+    } else if (distance <= 100) {
+      score = 0.7
+    } else if (distance <= 200) {
+      score = 0.5
+    } else if (distance <= MAX_LOCATION_DISTANCE_KM) {
+      // Linear decay from 0.3 to 0 between 200km and 500km
+      score = 0.3 * (1 - (distance - 200) / (MAX_LOCATION_DISTANCE_KM - 200))
+    }
+
+    return { score, distanceKm: Math.round(distance), sameCity: false, sameCountry }
+  }
+
+  // If we only have country info
+  if (sameCountry) {
+    return { score: 0.4, distanceKm: null, sameCity: false, sameCountry: true }
+  }
+
+  return { score: 0, distanceKm: null, sameCity: false, sameCountry: false }
 }
 
 /**
@@ -724,6 +819,63 @@ export function calculateMatchScore(
     }
   }
 
+  // ===== LANGUAGES =====
+  const currentLanguages = currentUserProfile.languages || []
+  const partnerLanguages = partnerProfile.languages || []
+  const bothHaveLanguages = hasArrayData(currentLanguages) && hasArrayData(partnerLanguages)
+
+  if (bothHaveLanguages) {
+    const languageScore = jaccard(currentLanguages, partnerLanguages)
+    const matchedLanguages = getIntersection(currentLanguages, partnerLanguages)
+
+    componentScores.languages = {
+      score: languageScore,
+      weight: weights.languages,
+      weightedScore: languageScore * weights.languages,
+      details: matchedLanguages.length > 0
+        ? `${matchedLanguages.length} shared language${matchedLanguages.length > 1 ? 's' : ''}`
+        : 'No shared languages',
+      matchItems: matchedLanguages,
+      bothHaveData: true,
+    }
+  } else {
+    componentScores.languages = {
+      score: 0,
+      weight: weights.languages,
+      weightedScore: 0,
+      details: 'Missing data',
+      matchItems: [],
+      bothHaveData: false,
+    }
+  }
+
+  // ===== ROLE =====
+  const currentRole = currentUserProfile.role
+  const partnerRole = partnerProfile.role
+  const bothHaveRole = hasStringData(currentRole) && hasStringData(partnerRole)
+
+  if (bothHaveRole) {
+    const roleMatch = currentRole?.toLowerCase().trim() === partnerRole?.toLowerCase().trim()
+
+    componentScores.role = {
+      score: roleMatch ? 1 : 0,
+      weight: weights.role,
+      weightedScore: roleMatch ? weights.role : 0,
+      details: roleMatch ? `Same role (${partnerRole})` : 'Different roles',
+      matchItems: roleMatch ? [partnerRole!] : [],
+      bothHaveData: true,
+    }
+  } else {
+    componentScores.role = {
+      score: 0,
+      weight: weights.role,
+      weightedScore: 0,
+      details: 'Missing data',
+      matchItems: [],
+      bothHaveData: false,
+    }
+  }
+
   // ===== TIMEZONE =====
   const currentTimezone = currentUserProfile.timezone
   const partnerTimezone = partnerProfile.timezone
@@ -748,6 +900,57 @@ export function calculateMatchScore(
     componentScores.timezone = {
       score: 0,
       weight: weights.timezone,
+      weightedScore: 0,
+      details: 'Missing data',
+      matchItems: [],
+      bothHaveData: false,
+    }
+  }
+
+  // ===== LOCATION =====
+  const currentLat = currentUserProfile.location_lat
+  const currentLng = currentUserProfile.location_lng
+  const currentCity = currentUserProfile.location_city
+  const currentCountry = currentUserProfile.location_country
+  const partnerLat = partnerProfile.location_lat
+  const partnerLng = partnerProfile.location_lng
+  const partnerCity = partnerProfile.location_city
+  const partnerCountry = partnerProfile.location_country
+
+  // Check if both have some location data (coordinates or city/country)
+  const currentHasLocation = (currentLat != null && currentLng != null) || hasStringData(currentCity) || hasStringData(currentCountry)
+  const partnerHasLocation = (partnerLat != null && partnerLng != null) || hasStringData(partnerCity) || hasStringData(partnerCountry)
+  const bothHaveLocation = currentHasLocation && partnerHasLocation
+
+  // Calculate location result once and cache it for use in matchDetails
+  const cachedLocationResult = bothHaveLocation
+    ? locationProximity(currentLat, currentLng, partnerLat, partnerLng, currentCity, partnerCity, currentCountry, partnerCountry)
+    : { score: 0, distanceKm: null, sameCity: false, sameCountry: false }
+
+  if (bothHaveLocation) {
+    let locationDetails = 'Different locations'
+    if (cachedLocationResult.sameCity) {
+      locationDetails = `Same city (${partnerCity})`
+    } else if (cachedLocationResult.distanceKm !== null && cachedLocationResult.distanceKm <= 100) {
+      locationDetails = `Nearby (${cachedLocationResult.distanceKm}km away)`
+    } else if (cachedLocationResult.sameCountry) {
+      locationDetails = `Same country (${partnerCountry})`
+    } else if (cachedLocationResult.distanceKm !== null) {
+      locationDetails = `${cachedLocationResult.distanceKm}km apart`
+    }
+
+    componentScores.location = {
+      score: cachedLocationResult.score,
+      weight: weights.location,
+      weightedScore: cachedLocationResult.score * weights.location,
+      details: locationDetails,
+      matchItems: cachedLocationResult.sameCity ? [partnerCity!] : cachedLocationResult.sameCountry ? [partnerCountry!] : [],
+      bothHaveData: true,
+    }
+  } else {
+    componentScores.location = {
+      score: 0,
+      weight: weights.location,
       weightedScore: 0,
       details: 'Missing data',
       matchItems: [],
@@ -847,6 +1050,24 @@ export function calculateMatchScore(
       compatible: (componentScores.studyStyle?.score || 0) >= 0.7,
       value: partnerStyle || null,
       bothHaveData: componentScores.studyStyle?.bothHaveData || false,
+    },
+    location: {
+      sameCity: cachedLocationResult.sameCity,
+      sameCountry: cachedLocationResult.sameCountry,
+      distanceKm: cachedLocationResult.distanceKm,
+      score: Math.round((componentScores.location?.score || 0) * 100),
+      bothHaveData: componentScores.location?.bothHaveData || false,
+    },
+    languages: {
+      count: componentScores.languages?.matchItems?.length || 0,
+      items: componentScores.languages?.matchItems || [],
+      score: Math.round((componentScores.languages?.score || 0) * 100),
+      bothHaveData: componentScores.languages?.bothHaveData || false,
+    },
+    role: {
+      matches: componentScores.role?.score === 1,
+      value: partnerRole || null,
+      bothHaveData: componentScores.role?.bothHaveData || false,
     },
     school: {
       matches: componentScores.school?.score === 1,

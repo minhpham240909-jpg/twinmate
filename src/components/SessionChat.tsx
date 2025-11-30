@@ -159,19 +159,20 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     fetchMessages()
   }, [sessionId])
 
-  // Subscribe to real-time messages with fast polling fallback
+  // Subscribe to real-time messages with smart polling fallback
   useEffect(() => {
     if (!sessionId) return
 
     let isSubscribed = true
     let pollingInterval: NodeJS.Timeout | null = null
     let realtimeWorking = false
+    let consecutiveEmptyPolls = 0
 
-    // Fast polling fallback (500ms) for instant updates if realtime fails
-    const startFastPolling = () => {
+    // Smart polling: starts fast (1s), slows down when idle, speeds up when messages arrive
+    const startSmartPolling = () => {
       if (pollingInterval) return
 
-      pollingInterval = setInterval(async () => {
+      const poll = async () => {
         if (!isSubscribed) return
 
         try {
@@ -184,6 +185,7 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
           const data = await res.json()
 
           if (data.success && data.messages && data.messages.length > 0) {
+            consecutiveEmptyPolls = 0 // Reset on new messages
             setMessages((prev) => {
               const existingIds = new Set(prev.map(m => m.id))
               const newMessages = data.messages.filter((m: Message) => !existingIds.has(m.id))
@@ -202,15 +204,30 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
 
               return newMessages.length > 0 ? [...prev, ...newMessages] : prev
             })
+          } else {
+            consecutiveEmptyPolls++
           }
         } catch (error) {
           // Silently handle errors
         }
-      }, 200) // 200ms for fast message updates
+
+        // Schedule next poll with adaptive timing
+        // If realtime is working, poll less frequently as a backup
+        // If no messages for a while, slow down to reduce load
+        if (isSubscribed) {
+          const baseInterval = realtimeWorking ? 3000 : 1500 // 3s if realtime works, 1.5s otherwise
+          const backoffMultiplier = Math.min(consecutiveEmptyPolls, 5) // Max 5x slower
+          const nextInterval = baseInterval + (backoffMultiplier * 500) // Gradually slow down
+          pollingInterval = setTimeout(poll, nextInterval)
+        }
+      }
+
+      // Start first poll after a short delay
+      pollingInterval = setTimeout(poll, 1000)
     }
 
-    // Start polling immediately for reliability
-    startFastPolling()
+    // Start smart polling
+    startSmartPolling()
 
     // Try Supabase Realtime as enhancement
     const channel = supabase
@@ -278,12 +295,20 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
           )
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          realtimeWorking = true
+          console.log(`✅ Session chat realtime connected: ${sessionId}`)
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          realtimeWorking = false
+          console.warn(`⚠️ Session chat realtime issue: ${status}`)
+        }
+      })
 
     return () => {
       isSubscribed = false
       supabase.removeChannel(channel)
-      if (pollingInterval) clearInterval(pollingInterval)
+      if (pollingInterval) clearTimeout(pollingInterval)
     }
   }, [sessionId, supabase, user?.id, isVisible])
 
@@ -299,7 +324,8 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     }
 
     const messageContent = newMessage.trim()
-    const tempId = `temp-${Date.now()}-${Math.random()}`
+    // Use crypto.randomUUID() for truly unique optimistic IDs to prevent collisions
+    const tempId = `temp-${crypto.randomUUID()}`
 
     // Create optimistic message
     const optimisticMessage: Message = {

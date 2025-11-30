@@ -3663,7 +3663,7 @@ function FeedbackSettings() {
     if (!files || files.length === 0) return
 
     if (screenshots.length + files.length > 5) {
-      toast.error(t('feedbackMaxScreenshots'))
+      toast.error(t('feedbackMaxImages'))
       return
     }
 
@@ -3683,7 +3683,7 @@ function FeedbackSettings() {
         // Upload to Supabase storage
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('bucket', 'feedback-screenshots')
+        formData.append('bucket', 'feedback-images')
 
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -3698,14 +3698,14 @@ function FeedbackSettings() {
         }
       }
     } catch (error) {
-      console.error('Error uploading screenshots:', error)
+      console.error('Error uploading images:', error)
       toast.error(t('feedbackUploadFailed'))
     } finally {
       setUploading(false)
     }
   }
 
-  const removeScreenshot = (index: number) => {
+  const removeImage = (index: number) => {
     setScreenshots(prev => prev.filter((_, i) => i !== index))
   }
 
@@ -3847,7 +3847,7 @@ function FeedbackSettings() {
           </p>
         </div>
 
-        {/* Screenshots */}
+        {/* Images */}
         <div className={`p-6 rounded-xl border transition-colors ${
           effectiveTheme === 'dark'
             ? 'bg-slate-800/50 border-slate-700/50'
@@ -3856,7 +3856,7 @@ function FeedbackSettings() {
           <label className={`block text-sm font-semibold mb-3 ${
             effectiveTheme === 'dark' ? 'text-gray-100' : 'text-gray-900'
           }`}>
-            {t('feedbackScreenshots')}
+            {t('feedbackImages')}
             <span className={`font-normal ml-2 ${
               effectiveTheme === 'dark' ? 'text-slate-400' : 'text-gray-500'
             }`}>
@@ -3872,11 +3872,11 @@ function FeedbackSettings() {
               multiple
               onChange={handleFileUpload}
               className="hidden"
-              id="screenshot-upload"
+              id="image-upload"
               disabled={uploading || screenshots.length >= 5}
             />
             <label
-              htmlFor="screenshot-upload"
+              htmlFor="image-upload"
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
                 uploading || screenshots.length >= 5
                   ? 'opacity-50 cursor-not-allowed'
@@ -3893,7 +3893,7 @@ function FeedbackSettings() {
               ) : (
                 <>
                   <Upload className="w-4 h-4" />
-                  {t('feedbackUploadScreenshot')}
+                  {t('feedbackUploadImages')}
                 </>
               )}
             </label>
@@ -3904,18 +3904,18 @@ function FeedbackSettings() {
             </p>
           </div>
 
-          {/* Screenshot previews */}
+          {/* Image previews */}
           {screenshots.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {screenshots.map((url, index) => (
                 <div key={index} className="relative group">
                   <img
                     src={url}
-                    alt={`Screenshot ${index + 1}`}
+                    alt={`Image ${index + 1}`}
                     className="w-full h-24 object-cover rounded-lg border border-gray-200 dark:border-slate-700"
                   />
                   <button
-                    onClick={() => removeScreenshot(index)}
+                    onClick={() => removeImage(index)}
                     className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 className="w-3 h-3" />

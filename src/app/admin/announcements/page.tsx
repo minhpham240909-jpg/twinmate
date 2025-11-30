@@ -23,6 +23,9 @@ import {
   Crown,
   ChevronLeft,
   ChevronRight,
+  Search,
+  UserPlus,
+  Loader2,
 } from 'lucide-react'
 
 interface AnnouncementData {
@@ -31,6 +34,7 @@ interface AnnouncementData {
   content: string
   priority: string
   targetRole: string | null
+  targetUserIds: string[]
   status: string
   startsAt: string
   expiresAt: string | null
@@ -44,6 +48,14 @@ interface AnnouncementData {
   _count: {
     dismissals: number
   }
+}
+
+interface SearchUser {
+  id: string
+  name: string
+  email: string
+  avatarUrl: string | null
+  tier: 'FREE' | 'PREMIUM'
 }
 
 interface Pagination {
@@ -77,6 +89,13 @@ export default function AdminAnnouncementsPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // User search for specific targeting
+  const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([])
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState<SearchUser[]>([])
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false)
+  const [showUserSearch, setShowUserSearch] = useState(false)
+
   // Fetch announcements
   const fetchAnnouncements = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true)
@@ -106,6 +125,55 @@ export default function AdminAnnouncementsPage() {
     fetchAnnouncements()
   }, [fetchAnnouncements])
 
+  // Search users for targeting
+  const searchUsers = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setUserSearchResults([])
+      return
+    }
+
+    setIsSearchingUsers(true)
+    try {
+      const response = await fetch(`/api/admin/users/search?q=${encodeURIComponent(query)}&limit=10`)
+      const data = await response.json()
+      if (data.success) {
+        // Filter out already selected users
+        const filteredResults = data.users.filter(
+          (u: SearchUser) => !selectedUsers.some(s => s.id === u.id)
+        )
+        setUserSearchResults(filteredResults)
+      }
+    } catch (error) {
+      console.error('Error searching users:', error)
+    } finally {
+      setIsSearchingUsers(false)
+    }
+  }, [selectedUsers])
+
+  // Debounced user search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (userSearchQuery) {
+        searchUsers(userSearchQuery)
+      } else {
+        setUserSearchResults([])
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [userSearchQuery, searchUsers])
+
+  // Add user to selection
+  const addUserToSelection = (user: SearchUser) => {
+    setSelectedUsers(prev => [...prev, user])
+    setUserSearchQuery('')
+    setUserSearchResults([])
+  }
+
+  // Remove user from selection
+  const removeUserFromSelection = (userId: string) => {
+    setSelectedUsers(prev => prev.filter(u => u.id !== userId))
+  }
+
   // Open create modal
   const openCreateModal = () => {
     setFormData({
@@ -116,11 +184,15 @@ export default function AdminAnnouncementsPage() {
       startsAt: '',
       expiresAt: '',
     })
+    setSelectedUsers([])
+    setUserSearchQuery('')
+    setUserSearchResults([])
+    setShowUserSearch(false)
     setEditModal({ mode: 'create' })
   }
 
   // Open edit modal
-  const openEditModal = (announcement: AnnouncementData) => {
+  const openEditModal = async (announcement: AnnouncementData) => {
     setFormData({
       title: announcement.title,
       content: announcement.content,
@@ -129,6 +201,30 @@ export default function AdminAnnouncementsPage() {
       startsAt: announcement.startsAt ? new Date(announcement.startsAt).toISOString().slice(0, 16) : '',
       expiresAt: announcement.expiresAt ? new Date(announcement.expiresAt).toISOString().slice(0, 16) : '',
     })
+
+    // Load existing targeted users if any
+    if (announcement.targetUserIds && announcement.targetUserIds.length > 0) {
+      setShowUserSearch(true)
+      // Fetch user details for the IDs
+      try {
+        const userPromises = announcement.targetUserIds.map(async (userId) => {
+          const response = await fetch(`/api/admin/users/search?q=${userId}&limit=1`)
+          const data = await response.json()
+          return data.users?.[0] || null
+        })
+        const users = await Promise.all(userPromises)
+        setSelectedUsers(users.filter(Boolean))
+      } catch (error) {
+        console.error('Error loading targeted users:', error)
+        setSelectedUsers([])
+      }
+    } else {
+      setSelectedUsers([])
+      setShowUserSearch(false)
+    }
+
+    setUserSearchQuery('')
+    setUserSearchResults([])
     setEditModal({ mode: 'edit', announcement })
   }
 
@@ -148,6 +244,7 @@ export default function AdminAnnouncementsPage() {
         content: formData.content,
         priority: formData.priority,
         targetRole: formData.targetRole || null,
+        targetUserIds: selectedUsers.map(u => u.id),
         startsAt: formData.startsAt || null,
         expiresAt: formData.expiresAt || null,
       }
@@ -347,6 +444,12 @@ export default function AdminAnnouncementsPage() {
                               <Users className="w-3 h-3" />
                             )}
                             {announcement.targetRole} Only
+                          </span>
+                        )}
+                        {announcement.targetUserIds && announcement.targetUserIds.length > 0 && (
+                          <span className="text-xs px-2 py-1 rounded bg-cyan-500/20 text-cyan-400 flex items-center gap-1">
+                            <UserPlus className="w-3 h-3" />
+                            {announcement.targetUserIds.length} specific user{announcement.targetUserIds.length !== 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
@@ -553,6 +656,139 @@ export default function AdminAnnouncementsPage() {
                     <option value="PREMIUM">Premium Users</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Specific User Targeting */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Target Specific Users (Optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowUserSearch(!showUserSearch)}
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                      showUserSearch
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <UserPlus className="w-3 h-3" />
+                    {showUserSearch ? 'Hide' : 'Add Users'}
+                  </button>
+                </div>
+
+                {showUserSearch && (
+                  <div className="space-y-3">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        placeholder="Search by name or email..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                      />
+                      {isSearchingUsers && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                      )}
+                    </div>
+
+                    {/* Search Results Dropdown */}
+                    {userSearchResults.length > 0 && (
+                      <div className="bg-gray-700 border border-gray-600 rounded-lg max-h-48 overflow-y-auto">
+                        {userSearchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => addUserToSelection(user)}
+                            className="w-full flex items-center gap-3 p-3 hover:bg-gray-600 transition-colors text-left"
+                          >
+                            {user.avatarUrl ? (
+                              <Image
+                                src={user.avatarUrl}
+                                alt={user.name}
+                                width={32}
+                                height={32}
+                                className="rounded-full"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
+                                <span className="text-white text-sm">
+                                  {user.name.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white truncate">{user.name}</p>
+                              <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              user.tier === 'PREMIUM'
+                                ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {user.tier}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* No Results */}
+                    {userSearchQuery.length >= 2 && !isSearchingUsers && userSearchResults.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-2">
+                        No users found matching &quot;{userSearchQuery}&quot;
+                      </p>
+                    )}
+
+                    {/* Selected Users */}
+                    {selectedUsers.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-400">
+                          Selected Users ({selectedUsers.length})
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedUsers.map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center gap-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-1.5"
+                            >
+                              {user.avatarUrl ? (
+                                <Image
+                                  src={user.avatarUrl}
+                                  alt={user.name}
+                                  width={20}
+                                  height={20}
+                                  className="rounded-full"
+                                />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-gray-500 flex items-center justify-center">
+                                  <span className="text-white text-[10px]">
+                                    {user.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="text-sm text-white">{user.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeUserFromSelection(user.id)}
+                                className="p-0.5 hover:bg-red-500/20 rounded transition-colors"
+                              >
+                                <X className="w-3 h-3 text-gray-400 hover:text-red-400" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500">
+                      These users will receive this announcement in addition to the target audience above.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Schedule */}

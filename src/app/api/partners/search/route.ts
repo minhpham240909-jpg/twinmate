@@ -191,6 +191,8 @@ export async function POST(request: NextRequest) {
         studyStyleCustomDescription,
         interestsCustomDescription,
         availabilityCustomDescription,
+        location_lat,
+        location_lng,
         location_city,
         location_state,
         location_country,
@@ -432,7 +434,7 @@ export async function POST(request: NextRequest) {
     // Get current user's profile for compatibility scoring (include all matching fields)
     const { data: myProfile } = await supabase
       .from('Profile')
-      .select('subjects, interests, studyStyle, skillLevel, goals, availableDays, availableHours, school, timezone')
+      .select('subjects, interests, studyStyle, skillLevel, goals, availableDays, availableHours, school, timezone, languages, role, location_lat, location_lng, location_city, location_country')
       .eq('userId', user.id)
       .single()
 
@@ -454,8 +456,15 @@ export async function POST(request: NextRequest) {
       studyStyle: myProfile?.studyStyle,
       school: myProfile?.school,
       timezone: myProfile?.timezone,
+      languages: myProfile?.languages,
+      role: myProfile?.role,
       strengths: myLearningProfile?.strengths,
       weaknesses: myLearningProfile?.weaknesses,
+      // Location fields for proximity matching
+      location_lat: myProfile?.location_lat,
+      location_lng: myProfile?.location_lng,
+      location_city: myProfile?.location_city,
+      location_country: myProfile?.location_country,
     }
     
     const currentUserFilledCount = countFilledFields(currentUserProfileData)
@@ -478,6 +487,13 @@ export async function POST(request: NextRequest) {
         studyStyle: profile.studyStyle,
         school: profile.school,
         timezone: profile.timezone,
+        languages: profile.languages,
+        role: profile.role,
+        // Location fields for proximity matching
+        location_lat: profile.location_lat,
+        location_lng: profile.location_lng,
+        location_city: profile.location_city,
+        location_country: profile.location_country,
       }
 
       // Calculate match using the enhanced algorithm

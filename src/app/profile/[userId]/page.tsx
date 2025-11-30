@@ -29,8 +29,11 @@ type UserProfile = {
     interests: string[]
     goals: string[]
     skillLevel: string
+    skillLevelCustomDescription: string | null
     studyStyle: string
+    studyStyleCustomDescription: string | null
     availableDays: string[]
+    availableHours: string[]
     school: string | null
     languages: string | null
     aboutYourself: string | null
@@ -531,6 +534,20 @@ export default function UserProfilePage() {
             {profile?.role && (
               <span>{profile.role}</span>
             )}
+            {/* Location - only shown if user allowed visibility */}
+            {((profile as any)?.location_city || (profile as any)?.location_state || (profile as any)?.location_country) && (
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>
+                  {[(profile as any).location_city, (profile as any).location_state, (profile as any).location_country]
+                    .filter(Boolean)
+                    .join(', ')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Quick Stats */}
@@ -936,19 +953,31 @@ export default function UserProfilePage() {
                   </div>
                 )}
 
-                {/* Skill Level */}
-                {profile.skillLevel && (
+                {/* Skill Level - Show custom description if available, otherwise show level */}
+                {(profile.skillLevelCustomDescription || profile.skillLevel) && (
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Skill Level</h3>
-                    <p className="text-gray-700 dark:text-slate-300">{profile.skillLevel}</p>
+                    <p className="text-gray-700 dark:text-slate-300">
+                      {profile.skillLevelCustomDescription || profile.skillLevel}
+                    </p>
                   </div>
                 )}
 
-                {/* Study Style */}
-                {profile.studyStyle && (
+                {/* Study Style - Show custom description if available, otherwise show style */}
+                {(profile.studyStyleCustomDescription || profile.studyStyle) && (
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Study Style</h3>
-                    <p className="text-gray-700 dark:text-slate-300">{profile.studyStyle}</p>
+                    <p className="text-gray-700 dark:text-slate-300">
+                      {profile.studyStyleCustomDescription || profile.studyStyle}
+                    </p>
+                  </div>
+                )}
+
+                {/* Available Hours */}
+                {profile.availableHours && profile.availableHours.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Available Hours</h3>
+                    <p className="text-gray-700 dark:text-slate-300">{profile.availableHours.join(', ')}</p>
                   </div>
                 )}
 

@@ -336,8 +336,10 @@ function PartnersChatContent() {
     const messageContent = message
     setMessage('')
 
+    // Use crypto.randomUUID() for truly unique optimistic IDs to prevent collisions
+    const optimisticId = `temp-${crypto.randomUUID()}`
     const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
+      id: optimisticId,
       content: messageContent,
       type: 'TEXT',
       senderId: user.id,
@@ -370,18 +372,18 @@ function PartnersChatContent() {
         setMessages(prev => {
           const realExists = prev.some(m => m.id === data.message.id)
           if (realExists) {
-            return prev.filter(msg => msg.id !== optimisticMessage.id)
+            return prev.filter(msg => msg.id !== optimisticId)
           } else {
-            return prev.map(msg => msg.id === optimisticMessage.id ? data.message : msg)
+            return prev.map(msg => msg.id === optimisticId ? data.message : msg)
           }
         })
       } else {
-        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id))
+        setMessages(prev => prev.filter(msg => msg.id !== optimisticId))
         setMessage(messageContent)
       }
     } catch (error) {
       console.error('Error sending message:', error)
-      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id))
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticId))
       setMessage(messageContent)
     }
   }

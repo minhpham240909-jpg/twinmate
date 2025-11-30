@@ -15,6 +15,8 @@ export {
   skillLevelCloseness,
   studyStyleCompatibility,
   timezoneProximity,
+  calculateDistance,
+  locationProximity,
   hasStringData,
   hasArrayData,
   countFilledFields,

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { action, id, title, content, priority, targetRole, startsAt, expiresAt } = body
+    const { action, id, title, content, priority, targetRole, targetUserIds, startsAt, expiresAt } = body
 
     // Get IP and user agent for audit log
     const ipAddress = request.headers.get('x-forwarded-for') ||
@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
             content,
             priority: priority || 'NORMAL',
             targetRole: targetRole || null,
+            targetUserIds: Array.isArray(targetUserIds) ? targetUserIds : [],
             status: 'ACTIVE',
             startsAt: startsAt ? new Date(startsAt) : new Date(),
             expiresAt: expiresAt ? new Date(expiresAt) : null,
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
           action: 'announcement_created',
           targetType: 'announcement',
           targetId: announcement.id,
-          details: { title, priority, targetRole },
+          details: { title, priority, targetRole, targetUserIds: targetUserIds?.length || 0 },
           ipAddress,
           userAgent,
         })
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
         if (content !== undefined) updateData.content = content
         if (priority !== undefined) updateData.priority = priority
         if (targetRole !== undefined) updateData.targetRole = targetRole
+        if (targetUserIds !== undefined) updateData.targetUserIds = Array.isArray(targetUserIds) ? targetUserIds : []
         if (startsAt !== undefined) updateData.startsAt = new Date(startsAt)
         if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null
 

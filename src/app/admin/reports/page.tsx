@@ -831,10 +831,10 @@ export default function AdminReportsPage() {
                     <p className="text-sm text-gray-300 whitespace-pre-wrap">{fb.message}</p>
                   </div>
 
-                  {/* Screenshots */}
+                  {/* Images */}
                   {fb.screenshots && fb.screenshots.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs text-gray-400 mb-2">Screenshots ({fb.screenshots.length})</p>
+                      <p className="text-xs text-gray-400 mb-2">Images ({fb.screenshots.length})</p>
                       <div className="flex flex-wrap gap-2">
                         {fb.screenshots.map((url, index) => (
                           <a
@@ -846,7 +846,7 @@ export default function AdminReportsPage() {
                           >
                             <img
                               src={url}
-                              alt={`Screenshot ${index + 1}`}
+                              alt={`Image ${index + 1}`}
                               className="w-full h-full object-cover"
                             />
                           </a>
