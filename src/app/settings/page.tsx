@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useTranslations } from 'next-intl'
-import { useNotificationPermission } from '@/hooks/useNotificationPermission'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
 import { motion, AnimatePresence } from 'framer-motion'
 import GlowBorder from '@/components/ui/GlowBorder'
@@ -1891,37 +1891,31 @@ function PrivacySettings({ settings, updateSetting }: { settings: UserSettings; 
 // Notifications Settings
 function NotificationsSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
   const t = useTranslations('settings')
-  const { permission, isSupported, requestPermission, isGranted } = useNotificationPermission()
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const {
+    permission,
+    isSupported,
+    isSubscribed,
+    isLoading: pushLoading,
+    subscribe,
+    unsubscribe
+  } = usePushNotifications()
+  const isGranted = permission === 'granted'
 
-  // Load app-level notification preference on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const preference = localStorage.getItem('notifications_enabled')
-      setNotificationsEnabled(preference !== 'false')
-    }
-  }, [])
-
-  const handleRequestPermission = async () => {
-    const granted = await requestPermission()
-    if (granted) {
-      localStorage.setItem('notifications_enabled', 'true')
-      setNotificationsEnabled(true)
-      toast.success(t('browserNotifications') + ' ' + t('enabled') + '!')
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (enabled) {
+      // Subscribe to push notifications
+      const success = await subscribe()
+      if (success) {
+        toast.success(t('browserNotifications') + ' ' + t('enabled') + '!')
+      } else {
+        toast.error(t('browserNotifications') + ' ' + t('permissionDenied'))
+      }
     } else {
-      toast.error(t('browserNotifications') + ' ' + t('permissionDenied'))
-    }
-  }
-
-  const handleToggleNotifications = (enabled: boolean) => {
-    if (enabled && !isGranted) {
-      // If trying to enable but no browser permission, request it
-      handleRequestPermission()
-    } else {
-      // Toggle app-level preference
-      localStorage.setItem('notifications_enabled', enabled ? 'true' : 'false')
-      setNotificationsEnabled(enabled)
-      toast.success(enabled ? t('notifications') + ' ' + t('enabled') : t('notifications') + ' ' + t('disabled'))
+      // Unsubscribe from push notifications
+      const success = await unsubscribe()
+      if (success) {
+        toast.success(t('notifications') + ' ' + t('disabled'))
+      }
     }
   }
 
@@ -1950,17 +1944,23 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
                 </p>
               </div>
               <button
-                onClick={() => handleToggleNotifications(!notificationsEnabled)}
-                disabled={permission === 'denied'}
+                onClick={() => handleToggleNotifications(!isSubscribed)}
+                disabled={permission === 'denied' || pushLoading}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                  notificationsEnabled && isGranted ? 'bg-blue-600' : 'bg-gray-300'
-                } ${permission === 'denied' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  isSubscribed ? 'bg-blue-600' : 'bg-gray-300'
+                } ${permission === 'denied' || pushLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                    notificationsEnabled && isGranted ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
+                {pushLoading ? (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </span>
+                ) : (
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                      isSubscribed ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                )}
               </button>
             </div>
 
@@ -1990,7 +1990,7 @@ function NotificationsSettings({ settings, updateSetting }: { settings: UserSett
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs font-medium text-gray-700" title={t('appSetting')}>{t('appSetting')}:</span>
-                    {notificationsEnabled && isGranted ? (
+                    {isSubscribed ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
                         <span>✓</span> {t('enabled')}
                       </span>

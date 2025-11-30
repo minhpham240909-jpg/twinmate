@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { PAGINATION, CONTENT_LIMITS } from '@/lib/constants'
-import { validatePaginationLimit, validateContent } from '@/lib/validation'
+import { CONTENT_LIMITS } from '@/lib/constants'
+import { validateContent } from '@/lib/validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { notifyPostComment } from '@/lib/notifications/send'
 
 // GET /api/posts/[postId]/comments - Get comments for a post
 export async function GET(
@@ -139,6 +140,9 @@ export async function POST(
         },
       },
     })
+
+    // Send notification to post owner (async, don't wait)
+    notifyPostComment(user.id, post.userId, postId, content.trim()).catch(console.error)
 
     return NextResponse.json({ success: true, comment }, { status: 201 })
   } catch (error) {

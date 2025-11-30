@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { isBlocked } from '@/lib/blocked-users'
+import { notifyConnectionRequest } from '@/lib/notifications/send'
 
 const sendRequestSchema = z.object({
   receiverId: z.string(),
@@ -180,6 +181,9 @@ export async function POST(request: NextRequest) {
         actionUrl: `/partners`
       }
     })
+
+    // Send push notification (async, don't wait)
+    notifyConnectionRequest(user.id, receiverId, match.id).catch(console.error)
 
     return NextResponse.json({
       success: true,

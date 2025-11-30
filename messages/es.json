@@ -956,7 +956,10 @@
     "showInfo": "Mostrar información",
     "alreadySentRequest": "Ya has enviado una solicitud de conexión a este usuario. Por favor, espera su respuesta.",
     "alreadyConnected": "¡Ya estás conectado con este usuario!",
-    "connectionRequestSent": "¡Solicitud de conexión enviada!"
+    "connectionRequestSent": "¡Solicitud de conexión enviada!",
+    "readyToStartJourney": "¿Listo para comenzar tu viaje de aprendizaje?",
+    "connectWithPartners": "Completa tu perfil para conectarte con compañeros de estudio",
+    "completeProfile": "Completar Tu Perfil"
   },
   "partners": {
     "title": "Compañeros de Estudio",

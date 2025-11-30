@@ -3,10 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { MessageType } from '@prisma/client'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
-import { CONTENT_LIMITS } from '@/lib/constants'
-import { sendMessageSchema, validateRequest, validateContent } from '@/lib/validation'
+import { sendMessageSchema, validateRequest } from '@/lib/validation'
 import { isBlocked } from '@/lib/blocked-users'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
+import { notifyNewMessage } from '@/lib/notifications/send'
 
 // Content moderation scan (async, non-blocking)
 async function scanMessageContent(
@@ -279,6 +279,9 @@ export async function POST(req: NextRequest) {
           console.error('Failed to create notification:', err)
         }
       })
+
+      // Send push notification (async, don't wait)
+      notifyNewMessage(userId, conversationId, content, 'partner').catch(console.error)
 
     } else {
       return NextResponse.json(

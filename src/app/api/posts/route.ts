@@ -314,21 +314,43 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { content, imageUrls = [], postUrl = null, allowSharing = true } = body
+    const { content = '', imageUrls = [], postUrl = null, allowSharing = true } = body
 
-    // Validate content
-    const contentValidation = validateContent(content, CONTENT_LIMITS.POST_MAX_LENGTH, 'Post content')
-    if (!contentValidation.valid) {
+    // Allow posts with only images or only links (content can be empty in those cases)
+    const hasImages = Array.isArray(imageUrls) && imageUrls.length > 0
+    const hasLink = postUrl && typeof postUrl === 'string' && postUrl.trim().length > 0
+    const hasContent = content && typeof content === 'string' && content.trim().length > 0
+
+    // Must have at least one of: content, images, or link
+    if (!hasContent && !hasImages && !hasLink) {
       return NextResponse.json(
-        { error: contentValidation.error },
+        { error: 'Post must have content, images, or a link' },
         { status: 400 }
       )
     }
 
+    // Validate content length if content exists
+    if (hasContent) {
+      const contentValidation = validateContent(content, CONTENT_LIMITS.POST_MAX_LENGTH, 'Post content')
+      if (!contentValidation.valid) {
+        return NextResponse.json(
+          { error: contentValidation.error },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Determine final content (use empty string if not provided - will have images/link)
+    const finalContent = hasContent
+      ? content.trim()
+      : hasImages
+        ? 'Posted images'
+        : 'Shared a link'
+
     const post = await prisma.post.create({
       data: {
         userId: user.id,
-        content: content.trim(),
+        content: finalContent,
         imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
         postUrl: postUrl && typeof postUrl === 'string' ? postUrl.trim() : null,
         allowSharing: typeof allowSharing === 'boolean' ? allowSharing : true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { notifyPostLike } from '@/lib/notifications/send'
 
 // POST /api/posts/[postId]/like - Like a post
 export async function POST(
@@ -60,6 +61,9 @@ export async function POST(
         userId: user.id,
       },
     })
+
+    // Send notification to post owner (async, don't wait)
+    notifyPostLike(user.id, post.userId, postId).catch(console.error)
 
     return NextResponse.json({ success: true, like })
   } catch (error) {

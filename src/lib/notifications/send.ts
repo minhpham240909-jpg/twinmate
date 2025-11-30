@@ -1,12 +1,23 @@
 /**
  * Unified Notification Sender
- * Sends both in-app and email notifications based on user preferences
+ * Sends in-app, email, AND web push notifications based on user preferences
  */
 
 import { prisma } from '@/lib/prisma'
 import { sendNotificationEmail, NotificationContext } from '@/lib/email-notifications'
 import logger from '@/lib/logger'
 import { NotificationType } from '@prisma/client'
+import {
+  sendPushToUser,
+  pushNewMessage,
+  pushConnectionRequest,
+  pushConnectionAccepted,
+  pushSessionInvite,
+  pushIncomingCall,
+  pushPostLike,
+  pushPostComment,
+  PushNotificationType,
+} from '@/lib/web-push'
 
 interface SendNotificationParams {
   userId: string
@@ -154,19 +165,25 @@ export async function notifyConnectionRequest(senderId: string, receiverId: stri
     select: { name: true },
   })
 
+  const senderName = sender?.name || 'Someone'
+
+  // Send in-app + email notification
   await sendNotification({
     userId: receiverId,
     type: 'CONNECTION_REQUEST',
     title: 'New Connection Request',
-    message: `${sender?.name || 'Someone'} wants to connect with you`,
+    message: `${senderName} wants to connect with you`,
     actionUrl: `/connections`,
     relatedUserId: senderId,
     relatedMatchId: matchId,
     emailType: 'CONNECTION_REQUEST',
     emailContext: {
-      senderName: sender?.name || 'Someone',
+      senderName,
     },
   })
+
+  // Send web push notification
+  await pushConnectionRequest(receiverId, senderName, matchId)
 }
 
 export async function notifyConnectionAccepted(senderId: string, receiverId: string) {
@@ -175,18 +192,24 @@ export async function notifyConnectionAccepted(senderId: string, receiverId: str
     select: { name: true },
   })
 
+  const senderName = sender?.name || 'Someone'
+
+  // Send in-app + email notification
   await sendNotification({
     userId: receiverId,
     type: 'CONNECTION_ACCEPTED',
     title: 'Connection Accepted!',
-    message: `${sender?.name || 'Someone'} accepted your connection request`,
+    message: `${senderName} accepted your connection request`,
     actionUrl: `/chat?partner=${senderId}`,
     relatedUserId: senderId,
     emailType: 'CONNECTION_ACCEPTED',
     emailContext: {
-      senderName: sender?.name || 'Someone',
+      senderName,
     },
   })
+
+  // Send web push notification
+  await pushConnectionAccepted(receiverId, senderName)
 }
 
 export async function notifySessionInvite(
@@ -200,37 +223,145 @@ export async function notifySessionInvite(
     select: { name: true },
   })
 
+  const senderName = sender?.name || 'Someone'
+
+  // Send in-app + email notification
   await sendNotification({
     userId: receiverId,
     type: 'SESSION_INVITE',
     title: 'Study Session Invite',
-    message: `${sender?.name || 'Someone'} invited you to "${sessionTitle}"`,
+    message: `${senderName} invited you to "${sessionTitle}"`,
     actionUrl: `/study-sessions/${sessionId}`,
     relatedUserId: senderId,
     emailType: 'SESSION_INVITE',
     emailContext: {
-      senderName: sender?.name || 'Someone',
+      senderName,
       additionalData: { sessionTitle },
     },
   })
+
+  // Send web push notification
+  await pushSessionInvite(receiverId, senderName, sessionTitle, sessionId)
 }
 
-export async function notifyNewMessage(senderId: string, receiverId: string) {
+export async function notifyNewMessage(
+  senderId: string,
+  receiverId: string,
+  messagePreview?: string,
+  conversationType: 'partner' | 'group' = 'partner'
+) {
   const sender = await prisma.user.findUnique({
     where: { id: senderId },
     select: { name: true },
   })
 
+  const senderName = sender?.name || 'Someone'
+
+  // Send in-app + email notification
   await sendNotification({
     userId: receiverId,
     type: 'NEW_MESSAGE',
     title: 'New Message',
-    message: `${sender?.name || 'Someone'} sent you a message`,
+    message: `${senderName} sent you a message`,
     actionUrl: `/chat?partner=${senderId}`,
     relatedUserId: senderId,
     emailType: 'NEW_MESSAGE',
     emailContext: {
-      senderName: sender?.name || 'Someone',
+      senderName,
     },
   })
+
+  // Send web push notification
+  await pushNewMessage(receiverId, senderName, messagePreview || 'New message', conversationType)
+}
+
+/**
+ * Notify user about incoming call (high priority)
+ */
+export async function notifyIncomingCall(
+  callerId: string,
+  receiverId: string,
+  sessionId: string,
+  callType: 'AUDIO' | 'VIDEO'
+) {
+  const caller = await prisma.user.findUnique({
+    where: { id: callerId },
+    select: { name: true },
+  })
+
+  const callerName = caller?.name || 'Someone'
+
+  // Create in-app notification
+  await createInAppNotification({
+    userId: receiverId,
+    type: 'INCOMING_CALL',
+    title: `Incoming ${callType.toLowerCase()} call`,
+    message: `${callerName} is calling you`,
+    actionUrl: `/study-sessions/${sessionId}/lobby`,
+    relatedUserId: callerId,
+  })
+
+  // Send web push notification (high priority)
+  await pushIncomingCall(receiverId, callerName, sessionId, callType)
+}
+
+/**
+ * Notify user about post like
+ */
+export async function notifyPostLike(likerId: string, postOwnerId: string, postId: string) {
+  // Don't notify yourself
+  if (likerId === postOwnerId) return
+
+  const liker = await prisma.user.findUnique({
+    where: { id: likerId },
+    select: { name: true },
+  })
+
+  const likerName = liker?.name || 'Someone'
+
+  // Create in-app notification
+  await createInAppNotification({
+    userId: postOwnerId,
+    type: 'POST_LIKE',
+    title: 'Someone liked your post',
+    message: `${likerName} liked your post`,
+    actionUrl: `/community`,
+    relatedUserId: likerId,
+  })
+
+  // Send web push notification
+  await pushPostLike(postOwnerId, likerName, postId)
+}
+
+/**
+ * Notify user about post comment
+ */
+export async function notifyPostComment(
+  commenterId: string,
+  postOwnerId: string,
+  postId: string,
+  commentPreview: string
+) {
+  // Don't notify yourself
+  if (commenterId === postOwnerId) return
+
+  const commenter = await prisma.user.findUnique({
+    where: { id: commenterId },
+    select: { name: true },
+  })
+
+  const commenterName = commenter?.name || 'Someone'
+
+  // Create in-app notification
+  await createInAppNotification({
+    userId: postOwnerId,
+    type: 'POST_COMMENT',
+    title: `${commenterName} commented on your post`,
+    message: commentPreview.length > 100 ? commentPreview.substring(0, 100) + '...' : commentPreview,
+    actionUrl: `/community`,
+    relatedUserId: commenterId,
+  })
+
+  // Send web push notification
+  await pushPostComment(postOwnerId, commenterName, commentPreview, postId)
 }

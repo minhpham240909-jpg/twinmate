@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { isBlocked } from '@/lib/blocked-users'
+import { notifyConnectionAccepted } from '@/lib/notifications/send'
 
 const acceptRequestSchema = z.object({
   matchId: z.string()
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
         actionUrl: `/chat?userId=${user.id}`
       }
     })
+
+    // Send push notification (async, don't wait)
+    notifyConnectionAccepted(user.id, match.senderId).catch(console.error)
 
     // Mark the connection request notification as read
     await prisma.notification.updateMany({
