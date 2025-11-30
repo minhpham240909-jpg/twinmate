@@ -57,7 +57,7 @@ const isProfileComplete = (profile: any): boolean => {
 }
 
 export default function DashboardPage() {
-  const { user, profile, loading, signOut } = useAuth()
+  const { user, profile, loading, configError, signOut } = useAuth()
   const router = useRouter()
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
@@ -481,6 +481,41 @@ export default function DashboardPage() {
     }
 
     return matchingFields
+  }
+
+  // Show configuration error if Supabase is not set up
+  if (configError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+        <div className="text-center max-w-lg p-8">
+          <div className="w-20 h-20 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Configuration Required</h2>
+          <p className="text-gray-700 dark:text-slate-300 mb-6">
+            The app is not properly configured. Please ensure all required environment variables are set in your Vercel dashboard.
+          </p>
+          <div className="bg-slate-800 rounded-xl p-4 text-left mb-6">
+            <p className="text-sm text-slate-400 mb-2">Required variables:</p>
+            <ul className="text-sm text-slate-300 space-y-1 font-mono">
+              <li>• NEXT_PUBLIC_SUPABASE_URL</li>
+              <li>• NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+              <li>• DATABASE_URL</li>
+            </ul>
+          </div>
+          <a
+            href="https://vercel.com/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-500/20"
+          >
+            Open Vercel Dashboard
+          </a>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {

@@ -6,6 +6,13 @@ import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+// Check if Supabase is properly configured
+const isSupabaseConfigured = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return url && key && !url.includes('placeholder') && url.startsWith('https://')
+}
+
 export interface UserProfile {
   id: string
   email: string
@@ -41,6 +48,7 @@ interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
+  configError: boolean
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -51,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [configError, setConfigError] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -126,10 +135,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     const initAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      if (user) {
-        await fetchProfile(user.id)
+      // Check if Supabase is properly configured
+      if (!isSupabaseConfigured()) {
+        console.error('[AuthContext] Supabase is not configured. Check environment variables.')
+        setConfigError(true)
+        setLoading(false)
+        return
+      }
+
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error) {
+          console.error('[AuthContext] Error getting user:', error.message)
+          // Don't set configError for auth errors (user just not logged in)
+        }
+        setUser(user)
+        if (user) {
+          await fetchProfile(user.id)
+        }
+      } catch (err) {
+        console.error('[AuthContext] Failed to initialize auth:', err)
       }
       setLoading(false)
     }
@@ -185,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshUser }}>
+    <AuthContext.Provider value={{ user, profile, loading, configError, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
