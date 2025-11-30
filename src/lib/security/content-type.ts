@@ -28,7 +28,6 @@ const FORM_DATA_ROUTES = [
   '/api/upload/',
   '/api/groups/', // For group avatar uploads
   '/api/messages/upload-file',
-  '/api/posts', // For post image uploads
 ]
 
 // Routes exempt from content-type validation

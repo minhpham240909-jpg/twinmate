@@ -30,14 +30,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's subscription status for targeted announcements
-    const userData = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { subscriptionStatus: true }
-    })
-    // Determine user tier: PREMIUM if they have an active subscription, otherwise FREE
-    const userTier = userData?.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE'
-
     // Get all notifications for user
     const notifications = await prisma.notification.findMany({
       where: {
@@ -49,78 +41,90 @@ export async function GET(request: NextRequest) {
       take: PAGINATION.NOTIFICATIONS_LIMIT
     })
 
-    // Get active announcements that user hasn't dismissed
-    const dismissedAnnouncementIds = await prisma.announcementDismissal.findMany({
-      where: { userId: user.id },
-      select: { announcementId: true }
-    })
-    const dismissedIds = dismissedAnnouncementIds.map(d => d.announcementId)
+    // Try to get announcements (may fail if tables don't exist yet)
+    let announcementNotifications: any[] = []
+    try {
+      // Get user's subscription status for targeted announcements
+      const userData = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { subscriptionStatus: true }
+      })
+      // Determine user tier: PREMIUM if they have an active subscription, otherwise FREE
+      const userTier = userData?.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE'
 
-    // Fetch announcements that match targeting criteria:
-    // 1. Role-based: targetRole is null (all users) OR matches user's tier
-    // 2. Specific users: user's ID is in targetUserIds array
-    // Combined: User sees announcement if (role matches AND no specific users) OR (user is in specific list)
-    const activeAnnouncements = await prisma.announcement.findMany({
-      where: {
-        status: 'ACTIVE',
-        id: { notIn: dismissedIds },
-        startsAt: { lte: new Date() },
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } }
-        ],
-        // Targeting logic: role-based OR specific user targeting
-        AND: [
-          {
-            OR: [
-              // Role-based targeting (when no specific users are set)
-              {
-                AND: [
-                  { targetUserIds: { isEmpty: true } },
-                  {
-                    OR: [
-                      { targetRole: null },
-                      { targetRole: userTier }
-                    ]
-                  }
-                ]
-              },
-              // Specific user targeting (user is in the list)
-              { targetUserIds: { has: user.id } },
-              // Combined: role targeting WITH specific users (show to both)
-              {
-                AND: [
-                  { targetUserIds: { isEmpty: false } },
-                  {
-                    OR: [
-                      { targetRole: null },
-                      { targetRole: userTier }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    })
+      // Get active announcements that user hasn't dismissed
+      const dismissedAnnouncementIds = await prisma.announcementDismissal.findMany({
+        where: { userId: user.id },
+        select: { announcementId: true }
+      })
+      const dismissedIds = dismissedAnnouncementIds.map(d => d.announcementId)
 
-    // Convert announcements to notification format
-    const announcementNotifications = activeAnnouncements.map(announcement => ({
-      id: `announcement-${announcement.id}`,
-      type: 'ANNOUNCEMENT',
-      title: announcement.title,
-      message: announcement.content,
-      isRead: false,
-      actionUrl: null,
-      relatedUserId: null,
-      relatedMatchId: null,
-      createdAt: announcement.createdAt.toISOString(),
-      priority: announcement.priority,
-      announcementId: announcement.id, // Keep reference for dismissal
-    }))
+      // Fetch announcements that match targeting criteria
+      const activeAnnouncements = await prisma.announcement.findMany({
+        where: {
+          status: 'ACTIVE',
+          id: { notIn: dismissedIds },
+          startsAt: { lte: new Date() },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } }
+          ],
+          // Targeting logic: role-based OR specific user targeting
+          AND: [
+            {
+              OR: [
+                // Role-based targeting (when no specific users are set)
+                {
+                  AND: [
+                    { targetUserIds: { isEmpty: true } },
+                    {
+                      OR: [
+                        { targetRole: null },
+                        { targetRole: userTier }
+                      ]
+                    }
+                  ]
+                },
+                // Specific user targeting (user is in the list)
+                { targetUserIds: { has: user.id } },
+                // Combined: role targeting WITH specific users (show to both)
+                {
+                  AND: [
+                    { targetUserIds: { isEmpty: false } },
+                    {
+                      OR: [
+                        { targetRole: null },
+                        { targetRole: userTier }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      })
+
+      // Convert announcements to notification format
+      announcementNotifications = activeAnnouncements.map(announcement => ({
+        id: `announcement-${announcement.id}`,
+        type: 'ANNOUNCEMENT',
+        title: announcement.title,
+        message: announcement.content,
+        isRead: false,
+        actionUrl: null,
+        relatedUserId: null,
+        relatedMatchId: null,
+        createdAt: announcement.createdAt.toISOString(),
+        priority: announcement.priority,
+        announcementId: announcement.id, // Keep reference for dismissal
+      }))
+    } catch (announcementError) {
+      // Announcements table might not exist yet - continue without them
+      console.warn('Could not fetch announcements:', announcementError)
+    }
 
     // Get related users for notifications (batch query to avoid N+1)
     const relatedUserIds = notifications
@@ -161,7 +165,7 @@ export async function GET(request: NextRequest) {
         isRead: false
       }
     })
-    const unreadCount = regularUnreadCount + activeAnnouncements.length
+    const unreadCount = regularUnreadCount + announcementNotifications.length
 
     return NextResponse.json({
       success: true,
