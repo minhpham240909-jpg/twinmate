@@ -18,7 +18,8 @@ import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import BannedUserOverlay from "@/components/BannedUserOverlay";
-import { Analytics } from "@vercel/analytics/next";
+// Temporarily disabled to debug loading issue
+// import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -110,7 +111,7 @@ export default function RootLayout({
             </PostHogProvider>
           </Suspense>
         </ErrorBoundary>
-        <Analytics />
+        {/* <Analytics /> - Temporarily disabled to debug loading issue */}
       </body>
     </html>
   );

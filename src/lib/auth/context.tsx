@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session with timeout to prevent infinite loading
     const initAuth = async () => {
       // Check if Supabase is properly configured
       if (!isSupabaseConfigured()) {
@@ -172,8 +172,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Create a timeout promise that rejects after 10 seconds
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Auth initialization timed out')), 10000)
+      })
+
       try {
-        const { data: { user }, error } = await supabase.auth.getUser()
+        // Race between auth check and timeout
+        const result = await Promise.race([
+          supabase.auth.getUser(),
+          timeoutPromise
+        ]) as { data: { user: any }, error: any }
+
+        const { data: { user }, error } = result
         if (error) {
           console.error('[AuthContext] Error getting user:', error.message)
           // Don't set configError for auth errors (user just not logged in)
@@ -184,6 +195,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('[AuthContext] Failed to initialize auth:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        if (errorMessage.includes('timed out')) {
+          setProfileError('Connection timed out. Please refresh the page.')
+        }
       }
       setLoading(false)
     }
