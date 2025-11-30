@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/cleanup-expired-bans",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }
