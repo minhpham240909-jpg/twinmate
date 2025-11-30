@@ -17,6 +17,7 @@ import { PresenceProvider } from "@/components/presence/PresenceProvider";
 import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
+import BannedUserOverlay from "@/components/BannedUserOverlay";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -68,34 +69,36 @@ export default function RootLayout({
                       <IntlProvider>
                         <PresenceProvider>
                           <BackgroundSessionProvider>
-                            <OfflineIndicator />
-                            {children}
-                            <FloatingSessionButton />
-                            <IncomingCallModal />
-                            <Toaster
-                              position="top-right"
-                              toastOptions={{
-                                duration: 4000,
-                                style: {
-                                  background: '#363636',
-                                  color: '#fff',
-                                },
-                                success: {
-                                  duration: 3000,
-                                  iconTheme: {
-                                    primary: '#10b981',
-                                    secondary: '#fff',
-                                  },
-                                },
-                                error: {
+                            <BannedUserOverlay>
+                              <OfflineIndicator />
+                              {children}
+                              <FloatingSessionButton />
+                              <IncomingCallModal />
+                              <Toaster
+                                position="top-right"
+                                toastOptions={{
                                   duration: 4000,
-                                  iconTheme: {
-                                    primary: '#ef4444',
-                                    secondary: '#fff',
+                                  style: {
+                                    background: '#363636',
+                                    color: '#fff',
                                   },
-                                },
-                              }}
-                            />
+                                  success: {
+                                    duration: 3000,
+                                    iconTheme: {
+                                      primary: '#10b981',
+                                      secondary: '#fff',
+                                    },
+                                  },
+                                  error: {
+                                    duration: 4000,
+                                    iconTheme: {
+                                      primary: '#ef4444',
+                                      secondary: '#fff',
+                                    },
+                                  },
+                                }}
+                              />
+                            </BannedUserOverlay>
                           </BackgroundSessionProvider>
                         </PresenceProvider>
                       </IntlProvider>

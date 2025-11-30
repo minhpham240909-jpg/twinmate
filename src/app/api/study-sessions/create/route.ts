@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { enforceUserAccess } from '@/lib/security/checkUserBan'
 
 export async function POST(request: NextRequest) {
   // SECURITY: Rate limiting to prevent session spam (10 sessions per minute)
@@ -23,6 +24,12 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if user is banned or deactivated
+    const accessCheck = await enforceUserAccess(user.id)
+    if (!accessCheck.allowed) {
+      return NextResponse.json(accessCheck.errorResponse, { status: 403 })
     }
 
     // Parse request body

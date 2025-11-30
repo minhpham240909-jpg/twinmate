@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { CONTENT_LIMITS, STUDY_SESSION } from '@/lib/constants'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { enforceUserAccess } from '@/lib/security/checkUserBan'
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(CONTENT_LIMITS.GROUP_NAME_MAX),
@@ -36,6 +37,12 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    // Check if user is banned or deactivated
+    const accessCheck = await enforceUserAccess(user.id)
+    if (!accessCheck.allowed) {
+      return NextResponse.json(accessCheck.errorResponse, { status: 403 })
     }
 
     // Parse and validate request body

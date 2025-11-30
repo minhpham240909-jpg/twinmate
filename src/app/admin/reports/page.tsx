@@ -22,7 +22,9 @@ import {
   MessageCircleHeart,
   Star,
   Archive,
+  Search,
 } from 'lucide-react'
+import InvestigationPanel from '@/components/admin/InvestigationPanel'
 
 type TabType = 'reports' | 'feedback'
 
@@ -131,6 +133,9 @@ export default function AdminReportsPage() {
     action: 'review' | 'resolve' | 'archive'
   } | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
+
+  // Investigation panel state
+  const [investigationReport, setInvestigationReport] = useState<ReportData | null>(null)
 
   // Fetch reports
   const fetchReports = useCallback(async (showRefreshing = false) => {
@@ -590,6 +595,13 @@ export default function AdminReportsPage() {
                   {report.status === 'PENDING' && (
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setInvestigationReport(report)}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm transition-colors flex items-center gap-1"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        Investigate
+                      </button>
+                      <button
                         onClick={() => handleAction('review', report.id)}
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors"
                       >
@@ -612,6 +624,13 @@ export default function AdminReportsPage() {
 
                   {report.status === 'REVIEWING' && (
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setInvestigationReport(report)}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm transition-colors flex items-center gap-1"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        Investigate
+                      </button>
                       <button
                         onClick={() => handleAction('resolve', report.id)}
                         className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm transition-colors"
@@ -1130,6 +1149,30 @@ export default function AdminReportsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Investigation Panel */}
+      {investigationReport && (
+        <InvestigationPanel
+          reportId={investigationReport.id}
+          reportType={investigationReport.type}
+          onClose={() => setInvestigationReport(null)}
+          onAction={(action) => {
+            // Handle actions from investigation panel
+            if (action === 'dismiss') {
+              setActionModal({ report: investigationReport, action: 'dismiss' })
+            } else if (action === 'resolve') {
+              setActionModal({ report: investigationReport, action: 'resolve' })
+            } else if (action === 'warn' || action === 'ban') {
+              // For warn/ban, set up the resolve modal with ban options pre-selected
+              setActionModal({ report: investigationReport, action: 'resolve' })
+              if (action === 'ban') {
+                setBanUser(true)
+              }
+            }
+            setInvestigationReport(null)
+          }}
+        />
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { enforceUserAccess } from '@/lib/security/checkUserBan'
 
 export async function POST(
   _request: NextRequest,
@@ -13,6 +14,12 @@ export async function POST(
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if user is banned or deactivated
+    const accessCheck = await enforceUserAccess(user.id)
+    if (!accessCheck.allowed) {
+      return NextResponse.json(accessCheck.errorResponse, { status: 403 })
     }
 
     const { sessionId } = await params

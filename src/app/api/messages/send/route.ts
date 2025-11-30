@@ -6,6 +6,7 @@ import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { CONTENT_LIMITS } from '@/lib/constants'
 import { sendMessageSchema, validateRequest, validateContent } from '@/lib/validation'
 import { isBlocked } from '@/lib/blocked-users'
+import { enforceUserAccess } from '@/lib/security/checkUserBan'
 
 // Content moderation scan (async, non-blocking)
 async function scanMessageContent(
@@ -67,6 +68,15 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = user.id
+
+    // Check if user is banned or deactivated
+    const accessCheck = await enforceUserAccess(userId)
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        accessCheck.errorResponse,
+        { status: 403 }
+      )
+    }
 
     const body = await req.json()
 
