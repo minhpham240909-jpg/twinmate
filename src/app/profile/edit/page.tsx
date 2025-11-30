@@ -24,9 +24,9 @@ export default function ProfilePage() {
     subjects: [] as string[],
     interests: [] as string[],
     goals: [] as string[],
-    skillLevel: 'BEGINNER',
+    skillLevel: '',
     skillLevelDescription: '',
-    studyStyle: 'COLLABORATIVE',
+    studyStyle: '',
     studyStyleDescription: '',
     availableDays: [] as string[],
     availableHours: '',
@@ -66,9 +66,9 @@ export default function ProfilePage() {
         subjects: profile.subjects || [],
         interests: profile.interests || [],
         goals: profile.goals || [],
-        skillLevel: profile.skillLevel || 'BEGINNER',
+        skillLevel: profile.skillLevel || '',
         skillLevelDescription: profile.skillLevelCustomDescription || '',
-        studyStyle: profile.studyStyle || 'COLLABORATIVE',
+        studyStyle: profile.studyStyle || '',
         studyStyleDescription: profile.studyStyleCustomDescription || '',
         availableDays: profile.availableDays || [],
         availableHours: (Array.isArray(profile.availableHours) && profile.availableHours.length > 0) ? profile.availableHours[0] : '',
@@ -649,6 +649,17 @@ export default function ProfilePage() {
               <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                 Skill Level
               </label>
+              <select
+                value={formData.skillLevel}
+                onChange={(e) => setFormData({ ...formData, skillLevel: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-3 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white"
+              >
+                <option value="">Select your skill level...</option>
+                <option value="BEGINNER">Beginner</option>
+                <option value="INTERMEDIATE">Intermediate</option>
+                <option value="ADVANCED">Advanced</option>
+                <option value="EXPERT">Expert</option>
+              </select>
               <input
                 type="text"
                 value={formData.skillLevelDescription}
@@ -668,6 +679,7 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, studyStyle: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-3 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white"
               >
+                <option value="">Select a study style...</option>
                 <option value="COLLABORATIVE">Collaborative (Group Study)</option>
                 <option value="INDEPENDENT">Independent (Self-Study)</option>
                 <option value="MIXED">Mixed (Both)</option>
