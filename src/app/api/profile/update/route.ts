@@ -129,13 +129,21 @@ export async function POST(request: NextRequest) {
 
     // Wrap user and profile updates in a transaction to ensure atomicity
     const profile = await prisma.$transaction(async (tx) => {
-      // Update user name and avatar
+      // Update user name (and avatar only if explicitly provided)
+      // If avatarUrl is undefined, don't update it - preserve existing avatar
+      const userUpdateData: { name: string; avatarUrl?: string | null } = {
+        name: data.name,
+      }
+
+      // Only update avatarUrl if it was explicitly provided in the request
+      // undefined = not provided (don't change), null or string = explicitly set
+      if (data.avatarUrl !== undefined) {
+        userUpdateData.avatarUrl = data.avatarUrl || null
+      }
+
       await tx.user.update({
         where: { id: user.id },
-        data: {
-          name: data.name,
-          avatarUrl: data.avatarUrl || null,
-        },
+        data: userUpdateData,
       })
 
       // Check if profile exists

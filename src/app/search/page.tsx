@@ -988,15 +988,16 @@ export default function SearchPage() {
                   ) : partners.length > 0 ? (
                     partners.map((partner, index) => {
                       // Check if partner has real profile data
-                      const hasSkillLevel = partner.skillLevel && partner.skillLevel.trim() !== ''
-                      const hasStudyStyle = partner.studyStyle && partner.studyStyle.trim() !== ''
+                      // Profile is considered "real" only if they have filled in core fields (subjects or interests)
+                      const hasRealProfileData = !partner.matchDataInsufficient && partner.partnerProfileComplete !== false
                       const hasRealMatchScore = partner.matchScore !== null && partner.matchScore !== undefined && !partner.matchDataInsufficient
                       const hasMatchReasons = partner.matchReasons && partner.matchReasons.length > 0 && !partner.matchDataInsufficient
-                      
-                      // Format skill level and study style only if they exist
-                      const skillLevelDisplay = formatSkillLevel(partner.skillLevel)
-                      const studyStyleDisplay = formatStudyStyle(partner.studyStyle)
-                      
+
+                      // Format skill level and study style only if they exist AND profile has real data
+                      // Don't show these labels for users who haven't actually filled their profile
+                      const skillLevelDisplay = hasRealProfileData ? formatSkillLevel(partner.skillLevel) : ''
+                      const studyStyleDisplay = hasRealProfileData ? formatStudyStyle(partner.studyStyle) : ''
+
                       // Build the info line (only show what's actually filled in)
                       const infoItems: string[] = []
                       if (skillLevelDisplay) infoItems.push(skillLevelDisplay)

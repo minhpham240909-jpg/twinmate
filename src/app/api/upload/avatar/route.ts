@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { validateImageFile, generateSafeFilename, FILE_SIZE_LIMITS } from '@/lib/file-validation'
+import { validateImageFile, FILE_SIZE_LIMITS } from '@/lib/file-validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { invalidateUserCache } from '@/lib/cache'
 import { processAvatarImage, isImageProcessingAvailable } from '@/lib/security/image-processing'
+import { prisma } from '@/lib/prisma'
 import logger from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
@@ -93,6 +94,12 @@ export async function POST(request: NextRequest) {
     const { data: urlData } = supabase.storage
       .from('user-uploads')
       .getPublicUrl(filePath)
+
+    // Update user's avatarUrl in the database
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { avatarUrl: urlData.publicUrl },
+    })
 
     // Invalidate user cache after avatar upload
     await invalidateUserCache(targetUserId)
