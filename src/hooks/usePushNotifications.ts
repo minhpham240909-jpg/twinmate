@@ -220,19 +220,16 @@ export function usePushNotifications() {
 
   /**
    * Check if we should prompt for push notifications
-   * (Not yet asked and not denied)
+   * Shows prompt if: supported, not subscribed, and permission not denied
    */
   const shouldPrompt = useCallback((): boolean => {
     if (!state.isSupported) return false
     if (state.isSubscribed) return false
     if (state.permission === 'denied') return false
-
-    // Check if we've already asked
-    const hasBeenAsked = localStorage.getItem('notification_permission_asked') === 'true'
-    if (hasBeenAsked && state.permission !== 'granted') return false
+    if (state.isLoading) return false // Don't show while loading
 
     return true
-  }, [state.isSupported, state.isSubscribed, state.permission])
+  }, [state.isSupported, state.isSubscribed, state.permission, state.isLoading])
 
   return {
     ...state,
