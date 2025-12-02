@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
             dbUser = result
             isNewUser = true
-            redirectPath = '/onboarding'
+            redirectPath = '/dashboard'
             console.log('[Auth Callback] Created new user:', email, 'via', isGoogleOAuth ? 'Google OAuth' : 'Email/Password')
           } else {
             // Existing user - update emailVerified if confirmed by Supabase
