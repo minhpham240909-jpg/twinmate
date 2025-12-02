@@ -826,6 +826,9 @@ model Post {
   @@index([createdAt])
   @@index([isDeleted])
   @@index([deletedAt])
+  // Composite index for feed queries (fetch non-deleted posts by user or all users)
+  @@index([isDeleted, createdAt])
+  @@index([userId, isDeleted, createdAt])
 }
 
 model PostLike {
@@ -1215,6 +1218,8 @@ model UserPresence {
 
   @@index([userId])
   @@index([status])
+  @@index([lastSeenAt]) // For presence timeout/cleanup queries
+  @@index([status, lastSeenAt]) // For finding stale online users
   @@map("user_presence")
 }
 

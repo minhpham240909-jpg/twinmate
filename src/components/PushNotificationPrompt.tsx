@@ -30,15 +30,10 @@ export default function PushNotificationPrompt({ delay = 30000 }: PushNotificati
       return
     }
 
-    // Check if user dismissed recently
-    const lastDismissed = localStorage.getItem('push_prompt_dismissed')
-    if (lastDismissed) {
-      const dismissedTime = parseInt(lastDismissed)
-      const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60)
-      // Don't show again for 24 hours after dismissal
-      if (hoursSinceDismissed < 24) {
-        return
-      }
+    // Check if user dismissed in this session (sessionStorage resets on browser close/logout)
+    const sessionDismissed = sessionStorage.getItem('push_prompt_dismissed_session')
+    if (sessionDismissed === 'true') {
+      return
     }
 
     const timer = setTimeout(() => {
@@ -58,13 +53,15 @@ export default function PushNotificationPrompt({ delay = 30000 }: PushNotificati
   const handleDismiss = () => {
     setDismissed(true)
     setShowPrompt(false)
-    localStorage.setItem('push_prompt_dismissed', Date.now().toString())
+    // Use sessionStorage so it only persists for this session (resets on browser close/logout)
+    sessionStorage.setItem('push_prompt_dismissed_session', 'true')
   }
 
   const handleNotNow = () => {
     setDismissed(true)
     setShowPrompt(false)
-    localStorage.setItem('push_prompt_dismissed', Date.now().toString())
+    // Use sessionStorage so it only persists for this session (resets on browser close/logout)
+    sessionStorage.setItem('push_prompt_dismissed_session', 'true')
   }
 
   // Don't render anything if not supported or already subscribed

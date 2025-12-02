@@ -21,6 +21,11 @@ interface HealthCheck {
     database: ServiceStatus
     supabase: ServiceStatus
     auth: ServiceStatus
+    redis: ServiceStatus
+  }
+  config: {
+    databasePoolSize: number
+    queryTimeout: number
   }
   uptime: number
   version: string
@@ -41,6 +46,11 @@ export async function GET() {
       database: { status: 'down' },
       supabase: { status: 'down' },
       auth: { status: 'down' },
+      redis: { status: 'down' },
+    },
+    config: {
+      databasePoolSize: parseInt(process.env.DATABASE_POOL_SIZE || '10', 10),
+      queryTimeout: parseInt(process.env.DATABASE_QUERY_TIMEOUT || '30', 10),
     },
     uptime: process.uptime(),
     version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
@@ -104,6 +114,44 @@ export async function GET() {
       status: 'down',
       error: error instanceof Error ? error.message : 'Unknown error',
     }
+    health.status = health.status === 'unhealthy' ? 'unhealthy' : 'degraded'
+  }
+
+  // Check Redis (Upstash)
+  try {
+    const redisStart = Date.now()
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN
+
+    if (redisUrl && redisToken) {
+      const response = await fetch(`${redisUrl}/ping`, {
+        headers: {
+          Authorization: `Bearer ${redisToken}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Redis responded with status ${response.status}`)
+      }
+
+      health.services.redis = {
+        status: 'up',
+        responseTime: Date.now() - redisStart,
+      }
+    } else {
+      // Redis not configured - mark as up but note it's not configured
+      health.services.redis = {
+        status: 'up',
+        responseTime: 0,
+        error: 'Not configured (using in-memory fallback)',
+      }
+    }
+  } catch (error) {
+    health.services.redis = {
+      status: 'down',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+    // Redis being down is degraded, not unhealthy (app can use in-memory fallback)
     health.status = health.status === 'unhealthy' ? 'unhealthy' : 'degraded'
   }
 

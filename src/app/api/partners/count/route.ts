@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getOrSetCached } from '@/lib/cache'
 
 export async function GET() {
   try {
@@ -15,16 +16,25 @@ export async function GET() {
       )
     }
 
-    // Count active study partners (ACCEPTED matches where user is sender or receiver)
-    const activePartnersCount = await prisma.match.count({
-      where: {
-        status: 'ACCEPTED',
-        OR: [
-          { senderId: user.id },
-          { receiverId: user.id }
-        ]
+    // Cache key for this user's partner count
+    const cacheKey = `partners:count:${user.id}`
+
+    // Get from cache or fetch from database
+    const activePartnersCount = await getOrSetCached<number>(
+      cacheKey,
+      60, // Cache for 60 seconds
+      async () => {
+        return prisma.match.count({
+          where: {
+            status: 'ACCEPTED',
+            OR: [
+              { senderId: user.id },
+              { receiverId: user.id }
+            ]
+          }
+        })
       }
-    })
+    )
 
     return NextResponse.json({
       success: true,

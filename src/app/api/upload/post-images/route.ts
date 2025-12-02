@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { validateMultipleImages, generateSafeFilename, FILE_SIZE_LIMITS } from '@/lib/file-validation'
+import { validateMultipleImages, FILE_SIZE_LIMITS } from '@/lib/file-validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { processPostImage, isImageProcessingAvailable } from '@/lib/security/image-processing'
+import logger from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   // Rate limiting: 10 uploads per hour
@@ -36,21 +38,41 @@ export async function POST(req: NextRequest) {
     }
 
     const uploadedUrls: string[] = []
+    const processingAvailable = await isImageProcessingAvailable()
 
     for (const file of files) {
-
-      // Generate safe filename
-      const fileName = `${user.id}/${generateSafeFilename(user.id, file.name)}`
-
       // Convert File to ArrayBuffer then to Buffer
       const arrayBuffer = await file.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+      let buffer = Buffer.from(arrayBuffer)
+      let contentType = file.type
+
+      // OPTIMIZATION: Compress images using sharp (WebP format for smaller size)
+      if (processingAvailable) {
+        const processed = await processPostImage(buffer)
+        if (processed) {
+          buffer = Buffer.from(processed.buffer)
+          contentType = `image/${processed.format}`
+          logger.info('Post image compressed', {
+            data: {
+              userId: user.id,
+              originalSize: arrayBuffer.byteLength,
+              compressedSize: processed.size,
+              compressionRatio: Math.round((1 - processed.size / arrayBuffer.byteLength) * 100) + '%',
+              format: processed.format,
+            }
+          })
+        }
+      }
+
+      // Generate safe filename with appropriate extension
+      const extension = contentType.split('/')[1] || 'webp'
+      const fileName = `${user.id}/${user.id}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${extension}`
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('post-images')
         .upload(fileName, buffer, {
-          contentType: file.type,
+          contentType,
           cacheControl: '3600',
           upsert: false,
         })

@@ -15,6 +15,7 @@ import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import Bounce from '@/components/ui/Bounce'
 import FadeIn from '@/components/ui/FadeIn'
+import PushNotificationPrompt from '@/components/PushNotificationPrompt'
 
 interface Partner {
   id: string
@@ -1098,6 +1099,9 @@ export default function DashboardPage() {
         onClose={() => setShowNotifications(false)}
         onUnreadCountChange={setUnreadCount}
       />
+
+      {/* Push Notification Prompt - Only shows on dashboard */}
+      <PushNotificationPrompt delay={3000} />
     </div>
   )
 }

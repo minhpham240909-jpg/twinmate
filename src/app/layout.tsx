@@ -18,7 +18,6 @@ import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import BannedUserOverlay from "@/components/BannedUserOverlay";
-import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -75,7 +74,6 @@ export default function RootLayout({
                               {children}
                               <FloatingSessionButton />
                               <IncomingCallModal />
-                              <PushNotificationPrompt delay={0} />
                               <Toaster
                                 position="top-right"
                                 toastOptions={{
