@@ -2,6 +2,15 @@
 // CEO Control Panel - Core Utilities
 
 import { prisma } from '@/lib/prisma'
+import { getOrSetCached, invalidateByPattern } from '@/lib/cache'
+
+// Cache TTLs for admin data (in seconds)
+const CACHE_TTL = {
+  DASHBOARD_STATS: 60,      // 1 minute - frequently viewed
+  GROWTH_DATA: 300,         // 5 minutes - chart data
+  RECENT_SIGNUPS: 30,       // 30 seconds - needs to be fresh
+  ANALYTICS: 120,           // 2 minutes - heavy queries
+}
 
 /**
  * Check if a user is an admin
@@ -214,158 +223,179 @@ export async function getAdminAuditLogs(options: {
 
 /**
  * Get overview statistics for admin dashboard
+ * Cached for 60 seconds to reduce database load
  */
 export async function getAdminDashboardStats() {
-  try {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const cacheKey = 'admin:dashboard:stats'
 
-    const [
-      totalUsers,
-      newUsersToday,
-      newUsersThisWeek,
-      newUsersThisMonth,
-      activeUsersToday,
-      totalGroups,
-      totalMessages,
-      totalStudySessions,
-      totalMatches,
-      pendingReports,
-      premiumUsers,
-      deactivatedUsers,
-    ] = await Promise.all([
-      // Total users
-      prisma.user.count(),
-      // New users today
-      prisma.user.count({
-        where: { createdAt: { gte: today } },
-      }),
-      // New users this week
-      prisma.user.count({
-        where: { createdAt: { gte: thisWeek } },
-      }),
-      // New users this month
-      prisma.user.count({
-        where: { createdAt: { gte: thisMonth } },
-      }),
-      // Active users today (logged in today)
-      prisma.user.count({
-        where: { lastLoginAt: { gte: today } },
-      }),
-      // Total groups
-      prisma.group.count({
-        where: { isDeleted: false },
-      }),
-      // Total messages
-      prisma.message.count(),
-      // Total study sessions
-      prisma.studySession.count(),
-      // Total matches (accepted)
-      prisma.match.count({
-        where: { status: 'ACCEPTED' },
-      }),
-      // Pending reports
-      prisma.report.count({
-        where: { status: 'PENDING' },
-      }),
-      // Premium users
-      prisma.user.count({
-        where: { role: 'PREMIUM' },
-      }),
-      // Deactivated users
-      prisma.user.count({
-        where: { deactivatedAt: { not: null } },
-      }),
-    ])
+  return getOrSetCached(cacheKey, CACHE_TTL.DASHBOARD_STATS, async () => {
+    try {
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    return {
-      users: {
-        total: totalUsers,
-        newToday: newUsersToday,
-        newThisWeek: newUsersThisWeek,
-        newThisMonth: newUsersThisMonth,
-        activeToday: activeUsersToday,
-        premium: premiumUsers,
-        deactivated: deactivatedUsers,
-      },
-      content: {
-        groups: totalGroups,
-        messages: totalMessages,
-        studySessions: totalStudySessions,
-        matches: totalMatches,
-      },
-      moderation: {
-        pendingReports: pendingReports,
-      },
+      const [
+        totalUsers,
+        newUsersToday,
+        newUsersThisWeek,
+        newUsersThisMonth,
+        activeUsersToday,
+        totalGroups,
+        totalMessages,
+        totalStudySessions,
+        totalMatches,
+        pendingReports,
+        premiumUsers,
+        deactivatedUsers,
+      ] = await Promise.all([
+        // Total users
+        prisma.user.count(),
+        // New users today
+        prisma.user.count({
+          where: { createdAt: { gte: today } },
+        }),
+        // New users this week
+        prisma.user.count({
+          where: { createdAt: { gte: thisWeek } },
+        }),
+        // New users this month
+        prisma.user.count({
+          where: { createdAt: { gte: thisMonth } },
+        }),
+        // Active users today (logged in today)
+        prisma.user.count({
+          where: { lastLoginAt: { gte: today } },
+        }),
+        // Total groups
+        prisma.group.count({
+          where: { isDeleted: false },
+        }),
+        // Total messages
+        prisma.message.count(),
+        // Total study sessions
+        prisma.studySession.count(),
+        // Total matches (accepted)
+        prisma.match.count({
+          where: { status: 'ACCEPTED' },
+        }),
+        // Pending reports
+        prisma.report.count({
+          where: { status: 'PENDING' },
+        }),
+        // Premium users
+        prisma.user.count({
+          where: { role: 'PREMIUM' },
+        }),
+        // Deactivated users
+        prisma.user.count({
+          where: { deactivatedAt: { not: null } },
+        }),
+      ])
+
+      return {
+        users: {
+          total: totalUsers,
+          newToday: newUsersToday,
+          newThisWeek: newUsersThisWeek,
+          newThisMonth: newUsersThisMonth,
+          activeToday: activeUsersToday,
+          premium: premiumUsers,
+          deactivated: deactivatedUsers,
+        },
+        content: {
+          groups: totalGroups,
+          messages: totalMessages,
+          studySessions: totalStudySessions,
+          matches: totalMatches,
+        },
+        moderation: {
+          pendingReports: pendingReports,
+        },
+      }
+    } catch (error) {
+      console.error('[Admin] Error getting dashboard stats:', error)
+      return null
     }
-  } catch (error) {
-    console.error('[Admin] Error getting dashboard stats:', error)
-    return null
-  }
+  })
 }
 
 /**
  * Get user growth data for charts
+ * Optimized with SQL groupBy and cached for 5 minutes
  */
 export async function getUserGrowthData(days: number = 30) {
-  try {
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+  const cacheKey = `admin:growth:${days}d`
 
-    const users = await prisma.user.findMany({
-      where: { createdAt: { gte: startDate } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    })
+  return getOrSetCached(cacheKey, CACHE_TTL.GROWTH_DATA, async () => {
+    try {
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
 
-    // Group by date
-    const growthByDate: Record<string, number> = {}
-    users.forEach((user) => {
-      const date = user.createdAt.toISOString().split('T')[0]
-      growthByDate[date] = (growthByDate[date] || 0) + 1
-    })
+      // Use raw SQL for efficient date grouping (much faster than JS grouping)
+      const result = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+        SELECT DATE("createdAt") as date, COUNT(*) as count
+        FROM "User"
+        WHERE "createdAt" >= ${startDate}
+        GROUP BY DATE("createdAt")
+        ORDER BY date ASC
+      `
 
-    // Convert to array format for charts
-    const data = Object.entries(growthByDate).map(([date, count]) => ({
-      date,
-      users: count,
-    }))
-
-    return data
-  } catch (error) {
-    console.error('[Admin] Error getting user growth data:', error)
-    return []
-  }
+      // Convert BigInt to number and format
+      return result.map(row => ({
+        date: row.date,
+        users: Number(row.count),
+      }))
+    } catch (error) {
+      console.error('[Admin] Error getting user growth data:', error)
+      return []
+    }
+  })
 }
 
 /**
  * Get recent user signups
+ * Cached for 30 seconds
  */
 export async function getRecentSignups(limit: number = 10) {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        role: true,
-        createdAt: true,
-        lastLoginAt: true,
-        googleId: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    })
+  const cacheKey = `admin:signups:recent:${limit}`
 
-    return users.map((user) => ({
-      ...user,
-      signupMethod: user.googleId ? 'google' : 'email',
-    }))
+  return getOrSetCached(cacheKey, CACHE_TTL.RECENT_SIGNUPS, async () => {
+    try {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          role: true,
+          createdAt: true,
+          lastLoginAt: true,
+          googleId: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      })
+
+      return users.map((user) => ({
+        ...user,
+        signupMethod: user.googleId ? 'google' : 'email',
+      }))
+    } catch (error) {
+      console.error('[Admin] Error getting recent signups:', error)
+      return []
+    }
+  })
+}
+
+/**
+ * Invalidate admin dashboard caches
+ * Call this when data changes that affects admin stats
+ */
+export async function invalidateAdminCaches() {
+  try {
+    await invalidateByPattern('admin:*')
   } catch (error) {
-    console.error('[Admin] Error getting recent signups:', error)
-    return []
+    console.error('[Admin] Error invalidating caches:', error)
   }
 }

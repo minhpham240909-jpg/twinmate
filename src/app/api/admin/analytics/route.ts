@@ -1,11 +1,16 @@
 /**
  * Admin Analytics API
  * Comprehensive analytics data for CEO dashboard
+ * Performance optimized with Redis caching
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getOrSetCached } from '@/lib/cache'
+
+// Cache TTL for analytics (2 minutes for overview, less for real-time data)
+const ANALYTICS_CACHE_TTL = 120
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,114 +48,117 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - periodDays)
 
     if (view === 'overview') {
-      // Platform-wide analytics
-      const [
-        totalUsers,
-        newUsersThisPeriod,
-        activeUsersThisPeriod,
-        totalSessions,
-        totalPageViews,
-        totalMessages,
-        totalPosts,
-        totalConnections,
-        suspiciousActivities,
-        dailyStats,
-      ] = await Promise.all([
-        // Total users
-        prisma.user.count(),
+      // Use cache for overview analytics (most expensive queries)
+      const cacheKey = `admin:analytics:overview:${period}`
 
-        // New users this period
-        prisma.user.count({
-          where: { createdAt: { gte: startDate } }
-        }),
+      const analyticsData = await getOrSetCached(cacheKey, ANALYTICS_CACHE_TTL, async () => {
+        // Platform-wide analytics
+        const [
+          totalUsers,
+          newUsersThisPeriod,
+          activeUsersThisPeriod,
+          totalSessions,
+          totalPageViews,
+          totalMessages,
+          totalPosts,
+          totalConnections,
+          suspiciousActivities,
+          dailyStats,
+        ] = await Promise.all([
+          // Total users
+          prisma.user.count(),
 
-        // Active users (had a session)
-        prisma.userSessionAnalytics.groupBy({
-          by: ['userId'],
-          where: { startedAt: { gte: startDate } },
-        }).then(r => r.length),
+          // New users this period
+          prisma.user.count({
+            where: { createdAt: { gte: startDate } }
+          }),
 
-        // Total sessions
-        prisma.userSessionAnalytics.count({
-          where: { startedAt: { gte: startDate } }
-        }),
+          // Active users (had a session)
+          prisma.userSessionAnalytics.groupBy({
+            by: ['userId'],
+            where: { startedAt: { gte: startDate } },
+          }).then(r => r.length),
 
-        // Total page views
-        prisma.userPageVisit.count({
-          where: { createdAt: { gte: startDate } }
-        }),
+          // Total sessions
+          prisma.userSessionAnalytics.count({
+            where: { startedAt: { gte: startDate } }
+          }),
 
-        // Total messages
-        prisma.message.count({
-          where: { createdAt: { gte: startDate } }
-        }),
+          // Total page views
+          prisma.userPageVisit.count({
+            where: { createdAt: { gte: startDate } }
+          }),
 
-        // Total posts
-        prisma.post.count({
-          where: { createdAt: { gte: startDate } }
-        }),
+          // Total messages
+          prisma.message.count({
+            where: { createdAt: { gte: startDate } }
+          }),
 
-        // Total new connections
-        prisma.match.count({
-          where: {
-            status: 'ACCEPTED',
-            updatedAt: { gte: startDate }
-          }
-        }),
+          // Total posts
+          prisma.post.count({
+            where: { createdAt: { gte: startDate } }
+          }),
 
-        // Suspicious activities
-        prisma.suspiciousActivityLog.count({
-          where: {
-            createdAt: { gte: startDate },
-            isReviewed: false
-          }
-        }),
+          // Total new connections
+          prisma.match.count({
+            where: {
+              status: 'ACCEPTED',
+              updatedAt: { gte: startDate }
+            }
+          }),
 
-        // Daily stats for chart
-        prisma.userActivitySummary.groupBy({
-          by: ['date'],
-          where: { date: { gte: startDate } },
-          _sum: {
-            totalSessions: true,
-            totalPageViews: true,
-            messagesSent: true,
-            postsCreated: true,
-          },
-          _count: { userId: true },
-          orderBy: { date: 'asc' }
+          // Suspicious activities
+          prisma.suspiciousActivityLog.count({
+            where: {
+              createdAt: { gte: startDate },
+              isReviewed: false
+            }
+          }),
+
+          // Daily stats for chart
+          prisma.userActivitySummary.groupBy({
+            by: ['date'],
+            where: { date: { gte: startDate } },
+            _sum: {
+              totalSessions: true,
+              totalPageViews: true,
+              messagesSent: true,
+              postsCreated: true,
+            },
+            _count: { userId: true },
+            orderBy: { date: 'asc' }
+          })
+        ])
+
+        // Get top pages
+        const topPages = await prisma.userPageVisit.groupBy({
+          by: ['path'],
+          where: { createdAt: { gte: startDate } },
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10
         })
-      ])
 
-      // Get top pages
-      const topPages = await prisma.userPageVisit.groupBy({
-        by: ['path'],
-        where: { createdAt: { gte: startDate } },
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
-        take: 10
-      })
+        // Get top features
+        const topFeatures = await prisma.userFeatureUsage.groupBy({
+          by: ['feature'],
+          where: { createdAt: { gte: startDate } },
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10
+        })
 
-      // Get top features
-      const topFeatures = await prisma.userFeatureUsage.groupBy({
-        by: ['feature'],
-        where: { createdAt: { gte: startDate } },
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
-        take: 10
-      })
+        // Get search analytics
+        const topSearches = await prisma.userSearchQuery.groupBy({
+          by: ['searchType'],
+          where: { createdAt: { gte: startDate } },
+          _count: { id: true },
+          _avg: { resultCount: true },
+          orderBy: { _count: { id: 'desc' } }
+        })
 
-      // Get search analytics
-      const topSearches = await prisma.userSearchQuery.groupBy({
-        by: ['searchType'],
-        where: { createdAt: { gte: startDate } },
-        _count: { id: true },
-        _avg: { resultCount: true },
-        orderBy: { _count: { id: 'desc' } }
-      })
-
-      return NextResponse.json({
-        success: true,
-        data: {
+        // Return data object (not Response) for caching
+        return {
           summary: {
             totalUsers,
             newUsersThisPeriod,
@@ -178,6 +186,11 @@ export async function GET(request: NextRequest) {
             avgResults: Math.round(s._avg.resultCount || 0)
           })),
         }
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: analyticsData,
       })
     }
 

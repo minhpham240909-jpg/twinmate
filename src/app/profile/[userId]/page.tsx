@@ -90,6 +90,7 @@ export default function UserProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const avatarMenuRef = useRef<HTMLDivElement>(null)
 
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -98,6 +99,7 @@ export default function UserProfilePage() {
   const [activeTab, setActiveTab] = useState<'about' | 'posts'>('about')
   const [showFullProfile, setShowFullProfile] = useState(false)
   const [showCoverPhotoMenu, setShowCoverPhotoMenu] = useState(false)
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null)
@@ -115,22 +117,25 @@ export default function UserProfilePage() {
     }
   }, [currentUser, authLoading, userId])
 
-  // Close menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowCoverPhotoMenu(false)
       }
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
+        setShowAvatarMenu(false)
+      }
     }
 
-    if (showCoverPhotoMenu) {
+    if (showCoverPhotoMenu || showAvatarMenu) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showCoverPhotoMenu])
+  }, [showCoverPhotoMenu, showAvatarMenu])
 
   const fetchUserProfile = async () => {
     try {
@@ -446,48 +451,71 @@ export default function UserProfilePage() {
       <div className="max-w-4xl mx-auto px-4">
         <div className="relative -mt-24 mb-4">
           {/* Profile Picture */}
-          <div className="inline-block relative">
-            {isOwnProfile ? (
-              <div className="relative group">
-                <PartnerAvatar
-                  avatarUrl={viewedUser.avatarUrl}
-                  name={viewedUser.name}
-                  size="xl"
-                  onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                  showStatus={false}
-                />
-                {isUploadingAvatar && (
-                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
-                <button
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={isUploadingAvatar}
-                  className="absolute bottom-0 right-0 w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-950 hover:shadow-xl transition-all disabled:opacity-50"
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                  className="hidden"
-                />
-              </div>
-            ) : (
+          <div className="inline-block relative" ref={avatarMenuRef}>
+            <div
+              className={`relative ${isOwnProfile || viewedUser.avatarUrl ? 'cursor-pointer' : ''}`}
+              onClick={() => {
+                if (isOwnProfile || viewedUser.avatarUrl) {
+                  setShowAvatarMenu(!showAvatarMenu)
+                }
+              }}
+            >
               <PartnerAvatar
                 avatarUrl={viewedUser.avatarUrl}
                 name={viewedUser.name}
                 size="xl"
                 onlineStatus={viewedUser.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                showStatus={profileData?.connectionStatus === 'connected'}
+                showStatus={!isOwnProfile && profileData?.connectionStatus === 'connected'}
               />
+              {isUploadingAvatar && (
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+
+            {/* Avatar Menu */}
+            {showAvatarMenu && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-900/95 backdrop-blur-xl rounded-lg shadow-xl dark:shadow-none border border-gray-200 dark:border-white/10 overflow-hidden z-[9999]">
+                {viewedUser.avatarUrl && (
+                  <button
+                    onClick={() => {
+                      window.open(viewedUser.avatarUrl!, '_blank')
+                      setShowAvatarMenu(false)
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    See profile photo
+                  </button>
+                )}
+                {isOwnProfile && (
+                  <button
+                    onClick={() => {
+                      avatarInputRef.current?.click()
+                      setShowAvatarMenu(false)
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload new photo
+                  </button>
+                )}
+              </div>
             )}
+
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
           </div>
 
           {/* Action Buttons - Edit Profile for own profile */}
