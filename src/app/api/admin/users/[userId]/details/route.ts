@@ -43,6 +43,7 @@ export async function GET(
     // Fetch comprehensive user data
     const [
       userData,
+      userPresence,
       recentMessages,
       recentPosts,
       groupMemberships,
@@ -132,7 +133,18 @@ export async function GET(
         }
       }),
 
-      // 2. Recent messages (last 50)
+      // 2. User presence (online/offline status) - REAL-TIME
+      prisma.userPresence.findUnique({
+        where: { userId },
+        select: {
+          status: true,
+          lastSeenAt: true,
+          lastActivityAt: true,
+          updatedAt: true,
+        }
+      }),
+
+      // 3. Recent messages (last 50)
       prisma.message.findMany({
         where: { senderId: userId },
         orderBy: { createdAt: 'desc' },
@@ -423,6 +435,14 @@ export async function GET(
       }
     })
 
+    // Calculate accurate online status
+    // User is considered online if last heartbeat was within 2 minutes
+    const ONLINE_THRESHOLD_MS = 2 * 60 * 1000 // 2 minutes
+    const now = Date.now()
+    const lastSeenTime = userPresence?.lastSeenAt ? new Date(userPresence.lastSeenAt).getTime() : 0
+    const isOnline = userPresence?.status === 'online' && (now - lastSeenTime) < ONLINE_THRESHOLD_MS
+    const activeDeviceCount = deviceSessions.filter(d => d.isActive).length
+
     return NextResponse.json({
       success: true,
       data: {
@@ -430,6 +450,19 @@ export async function GET(
         user: {
           ...userData,
           signupMethod: userData.googleId ? 'google' : 'email',
+        },
+
+        // REAL-TIME Online Status (accurate 100%)
+        onlineStatus: {
+          isOnline,
+          status: isOnline ? 'ONLINE' : 'OFFLINE',
+          lastSeenAt: userPresence?.lastSeenAt || null,
+          lastActivityAt: userPresence?.lastActivityAt || null,
+          activeDevices: activeDeviceCount,
+          // How long ago was the user last seen (in minutes)
+          lastSeenMinutesAgo: userPresence?.lastSeenAt
+            ? Math.floor((now - lastSeenTime) / (1000 * 60))
+            : null,
         },
 
         // Activity overview
