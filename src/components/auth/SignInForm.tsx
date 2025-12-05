@@ -16,6 +16,8 @@ export default function SignInForm() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [requires2FA, setRequires2FA] = useState(false)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,7 +25,34 @@ export default function SignInForm() {
     setLoading(true)
 
     try {
-      // Sign in with Supabase client (single call, no double signin)
+      // First, call our API to check for 2FA requirement
+      const apiResponse = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          twoFactorCode: requires2FA ? twoFactorCode : undefined,
+        }),
+      })
+
+      const apiData = await apiResponse.json()
+
+      // Handle 2FA requirement
+      if (apiData.requires2FA) {
+        setRequires2FA(true)
+        setLoading(false)
+        return
+      }
+
+      // Handle API errors (including invalid 2FA code)
+      if (!apiResponse.ok) {
+        setError(apiData.error || 'Sign in failed')
+        setLoading(false)
+        return
+      }
+
+      // API successful - now sign in with Supabase client to establish session
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -73,6 +102,12 @@ export default function SignInForm() {
     }
   }
 
+  const handleBackFrom2FA = () => {
+    setRequires2FA(false)
+    setTwoFactorCode('')
+    setError('')
+  }
+
   const handleGoogleSignIn = async () => {
     window.location.href = '/api/auth/google'
   }
@@ -95,48 +130,81 @@ export default function SignInForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-200 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all"
-              placeholder="you@example.com"
-            />
-          </div>
+          {!requires2FA ? (
+            <>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-200 mb-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all"
+                  placeholder="you@example.com"
+                />
+              </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all"
-              placeholder="••••••••"
-            />
-          </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
 
-          <div className="flex items-center justify-end">
-            <Link href="/auth/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
-              Forgot password?
-            </Link>
-          </div>
+              <div className="flex items-center justify-end">
+                <Link href="/auth/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div>
+              <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-300 text-sm backdrop-blur-sm">
+                Two-factor authentication is enabled. Enter your 6-digit code from your authenticator app.
+              </div>
+              <label htmlFor="twoFactorCode" className="block text-sm font-medium text-slate-200 mb-1">
+                Authentication Code
+              </label>
+              <input
+                id="twoFactorCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                required
+                autoFocus
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all text-center text-2xl tracking-widest"
+                placeholder="000000"
+              />
+              <button
+                type="button"
+                onClick={handleBackFrom2FA}
+                className="mt-3 text-sm text-slate-400 hover:text-white transition-colors"
+              >
+                &larr; Back to sign in
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (requires2FA && twoFactorCode.length !== 6)}
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40"
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? 'Signing In...' : requires2FA ? 'Verify' : 'Sign In'}
           </button>
         </form>
 

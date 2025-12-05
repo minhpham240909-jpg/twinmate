@@ -43,6 +43,34 @@ export default function ConnectionsPage() {
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received')
   const [error, setError] = useState('')
   const [processingRequest, setProcessingRequest] = useState<string | null>(null)
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
+
+  // Message truncation threshold
+  const MESSAGE_TRUNCATE_LENGTH = 100
+
+  const toggleMessageExpand = (requestId: string) => {
+    setExpandedMessages(prev => {
+      const next = new Set(prev)
+      if (next.has(requestId)) {
+        next.delete(requestId)
+      } else {
+        next.add(requestId)
+      }
+      return next
+    })
+  }
+
+  const shouldTruncate = (message: string | null | undefined) => {
+    return message && message.length > MESSAGE_TRUNCATE_LENGTH
+  }
+
+  const getDisplayMessage = (message: string | null | undefined, requestId: string) => {
+    if (!message) return null
+    if (expandedMessages.has(requestId) || message.length <= MESSAGE_TRUNCATE_LENGTH) {
+      return message
+    }
+    return message.substring(0, MESSAGE_TRUNCATE_LENGTH) + '...'
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -248,11 +276,23 @@ export default function ConnectionsPage() {
                                   </Pulse>
                                 </Bounce>
                               )}
-                              <div>
+                              <div className="flex-1">
                                 <h3 className="font-semibold text-gray-900 dark:text-slate-100">{request.sender.name}</h3>
                                 <p className="text-sm text-gray-600 dark:text-slate-400">{request.sender.email}</p>
                                 {request.message && (
-                                  <p className="text-sm text-gray-700 dark:text-slate-300 mt-2">{request.message}</p>
+                                  <div className="mt-2">
+                                    <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">
+                                      {getDisplayMessage(request.message, request.id)}
+                                    </p>
+                                    {shouldTruncate(request.message) && (
+                                      <button
+                                        onClick={() => toggleMessageExpand(request.id)}
+                                        className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium mt-1 transition-colors"
+                                      >
+                                        {expandedMessages.has(request.id) ? 'Show less' : 'Read more'}
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </div>

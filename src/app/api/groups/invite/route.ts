@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { enforceUserAccess } from '@/lib/security/checkUserBan'
 
 const inviteSchema = z.object({
   groupId: z.string(),
@@ -18,6 +19,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      )
+    }
+
+    // SECURITY: Check if user is banned or deactivated
+    const accessCheck = await enforceUserAccess(user.id)
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.errorResponse?.error || 'Access denied' },
+        { status: 403 }
       )
     }
 

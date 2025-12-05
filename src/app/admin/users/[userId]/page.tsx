@@ -200,6 +200,14 @@ interface UserDetails {
     lastHeartbeatAt: string
     isActive: boolean
   }>
+  onlineStatus: {
+    isOnline: boolean
+    status: 'ONLINE' | 'OFFLINE'
+    lastSeenAt: string | null
+    lastActivityAt: string | null
+    activeDevices: number
+    lastSeenMinutesAgo: number | null
+  }
   riskIndicators: {
     hasWarnings: boolean
     warningCount: number
@@ -358,7 +366,7 @@ export default function AdminUserDetailPage() {
     )
   }
 
-  const { user, activityStats, riskIndicators } = data
+  const { user, activityStats, riskIndicators, onlineStatus } = data
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -449,14 +457,26 @@ export default function AdminUserDetailPage() {
                     <span className="text-3xl font-bold text-white">{user.name.charAt(0)}</span>
                   </div>
                 )}
-                {/* Status indicator */}
+                {/* Status indicator - Online/Offline based on real-time presence */}
                 <div className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 ${
                   riskIndicators.isBanned
                     ? 'bg-red-500'
                     : riskIndicators.isDeactivated
                     ? 'bg-gray-500'
-                    : 'bg-green-500'
-                }`} />
+                    : onlineStatus?.isOnline
+                    ? 'bg-green-500'
+                    : 'bg-gray-400'
+                }`} title={
+                  riskIndicators.isBanned
+                    ? 'Banned'
+                    : riskIndicators.isDeactivated
+                    ? 'Deactivated'
+                    : onlineStatus?.isOnline
+                    ? 'Online'
+                    : onlineStatus?.lastSeenMinutesAgo != null
+                    ? `Offline - last seen ${onlineStatus.lastSeenMinutesAgo}m ago`
+                    : 'Offline'
+                } />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -507,6 +527,45 @@ export default function AdminUserDetailPage() {
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">{activityStats.accountAge}d</div>
                 <div className="text-xs text-gray-500 dark:text-slate-400">Account Age</div>
               </div>
+            </div>
+
+            {/* Online Status Banner */}
+            <div className={`mt-4 px-4 py-2 rounded-lg flex items-center gap-2 ${
+              riskIndicators.isBanned
+                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                : riskIndicators.isDeactivated
+                ? 'bg-gray-500/10 text-gray-600 dark:text-gray-400'
+                : onlineStatus?.isOnline
+                ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                : 'bg-gray-500/10 text-gray-600 dark:text-gray-400'
+            }`}>
+              <div className={`w-2.5 h-2.5 rounded-full ${
+                riskIndicators.isBanned
+                  ? 'bg-red-500'
+                  : riskIndicators.isDeactivated
+                  ? 'bg-gray-500'
+                  : onlineStatus?.isOnline
+                  ? 'bg-green-500 animate-pulse'
+                  : 'bg-gray-400'
+              }`} />
+              <span className="text-sm font-medium">
+                {riskIndicators.isBanned
+                  ? 'BANNED'
+                  : riskIndicators.isDeactivated
+                  ? 'DEACTIVATED'
+                  : onlineStatus?.isOnline
+                  ? 'ONLINE NOW'
+                  : onlineStatus?.lastSeenMinutesAgo != null
+                  ? `OFFLINE • Last seen ${onlineStatus.lastSeenMinutesAgo < 60
+                      ? `${onlineStatus.lastSeenMinutesAgo}m ago`
+                      : `${Math.floor(onlineStatus.lastSeenMinutesAgo / 60)}h ago`}`
+                  : 'OFFLINE • Never seen'}
+              </span>
+              {onlineStatus?.activeDevices > 0 && onlineStatus.isOnline && (
+                <span className="text-xs opacity-75">
+                  ({onlineStatus.activeDevices} active device{onlineStatus.activeDevices > 1 ? 's' : ''})
+                </span>
+              )}
             </div>
 
             {/* Account Info */}

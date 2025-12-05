@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+// Pagination defaults
+const DEFAULT_PAGE_SIZE = 20
+const MAX_PAGE_SIZE = 50
+
 export async function GET(request: Request) {
   try {
     // Verify user is authenticated
@@ -15,9 +19,15 @@ export async function GET(request: Request) {
       )
     }
 
-    // Get type filter from query params
+    // Get query params for filtering and pagination
     const { searchParams } = new URL(request.url)
     const typeFilter = searchParams.get('type') // 'partner' or 'group'
+    
+    // Cursor-based pagination
+    // cursor: ISO timestamp of the last conversation's lastMessageTime
+    const cursor = searchParams.get('cursor') // ISO date string
+    const limitParam = parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE), 10)
+    const limit = Math.min(Math.max(1, limitParam), MAX_PAGE_SIZE) // Clamp between 1 and MAX
 
     const userId = user.id
 
@@ -295,16 +305,42 @@ export async function GET(request: Request) {
       allConversations = groups
     }
 
-    // Sort by last message time
+    // Sort by last message time (descending - newest first)
     allConversations.sort((a, b) => {
       const timeA = a.lastMessageTime?.getTime() || 0
       const timeB = b.lastMessageTime?.getTime() || 0
       return timeB - timeA
     })
 
+    // Apply cursor-based pagination
+    let paginatedConversations = allConversations
+    if (cursor) {
+      const cursorTime = new Date(cursor).getTime()
+      // Find conversations with lastMessageTime before the cursor
+      paginatedConversations = allConversations.filter(conv => {
+        const convTime = conv.lastMessageTime?.getTime() || 0
+        return convTime < cursorTime
+      })
+    }
+
+    // Apply limit (fetch one extra to determine if there are more)
+    const hasMore = paginatedConversations.length > limit
+    const resultConversations = paginatedConversations.slice(0, limit)
+
+    // Calculate next cursor (timestamp of last item)
+    const nextCursor = hasMore && resultConversations.length > 0
+      ? resultConversations[resultConversations.length - 1].lastMessageTime?.toISOString() || null
+      : null
+
     return NextResponse.json({
-      conversations: allConversations,
-      success: true
+      conversations: resultConversations,
+      success: true,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor,
+        total: allConversations.length,
+      }
     }, {
       headers: {
         'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',

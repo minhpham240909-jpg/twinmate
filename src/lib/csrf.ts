@@ -14,7 +14,12 @@ import { createClient } from '@/lib/supabase/server'
  */
 
 const CSRF_HEADER = 'x-csrf-token'
-const CSRF_SECRET = process.env.CSRF_SECRET || 'default-csrf-secret-change-in-production'
+const CSRF_SECRET = process.env.CSRF_SECRET
+
+// Validate CSRF_SECRET is configured
+if (!CSRF_SECRET || CSRF_SECRET.length < 32) {
+  console.warn('[CSRF] Warning: CSRF_SECRET not configured or too short. CSRF protection may be weakened.')
+}
 
 /**
  * Generate a CSRF token for the current user session
@@ -33,7 +38,8 @@ export async function generateCsrfToken(): Promise<string | null> {
     // 1. Session token is cryptographically secure
     // 2. Secret is server-side only
     // 3. Token changes when session changes
-    const token = await hashToken(session.access_token + CSRF_SECRET)
+    const secret = CSRF_SECRET || 'fallback-secret-not-for-production'
+    const token = await hashToken(session.access_token + secret)
     return token
   } catch (error) {
     console.error('Error generating CSRF token:', error)
@@ -61,7 +67,8 @@ export async function validateCsrfToken(req: NextRequest): Promise<boolean> {
     }
 
     // Generate expected token
-    const expectedToken = await hashToken(session.access_token + CSRF_SECRET)
+    const secret = CSRF_SECRET || 'fallback-secret-not-for-production'
+    const expectedToken = await hashToken(session.access_token + secret)
     
     // Compare tokens (timing-safe comparison)
     return timingSafeEqual(clientToken, expectedToken)

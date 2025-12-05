@@ -359,6 +359,14 @@ export async function GET(
       }
     }
 
+    // Set cache headers
+    // - private: only browser can cache, not CDN
+    // - max-age=30: cache for 30 seconds
+    // - stale-while-revalidate=60: serve stale while fetching fresh in background
+    const cacheHeaders = isSelfFetch
+      ? { 'Cache-Control': 'private, no-cache' } // Don't cache own profile
+      : { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' }
+
     return NextResponse.json({
       user: {
         id: dbUser.id,
@@ -382,7 +390,7 @@ export async function GET(
       // Profile completeness info
       currentUserMissingFields,
       viewedUserMissingFields,
-    })
+    }, { headers: cacheHeaders })
   } catch (error) {
     console.error('Get user error:', error)
     // Log the full error for debugging

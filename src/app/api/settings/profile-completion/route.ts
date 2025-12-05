@@ -93,6 +93,69 @@ export async function GET(request: NextRequest) {
       })
       .map(f => f.key)
 
+    // Gamification: Calculate badges and rewards
+    const badges = []
+    const rewards = []
+
+    // Badge: Profile Starter (completed all required fields)
+    if (completedRequired === requiredFields.length) {
+      badges.push({
+        id: 'profile-starter',
+        name: 'Profile Starter',
+        icon: '🌟',
+        description: 'Completed all required profile fields',
+        earnedAt: null, // Would need to track in DB
+      })
+    }
+
+    // Badge: Profile Pro (80%+ completion)
+    if (completionPercentage >= 80) {
+      badges.push({
+        id: 'profile-pro',
+        name: 'Profile Pro',
+        icon: '🏆',
+        description: 'Achieved 80%+ profile completion',
+        earnedAt: null,
+      })
+    }
+
+    // Badge: Profile Master (100% completion)
+    if (completionPercentage === 100) {
+      badges.push({
+        id: 'profile-master',
+        name: 'Profile Master',
+        icon: '👑',
+        description: 'Completed your entire profile',
+        earnedAt: null,
+      })
+      rewards.push({
+        id: 'better-matching',
+        name: 'Enhanced Matching',
+        description: 'Your complete profile helps find better study partners',
+        icon: '🎯',
+      })
+    }
+
+    // Reward tiers based on completion
+    if (completionPercentage >= 50) {
+      rewards.push({
+        id: 'visibility-boost',
+        name: 'Profile Visibility Boost',
+        description: 'Your profile appears higher in partner searches',
+        icon: '📈',
+      })
+    }
+
+    // Next milestone calculation
+    let nextMilestone = null
+    if (completionPercentage < 50) {
+      nextMilestone = { target: 50, name: 'Half Way There', reward: 'Profile Visibility Boost' }
+    } else if (completionPercentage < 80) {
+      nextMilestone = { target: 80, name: 'Profile Pro Badge', reward: 'Enhanced search ranking' }
+    } else if (completionPercentage < 100) {
+      nextMilestone = { target: 100, name: 'Profile Master Badge', reward: 'Best matching results' }
+    }
+
     return NextResponse.json({
       completionPercentage,
       completedRequired,
@@ -100,6 +163,11 @@ export async function GET(request: NextRequest) {
       completedOptional,
       totalOptional: optionalFields.length,
       missingFields,
+      // Gamification data
+      badges,
+      rewards,
+      nextMilestone,
+      isProfileComplete: completionPercentage === 100,
     })
   } catch (error) {
     console.error('Profile completion error:', error)

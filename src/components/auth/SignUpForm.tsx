@@ -1,8 +1,86 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+
+// Password strength calculation
+interface PasswordStrength {
+  score: number // 0-4
+  label: string
+  color: string
+  bgColor: string
+  feedback: string[]
+}
+
+function calculatePasswordStrength(password: string): PasswordStrength {
+  const feedback: string[] = []
+  let score = 0
+
+  if (!password) {
+    return { score: 0, label: '', color: 'text-slate-400', bgColor: 'bg-slate-600', feedback: [] }
+  }
+
+  // Length checks
+  if (password.length >= 8) {
+    score += 1
+  } else {
+    feedback.push('At least 8 characters')
+  }
+
+  if (password.length >= 12) {
+    score += 1
+  }
+
+  // Character variety checks
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) {
+    score += 1
+  } else {
+    feedback.push('Mix of uppercase & lowercase')
+  }
+
+  if (/\d/.test(password)) {
+    score += 0.5
+  } else {
+    feedback.push('At least one number')
+  }
+
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    score += 0.5
+  } else {
+    feedback.push('At least one special character')
+  }
+
+  // Common patterns to avoid (reduces score)
+  const commonPatterns = ['password', '123456', 'qwerty', 'abc123', 'letmein']
+  if (commonPatterns.some(pattern => password.toLowerCase().includes(pattern))) {
+    score = Math.max(0, score - 2)
+    feedback.push('Avoid common patterns')
+  }
+
+  // Sequential characters (reduces score)
+  if (/(.)\1{2,}/.test(password)) {
+    score = Math.max(0, score - 0.5)
+    feedback.push('Avoid repeated characters')
+  }
+
+  // Map score to strength level
+  const normalizedScore = Math.min(4, Math.floor(score))
+  
+  const strengthLevels: Record<number, Omit<PasswordStrength, 'score' | 'feedback'>> = {
+    0: { label: 'Very Weak', color: 'text-red-400', bgColor: 'bg-red-500' },
+    1: { label: 'Weak', color: 'text-orange-400', bgColor: 'bg-orange-500' },
+    2: { label: 'Fair', color: 'text-yellow-400', bgColor: 'bg-yellow-500' },
+    3: { label: 'Good', color: 'text-lime-400', bgColor: 'bg-lime-500' },
+    4: { label: 'Strong', color: 'text-green-400', bgColor: 'bg-green-500' },
+  }
+
+  return {
+    score: normalizedScore,
+    ...strengthLevels[normalizedScore],
+    feedback: feedback.slice(0, 3), // Show max 3 suggestions
+  }
+}
 
 export default function SignUpForm() {
   const router = useRouter()
@@ -14,6 +92,13 @@ export default function SignUpForm() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPasswordStrength, setShowPasswordStrength] = useState(false)
+
+  // Calculate password strength
+  const passwordStrength = useMemo(
+    () => calculatePasswordStrength(formData.password),
+    [formData.password]
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -124,9 +209,47 @@ export default function SignUpForm() {
               required
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onFocus={() => setShowPasswordStrength(true)}
+              onBlur={() => setShowPasswordStrength(formData.password.length > 0)}
               className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 text-white placeholder-slate-400 transition-all"
               placeholder="••••••••"
             />
+            
+            {/* Password Strength Indicator */}
+            {showPasswordStrength && formData.password && (
+              <div className="mt-2 space-y-2">
+                {/* Strength Bar */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex gap-1">
+                    {[0, 1, 2, 3].map((index) => (
+                      <div
+                        key={index}
+                        className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                          index < passwordStrength.score
+                            ? passwordStrength.bgColor
+                            : 'bg-slate-600'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className={`text-xs font-medium ${passwordStrength.color}`}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+                
+                {/* Feedback */}
+                {passwordStrength.feedback.length > 0 && (
+                  <ul className="text-xs text-slate-400 space-y-0.5">
+                    {passwordStrength.feedback.map((tip, index) => (
+                      <li key={index} className="flex items-center gap-1.5">
+                        <span className="text-slate-500">•</span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

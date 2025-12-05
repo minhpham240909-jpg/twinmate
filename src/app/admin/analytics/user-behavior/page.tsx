@@ -35,6 +35,7 @@ interface AnalyticsData {
     totalUsers: number
     newUsersThisPeriod: number
     activeUsersThisPeriod: number
+    onlineUsersNow: number // Real-time online users
     totalSessions: number
     totalPageViews: number
     totalMessages: number
@@ -194,12 +195,28 @@ function SimpleBarChart({
   )
 }
 
+// Real-time online users data interface
+interface OnlineUsersData {
+  count: number
+  activeDevices: number
+  users: Array<{
+    id: string
+    name: string
+    avatarUrl: string | null
+    currentPage: string | null
+    lastSeen: string
+  }>
+  pageBreakdown: Array<{ page: string; count: number }>
+  timestamp: string
+}
+
 export default function UserBehaviorAnalyticsPage() {
   const router = useRouter()
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('7d')
   const [activeTab, setActiveTab] = useState<'overview' | 'suspicious'>('overview')
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [suspiciousData, setSuspiciousData] = useState<SuspiciousData | null>(null)
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUsersData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -236,6 +253,30 @@ export default function UserBehaviorAnalyticsPage() {
   useEffect(() => {
     fetchAnalytics()
   }, [fetchAnalytics])
+
+  // Fetch real-time online users (separate from main analytics for faster refresh)
+  const fetchOnlineUsers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/analytics/online-users')
+      const result = await response.json()
+      if (result.success) {
+        setOnlineUsers(result.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch online users:', err)
+    }
+  }, [])
+
+  // Auto-refresh online users every 15 seconds
+  useEffect(() => {
+    fetchOnlineUsers() // Initial fetch
+
+    const interval = setInterval(() => {
+      fetchOnlineUsers()
+    }, 15000) // 15 seconds
+
+    return () => clearInterval(interval)
+  }, [fetchOnlineUsers])
 
   const handleMarkReviewed = async (activityId: string, actionTaken: string) => {
     try {
@@ -366,6 +407,58 @@ export default function UserBehaviorAnalyticsPage() {
         {/* Overview Tab */}
         {activeTab === 'overview' && analyticsData && (
           <>
+            {/* Real-Time Online Users - Prominent Display */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                    <span className="text-green-100 text-sm font-medium">LIVE</span>
+                  </div>
+                  <div className="text-5xl font-bold mb-1">
+                    {onlineUsers?.count ?? analyticsData.summary.onlineUsersNow ?? 0}
+                  </div>
+                  <div className="text-green-100">Users Online Right Now</div>
+                  {onlineUsers && (
+                    <div className="text-green-200 text-xs mt-2">
+                      {onlineUsers.activeDevices} active device{onlineUsers.activeDevices !== 1 ? 's' : ''} •
+                      Updated {new Date(onlineUsers.timestamp).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+                <div className="text-right">
+                  <Activity className="w-16 h-16 text-white/30" />
+                  {onlineUsers && onlineUsers.users.length > 0 && (
+                    <div className="mt-4">
+                      <div className="text-xs text-green-200 mb-2">Currently Active:</div>
+                      <div className="flex -space-x-2">
+                        {onlineUsers.users.slice(0, 5).map((user) => (
+                          <div
+                            key={user.id}
+                            className="w-8 h-8 rounded-full bg-white/20 border-2 border-green-500 flex items-center justify-center overflow-hidden"
+                            title={user.name}
+                          >
+                            {user.avatarUrl ? (
+                              <Image src={user.avatarUrl} alt={user.name} width={32} height={32} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-medium">{user.name.charAt(0)}</span>
+                            )}
+                          </div>
+                        ))}
+                        {onlineUsers.users.length > 5 && (
+                          <div className="w-8 h-8 rounded-full bg-white/30 border-2 border-green-500 flex items-center justify-center text-xs font-medium">
+                            +{onlineUsers.users.length - 5}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <StatCard
@@ -381,7 +474,7 @@ export default function UserBehaviorAnalyticsPage() {
                 color="green"
               />
               <StatCard
-                title="Active Users"
+                title={`Active (${period})`}
                 value={analyticsData.summary.activeUsersThisPeriod.toLocaleString()}
                 icon={Activity}
                 color="purple"
@@ -399,6 +492,27 @@ export default function UserBehaviorAnalyticsPage() {
                 color="red"
               />
             </div>
+
+            {/* Real-Time Activity Breakdown */}
+            {onlineUsers && onlineUsers.pageBreakdown.length > 0 && (
+              <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700/50 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Where Users Are Right Now</h3>
+                  <span className="text-xs text-gray-500 dark:text-slate-400">(Live)</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {onlineUsers.pageBreakdown.map((item, idx) => (
+                    <div key={idx} className="p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg">
+                      <div className="text-lg font-bold text-gray-900 dark:text-white">{item.count}</div>
+                      <div className="text-xs text-gray-500 dark:text-slate-400 truncate" title={item.page}>
+                        {item.page.replace('/[id]', '').replace(/^\//, '') || 'Home'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Activity Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

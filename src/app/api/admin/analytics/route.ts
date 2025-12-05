@@ -12,6 +12,9 @@ import { getOrSetCached } from '@/lib/cache'
 // Cache TTL for analytics (2 minutes for overview, less for real-time data)
 const ANALYTICS_CACHE_TTL = 120
 
+// Users are considered online if heartbeat within last 2 minutes
+const ONLINE_THRESHOLD_MS = 2 * 60 * 1000
+
 export async function GET(request: NextRequest) {
   try {
     // Check if user is admin
@@ -52,11 +55,16 @@ export async function GET(request: NextRequest) {
       const cacheKey = `admin:analytics:overview:${period}`
 
       const analyticsData = await getOrSetCached(cacheKey, ANALYTICS_CACHE_TTL, async () => {
+        // Calculate online threshold
+        const now = new Date()
+        const onlineThreshold = new Date(now.getTime() - ONLINE_THRESHOLD_MS)
+
         // Platform-wide analytics
         const [
           totalUsers,
           newUsersThisPeriod,
           activeUsersThisPeriod,
+          onlineUsersNow,
           totalSessions,
           totalPageViews,
           totalMessages,
@@ -73,11 +81,19 @@ export async function GET(request: NextRequest) {
             where: { createdAt: { gte: startDate } }
           }),
 
-          // Active users (had a session)
+          // Active users (had a session during period)
           prisma.userSessionAnalytics.groupBy({
             by: ['userId'],
             where: { startedAt: { gte: startDate } },
           }).then(r => r.length),
+
+          // Real-time online users (seen within 2 minutes)
+          prisma.userPresence.count({
+            where: {
+              status: 'online', // lowercase as per schema
+              lastSeenAt: { gte: onlineThreshold },
+            }
+          }),
 
           // Total sessions
           prisma.userSessionAnalytics.count({
@@ -163,6 +179,7 @@ export async function GET(request: NextRequest) {
             totalUsers,
             newUsersThisPeriod,
             activeUsersThisPeriod,
+            onlineUsersNow, // Real-time online users count
             totalSessions,
             totalPageViews,
             totalMessages,
@@ -308,6 +325,217 @@ export async function GET(request: NextRequest) {
             posts: d.postsCreated,
           })),
         }
+      })
+    }
+
+    if (view === 'charts') {
+      // Enhanced chart data with proper time-series for Recharts
+      const cacheKey = `admin:analytics:charts:${period}`
+
+      const chartData = await getOrSetCached(cacheKey, ANALYTICS_CACHE_TTL, async () => {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const thisWeekStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+
+        // User growth time series
+        const userGrowthRaw = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+          SELECT DATE("createdAt") as date, COUNT(*) as count
+          FROM "User"
+          WHERE "createdAt" >= ${startDate}
+          GROUP BY DATE("createdAt")
+          ORDER BY date ASC
+        `
+
+        // Messages time series
+        const messagesRaw = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+          SELECT DATE("createdAt") as date, COUNT(*) as count
+          FROM "Message"
+          WHERE "createdAt" >= ${startDate}
+          GROUP BY DATE("createdAt")
+          ORDER BY date ASC
+        `
+
+        // Study sessions time series
+        const sessionsRaw = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+          SELECT DATE("createdAt") as date, COUNT(*) as count
+          FROM "StudySession"
+          WHERE "createdAt" >= ${startDate}
+          GROUP BY DATE("createdAt")
+          ORDER BY date ASC
+        `
+
+        // Active users time series (by login)
+        const activeUsersRaw = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+          SELECT DATE("lastLoginAt") as date, COUNT(DISTINCT id) as count
+          FROM "User"
+          WHERE "lastLoginAt" >= ${startDate} AND "lastLoginAt" IS NOT NULL
+          GROUP BY DATE("lastLoginAt")
+          ORDER BY date ASC
+        `
+
+        // Matches time series
+        const matchesRaw = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+          SELECT DATE("createdAt") as date, COUNT(*) as count
+          FROM "Match"
+          WHERE "createdAt" >= ${startDate} AND status = 'ACCEPTED'
+          GROUP BY DATE("createdAt")
+          ORDER BY date ASC
+        `
+
+        // Helper to fill in missing dates
+        const fillDates = (data: Array<{ date: Date; count: bigint }>) => {
+          const map = new Map<string, number>()
+          data.forEach(d => {
+            const dateStr = new Date(d.date).toISOString().split('T')[0]
+            map.set(dateStr, Number(d.count))
+          })
+
+          const result = []
+          for (let i = 0; i < periodDays; i++) {
+            const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
+            const dateStr = date.toISOString().split('T')[0]
+            const shortDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            result.push({
+              date: dateStr,
+              label: shortDate,
+              value: map.get(dateStr) || 0,
+            })
+          }
+          return result
+        }
+
+        // User breakdown by role
+        const usersByRole = await prisma.user.groupBy({
+          by: ['role'],
+          _count: true,
+        })
+
+        // Signup methods
+        const signupMethods = await prisma.$queryRaw<Array<{ method: string; count: bigint }>>`
+          SELECT
+            CASE WHEN "googleId" IS NOT NULL THEN 'Google' ELSE 'Email' END as method,
+            COUNT(*) as count
+          FROM "User"
+          GROUP BY CASE WHEN "googleId" IS NOT NULL THEN 'Google' ELSE 'Email' END
+        `
+
+        // Top groups by members
+        const topGroups = await prisma.group.findMany({
+          where: { isDeleted: false },
+          select: {
+            id: true,
+            name: true,
+            _count: { select: { members: true } },
+          },
+          orderBy: { members: { _count: 'desc' } },
+          take: 5,
+        })
+
+        // Hourly activity (last 24h messages)
+        const hourlyRaw = await prisma.$queryRaw<Array<{ hour: number; count: bigint }>>`
+          SELECT EXTRACT(HOUR FROM "createdAt")::int as hour, COUNT(*) as count
+          FROM "Message"
+          WHERE "createdAt" >= ${new Date(now.getTime() - 24 * 60 * 60 * 1000)}
+          GROUP BY EXTRACT(HOUR FROM "createdAt")
+          ORDER BY hour ASC
+        `
+
+        const hourlyData = Array.from({ length: 24 }, (_, i) => ({
+          hour: i,
+          label: `${i.toString().padStart(2, '0')}:00`,
+          value: 0,
+        }))
+        hourlyRaw.forEach(h => {
+          const idx = Number(h.hour)
+          if (idx >= 0 && idx < 24) {
+            hourlyData[idx].value = Number(h.count)
+          }
+        })
+
+        // Calculate summary stats with accurate comparisons
+        const [
+          totalUsers,
+          newUsersThisMonth,
+          newUsersLastMonth,
+          newUsersThisWeek,
+          activeToday,
+          premiumUsers,
+          deactivatedUsers,
+          totalMessages,
+          totalSessions,
+          totalMatches,
+          totalGroups,
+          pendingReports,
+        ] = await Promise.all([
+          prisma.user.count(),
+          prisma.user.count({ where: { createdAt: { gte: thisMonthStart } } }),
+          prisma.user.count({ where: { createdAt: { gte: lastMonthStart, lt: thisMonthStart } } }),
+          prisma.user.count({ where: { createdAt: { gte: thisWeekStart } } }),
+          prisma.user.count({ where: { lastLoginAt: { gte: today } } }),
+          prisma.user.count({ where: { role: 'PREMIUM' } }),
+          prisma.user.count({ where: { deactivatedAt: { not: null } } }),
+          prisma.message.count(),
+          prisma.studySession.count(),
+          prisma.match.count({ where: { status: 'ACCEPTED' } }),
+          prisma.group.count({ where: { isDeleted: false } }),
+          prisma.report.count({ where: { status: 'PENDING' } }),
+        ])
+
+        // Accurate growth calculation
+        const userGrowthPercent = newUsersLastMonth > 0
+          ? Math.round(((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100)
+          : newUsersThisMonth > 0 ? 100 : 0
+
+        return {
+          overview: {
+            totalUsers,
+            newUsersThisMonth,
+            newUsersThisWeek,
+            activeToday,
+            premiumUsers,
+            deactivatedUsers,
+            totalMessages,
+            totalSessions,
+            totalMatches,
+            totalGroups,
+            pendingReports,
+            userGrowthPercent,
+          },
+          timeSeries: {
+            userGrowth: fillDates(userGrowthRaw),
+            messages: fillDates(messagesRaw),
+            sessions: fillDates(sessionsRaw),
+            activeUsers: fillDates(activeUsersRaw),
+            matches: fillDates(matchesRaw),
+          },
+          breakdowns: {
+            usersByRole: usersByRole.map(r => ({
+              name: r.role === 'PREMIUM' ? 'Premium' : 'Free',
+              value: r._count,
+              fill: r.role === 'PREMIUM' ? '#fbbf24' : '#6b7280',
+            })),
+            signupMethods: signupMethods.map(s => ({
+              name: s.method,
+              value: Number(s.count),
+              fill: s.method === 'Google' ? '#4285f4' : '#10b981',
+            })),
+            topGroups: topGroups.map(g => ({
+              name: g.name.length > 15 ? g.name.slice(0, 15) + '...' : g.name,
+              members: g._count.members,
+            })),
+          },
+          activity: {
+            hourly: hourlyData,
+          },
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: chartData,
       })
     }
 

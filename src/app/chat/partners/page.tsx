@@ -811,6 +811,20 @@ function PartnersChatContent() {
 
                   {/* Message Input */}
                   <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900">
+                    {/* Character count indicator - shows when approaching limit */}
+                    {message.length > 800 && (
+                      <div className="mb-2 flex justify-end">
+                        <span className={`text-xs font-medium ${
+                          message.length > 1000 
+                            ? 'text-red-500' 
+                            : message.length > 900 
+                              ? 'text-orange-500' 
+                              : 'text-gray-500 dark:text-slate-400'
+                        }`}>
+                          {message.length}/1000
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       {/* Hidden file input */}
                       <input
@@ -840,21 +854,31 @@ function PartnersChatContent() {
                       <input
                         type="text"
                         value={message}
-                        onChange={(e) => setMessage(e.target.value)}
+                        onChange={(e) => {
+                          // Enforce max length on input
+                          if (e.target.value.length <= 1000) {
+                            setMessage(e.target.value)
+                          }
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
-                            if (message.trim()) {
+                            if (message.trim() && message.length <= 1000) {
                               handleSendMessage()
                             }
                           }
                         }}
+                        maxLength={1000}
                         placeholder={t('typeMessageHint')}
-                        className="flex-1 px-4 py-2 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`flex-1 px-4 py-2 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                          message.length > 1000 
+                            ? 'border-red-500' 
+                            : 'border-gray-200 dark:border-white/10'
+                        }`}
                       />
                       <button
                         onClick={handleSendMessage}
-                        disabled={!message.trim()}
+                        disabled={!message.trim() || message.length > 1000}
                         className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

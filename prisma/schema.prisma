@@ -403,14 +403,23 @@ model Message {
   content String      @db.Text
   type    MessageType @default(TEXT)
 
-  senderId String
-  sender   User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  // Sender - nullable to preserve messages when user deletes account
+  senderId String?
+  sender   User?   @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
+
+  // Cached sender info - preserved even after account deletion for admin dashboard
+  senderName      String?  // Sender's name at time of sending
+  senderEmail     String?  // Sender's email for admin investigation
+  senderAvatarUrl String?  // Sender's avatar URL
 
   // Either DM or Group message
   groupId String?
   group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   recipientId String? // For DMs
+  // Cached recipient info for DMs - preserved after deletion
+  recipientName   String?
+  recipientEmail  String?
 
   // Attachments
   fileUrl  String?

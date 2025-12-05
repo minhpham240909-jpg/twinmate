@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { PAGINATION, TIME_PERIODS, ENGAGEMENT_WEIGHTS } from '@/lib/constants'
 import { validatePaginationLimit, validatePositiveInt } from '@/lib/validation'
+import { HTTP_CACHE } from '@/lib/cache'
 
 export async function GET(req: NextRequest) {
   try {
@@ -156,6 +157,7 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.engagementScore - a.engagementScore)
       .slice(0, limit)
 
+    // Return with private cache (user-specific data, cache for 2 minutes)
     return NextResponse.json({
       posts: popularPosts,
       metadata: {
@@ -163,6 +165,8 @@ export async function GET(req: NextRequest) {
         total: popularPosts.length,
         minScore: popularPosts[popularPosts.length - 1]?.engagementScore || 0,
       },
+    }, {
+      headers: HTTP_CACHE.PRIVATE_SHORT,
     })
   } catch (error) {
     console.error('Error fetching popular posts:', error)

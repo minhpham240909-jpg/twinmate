@@ -284,6 +284,11 @@ export async function GET(req: NextRequest) {
       posts: postsWithUserData,
       nextCursor: finalPosts.length === limit ? finalPosts[finalPosts.length - 1].id : null,
       feedAlgorithm, // Include in response so frontend knows which algorithm was used
+    }, {
+      headers: {
+        // Cache feed for short time - posts change frequently
+        'Cache-Control': 'private, max-age=15, stale-while-revalidate=30',
+      }
     })
   } catch (error) {
     console.error('Error fetching posts:', error)

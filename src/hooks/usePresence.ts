@@ -4,7 +4,11 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuth } from '@/lib/auth/context'
 import { useNetwork } from '@/contexts/NetworkContext'
 
-const HEARTBEAT_INTERVAL = 15000 // 15 seconds - faster offline detection
+// OPTIMIZATION: Adaptive heartbeat intervals
+// Active users get faster updates, idle users reduce database writes
+const HEARTBEAT_INTERVAL_ACTIVE = 30000 // 30 seconds when active
+const HEARTBEAT_INTERVAL_IDLE = 60000 // 60 seconds when idle
+const IDLE_THRESHOLD = 60000 // Consider idle after 1 minute of no activity
 const DEVICE_ID_KEY = 'clerva_device_id'
 const MAX_RETRY_ATTEMPTS = 3
 const INITIAL_RETRY_DELAY = 2000 // 2 seconds
@@ -22,6 +26,10 @@ export function usePresence() {
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const retryCountRef = useRef(0)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Track user activity for adaptive heartbeat
+  const lastActivityRef = useRef<number>(Date.now())
+  const isIdleRef = useRef<boolean>(false)
 
   // Initialize device ID (persists across page refreshes)
   useEffect(() => {
@@ -132,7 +140,43 @@ export function usePresence() {
     }
   }, [user])
 
+  // Get current heartbeat interval based on activity state
+  const getHeartbeatInterval = useCallback(() => {
+    const now = Date.now()
+    const timeSinceActivity = now - lastActivityRef.current
+    const isIdle = timeSinceActivity > IDLE_THRESHOLD
+    
+    if (isIdle !== isIdleRef.current) {
+      isIdleRef.current = isIdle
+      console.log(`[HEARTBEAT] User is now ${isIdle ? 'idle' : 'active'}, adjusting interval`)
+    }
+    
+    return isIdle ? HEARTBEAT_INTERVAL_IDLE : HEARTBEAT_INTERVAL_ACTIVE
+  }, [])
+
+  // Track user activity for adaptive heartbeat
+  useEffect(() => {
+    if (!isInitialized || !user) return
+
+    const updateActivity = () => {
+      lastActivityRef.current = Date.now()
+    }
+
+    // Track various user interactions
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll']
+    events.forEach(event => {
+      window.addEventListener(event, updateActivity, { passive: true })
+    })
+
+    return () => {
+      events.forEach(event => {
+        window.removeEventListener(event, updateActivity)
+      })
+    }
+  }, [isInitialized, user])
+
   // Start heartbeat interval (only when user is authenticated and online)
+  // Uses adaptive interval based on user activity
   useEffect(() => {
     if (!isInitialized || loading) return
     if (!user) {
@@ -157,13 +201,21 @@ export function usePresence() {
     // Send initial heartbeat immediately
     sendHeartbeat()
 
-    // Set up interval for subsequent heartbeats
-    heartbeatIntervalRef.current = setInterval(() => sendHeartbeat(), HEARTBEAT_INTERVAL)
+    // Set up adaptive interval - re-evaluate interval on each tick
+    const scheduleNextHeartbeat = () => {
+      const interval = getHeartbeatInterval()
+      heartbeatIntervalRef.current = setTimeout(() => {
+        sendHeartbeat()
+        scheduleNextHeartbeat() // Schedule next with potentially different interval
+      }, interval)
+    }
+    
+    scheduleNextHeartbeat()
 
     // Cleanup on unmount or when user logs out
     return () => {
       if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
+        clearTimeout(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
       }
       if (retryTimeoutRef.current) {
@@ -175,7 +227,7 @@ export function usePresence() {
         disconnect()
       }
     }
-  }, [isInitialized, user, loading, isOnline, sendHeartbeat, disconnect])
+  }, [isInitialized, user, loading, isOnline, sendHeartbeat, disconnect, getHeartbeatInterval])
 
   // Handle network recovery - send immediate heartbeat when coming back online
   useEffect(() => {

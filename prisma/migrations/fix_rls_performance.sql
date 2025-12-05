@@ -236,6 +236,8 @@ WITH CHECK (
 
 DROP POLICY IF EXISTS "Users can upsert own presence" ON "presence";
 DROP POLICY IF EXISTS "Users can view and manage presence" ON "presence";
+-- Also drop the new policy name (for re-running this migration)
+DROP POLICY IF EXISTS "Users can manage presence" ON "presence";
 
 -- Create single optimized policy for presence
 CREATE POLICY "Users can manage presence"
@@ -255,6 +257,10 @@ DROP POLICY IF EXISTS "Users can insert own page visits" ON "user_page_visits";
 DROP POLICY IF EXISTS "Users can view own page visits" ON "user_page_visits";
 DROP POLICY IF EXISTS "Users can update own page visits" ON "user_page_visits";
 DROP POLICY IF EXISTS "Admins can view all page visits" ON "user_page_visits";
+-- Also drop the new policy names (for re-running this migration)
+DROP POLICY IF EXISTS "page_visits_insert_own" ON "user_page_visits";
+DROP POLICY IF EXISTS "page_visits_select" ON "user_page_visits";
+DROP POLICY IF EXISTS "page_visits_update_own" ON "user_page_visits";
 
 -- INSERT: Users can insert their own records (optimized with select wrapper)
 CREATE POLICY "page_visits_insert_own"
@@ -286,6 +292,9 @@ CREATE POLICY "page_visits_update_own"
 DROP POLICY IF EXISTS "Users can insert own feature usage" ON "user_feature_usage";
 DROP POLICY IF EXISTS "Users can view own feature usage" ON "user_feature_usage";
 DROP POLICY IF EXISTS "Admins can view all feature usage" ON "user_feature_usage";
+-- Also drop the new policy names (for re-running this migration)
+DROP POLICY IF EXISTS "feature_usage_insert_own" ON "user_feature_usage";
+DROP POLICY IF EXISTS "feature_usage_select" ON "user_feature_usage";
 
 -- INSERT: Users can insert their own records
 CREATE POLICY "feature_usage_insert_own"
@@ -313,6 +322,10 @@ DROP POLICY IF EXISTS "Users can insert own search queries" ON "user_search_quer
 DROP POLICY IF EXISTS "Users can view own search queries" ON "user_search_queries";
 DROP POLICY IF EXISTS "Users can update own search queries" ON "user_search_queries";
 DROP POLICY IF EXISTS "Admins can view all search queries" ON "user_search_queries";
+-- Also drop the new policy names (for re-running this migration)
+DROP POLICY IF EXISTS "search_queries_insert_own" ON "user_search_queries";
+DROP POLICY IF EXISTS "search_queries_select" ON "user_search_queries";
+DROP POLICY IF EXISTS "search_queries_update_own" ON "user_search_queries";
 
 -- INSERT: Users can insert their own records
 CREATE POLICY "search_queries_insert_own"
@@ -345,6 +358,10 @@ DROP POLICY IF EXISTS "Users can insert own session analytics" ON "user_session_
 DROP POLICY IF EXISTS "Users can view own session analytics" ON "user_session_analytics";
 DROP POLICY IF EXISTS "Users can update own session analytics" ON "user_session_analytics";
 DROP POLICY IF EXISTS "Admins can view all session analytics" ON "user_session_analytics";
+-- Also drop the new policy names (for re-running this migration)
+DROP POLICY IF EXISTS "session_analytics_insert_own" ON "user_session_analytics";
+DROP POLICY IF EXISTS "session_analytics_select" ON "user_session_analytics";
+DROP POLICY IF EXISTS "session_analytics_update_own" ON "user_session_analytics";
 
 -- INSERT: Users can insert their own records
 CREATE POLICY "session_analytics_insert_own"
@@ -376,6 +393,10 @@ CREATE POLICY "session_analytics_update_own"
 DROP POLICY IF EXISTS "Admins can view suspicious activity logs" ON "suspicious_activity_logs";
 DROP POLICY IF EXISTS "Admins can update suspicious activity logs" ON "suspicious_activity_logs";
 DROP POLICY IF EXISTS "Service role can insert suspicious activity" ON "suspicious_activity_logs";
+-- Also drop the new policy names (for re-running this migration)
+DROP POLICY IF EXISTS "suspicious_logs_select_admin" ON "suspicious_activity_logs";
+DROP POLICY IF EXISTS "suspicious_logs_update_admin" ON "suspicious_activity_logs";
+DROP POLICY IF EXISTS "suspicious_logs_insert_service" ON "suspicious_activity_logs";
 
 -- SELECT: Only admins can view (optimized)
 CREATE POLICY "suspicious_logs_select_admin"
@@ -411,6 +432,9 @@ CREATE POLICY "suspicious_logs_insert_service"
 DROP POLICY IF EXISTS "Users can view own activity summaries" ON "user_activity_summaries";
 DROP POLICY IF EXISTS "Service role can manage activity summaries" ON "user_activity_summaries";
 DROP POLICY IF EXISTS "Admins can view all activity summaries" ON "user_activity_summaries";
+-- Also drop the new policy names (for re-running this migration)
+DROP POLICY IF EXISTS "activity_summaries_select" ON "user_activity_summaries";
+DROP POLICY IF EXISTS "activity_summaries_all_service" ON "user_activity_summaries";
 
 -- SELECT: Combined - users see own OR admins see all (single policy)
 CREATE POLICY "activity_summaries_select"
@@ -432,6 +456,121 @@ CREATE POLICY "activity_summaries_all_service"
   WITH CHECK (true);
 
 -- ==========================================
+-- PART 10: FIX PushSubscription POLICIES
+-- ==========================================
+
+DROP POLICY IF EXISTS "Users can view their own push subscriptions" ON "PushSubscription";
+DROP POLICY IF EXISTS "Users can insert their own push subscriptions" ON "PushSubscription";
+DROP POLICY IF EXISTS "Users can update their own push subscriptions" ON "PushSubscription";
+DROP POLICY IF EXISTS "Users can delete their own push subscriptions" ON "PushSubscription";
+DROP POLICY IF EXISTS "PushSubscription_select_own" ON "PushSubscription";
+DROP POLICY IF EXISTS "PushSubscription_insert_own" ON "PushSubscription";
+DROP POLICY IF EXISTS "PushSubscription_update_own" ON "PushSubscription";
+DROP POLICY IF EXISTS "PushSubscription_delete_own" ON "PushSubscription";
+
+-- Recreate with optimized (SELECT auth.uid()) pattern
+CREATE POLICY "PushSubscription_select_own" ON "PushSubscription"
+  FOR SELECT TO authenticated
+  USING ("userId" = (SELECT auth.uid())::text);
+
+CREATE POLICY "PushSubscription_insert_own" ON "PushSubscription"
+  FOR INSERT TO authenticated
+  WITH CHECK ("userId" = (SELECT auth.uid())::text);
+
+CREATE POLICY "PushSubscription_update_own" ON "PushSubscription"
+  FOR UPDATE TO authenticated
+  USING ("userId" = (SELECT auth.uid())::text)
+  WITH CHECK ("userId" = (SELECT auth.uid())::text);
+
+CREATE POLICY "PushSubscription_delete_own" ON "PushSubscription"
+  FOR DELETE TO authenticated
+  USING ("userId" = (SELECT auth.uid())::text);
+
+-- ==========================================
+-- PART 11: FIX Post POLICIES - REMOVE DUPLICATES
+-- ==========================================
+
+-- Drop ALL existing Post policies to clean up duplicates
+DROP POLICY IF EXISTS "Users can view posts" ON "Post";
+DROP POLICY IF EXISTS "Users can create posts" ON "Post";
+DROP POLICY IF EXISTS "Users can update own posts" ON "Post";
+DROP POLICY IF EXISTS "Users can delete own posts" ON "Post";
+DROP POLICY IF EXISTS "Post_select_public" ON "Post";
+DROP POLICY IF EXISTS "Post_select_own" ON "Post";
+DROP POLICY IF EXISTS "Post_insert_own" ON "Post";
+DROP POLICY IF EXISTS "Post_update_own" ON "Post";
+DROP POLICY IF EXISTS "Post_delete_own" ON "Post";
+DROP POLICY IF EXISTS "Post_admin_select_all" ON "Post";
+DROP POLICY IF EXISTS "Post_admin_update_all" ON "Post";
+DROP POLICY IF EXISTS "Post_admin_delete_all" ON "Post";
+DROP POLICY IF EXISTS "Post_select" ON "Post";
+DROP POLICY IF EXISTS "Post_select_anon" ON "Post";
+DROP POLICY IF EXISTS "Post_insert" ON "Post";
+DROP POLICY IF EXISTS "Post_update" ON "Post";
+DROP POLICY IF EXISTS "Post_delete" ON "Post";
+DROP POLICY IF EXISTS "Post_admin_select" ON "Post";
+DROP POLICY IF EXISTS "Post_admin_update" ON "Post";
+DROP POLICY IF EXISTS "Post_admin_delete" ON "Post";
+
+-- Create single unified policies per action
+
+-- SELECT: Authenticated users can view non-deleted posts OR their own (including deleted)
+-- Also includes admin access in the same policy to avoid multiple permissive policies
+CREATE POLICY "Post_select" ON "Post"
+  FOR SELECT TO authenticated
+  USING (
+    "isDeleted" = false
+    OR "userId" = (SELECT auth.uid())::text
+    OR EXISTS (
+      SELECT 1 FROM "User"
+      WHERE "User"."id" = (SELECT auth.uid())::text
+      AND "User"."isAdmin" = true
+    )
+  );
+
+-- SELECT: Anonymous users can only view non-deleted public posts
+CREATE POLICY "Post_select_anon" ON "Post"
+  FOR SELECT TO anon
+  USING ("isDeleted" = false);
+
+-- INSERT: Only authenticated users can create posts for themselves
+CREATE POLICY "Post_insert" ON "Post"
+  FOR INSERT TO authenticated
+  WITH CHECK ("userId" = (SELECT auth.uid())::text);
+
+-- UPDATE: Users can update their own posts OR admins can update any
+CREATE POLICY "Post_update" ON "Post"
+  FOR UPDATE TO authenticated
+  USING (
+    "userId" = (SELECT auth.uid())::text
+    OR EXISTS (
+      SELECT 1 FROM "User"
+      WHERE "User"."id" = (SELECT auth.uid())::text
+      AND "User"."isAdmin" = true
+    )
+  )
+  WITH CHECK (
+    "userId" = (SELECT auth.uid())::text
+    OR EXISTS (
+      SELECT 1 FROM "User"
+      WHERE "User"."id" = (SELECT auth.uid())::text
+      AND "User"."isAdmin" = true
+    )
+  );
+
+-- DELETE: Users can delete their own posts OR admins can delete any
+CREATE POLICY "Post_delete" ON "Post"
+  FOR DELETE TO authenticated
+  USING (
+    "userId" = (SELECT auth.uid())::text
+    OR EXISTS (
+      SELECT 1 FROM "User"
+      WHERE "User"."id" = (SELECT auth.uid())::text
+      AND "User"."isAdmin" = true
+    )
+  );
+
+-- ==========================================
 -- VALIDATION
 -- ==========================================
 
@@ -440,4 +579,5 @@ BEGIN
   RAISE NOTICE 'RLS performance optimization completed successfully!';
   RAISE NOTICE 'All auth.uid() calls now use (select auth.uid()) for better performance';
   RAISE NOTICE 'Duplicate policies have been merged into single policies with OR conditions';
+  RAISE NOTICE 'PushSubscription and Post tables have been optimized';
 END $$;

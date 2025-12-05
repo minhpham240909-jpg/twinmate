@@ -18,9 +18,11 @@ import {
   Clock,
   RefreshCw,
   ExternalLink,
+  BarChart3,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { AreaChartCard } from '@/components/admin/charts'
 
 interface DashboardStats {
   users: {
@@ -280,8 +282,16 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* User Growth Chart */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-white">User Growth (30 Days)</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <BarChart3 className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">User Growth</h2>
+                <p className="text-xs text-gray-400">Last 30 days</p>
+              </div>
+            </div>
             <Link
               href="/admin/analytics"
               className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
@@ -291,39 +301,30 @@ export default function AdminDashboard() {
             </Link>
           </div>
 
-          {/* Simple Bar Chart */}
-          <div className="h-48 flex items-end gap-1">
+          {/* Recharts Area Chart - Same quality as Analytics page */}
+          <div className="mb-4">
             {growthData.length > 0 ? (
-              growthData.slice(-14).map((point, index) => {
-                const maxValue = Math.max(...growthData.map((p) => p.users))
-                const height = maxValue > 0 ? (point.users / maxValue) * 100 : 0
-                return (
-                  <div
-                    key={point.date}
-                    className="flex-1 flex flex-col items-center gap-1"
-                    title={`${point.date}: ${point.users} new users`}
-                  >
-                    <div
-                      className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-400"
-                      style={{ height: `${Math.max(height, 4)}%` }}
-                    />
-                    {index % 2 === 0 && (
-                      <span className="text-[10px] text-gray-500 transform -rotate-45 origin-top-left">
-                        {new Date(point.date).getDate()}
-                      </span>
-                    )}
-                  </div>
-                )
-              })
+              <AreaChartCard
+                title=""
+                data={growthData.map(p => ({
+                  date: p.date,
+                  label: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                  value: p.users
+                }))}
+                color="#3b82f6"
+                height={180}
+                showHeader={false}
+                gradientId="overviewGrowth"
+              />
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
+              <div className="h-[180px] flex items-center justify-center text-gray-500">
                 No data available
               </div>
             )}
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-700">
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-700">
             <div className="text-center">
               <p className="text-2xl font-bold text-white">
                 {stats?.users.newThisWeek || 0}

@@ -32,7 +32,7 @@ export async function PATCH(
     // Check if post exists and user owns it
     const existingPost = await prisma.post.findUnique({
       where: { id: postId },
-      select: { userId: true },
+      select: { userId: true, content: true, createdAt: true, updatedAt: true },
     })
 
     if (!existingPost) {
@@ -46,11 +46,17 @@ export async function PATCH(
       )
     }
 
+    // Note: Edit history tracking requires schema migration to add:
+    // - editHistory Json[] @default([]) - Array of {content, editedAt} objects
+    // - isEdited Boolean @default(false)
+    // For now, we track edits via updatedAt timestamp difference from createdAt
+
     // Update the post
     const updatedPost = await prisma.post.update({
       where: { id: postId },
       data: {
         content: content.trim(),
+        // updatedAt is automatically set by Prisma
       },
       include: {
         user: {

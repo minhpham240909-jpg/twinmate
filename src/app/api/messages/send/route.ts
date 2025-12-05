@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       id: string
       content: string
       type: MessageType
-      senderId: string
+      senderId: string | null // Nullable in schema but always set for new messages
       createdAt: Date
       updatedAt?: Date
       fileUrl?: string | null
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
         name: string
         email: string
         avatarUrl: string | null
-      }
+      } | null // Nullable in schema but always set for new messages
     }
 
     if (conversationType === 'group') {
@@ -127,12 +127,22 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // Get sender info for caching
+      const senderInfo = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true, avatarUrl: true }
+      })
+
       // Create group message with delivery timestamp
+      // Include sender info for admin dashboard persistence even after account deletion
       message = await prisma.message.create({
         data: {
           content,
           type: type || 'TEXT',
           senderId: userId,
+          senderName: senderInfo?.name || null,
+          senderEmail: senderInfo?.email || null,
+          senderAvatarUrl: senderInfo?.avatarUrl || null,
           groupId: conversationId,
           fileUrl,
           fileName,
@@ -152,13 +162,14 @@ export async function POST(req: NextRequest) {
       })
 
       // Scan message content for moderation (non-blocking)
+      // Use cached sender info for reliability
       scanMessageContent(
         message.id,
         content,
         'GROUP_MESSAGE',
         userId,
-        message.sender.email,
-        message.sender.name || undefined,
+        senderInfo?.email,
+        senderInfo?.name || undefined,
         conversationId,
         'group'
       )
@@ -178,7 +189,7 @@ export async function POST(req: NextRequest) {
         })
       ])
 
-      // Use sender name from already-fetched message.sender (no additional query needed)
+      // Use cached sender name for notifications
       if (groupMembers.length > 0) {
         const contentPreview = content.length > 50
           ? content.substring(0, 50) + '...'
@@ -189,7 +200,7 @@ export async function POST(req: NextRequest) {
             userId: member.userId,
             type: 'NEW_MESSAGE',
             title: `New message in ${group?.name || 'group'}`,
-            message: `${message.sender.name || 'Someone'}: ${contentPreview}`,
+            message: `${senderInfo?.name || 'Someone'}: ${contentPreview}`,
             actionUrl: `/chat?conversation=${conversationId}&type=group`,
             relatedUserId: userId
           }))
@@ -228,13 +239,31 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // Get sender and recipient info for caching
+      const [dmSenderInfo, recipientInfo] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true, email: true, avatarUrl: true }
+        }),
+        prisma.user.findUnique({
+          where: { id: conversationId },
+          select: { name: true, email: true }
+        })
+      ])
+
       // Create DM message with delivery timestamp
+      // Include sender/recipient info for admin dashboard persistence even after account deletion
       message = await prisma.message.create({
         data: {
           content,
           type: type || 'TEXT',
           senderId: userId,
+          senderName: dmSenderInfo?.name || null,
+          senderEmail: dmSenderInfo?.email || null,
+          senderAvatarUrl: dmSenderInfo?.avatarUrl || null,
           recipientId: conversationId,
+          recipientName: recipientInfo?.name || null,
+          recipientEmail: recipientInfo?.email || null,
           fileUrl,
           fileName,
           fileSize,
@@ -253,24 +282,25 @@ export async function POST(req: NextRequest) {
       })
 
       // Scan message content for moderation (non-blocking)
+      // Use cached sender info for reliability
       scanMessageContent(
         message.id,
         content,
         'DIRECT_MESSAGE',
         userId,
-        message.sender.email,
-        message.sender.name || undefined,
+        dmSenderInfo?.email,
+        dmSenderInfo?.name || undefined,
         conversationId,
         'partner'
       )
 
-      // PERFORMANCE: Use sender name from already-fetched message.sender (no additional query needed)
+      // Use cached sender name for notifications
       await prisma.notification.create({
         data: {
           userId: conversationId,
           type: 'NEW_MESSAGE',
           title: 'New message',
-          message: `${message.sender.name || 'Someone'} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+          message: `${dmSenderInfo?.name || 'Someone'} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
           actionUrl: `/chat?conversation=${userId}&type=partner`
         }
       }).catch(err => {

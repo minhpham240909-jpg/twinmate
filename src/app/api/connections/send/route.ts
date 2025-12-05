@@ -51,6 +51,14 @@ export async function POST(request: NextRequest) {
 
     const { receiverId, message } = validation.data
 
+    // SECURITY: Prevent self-matching
+    if (receiverId === user.id) {
+      return NextResponse.json(
+        { error: 'Cannot send connection request to yourself' },
+        { status: 400 }
+      )
+    }
+
     // SECURITY: Check if either user has blocked the other
     const blocked = await isBlocked(user.id, receiverId)
     if (blocked) {

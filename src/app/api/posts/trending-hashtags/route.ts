@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { PAGINATION, TIME_PERIODS } from '@/lib/constants'
+import { TIME_PERIODS } from '@/lib/constants'
 import { validatePaginationLimit, validatePositiveInt } from '@/lib/validation'
+import { HTTP_CACHE } from '@/lib/cache'
 
 export async function GET(req: NextRequest) {
   try {
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, limit)
 
+    // Return with private cache (user-specific due to privacy filtering, cache for 5 minutes)
     return NextResponse.json({
       trending,
       metadata: {
@@ -105,6 +107,8 @@ export async function GET(req: NextRequest) {
         total: trending.length,
         totalPosts: posts.length,
       },
+    }, {
+      headers: HTTP_CACHE.PRIVATE_MEDIUM,
     })
   } catch (error) {
     console.error('Error fetching trending hashtags:', error)

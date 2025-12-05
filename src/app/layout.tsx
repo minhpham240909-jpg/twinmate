@@ -44,6 +44,11 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Clerva',
   },
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/icon-192.png',
+  },
 };
 
 // Force dynamic rendering for all pages (prevents database queries during build)

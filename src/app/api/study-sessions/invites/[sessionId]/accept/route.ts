@@ -42,6 +42,23 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid invitation status' }, { status: 400 })
     }
 
+    // Check if invitation has expired (7 days from creation)
+    const INVITE_EXPIRATION_DAYS = 7
+    const expirationDate = new Date(participant.createdAt)
+    expirationDate.setDate(expirationDate.getDate() + INVITE_EXPIRATION_DAYS)
+    
+    if (new Date() > expirationDate) {
+      // Mark as expired and return error
+      await prisma.sessionParticipant.update({
+        where: { id: participant.id },
+        data: { status: 'LEFT' }, // Use LEFT to indicate expired/invalid
+      })
+      return NextResponse.json({ 
+        error: 'This invitation has expired. Please ask the host to send a new invitation.',
+        code: 'INVITATION_EXPIRED'
+      }, { status: 410 }) // 410 Gone
+    }
+
     // Update status to JOINED
     await prisma.sessionParticipant.update({
       where: { id: participant.id },

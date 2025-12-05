@@ -12,6 +12,14 @@ import {
   sortByMatchScore,
   type ProfileData
 } from '@/lib/matching'
+import {
+  sanitizeSearchQuery,
+  sanitizeArrayInput,
+  validateSkillLevel,
+  validateStudyStyle,
+  validateAgeRange,
+  escapeLikePattern,
+} from '@/lib/security/search-sanitization'
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
@@ -86,31 +94,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const {
-      searchQuery,
-      searchType,
-      subjects,
-      skillLevel,
-      studyStyle,
-      interests,
-      availability,
-      availableHours,
-      subjectCustomDescription,
-      skillLevelCustomDescription,
-      studyStyleCustomDescription,
-      interestsCustomDescription,
-      aboutYourselfSearch,
-      school,
-      languages,
-      ageRange,
-      role,
-      goals,
-      locationCity,
-      locationState,
-      locationCountry,
-      page,
-      limit,
-    } = validation.data
+    const rawData = validation.data
+
+    // SECURITY: Sanitize all search inputs to prevent injection and abuse
+    const sanitizedSearch = sanitizeSearchQuery(rawData.searchQuery)
+    const searchQuery = sanitizedSearch.sanitized || undefined
+    const searchType = rawData.searchType
+    
+    // Sanitize array inputs
+    const subjects = sanitizeArrayInput(rawData.subjects, { maxItems: 10 })
+    const interests = sanitizeArrayInput(rawData.interests, { maxItems: 10 })
+    const availability = sanitizeArrayInput(rawData.availability, { maxItems: 7 })
+    const goals = sanitizeArrayInput(rawData.goals, { maxItems: 10 })
+    const role = sanitizeArrayInput(rawData.role, { maxItems: 5 })
+    
+    // Validate enum values
+    const skillLevel = validateSkillLevel(rawData.skillLevel)
+    const studyStyle = validateStudyStyle(rawData.studyStyle)
+    const ageRangeValues = validateAgeRange(rawData.ageRange)
+    const ageRange = rawData.ageRange // Keep original for hasSearchCriteria check
+    
+    // Sanitize text search fields
+    const availableHours = sanitizeSearchQuery(rawData.availableHours).sanitized || undefined
+    const subjectCustomDescription = sanitizeSearchQuery(rawData.subjectCustomDescription).sanitized || undefined
+    const skillLevelCustomDescription = sanitizeSearchQuery(rawData.skillLevelCustomDescription).sanitized || undefined
+    const studyStyleCustomDescription = sanitizeSearchQuery(rawData.studyStyleCustomDescription).sanitized || undefined
+    const interestsCustomDescription = sanitizeSearchQuery(rawData.interestsCustomDescription).sanitized || undefined
+    const aboutYourselfSearch = sanitizeSearchQuery(rawData.aboutYourselfSearch).sanitized || undefined
+    const school = sanitizeSearchQuery(rawData.school).sanitized || undefined
+    const languages = sanitizeSearchQuery(rawData.languages).sanitized || undefined
+    const locationCity = sanitizeSearchQuery(rawData.locationCity).sanitized || undefined
+    const locationState = sanitizeSearchQuery(rawData.locationState).sanitized || undefined
+    const locationCountry = sanitizeSearchQuery(rawData.locationCountry).sanitized || undefined
+    
+    const page = rawData.page
+    const limit = rawData.limit
 
     // Validate that at least one search criteria is provided
     const hasSearchCriteria =
@@ -249,38 +267,30 @@ export async function POST(request: NextRequest) {
       query = query.in('role', role)
     }
 
-    // Filter by age range
-    if (ageRange && ageRange !== '') {
-      // Parse age range and filter accordingly
-      const ageRanges: Record<string, { min: number; max: number }> = {
-        'under-18': { min: 0, max: 17 },
-        '18-24': { min: 18, max: 24 },
-        '25-34': { min: 25, max: 34 },
-        '35-44': { min: 35, max: 44 },
-        '45+': { min: 45, max: 999 }
-      }
-
-      const range = ageRanges[ageRange]
-      if (range) {
-        query = query.gte('age', range.min).lte('age', range.max)
-      }
+    // Filter by age range (using pre-validated values)
+    if (ageRangeValues) {
+      query = query.gte('age', ageRangeValues.min).lte('age', ageRangeValues.max)
     }
 
     // Filter by location - case-insensitive partial match with OR logic
     // SECURITY: Only filter users whose location visibility is PUBLIC
     // Users with 'private' or 'match-only' location settings should not be searchable by location
+    // SECURITY: Escape LIKE pattern special characters to prevent pattern injection
     const locationFilters: string[] = []
 
-    if (locationCity && locationCity.trim() !== '') {
-      locationFilters.push(`location_city.ilike.%${locationCity.trim()}%`)
+    if (locationCity) {
+      const escapedCity = escapeLikePattern(locationCity)
+      locationFilters.push(`location_city.ilike.%${escapedCity}%`)
     }
 
-    if (locationState && locationState.trim() !== '') {
-      locationFilters.push(`location_state.ilike.%${locationState.trim()}%`)
+    if (locationState) {
+      const escapedState = escapeLikePattern(locationState)
+      locationFilters.push(`location_state.ilike.%${escapedState}%`)
     }
 
-    if (locationCountry && locationCountry.trim() !== '') {
-      locationFilters.push(`location_country.ilike.%${locationCountry.trim()}%`)
+    if (locationCountry) {
+      const escapedCountry = escapeLikePattern(locationCountry)
+      locationFilters.push(`location_country.ilike.%${escapedCountry}%`)
     }
 
     // Apply location filters with OR logic (match any location field)
@@ -291,6 +301,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Text search across multiple fields using ilike for case-insensitive substring matching
+    // SECURITY: All text inputs are already sanitized and escaped
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
         studyStyleCustomDescription || interestsCustomDescription ||
         aboutYourselfSearch || school || languages || availableHours) {
@@ -298,35 +309,35 @@ export async function POST(request: NextRequest) {
       const searchFilters: string[] = []
       
       if (searchQuery) {
-        const term = searchQuery.trim()
-        searchFilters.push(`bio.ilike.%${term}%`)
-        searchFilters.push(`school.ilike.%${term}%`)
-        searchFilters.push(`languages.ilike.%${term}%`)
-        searchFilters.push(`aboutYourself.ilike.%${term}%`)
+        const escaped = escapeLikePattern(searchQuery)
+        searchFilters.push(`bio.ilike.%${escaped}%`)
+        searchFilters.push(`school.ilike.%${escaped}%`)
+        searchFilters.push(`languages.ilike.%${escaped}%`)
+        searchFilters.push(`aboutYourself.ilike.%${escaped}%`)
       }
       if (subjectCustomDescription) {
-        searchFilters.push(`subjectCustomDescription.ilike.%${subjectCustomDescription.trim()}%`)
+        searchFilters.push(`subjectCustomDescription.ilike.%${escapeLikePattern(subjectCustomDescription)}%`)
       }
       if (skillLevelCustomDescription) {
-        searchFilters.push(`skillLevelCustomDescription.ilike.%${skillLevelCustomDescription.trim()}%`)
+        searchFilters.push(`skillLevelCustomDescription.ilike.%${escapeLikePattern(skillLevelCustomDescription)}%`)
       }
       if (studyStyleCustomDescription) {
-        searchFilters.push(`studyStyleCustomDescription.ilike.%${studyStyleCustomDescription.trim()}%`)
+        searchFilters.push(`studyStyleCustomDescription.ilike.%${escapeLikePattern(studyStyleCustomDescription)}%`)
       }
       if (interestsCustomDescription) {
-        searchFilters.push(`interestsCustomDescription.ilike.%${interestsCustomDescription.trim()}%`)
+        searchFilters.push(`interestsCustomDescription.ilike.%${escapeLikePattern(interestsCustomDescription)}%`)
       }
       if (aboutYourselfSearch) {
-        searchFilters.push(`aboutYourself.ilike.%${aboutYourselfSearch.trim()}%`)
+        searchFilters.push(`aboutYourself.ilike.%${escapeLikePattern(aboutYourselfSearch)}%`)
       }
       if (school) {
-        searchFilters.push(`school.ilike.%${school.trim()}%`)
+        searchFilters.push(`school.ilike.%${escapeLikePattern(school)}%`)
       }
       if (languages) {
-        searchFilters.push(`languages.ilike.%${languages.trim()}%`)
+        searchFilters.push(`languages.ilike.%${escapeLikePattern(languages)}%`)
       }
       if (availableHours) {
-        searchFilters.push(`availabilityCustomDescription.ilike.%${availableHours.trim()}%`)
+        searchFilters.push(`availabilityCustomDescription.ilike.%${escapeLikePattern(availableHours)}%`)
       }
 
       // Apply OR logic for text search (match any field)
@@ -372,18 +383,8 @@ export async function POST(request: NextRequest) {
     if (role && role.length > 0) {
       countQuery = countQuery.in('role', role)
     }
-    if (ageRange && ageRange !== '') {
-      const ageRanges: Record<string, { min: number; max: number }> = {
-        'under-18': { min: 0, max: 17 },
-        '18-24': { min: 18, max: 24 },
-        '25-34': { min: 25, max: 34 },
-        '35-44': { min: 35, max: 44 },
-        '45+': { min: 45, max: 999 }
-      }
-      const range = ageRanges[ageRange]
-      if (range) {
-        countQuery = countQuery.gte('age', range.min).lte('age', range.max)
-      }
+    if (ageRangeValues) {
+      countQuery = countQuery.gte('age', ageRangeValues.min).lte('age', ageRangeValues.max)
     }
 
     const { count: totalCount, error: countError } = await countQuery

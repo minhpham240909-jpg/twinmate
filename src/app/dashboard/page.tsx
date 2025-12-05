@@ -597,9 +597,7 @@ export default function DashboardPage() {
         {/* Logo */}
         <div className="p-6 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">C</span>
-            </div>
+            <Image src="/logo.png" alt="Clerva" width={40} height={40} className="rounded-xl" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Clerva</h1>
           </div>
         </div>

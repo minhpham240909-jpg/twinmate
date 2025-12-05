@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense, useCallback } from 'react'
 import { subscribeToMessages } from '@/lib/supabase/realtime'
 import MessageVideoCall from '@/components/messages/MessageVideoCall'
 import { useTranslations } from 'next-intl'
@@ -11,6 +11,13 @@ import GroupMembersModal from '@/components/chat/GroupMembersModal'
 import GlowBorder from '@/components/ui/GlowBorder'
 import FastPulse from '@/components/ui/FastPulse'
 import FastFadeIn from '@/components/ui/FastFadeIn'
+import { 
+  createTypingChannel, 
+  broadcastTyping, 
+  subscribeToTyping,
+  type TypingState 
+} from '@/lib/supabase/presence-channels'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface Conversation {
   id: string
@@ -78,6 +85,12 @@ function GroupsChatContent() {
   const [showMembersModal, setShowMembersModal] = useState(false)
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const callMessageId = useRef<string | null>(null)
+  
+  // Typing indicators state
+  const [typingUsers, setTypingUsers] = useState<Map<string, { userName: string; timestamp: number }>>(new Map())
+  const typingChannelRef = useRef<RealtimeChannel | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isTypingRef = useRef(false)
   const callStartTime = useRef<number>(0)
   const currentCallType = useRef<'VIDEO' | 'AUDIO'>('VIDEO')
   const [uploadingFile, setUploadingFile] = useState(false)
@@ -124,6 +137,111 @@ function GroupsChatContent() {
       }
     }
   }, [searchParams, conversations])
+
+  // Typing indicator: Send typing status
+  const sendTypingStatus = useCallback((isTyping: boolean) => {
+    if (!typingChannelRef.current || !user || !profile) return
+    
+    broadcastTyping(
+      typingChannelRef.current,
+      user.id,
+      profile.name || 'User',
+      isTyping
+    ).catch(console.error)
+  }, [user, profile])
+
+  // Typing indicator: Handle incoming typing events
+  const handleTypingChange = useCallback((state: TypingState) => {
+    if (!user || state.userId === user.id) return // Ignore own typing
+
+    setTypingUsers(prev => {
+      const next = new Map(prev)
+      if (state.isTyping) {
+        next.set(state.userId, { userName: state.userName, timestamp: Date.now() })
+      } else {
+        next.delete(state.userId)
+      }
+      return next
+    })
+  }, [user])
+
+  // Typing indicator: Setup channel for selected conversation
+  useEffect(() => {
+    if (!selectedConversation || !user) return
+
+    // Clean up previous channel
+    if (typingChannelRef.current) {
+      typingChannelRef.current.unsubscribe()
+    }
+
+    // Create new typing channel for this group
+    const channel = createTypingChannel(`group-${selectedConversation.id}`)
+    typingChannelRef.current = channel
+
+    subscribeToTyping(channel, handleTypingChange)
+
+    // Clean up stale typing indicators every 3 seconds
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now()
+      setTypingUsers(prev => {
+        const next = new Map(prev)
+        for (const [userId, data] of next) {
+          if (now - data.timestamp > 5000) { // 5 second timeout
+            next.delete(userId)
+          }
+        }
+        return next.size !== prev.size ? next : prev
+      })
+    }, 3000)
+
+    return () => {
+      if (typingChannelRef.current) {
+        // Send "stopped typing" before leaving
+        if (isTypingRef.current) {
+          sendTypingStatus(false)
+        }
+        typingChannelRef.current.unsubscribe()
+        typingChannelRef.current = null
+      }
+      clearInterval(cleanupInterval)
+      setTypingUsers(new Map())
+    }
+  }, [selectedConversation, user, handleTypingChange, sendTypingStatus])
+
+  // Typing indicator: Handle message input changes
+  const handleMessageChange = useCallback((value: string) => {
+    if (value.length <= 1000) {
+      setMessage(value)
+    }
+
+    // Send typing status
+    if (value.length > 0 && !isTypingRef.current) {
+      isTypingRef.current = true
+      sendTypingStatus(true)
+    }
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    // Set timeout to stop typing indicator after 2 seconds of no input
+    typingTimeoutRef.current = setTimeout(() => {
+      if (isTypingRef.current) {
+        isTypingRef.current = false
+        sendTypingStatus(false)
+      }
+    }, 2000)
+  }, [sendTypingStatus])
+
+  // Get typing indicator display text
+  const typingIndicatorText = useCallback(() => {
+    const typingUsersList = Array.from(typingUsers.values()).map(u => u.userName)
+    if (typingUsersList.length === 0) return null
+    if (typingUsersList.length === 1) return `${typingUsersList[0]} is typing...`
+    if (typingUsersList.length === 2) return `${typingUsersList[0]} and ${typingUsersList[1]} are typing...`
+    return `${typingUsersList.slice(0, 2).join(', ')} and ${typingUsersList.length - 2} others are typing...`
+  }, [typingUsers])
 
   // Fetch messages for selected conversation
   const handleSelectConversation = async (conversation: Conversation) => {
@@ -829,6 +947,31 @@ function GroupsChatContent() {
 
                   {/* Message Input */}
                   <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900">
+                    {/* Typing indicator */}
+                    {typingIndicatorText() && (
+                      <div className="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+                        <span className="flex gap-1">
+                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        </span>
+                        <span className="italic">{typingIndicatorText()}</span>
+                      </div>
+                    )}
+                    {/* Character count indicator - shows when approaching limit */}
+                    {message.length > 800 && (
+                      <div className="mb-2 flex justify-end">
+                        <span className={`text-xs font-medium ${
+                          message.length > 1000 
+                            ? 'text-red-500' 
+                            : message.length > 900 
+                              ? 'text-orange-500' 
+                              : 'text-gray-500 dark:text-slate-400'
+                        }`}>
+                          {message.length}/1000
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       {/* Hidden file input */}
                       <input
@@ -858,21 +1001,26 @@ function GroupsChatContent() {
                       <input
                         type="text"
                         value={message}
-                        onChange={(e) => setMessage(e.target.value)}
+                        onChange={(e) => handleMessageChange(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
-                            if (message.trim()) {
+                            if (message.trim() && message.length <= 1000) {
                               handleSendMessage()
                             }
                           }
                         }}
+                        maxLength={1000}
                         placeholder={t('typeMessageHint')}
-                        className="flex-1 px-4 py-2 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`flex-1 px-4 py-2 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                          message.length > 1000 
+                            ? 'border-red-500' 
+                            : 'border-gray-200 dark:border-white/10'
+                        }`}
                       />
                       <button
                         onClick={handleSendMessage}
-                        disabled={!message.trim()}
+                        disabled={!message.trim() || message.length > 1000}
                         className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

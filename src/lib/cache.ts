@@ -390,3 +390,165 @@ export async function invalidateFeedCaches(): Promise<void> {
     invalidateCache(`${CACHE_PREFIX.FEED}:*`),
   ])
 }
+
+// ============================================================================
+// HTTP Response Caching Headers
+// ============================================================================
+
+/**
+ * HTTP Cache-Control header presets for different data types
+ */
+export const HTTP_CACHE = {
+  // No caching (for user-specific or sensitive data)
+  NO_CACHE: {
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma': 'no-cache',
+  },
+
+  // Short cache for frequently changing data (30 seconds)
+  SHORT: {
+    'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+  },
+
+  // Medium cache for semi-static data (5 minutes)
+  MEDIUM: {
+    'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+  },
+
+  // Long cache for rarely changing data (1 hour)
+  LONG: {
+    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=7200',
+  },
+
+  // Private cache for user-specific but cacheable data (2 minutes)
+  PRIVATE_SHORT: {
+    'Cache-Control': 'private, max-age=120',
+  },
+
+  // Private cache for user-specific data (5 minutes)
+  PRIVATE_MEDIUM: {
+    'Cache-Control': 'private, max-age=300',
+  },
+
+  // Immutable cache for content that never changes (1 year)
+  IMMUTABLE: {
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  },
+} as const
+
+/**
+ * Create a cached JSON response with appropriate headers
+ */
+export function cachedJsonResponse<T>(
+  data: T,
+  cacheHeaders: Record<string, string> = HTTP_CACHE.SHORT,
+  status: number = 200
+): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...cacheHeaders,
+    },
+  })
+}
+
+/**
+ * Create a cached JSON response with ETag support for conditional requests
+ */
+export function cachedJsonResponseWithETag<T>(
+  data: T,
+  cacheHeaders: Record<string, string> = HTTP_CACHE.MEDIUM,
+  status: number = 200
+): Response {
+  const jsonString = JSON.stringify(data)
+  // Generate simple hash for ETag
+  const etag = `"${Buffer.from(jsonString).toString('base64').slice(0, 20)}"`
+
+  return new Response(jsonString, {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'ETag': etag,
+      ...cacheHeaders,
+    },
+  })
+}
+
+/**
+ * Check if request can use cached response (304 Not Modified)
+ */
+export function checkConditionalRequest(
+  request: Request,
+  etag: string
+): boolean {
+  const ifNoneMatch = request.headers.get('If-None-Match')
+  return ifNoneMatch === etag
+}
+
+/**
+ * Create 304 Not Modified response
+ */
+export function notModifiedResponse(): Response {
+  return new Response(null, {
+    status: 304,
+    headers: HTTP_CACHE.MEDIUM,
+  })
+}
+
+/**
+ * Clear ALL caches - Admin only function
+ * Clears both Redis and in-memory caches
+ */
+export async function clearAllCaches(): Promise<{ success: boolean; cleared: number; message: string }> {
+  let clearedCount = 0
+
+  try {
+    // Clear Redis caches if configured
+    if (isRedisConfigured()) {
+      const url = process.env.UPSTASH_REDIS_REST_URL!
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+      // Get all keys and delete them
+      const scanResponse = await fetch(`${url}/keys/*`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (scanResponse.ok) {
+        const keys = await scanResponse.json()
+        if (keys.result && Array.isArray(keys.result) && keys.result.length > 0) {
+          clearedCount = keys.result.length
+          const pipeline = keys.result.map((key: string) => ['DEL', key])
+          await fetch(`${url}/pipeline`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(pipeline),
+          })
+        }
+      }
+    }
+
+    // Clear in-memory cache
+    const memoryStats = cache.getStats()
+    cache.clear()
+    clearedCount += memoryStats.total
+
+    return {
+      success: true,
+      cleared: clearedCount,
+      message: `Successfully cleared ${clearedCount} cache entries`,
+    }
+  } catch (error) {
+    console.error('Error clearing caches:', error)
+    // Still try to clear memory cache
+    cache.clear()
+    return {
+      success: false,
+      cleared: 0,
+      message: 'Failed to clear Redis cache, memory cache cleared',
+    }
+  }
+}

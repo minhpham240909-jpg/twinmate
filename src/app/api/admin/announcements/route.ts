@@ -133,20 +133,81 @@ export async function POST(request: NextRequest) {
           },
         })
 
+        // Send notifications to targeted users
+        let notificationsSent = 0
+        try {
+          let targetUsers: { id: string }[] = []
+
+          // Determine target users based on targeting options
+          if (Array.isArray(targetUserIds) && targetUserIds.length > 0) {
+            // Specific users selected
+            targetUsers = await prisma.user.findMany({
+              where: { id: { in: targetUserIds } },
+              select: { id: true },
+            })
+          } else if (targetRole) {
+            // Users with specific role (e.g., 'USER', 'PREMIUM')
+            targetUsers = await prisma.user.findMany({
+              where: { role: targetRole },
+              select: { id: true },
+            })
+          } else {
+            // All active users (not deactivated)
+            targetUsers = await prisma.user.findMany({
+              where: { deactivatedAt: null },
+              select: { id: true },
+            })
+          }
+
+          // Create notifications in batches for efficiency
+          if (targetUsers.length > 0) {
+            const BATCH_SIZE = 500
+            const notificationData = targetUsers.map(u => ({
+              userId: u.id,
+              type: 'ANNOUNCEMENT' as const,
+              title: `📢 ${title}`,
+              message: content.length > 200 ? content.substring(0, 200) + '...' : content,
+              actionUrl: '/dashboard', // Or a dedicated announcements page
+              isRead: false,
+            }))
+
+            // Insert in batches to avoid overwhelming the database
+            for (let i = 0; i < notificationData.length; i += BATCH_SIZE) {
+              const batch = notificationData.slice(i, i + BATCH_SIZE)
+              await prisma.notification.createMany({
+                data: batch,
+                skipDuplicates: true,
+              })
+            }
+
+            notificationsSent = targetUsers.length
+          }
+        } catch (notifError) {
+          console.error('[Announcements] Error sending notifications:', notifError)
+          // Don't fail the announcement creation if notifications fail
+        }
+
         await logAdminAction({
           adminId: user.id,
           action: 'announcement_created',
           targetType: 'announcement',
           targetId: announcement.id,
-          details: { title, priority, targetRole, targetUserIds: targetUserIds?.length || 0 },
+          details: {
+            title,
+            priority,
+            targetRole,
+            targetUserIds: targetUserIds?.length || 0,
+            notificationsSent,
+          },
           ipAddress,
           userAgent,
         })
 
         return NextResponse.json({
           success: true,
-          message: 'Announcement created',
+          message: `Announcement created and sent to ${notificationsSent} users`,
           data: announcement,
+          notificationsSent,
         })
       }
 

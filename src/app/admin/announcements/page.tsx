@@ -264,6 +264,10 @@ export default function AdminAnnouncementsPage() {
       if (data.success) {
         fetchAnnouncements(true)
         setEditModal(null)
+        // Show success message with notification count for new announcements
+        if (body.action === 'create' && data.notificationsSent !== undefined) {
+          alert(`✅ Announcement created and sent to ${data.notificationsSent} users!`)
+        }
       } else {
         alert(data.error || 'Action failed')
       }

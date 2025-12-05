@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { HTTP_CACHE } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,9 +94,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Return with private cache (user-specific data, cache for 2 minutes)
     return NextResponse.json({
       success: true,
       groups,
+    }, {
+      headers: HTTP_CACHE.PRIVATE_SHORT,
     })
   } catch (error) {
     console.error('Fetch my groups error:', error)

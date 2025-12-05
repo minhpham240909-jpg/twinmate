@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
@@ -14,14 +15,40 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white relative overflow-x-hidden selection:bg-blue-500/30">
-      
+
+      {/* Header with Logo */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-lg border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <Image src="/logo.png" alt="Clerva" width={120} height={40} className="h-10 w-auto" />
+          </Link>
+          <nav className="flex items-center gap-6">
+            <Link href="#how-it-works" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+              How it works
+            </Link>
+            <Link href="#features" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+              Features
+            </Link>
+            <Link href="/auth/signin" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+              Sign in
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-semibold rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all"
+            >
+              Get Started
+            </Link>
+          </nav>
+        </div>
+      </header>
+
       {/* Floating Signup Button - Ensure high z-index */}
-      <div className="relative z-50">
+      <div className="relative z-40">
         <FloatingSignupButton />
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-40 pb-32 overflow-hidden z-10">
+      <section className="relative pt-32 pb-32 overflow-hidden z-10">
         {/* Subtle gradient overlay to ensure text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-transparent to-slate-950/80 pointer-events-none" />
 

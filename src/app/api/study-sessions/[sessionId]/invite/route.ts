@@ -88,12 +88,15 @@ export async function POST(
     }
 
     // PERFORMANCE: Batch create - create all participants in one query
+    // Note: Invite expiration is handled via createdAt timestamp
+    // Invites older than 7 days are considered expired (checked in invite listing/acceptance)
     await prisma.sessionParticipant.createMany({
       data: newInviteeIds.map(inviteeId => ({
         sessionId,
         userId: inviteeId,
         role: 'PARTICIPANT',
         status: 'INVITED',
+        // createdAt is auto-set - used to calculate expiration (7 days)
       })),
       skipDuplicates: true, // Extra safety for race conditions
     })

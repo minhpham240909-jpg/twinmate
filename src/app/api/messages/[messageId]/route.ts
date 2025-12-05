@@ -38,7 +38,7 @@ export async function GET(
       id: string
       content: string
       type: string
-      senderId: string
+      senderId: string | null // Nullable - user may have been deleted
       createdAt: Date
       updatedAt?: Date
       isRead: boolean
@@ -47,11 +47,15 @@ export async function GET(
       fileName?: string | null
       fileSize?: number | null
       isEdited?: boolean
+      // Cached sender info - preserved even after account deletion
+      senderName?: string | null
+      senderEmail?: string | null
+      senderAvatarUrl?: string | null
       sender: {
         id: string
         name: string
         avatarUrl: string | null
-      }
+      } | null // Nullable - user may have been deleted
     }> = []
     let conversationInfo: Record<string, unknown> | null = null
 

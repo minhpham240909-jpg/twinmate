@@ -89,11 +89,14 @@ export async function GET(request: NextRequest) {
       const baseWhere: any = { isDeleted: false }
 
       if (search) {
-        // Search in content AND sender name/email
+        // Search in content AND sender name/email (both live and cached)
         baseWhere.OR = [
           { content: { contains: search, mode: 'insensitive' } },
           { sender: { name: { contains: search, mode: 'insensitive' } } },
           { sender: { email: { contains: search, mode: 'insensitive' } } },
+          // Also search cached sender info (for deleted users)
+          { senderName: { contains: search, mode: 'insensitive' } },
+          { senderEmail: { contains: search, mode: 'insensitive' } },
         ]
       }
       if (userId) {
@@ -120,10 +123,14 @@ export async function GET(request: NextRequest) {
           type: 'DIRECT_MESSAGE',
           content: m.content,
           senderId: m.senderId,
-          senderEmail: m.sender.email,
-          senderName: m.sender.name,
-          senderAvatar: m.sender.avatarUrl,
+          // Use cached info if sender is deleted, otherwise use live data
+          senderEmail: m.sender?.email || m.senderEmail || '[Deleted User]',
+          senderName: m.sender?.name || m.senderName || 'Deleted User',
+          senderAvatar: m.sender?.avatarUrl || m.senderAvatarUrl,
+          senderDeleted: !m.sender, // Flag to show user was deleted
           conversationId: m.recipientId,
+          recipientName: m.recipientName,
+          recipientEmail: m.recipientEmail,
           conversationType: 'partner',
           createdAt: m.createdAt,
           isFlagged: false,
@@ -152,9 +159,11 @@ export async function GET(request: NextRequest) {
           type: 'GROUP_MESSAGE',
           content: m.content,
           senderId: m.senderId,
-          senderEmail: m.sender.email,
-          senderName: m.sender.name,
-          senderAvatar: m.sender.avatarUrl,
+          // Use cached info if sender is deleted, otherwise use live data
+          senderEmail: m.sender?.email || m.senderEmail || '[Deleted User]',
+          senderName: m.sender?.name || m.senderName || 'Deleted User',
+          senderAvatar: m.sender?.avatarUrl || m.senderAvatarUrl,
+          senderDeleted: !m.sender, // Flag to show user was deleted
           conversationId: m.groupId,
           conversationType: 'group',
           groupName: m.group?.name,
