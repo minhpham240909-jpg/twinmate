@@ -98,7 +98,7 @@ export default function Footer() {
           className="text-center"
         >
           <p className="text-slate-500 text-sm font-light">
-            © {new Date().getFullYear()} Clerva. All rights reserved.
+            © 2025 Clerva. All rights reserved.
           </p>
         </motion.div>
       </div>

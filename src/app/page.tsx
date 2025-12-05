@@ -6,7 +6,6 @@ import { motion } from 'framer-motion'
 import { useState } from 'react'
 import GradientText from '@/components/landing/GradientText'
 import ModernDotPattern from '@/components/landing/ModernDotPattern'
-import FloatingSignupButton from '@/components/landing/FloatingSignupButton'
 import Footer from '@/components/landing/Footer'
 
 export default function HomePage() {
@@ -18,9 +17,10 @@ export default function HomePage() {
 
       {/* Header with Logo */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-lg border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="hover:opacity-80 transition-opacity">
+        <div className="w-full px-4 lg:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <Image src="/logo.png" alt="Clerva" width={120} height={40} className="h-10 w-auto" />
+            <span className="text-white text-xl font-bold tracking-wide">Clerva</span>
           </Link>
           <nav className="flex items-center gap-6">
             <Link href="#how-it-works" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
@@ -41,11 +41,6 @@ export default function HomePage() {
           </nav>
         </div>
       </header>
-
-      {/* Floating Signup Button - Ensure high z-index */}
-      <div className="relative z-40">
-        <FloatingSignupButton />
-      </div>
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-32 overflow-hidden z-10">
