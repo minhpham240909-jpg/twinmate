@@ -489,6 +489,14 @@ enum SessionType {
   SOLO
   ONE_ON_ONE
   GROUP
+  AI_PARTNER  // AI-powered temporary study partner session
+}
+
+// Partner type for study sessions
+enum PartnerType {
+  HUMAN       // Real human partner
+  AI          // AI-powered study partner (OpenAI)
+  SCRIPTED    // Rule-based scripted partner (future)
 }
 
 enum SessionStatus {
@@ -533,6 +541,11 @@ model StudySession {
   maxParticipants Int      @default(10)
   isPublic        Boolean  @default(false)
 
+  // AI Partner fields
+  partnerType     PartnerType? // HUMAN, AI, or SCRIPTED
+  aiPersonaId     String?      // Reference to AI persona template
+  isAISession     Boolean      @default(false) // Quick check for AI sessions
+
   // Timing
   scheduledAt       DateTime?
   waitingStartedAt  DateTime  @default(now()) // When waiting lobby was created
@@ -554,6 +567,8 @@ model StudySession {
   whiteboard   SessionWhiteboard?
   notes        SessionNote[]
   flashcards   SessionFlashcard[]
+  aiMessages   AIPartnerMessage[] // AI partner chat messages
+  aiSession    AIPartnerSession?  // AI partner session details
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -564,6 +579,8 @@ model StudySession {
   @@index([type])
   @@index([startedAt])
   @@index([agoraChannel])
+  @@index([isAISession])
+  @@index([partnerType])
 }
 
 model SessionParticipant {
@@ -1964,4 +1981,165 @@ model Feedback {
   @@index([status])
   @@index([rating])
   @@index([createdAt])
+}
+
+// ==========================================
+// AI PARTNER SYSTEM (Temporary Study Partner)
+// ==========================================
+
+// AI Partner Persona Templates - Defines AI behavior and personality
+model AIPartnerPersona {
+  id          String   @id @default(uuid())
+  name        String   // e.g., "Study Buddy", "Quiz Master", "Calm Tutor"
+  description String   @db.Text
+
+  // Persona configuration
+  systemPrompt  String   @db.Text // The system prompt for OpenAI
+  temperature   Float    @default(0.7) // OpenAI temperature (0-1)
+  maxTokens     Int      @default(500) // Max response length
+
+  // Specializations
+  subjects      String[] @default([]) // Subjects this persona excels at
+  studyMethods  String[] @default([]) // ["pomodoro", "quiz", "explanation", "practice"]
+  tone          String   @default("friendly") // "friendly", "professional", "casual", "encouraging"
+
+  // Display
+  avatarUrl     String?
+  isDefault     Boolean  @default(false) // Default persona for new sessions
+  isActive      Boolean  @default(true)  // Can be used
+
+  // Stats
+  usageCount    Int      @default(0)
+  avgRating     Float?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  sessions      AIPartnerSession[]
+
+  @@index([isDefault])
+  @@index([isActive])
+  @@index([subjects])
+}
+
+// AI Partner Session - Tracks each AI partner study session
+model AIPartnerSession {
+  id          String       @id @default(uuid())
+
+  // User who started the session
+  userId      String
+
+  // Link to study session
+  studySessionId String?   @unique
+  studySession   StudySession? @relation(fields: [studySessionId], references: [id], onDelete: Cascade)
+
+  // Persona used
+  personaId   String?
+  persona     AIPartnerPersona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
+
+  // Session context
+  subject     String?      // Current study subject
+  skillLevel  SkillLevel?  // User's skill level for this session
+  studyGoal   String?      @db.Text // What user wants to achieve
+
+  // Session state
+  status      AISessionStatus @default(ACTIVE)
+
+  // Timing
+  startedAt   DateTime     @default(now())
+  endedAt     DateTime?
+  totalDuration Int?       // Duration in seconds
+
+  // Session stats
+  messageCount  Int        @default(0)
+  quizCount     Int        @default(0) // Number of quizzes generated
+  flashcardCount Int       @default(0) // Number of flashcards created
+
+  // User feedback
+  rating        Int?       // 1-5 star rating
+  feedback      String?    @db.Text
+
+  // Moderation
+  flaggedCount  Int        @default(0) // Number of flagged messages
+  wasSafetyBlocked Boolean @default(false) // Session was ended due to safety
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  messages    AIPartnerMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([personaId])
+}
+
+enum AISessionStatus {
+  ACTIVE      // Session is ongoing
+  PAUSED      // User paused the session
+  COMPLETED   // Session ended normally
+  EXPIRED     // Session timed out
+  BLOCKED     // Ended due to safety violation
+}
+
+// AI Partner Messages - Chat history with AI
+model AIPartnerMessage {
+  id          String       @id @default(uuid())
+
+  // Session reference
+  sessionId   String
+  session     AIPartnerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Also link to study session for easier queries
+  studySessionId String?
+  studySession   StudySession? @relation(fields: [studySessionId], references: [id], onDelete: Cascade)
+
+  // Message content
+  role        AIMessageRole // USER or ASSISTANT
+  content     String       @db.Text
+
+  // Message type
+  messageType AIMessageType @default(CHAT)
+
+  // For quiz messages
+  quizData    Json?        // Quiz question data (question, options, answer)
+
+  // For flashcard generation
+  flashcardData Json?      // Generated flashcard data
+
+  // Moderation
+  wasModerated  Boolean    @default(false) // Was this message checked by moderation
+  moderationResult Json?   // OpenAI moderation API result
+  wasFlagged    Boolean    @default(false) // Was flagged as inappropriate
+  flagCategories String[]  @default([]) // Which categories were flagged
+
+  // Token usage tracking
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+
+  createdAt   DateTime     @default(now())
+
+  @@index([sessionId])
+  @@index([studySessionId])
+  @@index([role])
+  @@index([createdAt])
+  @@index([wasFlagged])
+}
+
+enum AIMessageRole {
+  USER       // Message from the user
+  ASSISTANT  // Message from the AI
+  SYSTEM     // System message (e.g., session started, topic changed)
+}
+
+enum AIMessageType {
+  CHAT       // Regular chat message
+  QUIZ       // Quiz question or answer
+  FLASHCARD  // Flashcard generation
+  SUMMARY    // Session summary or notes
+  TIMER      // Timer-related message (pomodoro encouragement)
+  TOPIC_CHANGE // User changed study topic
 }

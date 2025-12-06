@@ -146,9 +146,10 @@ export async function POST(request: NextRequest) {
               select: { id: true },
             })
           } else if (targetRole) {
-            // Users with specific role (e.g., 'USER', 'PREMIUM')
+            // Users with specific role (e.g., 'FREE', 'PREMIUM')
+            // Cast string to enum value for Prisma
             targetUsers = await prisma.user.findMany({
-              where: { role: targetRole },
+              where: { role: targetRole as 'FREE' | 'PREMIUM' },
               select: { id: true },
             })
           } else {
@@ -182,8 +183,12 @@ export async function POST(request: NextRequest) {
 
             notificationsSent = targetUsers.length
           }
-        } catch (notifError) {
+        } catch (notifError: unknown) {
           console.error('[Announcements] Error sending notifications:', notifError)
+          // Log more details for debugging
+          if (notifError instanceof Error) {
+            console.error('[Announcements] Notification error details:', notifError.message, notifError.stack)
+          }
           // Don't fail the announcement creation if notifications fail
         }
 
@@ -321,8 +326,16 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
-  } catch (error) {
-    console.error('[Admin Announcements] Error:', error)
+  } catch (error: unknown) {
+    console.error('[Admin Announcements POST] Error:', error)
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('[Admin Announcements POST] Error details:', error.message, error.stack)
+      return NextResponse.json({
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      }, { status: 500 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
