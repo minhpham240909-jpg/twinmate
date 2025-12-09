@@ -1126,23 +1126,23 @@ export default function SearchPage() {
                       {/* Dynamic personalized message based on ALL search criteria including custom descriptions */}
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                         {searchQuery
-                          ? `"${searchQuery}" isn't available right now`
+                          ? `${searchQuery} isn't available right now`
                           : selectedSubjects.length > 0
                           ? `${selectedSubjects.slice(0, 2).join(', ')}${selectedSubjects.length > 2 ? ' & more' : ''} partners aren't available right now`
                           : subjectCustomDescription.trim()
-                          ? `Partners for "${subjectCustomDescription.trim().slice(0, 30)}${subjectCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
+                          ? `Partners for ${subjectCustomDescription.trim().slice(0, 30)}${subjectCustomDescription.trim().length > 30 ? '...' : ''} aren't available`
                           : selectedSkillLevel
                           ? `${selectedSkillLevel.charAt(0) + selectedSkillLevel.slice(1).toLowerCase()} level partners aren't available right now`
                           : skillLevelCustomDescription.trim()
-                          ? `Partners matching "${skillLevelCustomDescription.trim().slice(0, 30)}${skillLevelCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
+                          ? `Partners matching ${skillLevelCustomDescription.trim().slice(0, 30)}${skillLevelCustomDescription.trim().length > 30 ? '...' : ''} aren't available`
                           : selectedStudyStyle
                           ? `${selectedStudyStyle.charAt(0) + selectedStudyStyle.slice(1).toLowerCase()} study style partners aren't available`
                           : studyStyleCustomDescription.trim()
-                          ? `Partners with "${studyStyleCustomDescription.trim().slice(0, 30)}${studyStyleCustomDescription.trim().length > 30 ? '...' : ''}" style aren't available`
+                          ? `Partners with ${studyStyleCustomDescription.trim().slice(0, 30)}${studyStyleCustomDescription.trim().length > 30 ? '...' : ''} style aren't available`
                           : selectedInterests.length > 0
                           ? `Partners interested in ${selectedInterests.slice(0, 2).join(' & ')} aren't available`
                           : interestsCustomDescription.trim()
-                          ? `Partners interested in "${interestsCustomDescription.trim().slice(0, 30)}${interestsCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
+                          ? `Partners interested in ${interestsCustomDescription.trim().slice(0, 30)}${interestsCustomDescription.trim().length > 30 ? '...' : ''} aren't available`
                           : selectedGoals.length > 0
                           ? `Partners with ${selectedGoals.slice(0, 2).join(' & ')} goals aren't available`
                           : selectedRoles.length > 0
