@@ -40,6 +40,11 @@ export function usePushNotifications() {
       const pushManagerSupported = 'PushManager' in window
 
       if (!notificationSupported || !serviceWorkerSupported || !pushManagerSupported) {
+        console.log('[PushHooks] Not supported:', {
+          notification: notificationSupported,
+          serviceWorker: serviceWorkerSupported,
+          pushManager: pushManagerSupported
+        })
         setState(s => ({
           ...s,
           isSupported: false,
@@ -62,6 +67,7 @@ export function usePushNotifications() {
           const { publicKey } = await keyResponse.json()
           setVapidPublicKey(publicKey)
         } else if (keyResponse.status === 503) {
+          console.log('[PushHooks] Push not configured (503)')
           // Push not configured on server
           setState(s => ({
             ...s,
@@ -72,16 +78,20 @@ export function usePushNotifications() {
         }
 
         // Register service worker
+        console.log('[PushHooks] Registering SW...')
         const reg = await navigator.serviceWorker.register('/sw.js', {
           scope: '/',
         })
         setRegistration(reg)
 
         // Wait for service worker to be ready
+        console.log('[PushHooks] Waiting for SW ready...')
         await navigator.serviceWorker.ready
+        console.log('[PushHooks] SW Ready')
 
         // Check current subscription
         const subscription = await reg.pushManager.getSubscription()
+        console.log('[PushHooks] Initial subscription:', !!subscription)
         setState(s => ({
           ...s,
           isSubscribed: !!subscription,

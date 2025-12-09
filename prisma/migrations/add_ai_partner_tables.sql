@@ -6,7 +6,7 @@
 -- STEP 1: CREATE ENUMS
 -- =====================================================
 
-DO $$ BEGIN
+DO $$ BEGIN 
     CREATE TYPE "PartnerType" AS ENUM ('HUMAN', 'AI', 'SCRIPTED');
 EXCEPTION
     WHEN duplicate_object THEN null;

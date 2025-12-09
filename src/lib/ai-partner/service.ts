@@ -9,11 +9,16 @@ import {
   sendChatMessage,
   moderateContent,
   buildStudyPartnerSystemPrompt,
+  buildDynamicPersonaPrompt,
   generateQuizQuestion,
   generateFlashcards,
+  generateFlashcardsFromChat,
+  generateQuizFromChat,
+  analyzeWhiteboardImage,
   generateSessionSummary,
   checkContentSafety,
   AIMessage,
+  SearchCriteria,
 } from './openai'
 import type { AISessionStatus, AIMessageRole, AIMessageType, SkillLevel } from '@prisma/client'
 
@@ -24,6 +29,13 @@ export interface CreateAISessionParams {
   skillLevel?: SkillLevel
   studyGoal?: string
   personaId?: string
+}
+
+// Extended params for dynamic persona from search
+export interface CreateAISessionFromSearchParams {
+  userId: string
+  searchCriteria: SearchCriteria
+  studyGoal?: string
 }
 
 export interface SendMessageParams {
@@ -195,6 +207,152 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
       ],
     },
     welcomeMessage: welcomeResult.content,
+  }
+}
+
+/**
+ * Create an AI partner session from search criteria
+ * This creates a dynamic persona based on what the user was searching for
+ */
+export async function createAISessionFromSearch(params: CreateAISessionFromSearchParams): Promise<{
+  session: AISessionWithMessages
+  welcomeMessage: string
+  personaDescription: string
+}> {
+  const { userId, searchCriteria, studyGoal } = params
+
+  // Get user info for personalization
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true },
+  })
+
+  // Build subject string from criteria
+  const subject = searchCriteria.subjects?.join(', ') || searchCriteria.subjectDescription || null
+
+  // Build a description of the persona for display
+  const personaParts: string[] = []
+  if (subject) personaParts.push(subject)
+  if (searchCriteria.school) personaParts.push(searchCriteria.school)
+  if (searchCriteria.locationCity) personaParts.push(searchCriteria.locationCity)
+  if (searchCriteria.locationCountry && !searchCriteria.locationCity) {
+    personaParts.push(searchCriteria.locationCountry)
+  }
+  if (searchCriteria.skillLevel) {
+    personaParts.push(searchCriteria.skillLevel.charAt(0) + searchCriteria.skillLevel.slice(1).toLowerCase())
+  }
+  const personaDescription = personaParts.length > 0
+    ? personaParts.join(' • ')
+    : 'Study Partner'
+
+  // Create study session
+  const studySession = await prisma.studySession.create({
+    data: {
+      title: `AI Study Session: ${personaDescription}`,
+      type: 'AI_PARTNER',
+      status: 'ACTIVE',
+      createdBy: userId,
+      userId: userId,
+      subject: subject,
+      isAISession: true,
+      partnerType: 'AI',
+      startedAt: new Date(),
+    },
+  })
+
+  // Determine skill level enum
+  let skillLevelEnum: SkillLevel | null = null
+  if (searchCriteria.skillLevel) {
+    const validLevels = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
+    if (validLevels.includes(searchCriteria.skillLevel)) {
+      skillLevelEnum = searchCriteria.skillLevel as SkillLevel
+    }
+  }
+
+  // Create AI session
+  const aiSession = await prisma.aIPartnerSession.create({
+    data: {
+      userId,
+      studySessionId: studySession.id,
+      subject,
+      skillLevel: skillLevelEnum,
+      studyGoal: studyGoal || null,
+      status: 'ACTIVE',
+    },
+  })
+
+  // Build dynamic persona prompt from search criteria
+  const systemPrompt = buildDynamicPersonaPrompt(searchCriteria, user?.name || undefined)
+
+  // Generate welcome message with dynamic persona
+  const welcomeResult = await sendChatMessage(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: 'Start the session with a warm, casual greeting as yourself.' },
+    ],
+    {
+      temperature: 0.8, // Slightly higher for more natural variation
+      maxTokens: 300,
+    }
+  )
+
+  // Save the system prompt as first message (hidden from user)
+  await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId: aiSession.id,
+      studySessionId: studySession.id,
+      role: 'SYSTEM',
+      content: systemPrompt,
+      messageType: 'CHAT',
+      wasModerated: false,
+    },
+  })
+
+  // Save AI welcome message
+  const welcomeMsg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId: aiSession.id,
+      studySessionId: studySession.id,
+      role: 'ASSISTANT',
+      content: welcomeResult.content,
+      messageType: 'CHAT',
+      wasModerated: false,
+      promptTokens: welcomeResult.promptTokens,
+      completionTokens: welcomeResult.completionTokens,
+      totalTokens: welcomeResult.totalTokens,
+    },
+  })
+
+  // Update message count
+  await prisma.aIPartnerSession.update({
+    where: { id: aiSession.id },
+    data: { messageCount: 1 },
+  })
+
+  return {
+    session: {
+      id: aiSession.id,
+      userId: aiSession.userId,
+      subject: aiSession.subject,
+      skillLevel: aiSession.skillLevel,
+      studyGoal: aiSession.studyGoal,
+      status: aiSession.status,
+      startedAt: aiSession.startedAt,
+      endedAt: aiSession.endedAt,
+      messageCount: 1,
+      messages: [
+        {
+          id: welcomeMsg.id,
+          role: welcomeMsg.role,
+          content: welcomeMsg.content,
+          messageType: welcomeMsg.messageType,
+          wasFlagged: welcomeMsg.wasFlagged,
+          createdAt: welcomeMsg.createdAt,
+        },
+      ],
+    },
+    welcomeMessage: welcomeResult.content,
+    personaDescription,
   }
 }
 
@@ -492,6 +650,244 @@ export async function generateFlashcardsForSession(params: {
 }
 
 /**
+ * Generate flashcards from conversation context
+ * Analyzes the chat history and creates flashcards based on topics discussed
+ */
+export async function generateFlashcardsFromConversation(params: {
+  sessionId: string
+  userId: string
+  count?: number
+}): Promise<{
+  flashcards: Array<{ front: string; back: string }>
+  messageId: string
+}> {
+  const { sessionId, userId, count = 5 } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      messages: {
+        where: { role: { in: ['USER', 'ASSISTANT'] } },
+        orderBy: { createdAt: 'asc' },
+        take: 30, // Last 30 messages for context
+      },
+    },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  if (session.messages.length < 2) {
+    throw new Error('Not enough conversation to generate flashcards. Chat more first!')
+  }
+
+  // Build conversation summary for flashcard generation
+  const conversationSummary = session.messages
+    .map((m) => `${m.role === 'USER' ? 'Student' : 'Tutor'}: ${m.content}`)
+    .join('\n')
+
+  // Generate flashcards from conversation using OpenAI
+  const flashcards = await generateFlashcardsFromChat({
+    conversationSummary,
+    subject: session.subject || undefined,
+    count,
+  })
+
+  // Save as message
+  const msg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: `I've created ${flashcards.length} flashcards based on our conversation:\n\n${flashcards.map((f, i) => `${i + 1}. ${f.front}`).join('\n')}`,
+      messageType: 'FLASHCARD',
+      flashcardData: flashcards as unknown as Prisma.InputJsonValue,
+    },
+  })
+
+  // Also create actual flashcard records if studySession exists
+  if (session.studySessionId) {
+    for (const card of flashcards) {
+      await prisma.sessionFlashcard.create({
+        data: {
+          sessionId: session.studySessionId,
+          userId,
+          front: card.front,
+          back: card.back,
+        },
+      })
+    }
+  }
+
+  // Update flashcard count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      flashcardCount: { increment: flashcards.length },
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return {
+    flashcards,
+    messageId: msg.id,
+  }
+}
+
+/**
+ * Generate quiz questions from conversation context
+ * Analyzes the chat history and creates quiz questions based on topics discussed
+ */
+export async function generateQuizFromConversation(params: {
+  sessionId: string
+  userId: string
+  count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
+}): Promise<{
+  questions: Array<{
+    question: string
+    options: string[]
+    correctAnswer: number
+    explanation: string
+  }>
+  messageId: string
+}> {
+  const { sessionId, userId, count = 5, difficulty = 'medium' } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      messages: {
+        where: { role: { in: ['USER', 'ASSISTANT'] } },
+        orderBy: { createdAt: 'asc' },
+        take: 30, // Last 30 messages for context
+      },
+    },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  if (session.messages.length < 2) {
+    throw new Error('Not enough conversation to generate quiz. Chat more first!')
+  }
+
+  // Build conversation summary for quiz generation
+  const conversationSummary = session.messages
+    .map((m) => `${m.role === 'USER' ? 'Student' : 'Tutor'}: ${m.content}`)
+    .join('\n')
+
+  // Generate quiz from conversation using OpenAI
+  const questions = await generateQuizFromChat({
+    conversationSummary,
+    subject: session.subject || undefined,
+    count,
+    difficulty,
+  })
+
+  // Format quiz content for message
+  const quizContent = questions.map((q, i) =>
+    `${i + 1}. ${q.question}\n   A) ${q.options[0]}\n   B) ${q.options[1]}\n   C) ${q.options[2]}\n   D) ${q.options[3]}`
+  ).join('\n\n')
+
+  // Save as message
+  const msg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: `I've created a ${difficulty} quiz based on our conversation:\n\n${quizContent}`,
+      messageType: 'QUIZ',
+      quizData: questions as unknown as Prisma.InputJsonValue,
+    },
+  })
+
+  // Update quiz count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      quizCount: { increment: questions.length },
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return {
+    questions,
+    messageId: msg.id,
+  }
+}
+
+/**
+ * Analyze whiteboard image with AI
+ * Sends the whiteboard drawing to AI for analysis and feedback
+ */
+export async function analyzeWhiteboard(params: {
+  sessionId: string
+  userId: string
+  imageBase64: string
+  userQuestion?: string
+}): Promise<{
+  analysis: string
+  suggestions: string[]
+  relatedConcepts: string[]
+  messageId: string
+}> {
+  const { sessionId, userId, imageBase64, userQuestion } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  // Analyze whiteboard using OpenAI vision
+  const result = await analyzeWhiteboardImage({
+    imageBase64,
+    subject: session.subject || undefined,
+    userQuestion,
+  })
+
+  // Format response content
+  let responseContent = `**Whiteboard Analysis**\n\n${result.analysis}`
+
+  if (result.suggestions.length > 0) {
+    responseContent += `\n\n**Suggestions:**\n${result.suggestions.map(s => `• ${s}`).join('\n')}`
+  }
+
+  if (result.relatedConcepts.length > 0) {
+    responseContent += `\n\n**Related Concepts to Explore:**\n${result.relatedConcepts.map(c => `• ${c}`).join('\n')}`
+  }
+
+  // Save as message
+  const msg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: responseContent,
+      messageType: 'WHITEBOARD',
+    },
+  })
+
+  // Update message count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return {
+    ...result,
+    messageId: msg.id,
+  }
+}
+
+/**
  * End an AI partner session
  */
 export async function endSession(params: {
@@ -693,4 +1089,161 @@ export async function getDefaultPersona() {
   }
 
   return persona
+}
+
+/**
+ * Pause an AI partner session
+ * Used when user switches to a real human partner
+ */
+export async function pauseSession(params: {
+  sessionId: string
+  userId: string
+}): Promise<{ success: boolean }> {
+  const { sessionId, userId } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  if (session.status !== 'ACTIVE') {
+    throw new Error('Session is not active')
+  }
+
+  // Calculate duration so far
+  const now = new Date()
+  const durationSoFar = Math.round((now.getTime() - session.startedAt.getTime()) / 1000)
+
+  // Update session to PAUSED
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      status: 'PAUSED',
+      totalDuration: durationSoFar,
+    },
+  })
+
+  // Note: StudySession doesn't have PAUSED status, so we only update AIPartnerSession
+
+  return { success: true }
+}
+
+/**
+ * Resume a paused AI partner session
+ */
+export async function resumeSession(params: {
+  sessionId: string
+  userId: string
+}): Promise<{ success: boolean; welcomeBackMessage: string }> {
+  const { sessionId, userId } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      messages: {
+        where: { role: { in: ['USER', 'ASSISTANT'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      },
+    },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  if (session.status !== 'PAUSED') {
+    throw new Error('Session is not paused')
+  }
+
+  // Update session to ACTIVE
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      status: 'ACTIVE',
+    },
+  })
+
+  // Note: StudySession status is managed separately, so we only update AIPartnerSession
+
+  // Generate a welcome back message
+  const lastTopics = session.messages
+    .filter(m => m.role === 'USER')
+    .map(m => m.content.slice(0, 50))
+    .slice(0, 2)
+
+  const welcomeBackMessage = lastTopics.length > 0
+    ? `Welcome back! Ready to continue where we left off? We were discussing: "${lastTopics[0]}..."`
+    : `Welcome back! Ready to continue studying${session.subject ? ` ${session.subject}` : ''}?`
+
+  // Save welcome back message
+  await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: welcomeBackMessage,
+      messageType: 'CHAT',
+      wasModerated: false,
+    },
+  })
+
+  // Increment message count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return { success: true, welcomeBackMessage }
+}
+
+/**
+ * Check if user has any AI Partner sessions (for dashboard widget visibility)
+ */
+export async function hasAIPartnerSessions(userId: string): Promise<boolean> {
+  const count = await prisma.aIPartnerSession.count({
+    where: { userId },
+  })
+  return count > 0
+}
+
+/**
+ * Get user's active or paused AI session for dashboard
+ */
+export async function getActiveOrPausedSession(userId: string): Promise<{
+  id: string
+  subject: string | null
+  status: 'ACTIVE' | 'PAUSED'
+  messageCount: number
+  startedAt: Date
+} | null> {
+  const session = await prisma.aIPartnerSession.findFirst({
+    where: {
+      userId,
+      status: { in: ['ACTIVE', 'PAUSED'] },
+    },
+    orderBy: { startedAt: 'desc' },
+    select: {
+      id: true,
+      subject: true,
+      status: true,
+      messageCount: true,
+      startedAt: true,
+    },
+  })
+
+  if (!session) return null
+
+  return {
+    id: session.id,
+    subject: session.subject,
+    status: session.status as 'ACTIVE' | 'PAUSED',
+    messageCount: session.messageCount,
+    startedAt: session.startedAt,
+  }
 }

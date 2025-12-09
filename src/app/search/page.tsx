@@ -10,6 +10,7 @@ import GlowBorderOptimized from '@/components/ui/GlowBorderOptimized'
 import PulseOptimized from '@/components/ui/PulseOptimized'
 import FadeInOptimized from '@/components/ui/FadeInOptimized'
 import BounceOptimized from '@/components/ui/BounceOptimized'
+import { AIPartnerSuggestionModal } from '@/components/ai-partner'
 
 interface Partner {
   id: string
@@ -99,6 +100,11 @@ export default function SearchPage() {
   const [randomError, setRandomError] = useState('')
   const [currentUserProfileComplete, setCurrentUserProfileComplete] = useState(true)
   const [currentUserMissingFields, setCurrentUserMissingFields] = useState<string[]>([])
+
+  // AI Partner suggestion modal state
+  const [showAIPartnerModal, setShowAIPartnerModal] = useState(false)
+  const [aiPartnerNoResultsReason, setAiPartnerNoResultsReason] = useState<'no_match' | 'name_not_found' | 'no_partners'>('no_match')
+  const [lastSearchWasFiltered, setLastSearchWasFiltered] = useState(false)
 
   // Ref to track abort controller for cancelling in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -472,8 +478,10 @@ export default function SearchPage() {
           {/* Independent Search Bar - Above Filters */}
           <div className="mb-6">
             <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg dark:shadow-none p-6 border border-gray-200 dark:border-slate-700/50">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Quick Search</h2>
-              <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">Search by name, location, interests, subjects, or any profile field</p>
+              <div className="mb-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Quick Search</h2>
+                <p className="text-sm text-gray-700 dark:text-slate-300">Search by name, location, interests, subjects, or any profile field</p>
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -1107,27 +1115,231 @@ export default function SearchPage() {
                     })
                   ) : (
                   <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl p-12 text-center border border-gray-200 dark:border-slate-700/50">
-                    <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {t('noPartnersFound')}
-                    </h3>
-                    <p className="text-gray-700 dark:text-slate-300 mb-6">
-                      {searchQuery || selectedSubjects.length > 0 || selectedInterests.length > 0
-                        ? t('noPartnersFoundWithFilters')
-                        : t('noPartnersFoundDescription')}
-                    </p>
-                    {!searchQuery && selectedSubjects.length === 0 && selectedInterests.length === 0 && (
+                    {/* AI Partner Suggestion - Dynamic personalized message */}
+                    <div className="mb-8 p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl border border-blue-500/20">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+
+                      {/* Dynamic personalized message based on ALL search criteria including custom descriptions */}
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        {searchQuery
+                          ? `"${searchQuery}" isn't available right now`
+                          : selectedSubjects.length > 0
+                          ? `${selectedSubjects.slice(0, 2).join(', ')}${selectedSubjects.length > 2 ? ' & more' : ''} partners aren't available right now`
+                          : subjectCustomDescription.trim()
+                          ? `Partners for "${subjectCustomDescription.trim().slice(0, 30)}${subjectCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
+                          : selectedSkillLevel
+                          ? `${selectedSkillLevel.charAt(0) + selectedSkillLevel.slice(1).toLowerCase()} level partners aren't available right now`
+                          : skillLevelCustomDescription.trim()
+                          ? `Partners matching "${skillLevelCustomDescription.trim().slice(0, 30)}${skillLevelCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
+                          : selectedStudyStyle
+                          ? `${selectedStudyStyle.charAt(0) + selectedStudyStyle.slice(1).toLowerCase()} study style partners aren't available`
+                          : studyStyleCustomDescription.trim()
+                          ? `Partners with "${studyStyleCustomDescription.trim().slice(0, 30)}${studyStyleCustomDescription.trim().length > 30 ? '...' : ''}" style aren't available`
+                          : selectedInterests.length > 0
+                          ? `Partners interested in ${selectedInterests.slice(0, 2).join(' & ')} aren't available`
+                          : interestsCustomDescription.trim()
+                          ? `Partners interested in "${interestsCustomDescription.trim().slice(0, 30)}${interestsCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
+                          : selectedGoals.length > 0
+                          ? `Partners with ${selectedGoals.slice(0, 2).join(' & ')} goals aren't available`
+                          : selectedRoles.length > 0
+                          ? `${selectedRoles.join(' / ')} partners aren't available right now`
+                          : selectedAgeRange
+                          ? `Partners in the ${ageRanges.find(r => r.value === selectedAgeRange)?.label || selectedAgeRange} range aren't available`
+                          : selectedAvailability.length > 0 || availableHoursFilter.trim()
+                          ? `Partners available ${selectedAvailability.length > 0 ? 'on ' + selectedAvailability.slice(0, 2).join(' & ') : ''}${availableHoursFilter.trim() ? ' (' + availableHoursFilter.trim() + ')' : ''} aren't available`
+                          : locationCity || locationState || locationCountry
+                          ? `Partners in ${locationCity || locationState || locationCountry} aren't available right now`
+                          : schoolFilter
+                          ? `Partners from ${schoolFilter} aren't available right now`
+                          : languagesFilter
+                          ? `Partners who speak ${languagesFilter} aren't available right now`
+                          : 'No matching partners found'}
+                      </h3>
+
+                      <p className="text-base text-gray-600 dark:text-slate-300 mb-4">
+                        {searchQuery
+                          ? `But I can be your study partner! I'll adapt to help you with what you're looking for.`
+                          : selectedSubjects.length > 0
+                          ? `But I can be your ${selectedSubjects[0]} study partner! Let's learn together.`
+                          : subjectCustomDescription.trim()
+                          ? `But I can help you with ${subjectCustomDescription.trim().slice(0, 50)}! Let's learn together.`
+                          : selectedSkillLevel
+                          ? `But I can adapt to your ${selectedSkillLevel.toLowerCase()} level! Let's study together.`
+                          : skillLevelCustomDescription.trim()
+                          ? `But I can match your skill needs! Let's study together.`
+                          : selectedStudyStyle
+                          ? `But I can match your ${selectedStudyStyle.toLowerCase()} study style! Let's learn together.`
+                          : studyStyleCustomDescription.trim()
+                          ? `But I can adapt to your study style! Let's learn together.`
+                          : selectedInterests.length > 0
+                          ? `But I can help you with ${selectedInterests[0].toLowerCase()}! Let's study together.`
+                          : interestsCustomDescription.trim()
+                          ? `But I share your interests! Let's study together.`
+                          : selectedGoals.length > 0
+                          ? `But I can help you achieve your ${selectedGoals[0].toLowerCase()} goal! Let's work together.`
+                          : selectedRoles.length > 0
+                          ? `But I can be your AI study buddy for ${selectedRoles[0].toLowerCase()}s! Let's learn together.`
+                          : selectedAgeRange
+                          ? `But I can relate to your learning journey! Let's study together.`
+                          : selectedAvailability.length > 0 || availableHoursFilter.trim()
+                          ? `But I'm always available whenever you need! Let's study together.`
+                          : locationCity || locationState || locationCountry
+                          ? `But I can be your virtual study partner from anywhere! Let's connect.`
+                          : schoolFilter
+                          ? `But I can help you study as if we were classmates! Let's learn together.`
+                          : languagesFilter
+                          ? `But I can communicate in multiple languages! Let's study together.`
+                          : "But I can be your AI study partner! I'm always available to help you learn."}
+                      </p>
+
+                      {/* Show ALL active filter tags including custom descriptions */}
+                      {(selectedSubjects.length > 0 || subjectCustomDescription.trim() || selectedSkillLevel || skillLevelCustomDescription.trim() ||
+                        selectedStudyStyle || studyStyleCustomDescription.trim() || selectedInterests.length > 0 || interestsCustomDescription.trim() ||
+                        selectedGoals.length > 0 || selectedRoles.length > 0 || selectedAgeRange || selectedAvailability.length > 0 || availableHoursFilter.trim() ||
+                        locationCity || locationState || locationCountry || schoolFilter || languagesFilter || searchQuery) && (
+                        <div className="flex flex-wrap justify-center gap-2 mb-4">
+                          {/* Search Query */}
+                          {searchQuery && (
+                            <span className="px-3 py-1 bg-slate-500/20 text-slate-400 text-xs rounded-full border border-slate-500/30">
+                              Search: {searchQuery.length > 20 ? searchQuery.slice(0, 20) + '...' : searchQuery}
+                            </span>
+                          )}
+                          {/* Subjects */}
+                          {selectedSubjects.slice(0, 3).map((subject, idx) => (
+                            <span key={`subj-${idx}`} className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
+                              {subject}
+                            </span>
+                          ))}
+                          {selectedSubjects.length > 3 && (
+                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
+                              +{selectedSubjects.length - 3} more
+                            </span>
+                          )}
+                          {/* Subject Custom Description */}
+                          {subjectCustomDescription.trim() && (
+                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
+                              {subjectCustomDescription.trim().length > 25 ? subjectCustomDescription.trim().slice(0, 25) + '...' : subjectCustomDescription.trim()}
+                            </span>
+                          )}
+                          {/* Skill Level */}
+                          {selectedSkillLevel && (
+                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full border border-purple-500/30">
+                              {selectedSkillLevel.charAt(0) + selectedSkillLevel.slice(1).toLowerCase()}
+                            </span>
+                          )}
+                          {/* Skill Level Custom Description */}
+                          {skillLevelCustomDescription.trim() && (
+                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full border border-purple-500/30">
+                              {skillLevelCustomDescription.trim().length > 25 ? skillLevelCustomDescription.trim().slice(0, 25) + '...' : skillLevelCustomDescription.trim()}
+                            </span>
+                          )}
+                          {/* Study Style */}
+                          {selectedStudyStyle && (
+                            <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
+                              {selectedStudyStyle.charAt(0) + selectedStudyStyle.slice(1).toLowerCase()}
+                            </span>
+                          )}
+                          {/* Study Style Custom Description */}
+                          {studyStyleCustomDescription.trim() && (
+                            <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
+                              {studyStyleCustomDescription.trim().length > 25 ? studyStyleCustomDescription.trim().slice(0, 25) + '...' : studyStyleCustomDescription.trim()}
+                            </span>
+                          )}
+                          {/* Interests */}
+                          {selectedInterests.slice(0, 2).map((interest, idx) => (
+                            <span key={`int-${idx}`} className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
+                              {interest}
+                            </span>
+                          ))}
+                          {/* Interests Custom Description */}
+                          {interestsCustomDescription.trim() && (
+                            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
+                              {interestsCustomDescription.trim().length > 25 ? interestsCustomDescription.trim().slice(0, 25) + '...' : interestsCustomDescription.trim()}
+                            </span>
+                          )}
+                          {/* Goals */}
+                          {selectedGoals.slice(0, 2).map((goal, idx) => (
+                            <span key={`goal-${idx}`} className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full border border-orange-500/30">
+                              {goal}
+                            </span>
+                          ))}
+                          {/* Roles */}
+                          {selectedRoles.slice(0, 2).map((role, idx) => (
+                            <span key={`role-${idx}`} className="px-3 py-1 bg-pink-500/20 text-pink-400 text-xs rounded-full border border-pink-500/30">
+                              {role}
+                            </span>
+                          ))}
+                          {/* Age Range */}
+                          {selectedAgeRange && (
+                            <span className="px-3 py-1 bg-teal-500/20 text-teal-400 text-xs rounded-full border border-teal-500/30">
+                              {ageRanges.find(r => r.value === selectedAgeRange)?.label || selectedAgeRange}
+                            </span>
+                          )}
+                          {/* Availability */}
+                          {selectedAvailability.length > 0 && (
+                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded-full border border-indigo-500/30">
+                              {selectedAvailability.slice(0, 2).map(d => d.slice(0, 3)).join(', ')}{selectedAvailability.length > 2 ? '...' : ''}
+                            </span>
+                          )}
+                          {/* Available Hours */}
+                          {availableHoursFilter.trim() && (
+                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded-full border border-indigo-500/30">
+                              {availableHoursFilter.trim().length > 20 ? availableHoursFilter.trim().slice(0, 20) + '...' : availableHoursFilter.trim()}
+                            </span>
+                          )}
+                          {/* Location */}
+                          {(locationCity || locationState || locationCountry) && (
+                            <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full border border-cyan-500/30">
+                              {locationCity || locationState || locationCountry}
+                            </span>
+                          )}
+                          {/* School */}
+                          {schoolFilter && (
+                            <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full border border-amber-500/30">
+                              {schoolFilter.length > 20 ? schoolFilter.slice(0, 20) + '...' : schoolFilter}
+                            </span>
+                          )}
+                          {/* Languages */}
+                          {languagesFilter && (
+                            <span className="px-3 py-1 bg-rose-500/20 text-rose-400 text-xs rounded-full border border-rose-500/30">
+                              {languagesFilter.length > 15 ? languagesFilter.slice(0, 15) + '...' : languagesFilter}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <button
-                        onClick={loadRandomPartners}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg"
+                        onClick={() => {
+                          setLastSearchWasFiltered(true)
+                          setAiPartnerNoResultsReason(searchQuery ? 'name_not_found' : 'no_partners')
+                          setShowAIPartnerModal(true)
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg flex items-center gap-2 mx-auto"
                       >
-                        Load Random Partners
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Start Studying with AI Partner
                       </button>
-                    )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="flex items-center mb-6">
+                      <div className="flex-1 border-t border-gray-200 dark:border-slate-700/50"></div>
+                      <span className="px-4 text-sm text-gray-500 dark:text-slate-400">or</span>
+                      <div className="flex-1 border-t border-gray-200 dark:border-slate-700/50"></div>
+                    </div>
+
+                    <button
+                      onClick={loadRandomPartners}
+                      className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-slate-600 transition shadow-lg"
+                    >
+                      Load Random Partners
+                    </button>
                   </div>
                 )}
                 </div>
@@ -1137,6 +1349,31 @@ export default function SearchPage() {
           </div>
         </div>
       </main>
+
+      {/* AI Partner Suggestion Modal */}
+      <AIPartnerSuggestionModal
+        isOpen={showAIPartnerModal}
+        onClose={() => setShowAIPartnerModal(false)}
+        searchCriteria={{
+          subjects: selectedSubjects,
+          subjectDescription: subjectCustomDescription || undefined,
+          school: schoolFilter || undefined,
+          locationCity: locationCity || undefined,
+          locationState: locationState || undefined,
+          locationCountry: locationCountry || undefined,
+          skillLevel: selectedSkillLevel || undefined,
+          studyStyle: selectedStudyStyle || undefined,
+          interests: selectedInterests,
+          goals: selectedGoals,
+          availableDays: selectedAvailability,
+          availableHours: availableHoursFilter || undefined,
+          ageRange: selectedAgeRange || undefined,
+          role: selectedRoles,
+          languages: languagesFilter || undefined,
+        }}
+        searchQuery={searchQuery}
+        noResultsReason={aiPartnerNoResultsReason}
+      />
     </div>
   )
 }

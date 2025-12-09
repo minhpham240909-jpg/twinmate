@@ -128,6 +128,9 @@ model User {
   // Push notification subscriptions
   pushSubscriptions     PushSubscription[]
 
+  // AI Partner preferences
+  hideAIPartner         Boolean  @default(false) // User chose to hide AI Partner from dashboard
+
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -2142,4 +2145,5 @@ enum AIMessageType {
   SUMMARY    // Session summary or notes
   TIMER      // Timer-related message (pomodoro encouragement)
   TOPIC_CHANGE // User changed study topic
+  WHITEBOARD // Whiteboard analysis response
 }

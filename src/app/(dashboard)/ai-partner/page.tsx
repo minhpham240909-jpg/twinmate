@@ -3,18 +3,21 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { toast } from 'react-hot-toast'
 import {
   Bot,
   Sparkles,
-  Plus,
   Clock,
   MessageSquare,
   Star,
   ChevronRight,
   Loader2,
   History,
+  Search,
+  ArrowRight,
+  Play,
+  Pause,
 } from 'lucide-react'
-import StartAIPartnerModal from '@/components/ai-partner/StartAIPartnerModal'
 
 interface AISession {
   id: string
@@ -30,8 +33,7 @@ export default function AIPartnerPage() {
   const router = useRouter()
   const [sessions, setSessions] = useState<AISession[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showStartModal, setShowStartModal] = useState(false)
-  const [isStarting, setIsStarting] = useState(false)
+  const [resumingId, setResumingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSessions()
@@ -51,31 +53,25 @@ export default function AIPartnerPage() {
     }
   }
 
-  const handleStartSession = async (data: {
-    subject?: string
-    skillLevel?: string
-    studyGoal?: string
-  }) => {
-    setIsStarting(true)
+  const handleResumeSession = async (sessionId: string) => {
+    setResumingId(sessionId)
     try {
-      const res = await fetch('/api/ai-partner/session', {
+      const res = await fetch(`/api/ai-partner/session/${sessionId}/resume`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
       })
+      const data = await res.json()
 
-      const result = await res.json()
-
-      if (result.success) {
-        router.push(`/ai-partner/${result.session.id}`)
+      if (data.success) {
+        toast.success('Session resumed!')
+        router.push(`/ai-partner/${sessionId}`)
       } else {
-        throw new Error(result.error)
+        toast.error(data.error || 'Failed to resume session')
       }
     } catch (error) {
-      console.error('Failed to start session:', error)
-      throw error
+      console.error('Failed to resume session:', error)
+      toast.error('Failed to resume session')
     } finally {
-      setIsStarting(false)
+      setResumingId(null)
     }
   }
 
@@ -93,7 +89,9 @@ export default function AIPartnerPage() {
     return date.toLocaleDateString()
   }
 
-  const formatDuration = (startedAt: string, endedAt: string | null) => {
+  const formatDuration = (startedAt: string, endedAt: string | null, status: string) => {
+    if (status === 'ACTIVE') return 'In progress'
+    if (status === 'PAUSED') return 'Paused'
     if (!endedAt) return 'In progress'
     const start = new Date(startedAt).getTime()
     const end = new Date(endedAt).getTime()
@@ -103,6 +101,10 @@ export default function AIPartnerPage() {
     const mins = durationMins % 60
     return `${hours}h ${mins}m`
   }
+
+  // Check if there's an active or paused session
+  const activeSession = sessions.find(s => s.status === 'ACTIVE')
+  const pausedSession = sessions.find(s => s.status === 'PAUSED')
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-6">
@@ -116,38 +118,127 @@ export default function AIPartnerPage() {
             <div>
               <h1 className="text-2xl font-bold">AI Study Partner</h1>
               <p className="text-slate-400 text-sm">
-                Your instant AI-powered study companion
+                Your fallback study companion when no partners are available
               </p>
             </div>
           </div>
         </div>
 
-        {/* Start New Session Card */}
+        {/* Active Session Banner */}
+        {activeSession && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4"
+          >
+            <button
+              onClick={() => router.push(`/ai-partner/${activeSession.id}`)}
+              className="w-full bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-6 hover:from-green-600/30 hover:to-emerald-600/30 transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center relative">
+                    <Bot className="w-7 h-7 text-white" />
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-950 animate-pulse" />
+                  </div>
+                  <div className="text-left">
+                    <h2 className="text-lg font-semibold text-white">
+                      Continue Active Session
+                    </h2>
+                    <p className="text-slate-400 text-sm">
+                      {activeSession.subject || 'General Study'} • {activeSession.messageCount} messages
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="w-6 h-6 text-green-400 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+          </motion.div>
+        )}
+
+        {/* Paused Session Banner */}
+        {pausedSession && !activeSession && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4"
+          >
+            <button
+              onClick={() => handleResumeSession(pausedSession.id)}
+              disabled={resumingId === pausedSession.id}
+              className="w-full bg-gradient-to-r from-amber-600/20 to-orange-600/20 border border-amber-500/30 rounded-2xl p-6 hover:from-amber-600/30 hover:to-orange-600/30 transition-all group disabled:opacity-70"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center relative">
+                    <Bot className="w-7 h-7 text-white" />
+                    <Pause className="absolute -top-1 -right-1 w-4 h-4 text-amber-400 bg-slate-950 rounded-full p-0.5" />
+                  </div>
+                  <div className="text-left">
+                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                      Resume Paused Session
+                      {resumingId === pausedSession.id && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                    </h2>
+                    <p className="text-slate-400 text-sm">
+                      {pausedSession.subject || 'General Study'} • {pausedSession.messageCount} messages
+                    </p>
+                  </div>
+                </div>
+                <Play className="w-6 h-6 text-amber-400 group-hover:scale-110 transition-transform" />
+              </div>
+            </button>
+          </motion.div>
+        )}
+
+        {/* How It Works */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          transition={{ delay: 0.1 }}
+          className="mb-8 bg-slate-800/30 rounded-2xl border border-slate-700/50 p-6"
         >
-          <button
-            onClick={() => setShowStartModal(true)}
-            className="w-full bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-2xl p-6 hover:from-blue-600/30 hover:to-purple-600/30 transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Plus className="w-7 h-7 text-white" />
-                </div>
-                <div className="text-left">
-                  <h2 className="text-lg font-semibold text-white">
-                    Start New Session
-                  </h2>
-                  <p className="text-slate-400 text-sm">
-                    Chat, quiz, and study with your AI partner
-                  </p>
-                </div>
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-400" />
+            How AI Partner Works
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-400 font-semibold text-sm">1</span>
               </div>
-              <Sparkles className="w-6 h-6 text-purple-400 group-hover:text-purple-300 transition-colors" />
+              <div>
+                <p className="text-white font-medium">Search for a partner</p>
+                <p className="text-slate-400 text-sm">Use the search page to find study partners by subject, location, skill level, etc.</p>
+              </div>
             </div>
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-purple-400 font-semibold text-sm">2</span>
+              </div>
+              <div>
+                <p className="text-white font-medium">No partners available?</p>
+                <p className="text-slate-400 text-sm">If no one matches your criteria, you&apos;ll see an option to try AI Partner.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-green-400 font-semibold text-sm">3</span>
+              </div>
+              <div>
+                <p className="text-white font-medium">AI becomes your partner</p>
+                <p className="text-slate-400 text-sm">The AI adopts the perspective of the partner you were looking for - same subject, location, skill level.</p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => router.push('/search')}
+            className="mt-6 w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-600 transition-all"
+          >
+            <Search className="w-5 h-5" />
+            Find Partners
           </button>
         </motion.div>
 
@@ -174,7 +265,7 @@ export default function AIPartnerPage() {
         <div>
           <div className="flex items-center gap-2 mb-4">
             <History className="w-5 h-5 text-slate-400" />
-            <h2 className="text-lg font-semibold text-white">Recent Sessions</h2>
+            <h2 className="text-lg font-semibold text-white">Session History</h2>
           </div>
 
           {isLoading ? (
@@ -186,7 +277,7 @@ export default function AIPartnerPage() {
               <Bot className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400">No sessions yet</p>
               <p className="text-slate-500 text-sm">
-                Start your first AI study session above!
+                Search for partners to get started with AI Partner
               </p>
             </div>
           ) : (
@@ -198,14 +289,12 @@ export default function AIPartnerPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <button
-                    onClick={() => {
-                      if (session.status === 'ACTIVE') {
-                        router.push(`/ai-partner/${session.id}`)
-                      }
-                    }}
-                    disabled={session.status !== 'ACTIVE'}
-                    className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 hover:bg-slate-800 transition-all text-left group disabled:opacity-60 disabled:cursor-default"
+                  <div
+                    className={`w-full bg-slate-800/50 border rounded-xl p-4 transition-all text-left ${
+                      session.status === 'ACTIVE' || session.status === 'PAUSED'
+                        ? 'border-slate-600/50 hover:bg-slate-800 cursor-pointer'
+                        : 'border-slate-700/50 opacity-70'
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -213,6 +302,8 @@ export default function AIPartnerPage() {
                           className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                             session.status === 'ACTIVE'
                               ? 'bg-green-500/20'
+                              : session.status === 'PAUSED'
+                              ? 'bg-amber-500/20'
                               : 'bg-slate-700/50'
                           }`}
                         >
@@ -220,18 +311,30 @@ export default function AIPartnerPage() {
                             className={`w-5 h-5 ${
                               session.status === 'ACTIVE'
                                 ? 'text-green-400'
+                                : session.status === 'PAUSED'
+                                ? 'text-amber-400'
                                 : 'text-slate-400'
                             }`}
                           />
                         </div>
                         <div>
-                          <p className="font-medium text-white">
+                          <p className="font-medium text-white flex items-center gap-2">
                             {session.subject || 'General Study'}
+                            {session.status === 'PAUSED' && (
+                              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                                Paused
+                              </span>
+                            )}
+                            {session.status === 'ACTIVE' && (
+                              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                                Active
+                              </span>
+                            )}
                           </p>
                           <div className="flex items-center gap-3 text-xs text-slate-500">
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {formatDuration(session.startedAt, session.endedAt)}
+                              {formatDuration(session.startedAt, session.endedAt, session.status)}
                             </span>
                             <span className="flex items-center gap-1">
                               <MessageSquare className="w-3 h-3" />
@@ -251,24 +354,38 @@ export default function AIPartnerPage() {
                           {formatDate(session.startedAt)}
                         </span>
                         {session.status === 'ACTIVE' && (
-                          <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-white transition-colors" />
+                          <button
+                            onClick={() => router.push(`/ai-partner/${session.id}`)}
+                            className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5 text-green-400" />
+                          </button>
+                        )}
+                        {session.status === 'PAUSED' && (
+                          <button
+                            onClick={() => handleResumeSession(session.id)}
+                            disabled={resumingId === session.id}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition-colors text-sm font-medium disabled:opacity-50"
+                          >
+                            {resumingId === session.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Play className="w-4 h-4" />
+                                Resume
+                              </>
+                            )}
+                          </button>
                         )}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 </motion.div>
               ))}
             </div>
           )}
         </div>
       </div>
-
-      {/* Start Session Modal */}
-      <StartAIPartnerModal
-        isOpen={showStartModal}
-        onClose={() => setShowStartModal(false)}
-        onStart={handleStartSession}
-      />
     </div>
   )
 }

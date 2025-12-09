@@ -26,6 +26,16 @@ export default function PushNotificationPrompt({ delay = 30000 }: PushNotificati
 
   // Show prompt after delay if appropriate
   useEffect(() => {
+    // Debug logging for production troubleshooting
+    console.log('[PushPrompt] Checking conditions:', {
+      supported: isSupported,
+      subscribed: isSubscribed,
+      permission,
+      loading: isLoading,
+      dismissed,
+      shouldPrompt: shouldPrompt()
+    })
+
     if (!shouldPrompt() || dismissed) {
       return
     }

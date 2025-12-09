@@ -9,10 +9,19 @@ import {
   Loader2,
   LogOut,
   AlertTriangle,
+  MessageSquare,
+  BookOpen,
+  PenTool,
+  Clock,
+  Target,
+  Lightbulb,
 } from 'lucide-react'
 import AIPartnerChat from '@/components/ai-partner/AIPartnerChat'
 import AIPartnerSessionTimer from '@/components/ai-partner/AIPartnerSessionTimer'
+import AIPartnerFlashcards from '@/components/ai-partner/AIPartnerFlashcards'
+import AIPartnerWhiteboard from '@/components/ai-partner/AIPartnerWhiteboard'
 import EndSessionModal from '@/components/ai-partner/EndSessionModal'
+import PartnerAvailableNotification from '@/components/ai-partner/PartnerAvailableNotification'
 
 interface Message {
   id: string
@@ -36,6 +45,8 @@ interface AISession {
   messages: Message[]
 }
 
+type TabType = 'chat' | 'flashcards' | 'whiteboard'
+
 export default function AIPartnerSessionPage({
   params,
 }: {
@@ -50,6 +61,7 @@ export default function AIPartnerSessionPage({
   const [isSending, setIsSending] = useState(false)
   const [showEndModal, setShowEndModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<TabType>('chat')
 
   useEffect(() => {
     fetchSession()
@@ -244,6 +256,12 @@ export default function AIPartnerSessionPage({
     }
   }
 
+  // Handler for asking AI from flashcards
+  const handleAskAIFromFlashcards = async (question: string) => {
+    setActiveTab('chat')
+    await handleSendMessage(question)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -274,11 +292,17 @@ export default function AIPartnerSessionPage({
 
   if (!session) return null
 
+  const tabs: { id: TabType; label: string; icon: typeof MessageSquare }[] = [
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'flashcards', label: 'Flashcards', icon: BookOpen },
+    { id: 'whiteboard', label: 'Whiteboard', icon: PenTool },
+  ]
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col">
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-lg border-b border-slate-700/50 px-4 py-3 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/ai-partner')}
@@ -308,13 +332,31 @@ export default function AIPartnerSessionPage({
             </div>
           </div>
 
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-1 bg-slate-800/50 rounded-xl p-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
           {session.status === 'ACTIVE' && (
             <button
               onClick={() => setShowEndModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-400 rounded-xl hover:bg-red-600/30 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              End Session
+              <span className="hidden sm:inline">End Session</span>
             </button>
           )}
         </div>
@@ -335,28 +377,47 @@ export default function AIPartnerSessionPage({
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex max-w-6xl mx-auto w-full">
-        {/* Chat Area */}
+      <div className="flex-1 flex max-w-7xl mx-auto w-full">
+        {/* Main Feature Area */}
         <div className="flex-1 p-4">
           <div className="h-[calc(100vh-8rem)]">
-            <AIPartnerChat
-              sessionId={session.id}
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              onGenerateQuiz={handleGenerateQuiz}
-              onGenerateFlashcards={handleGenerateFlashcards}
-              isLoading={isSending}
-              subject={session.subject}
-            />
+            {activeTab === 'chat' && (
+              <AIPartnerChat
+                sessionId={session.id}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onGenerateQuiz={handleGenerateQuiz}
+                onGenerateFlashcards={handleGenerateFlashcards}
+                isLoading={isSending}
+                subject={session.subject}
+              />
+            )}
+
+            {activeTab === 'flashcards' && (
+              <div className="h-full bg-slate-900 rounded-2xl border border-slate-700/50 overflow-hidden">
+                <div className="h-full overflow-y-auto">
+                  <AIPartnerFlashcards
+                    sessionId={session.id}
+                    subject={session.subject}
+                    onAskAI={handleAskAIFromFlashcards}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'whiteboard' && (
+              <div className="h-full">
+                <AIPartnerWhiteboard sessionId={session.id} />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Sidebar - Timer & Tools */}
-        <div className="w-80 p-4 border-l border-slate-700/50 hidden lg:block">
+        <div className="w-80 p-4 border-l border-slate-700/50 hidden lg:block overflow-y-auto">
           <AIPartnerSessionTimer
             sessionStartedAt={session.startedAt}
             onTimerComplete={(isBreak) => {
-              // Could send a message to AI about timer completion
               console.log(isBreak ? 'Break complete!' : 'Study session complete!')
             }}
           />
@@ -364,24 +425,81 @@ export default function AIPartnerSessionPage({
           {/* Study Goal */}
           {session.studyGoal && (
             <div className="mt-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-4">
-              <h3 className="text-sm font-medium text-slate-300 mb-2">
+              <h3 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+                <Target className="w-4 h-4 text-green-400" />
                 Session Goal
               </h3>
               <p className="text-sm text-slate-400">{session.studyGoal}</p>
             </div>
           )}
 
+          {/* Session Stats */}
+          <div className="mt-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-4">
+            <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-400" />
+              Session Stats
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-900/50 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-white">
+                  {messages.filter((m) => m.role !== 'SYSTEM').length}
+                </div>
+                <div className="text-xs text-slate-400">Messages</div>
+              </div>
+              <div className="bg-slate-900/50 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-white">
+                  {messages.filter((m) => m.messageType === 'QUIZ').length}
+                </div>
+                <div className="text-xs text-slate-400">Quizzes</div>
+              </div>
+            </div>
+          </div>
+
           {/* Quick Tips */}
           <div className="mt-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-4">
-            <h3 className="text-sm font-medium text-slate-300 mb-3">
+            <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-yellow-400" />
               Quick Tips
             </h3>
             <ul className="space-y-2 text-xs text-slate-400">
-              <li>• Ask questions about any topic</li>
-              <li>• Use &quot;Quiz Me&quot; to test yourself</li>
-              <li>• Generate flashcards for revision</li>
-              <li>• Stay focused on studying!</li>
+              <li className="flex items-start gap-2">
+                <MessageSquare className="w-3 h-3 mt-0.5 text-blue-400" />
+                Ask questions in the Chat tab
+              </li>
+              <li className="flex items-start gap-2">
+                <BookOpen className="w-3 h-3 mt-0.5 text-green-400" />
+                Create or generate flashcards to study
+              </li>
+              <li className="flex items-start gap-2">
+                <PenTool className="w-3 h-3 mt-0.5 text-purple-400" />
+                Use the whiteboard to draw diagrams
+              </li>
             </ul>
+          </div>
+
+          {/* Feature Highlights */}
+          <div className="mt-4 bg-gradient-to-br from-blue-600/10 to-purple-600/10 rounded-2xl border border-blue-500/20 p-4">
+            <h3 className="text-sm font-medium text-white mb-2">
+              Study Tools Available
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="w-2 h-2 bg-green-400 rounded-full" />
+                AI Chat & Quiz
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="w-2 h-2 bg-green-400 rounded-full" />
+                Interactive Flashcards
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="w-2 h-2 bg-green-400 rounded-full" />
+                Digital Whiteboard
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="w-2 h-2 bg-green-400 rounded-full" />
+                Pomodoro Timer
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -399,6 +517,14 @@ export default function AIPartnerSessionPage({
           quizCount: messages.filter((m) => m.messageType === 'QUIZ').length,
         }}
       />
+
+      {/* Real Partner Available Notification */}
+      {session.status === 'ACTIVE' && (
+        <PartnerAvailableNotification
+          sessionId={session.id}
+          checkInterval={60000}
+        />
+      )}
     </div>
   )
 }
