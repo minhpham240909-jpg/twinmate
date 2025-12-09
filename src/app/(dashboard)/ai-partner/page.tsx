@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Play,
   Pause,
+  X,
 } from 'lucide-react'
 
 interface AISession {
@@ -111,16 +112,26 @@ export default function AIPartnerPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-              <Bot className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">AI Study Partner</h1>
+                <p className="text-slate-400 text-sm">
+                  Your fallback study companion when no partners are available
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">AI Study Partner</h1>
-              <p className="text-slate-400 text-sm">
-                Your fallback study companion when no partners are available
-              </p>
-            </div>
+            {/* Close button to go back to dashboard */}
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/50 hover:border-slate-600 transition-all group"
+              title="Back to Dashboard"
+            >
+              <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+            </button>
           </div>
         </div>
 

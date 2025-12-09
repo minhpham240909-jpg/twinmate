@@ -736,6 +736,77 @@ ${conversationSummary}`
 }
 
 /**
+ * Stream interface for chat completion
+ */
+export interface StreamCallbacks {
+  onToken: (token: string) => void
+  onComplete: (fullContent: string, usage: { promptTokens: number; completionTokens: number; totalTokens: number }) => void
+  onError: (error: Error) => void
+}
+
+/**
+ * Send a chat message to OpenAI with streaming response
+ * Returns tokens as they're generated for real-time display
+ */
+export async function sendChatMessageStream(
+  messages: AIMessage[],
+  callbacks: StreamCallbacks,
+  options: {
+    temperature?: number
+    maxTokens?: number
+    model?: string
+  } = {}
+): Promise<void> {
+  const { temperature = 0.7, maxTokens = 500, model = DEFAULT_MODEL } = options
+
+  try {
+    const stream = await openai.chat.completions.create({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      presence_penalty: 0.1,
+      frequency_penalty: 0.1,
+      stream: true,
+    })
+
+    let fullContent = ''
+    let promptTokens = 0
+    let completionTokens = 0
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || ''
+      if (content) {
+        fullContent += content
+        callbacks.onToken(content)
+      }
+
+      // Get usage from final chunk if available
+      if (chunk.usage) {
+        promptTokens = chunk.usage.prompt_tokens
+        completionTokens = chunk.usage.completion_tokens
+      }
+    }
+
+    // Estimate tokens if not provided (streaming doesn't always include usage)
+    if (!promptTokens) {
+      // Rough estimate: ~4 chars per token for English
+      promptTokens = Math.ceil(messages.reduce((acc, m) => acc + m.content.length, 0) / 4)
+      completionTokens = Math.ceil(fullContent.length / 4)
+    }
+
+    callbacks.onComplete(fullContent, {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+    })
+  } catch (error) {
+    console.error('[AI Partner] OpenAI streaming error:', error)
+    callbacks.onError(error instanceof Error ? error : new Error('Failed to stream AI response'))
+  }
+}
+
+/**
  * Check if content is study-related and appropriate
  * Returns a safety check result
  */

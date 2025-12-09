@@ -19,6 +19,8 @@ import {
   RefreshCw,
   ExternalLink,
   BarChart3,
+  Bot,
+  Sparkles,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -412,6 +414,61 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* AI Partner Quick Stats */}
+      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-xl border border-blue-500/30 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Bot className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">AI Study Partner</h2>
+              <p className="text-xs text-gray-400">Real-time AI analytics</p>
+            </div>
+          </div>
+          <Link
+            href="/admin/ai-partner"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors text-sm font-medium"
+          >
+            <Sparkles className="w-4 h-4" />
+            View Full Analytics
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Link
+            href="/admin/ai-partner"
+            className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <p className="text-2xl font-bold text-blue-400">-</p>
+            <p className="text-xs text-gray-400">Total Sessions</p>
+          </Link>
+          <Link
+            href="/admin/ai-partner"
+            className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <p className="text-2xl font-bold text-purple-400">-</p>
+            <p className="text-xs text-gray-400">AI Messages</p>
+          </Link>
+          <Link
+            href="/admin/ai-partner/sessions?status=ACTIVE"
+            className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <p className="text-2xl font-bold text-green-400">-</p>
+            <p className="text-xs text-gray-400">Active Now</p>
+          </Link>
+          <Link
+            href="/admin/ai-partner/sessions?flagged=true"
+            className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <p className="text-2xl font-bold text-red-400">-</p>
+            <p className="text-xs text-gray-400">Flagged</p>
+          </Link>
+        </div>
+        <p className="text-xs text-gray-500 mt-3 text-center">
+          Click &quot;View Full Analytics&quot; to see real-time AI Partner data
+        </p>
+      </div>
+
       {/* Quick Actions */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
@@ -438,11 +495,11 @@ export default function AdminDashboard() {
             <span className="text-sm text-gray-300">Send Announcement</span>
           </Link>
           <Link
-            href="/admin/analytics"
+            href="/admin/ai-partner"
             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
           >
-            <TrendingUp className="w-8 h-8 text-purple-400" />
-            <span className="text-sm text-gray-300">View Analytics</span>
+            <Bot className="w-8 h-8 text-purple-400" />
+            <span className="text-sm text-gray-300">AI Partner</span>
           </Link>
         </div>
 

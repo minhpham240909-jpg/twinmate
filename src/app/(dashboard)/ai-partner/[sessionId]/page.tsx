@@ -91,59 +91,140 @@ export default function AIPartnerSessionPage({
     setError(null)
 
     // Optimistically add user message
+    const tempUserMsgId = `temp-user-${Date.now()}`
+    const tempAiMsgId = `temp-ai-${Date.now()}`
+
     const tempUserMsg: Message = {
-      id: `temp-${Date.now()}`,
+      id: tempUserMsgId,
       role: 'USER',
       content,
       messageType: 'CHAT',
       wasFlagged: false,
       createdAt: new Date(),
     }
-    setMessages((prev) => [...prev, tempUserMsg])
+
+    // Add user message and empty AI message for streaming
+    const tempAiMsg: Message = {
+      id: tempAiMsgId,
+      role: 'ASSISTANT',
+      content: '',
+      messageType: 'CHAT',
+      wasFlagged: false,
+      createdAt: new Date(),
+    }
+
+    setMessages((prev) => [...prev, tempUserMsg, tempAiMsg])
 
     try {
-      const res = await fetch('/api/ai-partner/message', {
+      // Use streaming endpoint
+      const res = await fetch('/api/ai-partner/message/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, content }),
       })
 
-      const data = await res.json()
-
-      if (data.success) {
-        // Replace temp message with real ones
-        setMessages((prev) => {
-          const filtered = prev.filter((m) => !m.id.startsWith('temp-'))
-          return [
-            ...filtered,
-            {
-              id: data.userMessage.id,
-              role: 'USER',
-              content: data.userMessage.content,
-              messageType: 'CHAT',
-              wasFlagged: data.userMessage.wasFlagged,
-              createdAt: new Date(),
-            },
-            {
-              id: data.aiMessage.id,
-              role: 'ASSISTANT',
-              content: data.aiMessage.content,
-              messageType: 'CHAT',
-              wasFlagged: false,
-              createdAt: new Date(),
-            },
-          ]
-        })
-
-        // If session was blocked due to safety, show warning
-        if (data.safetyBlocked) {
+      // Check if it's a blocked response (JSON, not stream)
+      const contentType = res.headers.get('Content-Type')
+      if (contentType?.includes('application/json')) {
+        const data = await res.json()
+        if (data.type === 'blocked') {
+          setMessages((prev) => {
+            const filtered = prev.filter((m) => !m.id.startsWith('temp-'))
+            return [
+              ...filtered,
+              {
+                id: data.userMessageId,
+                role: 'USER',
+                content,
+                messageType: 'CHAT',
+                wasFlagged: data.userMessageWasFlagged,
+                createdAt: new Date(),
+              },
+              {
+                id: data.aiMessageId,
+                role: 'ASSISTANT',
+                content: data.content,
+                messageType: 'CHAT',
+                wasFlagged: false,
+                createdAt: new Date(),
+              },
+            ]
+          })
           setError('Session ended due to content policy violation.')
           setTimeout(() => router.push('/ai-partner'), 3000)
+          return
         }
-      } else {
-        // Remove temp message on error
-        setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')))
-        setError(data.error || 'Failed to send message')
+        if (data.error) {
+          setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')))
+          setError(data.error)
+          return
+        }
+      }
+
+      // Handle SSE stream
+      const reader = res.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let userMessageId = tempUserMsgId
+      let userMessageWasFlagged = false
+      let streamedContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.type === 'start') {
+                userMessageId = data.userMessageId
+                userMessageWasFlagged = data.userMessageWasFlagged
+                // Update user message with real ID
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === tempUserMsgId
+                      ? { ...m, id: userMessageId, wasFlagged: userMessageWasFlagged }
+                      : m
+                  )
+                )
+              } else if (data.type === 'token') {
+                streamedContent += data.content
+                // Update AI message content progressively
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === tempAiMsgId
+                      ? { ...m, content: streamedContent }
+                      : m
+                  )
+                )
+              } else if (data.type === 'complete') {
+                // Finalize with real AI message ID
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === tempAiMsgId
+                      ? { ...m, id: data.aiMessageId, content: data.content }
+                      : m
+                  )
+                )
+              } else if (data.type === 'error') {
+                setMessages((prev) => prev.filter((m) => m.id !== tempAiMsgId))
+                setError(data.error || 'Failed to get AI response')
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e)
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to send message:', err)

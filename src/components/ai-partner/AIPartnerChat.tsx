@@ -157,6 +157,10 @@ export default function AIPartnerChat({
 
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                   {message.content}
+                  {/* Show blinking cursor for streaming AI messages */}
+                  {message.role === 'ASSISTANT' && message.id.startsWith('temp-') && (
+                    <span className="inline-block w-2 h-4 bg-blue-400 ml-0.5 animate-pulse" />
+                  )}
                 </div>
 
                 <div className="text-xs opacity-50 mt-2">
@@ -176,8 +180,8 @@ export default function AIPartnerChat({
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator */}
-        {(isLoading || isSending) && (
+        {/* Loading indicator - only show when no streaming content yet */}
+        {(isLoading || isSending) && !messages.some(m => m.role === 'ASSISTANT' && m.content === '') && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

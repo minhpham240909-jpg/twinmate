@@ -23,6 +23,7 @@ import {
   Home,
   MessageSquare,
   RefreshCw,
+  Bot,
 } from 'lucide-react'
 
 // Fetch with timeout to prevent infinite loading
@@ -66,6 +67,12 @@ const navItems = [
     href: '/admin/users',
     icon: Users,
     description: 'Manage users, bans, and warnings',
+  },
+  {
+    name: 'AI Partner',
+    href: '/admin/ai-partner',
+    icon: Bot,
+    description: 'AI Study Partner analytics & moderation',
   },
   {
     name: 'Messages',

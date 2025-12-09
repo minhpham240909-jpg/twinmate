@@ -56,6 +56,9 @@ export async function GET(
       ban,
       deviceSessions,
       activityStats,
+      aiPartnerSessions,
+      aiPartnerStats,
+      aiPartnerFlaggedMessages,
     ] = await Promise.all([
       // 1. Core user data with profile
       prisma.user.findUnique({
@@ -359,6 +362,63 @@ export async function GET(
         prisma.report.count({ where: { reportedUserId: userId } }),
         prisma.userWarning.count({ where: { userId } }),
       ]),
+
+      // 14. AI Partner sessions
+      prisma.aIPartnerSession.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          subject: true,
+          status: true,
+          startedAt: true,
+          endedAt: true,
+          totalDuration: true,
+          messageCount: true,
+          quizCount: true,
+          flashcardCount: true,
+          rating: true,
+          flaggedCount: true,
+          wasSafetyBlocked: true,
+          createdAt: true,
+        }
+      }),
+
+      // 15. AI Partner stats
+      prisma.aIPartnerSession.aggregate({
+        where: { userId },
+        _count: true,
+        _sum: {
+          messageCount: true,
+          totalDuration: true,
+          flaggedCount: true,
+        },
+        _avg: { rating: true },
+      }),
+
+      // 16. AI Partner flagged messages
+      prisma.aIPartnerMessage.findMany({
+        where: {
+          session: { userId },
+          wasFlagged: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          content: true,
+          role: true,
+          flagCategories: true,
+          createdAt: true,
+          session: {
+            select: {
+              id: true,
+              subject: true,
+            }
+          }
+        }
+      }),
     ])
 
     if (!userData) {
@@ -491,6 +551,29 @@ export async function GET(
         ban,
         deviceSessions,
 
+        // AI Partner data
+        aiPartner: {
+          sessions: aiPartnerSessions.map(s => ({
+            ...s,
+            durationFormatted: s.totalDuration
+              ? formatAIDuration(s.totalDuration)
+              : null,
+          })),
+          stats: {
+            totalSessions: aiPartnerStats._count,
+            totalMessages: aiPartnerStats._sum.messageCount || 0,
+            totalDuration: aiPartnerStats._sum.totalDuration || 0,
+            totalDurationFormatted: formatAIDuration(aiPartnerStats._sum.totalDuration || 0),
+            averageRating: aiPartnerStats._avg.rating
+              ? Number(aiPartnerStats._avg.rating.toFixed(1))
+              : null,
+            totalFlagged: aiPartnerStats._sum.flaggedCount || 0,
+          },
+          flaggedMessages: aiPartnerFlaggedMessages,
+          hasAIPartnerActivity: aiPartnerStats._count > 0,
+          hasFlaggedContent: aiPartnerFlaggedMessages.length > 0,
+        },
+
         // Risk assessment
         riskIndicators: {
           hasWarnings: warnings.length > 0,
@@ -503,6 +586,8 @@ export async function GET(
           recentActivity: userData.lastLoginAt
             ? Math.floor((Date.now() - new Date(userData.lastLoginAt).getTime()) / (1000 * 60 * 60 * 24))
             : null,
+          hasAIFlaggedContent: aiPartnerFlaggedMessages.length > 0,
+          aiFlaggedCount: aiPartnerFlaggedMessages.length,
         }
       }
     })
@@ -514,4 +599,15 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+// Helper function to format AI Partner session duration
+function formatAIDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+
+  if (hours > 0) {
+    return `${hours}h ${mins}m`
+  }
+  return `${mins}m`
 }

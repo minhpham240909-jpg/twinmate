@@ -33,6 +33,9 @@ import {
   CheckCircle,
   AlertCircle,
   BookOpen,
+  Bot,
+  Sparkles,
+  Star,
 } from 'lucide-react'
 
 interface UserDetails {
@@ -217,6 +220,44 @@ interface UserDetails {
     banType: string | null
     isDeactivated: boolean
     recentActivity: number | null
+    hasAIFlaggedContent?: boolean
+    aiFlaggedCount?: number
+  }
+  aiPartner?: {
+    sessions: Array<{
+      id: string
+      subject: string | null
+      status: string
+      startedAt: string
+      endedAt: string | null
+      totalDuration: number | null
+      durationFormatted: string | null
+      messageCount: number
+      quizCount: number
+      flashcardCount: number
+      rating: number | null
+      flaggedCount: number
+      wasSafetyBlocked: boolean
+      createdAt: string
+    }>
+    stats: {
+      totalSessions: number
+      totalMessages: number
+      totalDuration: number
+      totalDurationFormatted: string
+      averageRating: number | null
+      totalFlagged: number
+    }
+    flaggedMessages: Array<{
+      id: string
+      content: string
+      role: string
+      flagCategories: string[]
+      createdAt: string
+      session: { id: string; subject: string | null }
+    }>
+    hasAIPartnerActivity: boolean
+    hasFlaggedContent: boolean
   }
 }
 
@@ -990,6 +1031,142 @@ export default function AdminUserDetailPage() {
                 <p className="text-gray-500 dark:text-slate-400 text-sm">No study session participation</p>
               )}
             </Section>
+
+            {/* AI Partner Section */}
+            {data.aiPartner && (
+              <Section
+                title="AI Study Partner"
+                icon={Bot}
+                count={data.aiPartner.stats.totalSessions}
+                badge={data.aiPartner.hasFlaggedContent ? `${data.aiPartner.flaggedMessages.length} flagged` : undefined}
+                badgeColor={data.aiPartner.hasFlaggedContent ? 'red' : 'blue'}
+                defaultOpen={data.aiPartner.hasAIPartnerActivity}
+              >
+                {data.aiPartner.hasAIPartnerActivity ? (
+                  <div className="space-y-4">
+                    {/* AI Partner Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="text-center p-3 bg-blue-500/10 rounded-lg">
+                        <div className="text-xl font-bold text-blue-400">{data.aiPartner.stats.totalSessions}</div>
+                        <div className="text-xs text-gray-500 dark:text-slate-400">Sessions</div>
+                      </div>
+                      <div className="text-center p-3 bg-purple-500/10 rounded-lg">
+                        <div className="text-xl font-bold text-purple-400">{data.aiPartner.stats.totalMessages}</div>
+                        <div className="text-xs text-gray-500 dark:text-slate-400">Messages</div>
+                      </div>
+                      <div className="text-center p-3 bg-green-500/10 rounded-lg">
+                        <div className="text-xl font-bold text-green-400">{data.aiPartner.stats.totalDurationFormatted}</div>
+                        <div className="text-xs text-gray-500 dark:text-slate-400">Total Time</div>
+                      </div>
+                      <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
+                        <div className="text-xl font-bold text-yellow-400 flex items-center justify-center gap-1">
+                          {data.aiPartner.stats.averageRating ? (
+                            <>
+                              <Star className="w-4 h-4 fill-current" />
+                              {data.aiPartner.stats.averageRating}
+                            </>
+                          ) : (
+                            'N/A'
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-slate-400">Avg Rating</div>
+                      </div>
+                    </div>
+
+                    {/* Flagged Messages Alert */}
+                    {data.aiPartner.hasFlaggedContent && (
+                      <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle className="w-4 h-4 text-red-500" />
+                          <span className="font-semibold text-red-400">
+                            {data.aiPartner.flaggedMessages.length} Flagged Message(s)
+                          </span>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {data.aiPartner.flaggedMessages.map(msg => (
+                            <div key={msg.id} className="p-2 bg-red-500/5 rounded text-sm">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-red-400">
+                                  {msg.role === 'USER' ? 'User message' : 'AI response'} • {msg.session.subject || 'General'}
+                                </span>
+                                <span className="text-xs text-gray-400">{formatRelativeTime(msg.createdAt)}</span>
+                              </div>
+                              <p className="text-gray-600 dark:text-slate-400 line-clamp-2">{msg.content}</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {msg.flagCategories.map((cat, idx) => (
+                                  <span key={idx} className="text-xs px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded">
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent AI Sessions */}
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                        Recent Sessions
+                      </h4>
+                      {data.aiPartner.sessions.slice(0, 10).map(session => (
+                        <div key={session.id} className="p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                              {session.subject || 'General Study'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {session.flaggedCount > 0 && (
+                                <span className="text-xs px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded-full">
+                                  {session.flaggedCount} flagged
+                                </span>
+                              )}
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                session.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' :
+                                session.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
+                                session.status === 'COMPLETED' ? 'bg-blue-500/20 text-blue-400' :
+                                session.status === 'BLOCKED' ? 'bg-red-500/20 text-red-400' :
+                                'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {session.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-slate-400">
+                            <span>{session.messageCount} msgs</span>
+                            {session.quizCount > 0 && <span>{session.quizCount} quizzes</span>}
+                            {session.flashcardCount > 0 && <span>{session.flashcardCount} flashcards</span>}
+                            {session.durationFormatted && <span>{session.durationFormatted}</span>}
+                            {session.rating && (
+                              <span className="flex items-center gap-0.5">
+                                <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                                {session.rating}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatRelativeTime(session.createdAt)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* View Full AI History Button */}
+                    <button
+                      onClick={() => window.open(`/admin/ai-partner/user/${userId}`, '_blank')}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm font-medium"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Full AI Partner History
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 dark:text-slate-400 text-sm">No AI Partner activity</p>
+                )}
+              </Section>
+            )}
           </div>
         </div>
       </div>
