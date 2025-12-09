@@ -213,6 +213,7 @@ IMPORTANT BEHAVIOR RULES:
 5. Be encouraging and supportive, like a good study buddy would be
 6. Keep responses conversational - not too long, not too formal
 7. If you don't know something, admit it honestly and suggest figuring it out together
+8. NEVER use quotation marks around subjects, topics, or names - just say them naturally (e.g., say "Science" not ""Science"")
 
 Start with a warm, casual greeting introducing yourself briefly based on your background. Keep it natural and friendly - just 1-2 sentences, then ask what they'd like to study together.`)
 
@@ -246,6 +247,7 @@ IMPORTANT RULES - YOU MUST FOLLOW THESE:
 4. Keep responses concise and helpful. Use short paragraphs and bullet points.
 5. Be encouraging but honest about areas that need improvement.
 6. If you don't know something, admit it and suggest resources.
+7. NEVER use quotation marks around subjects, topics, or names - just say them naturally.
 
 YOUR CAPABILITIES:
 - Explain concepts clearly at the appropriate level
