@@ -1,5 +1,7 @@
 -- AI Memory System Migration
 -- Run this SQL to add AI memory capabilities
+-- Safe to run multiple times (uses IF NOT EXISTS and DROP POLICY IF EXISTS)
+-- Optimized for Supabase RLS performance (uses select auth.uid())
 
 -- ==========================================
 -- AI Memory Category Enum
@@ -158,86 +160,94 @@ ALTER TABLE "ai_memory_entries" ENABLE ROW LEVEL SECURITY;
 
 -- ==========================================
 -- AI User Memory Policies
+-- Using (select auth.uid()) for performance optimization
+-- Single consolidated policy per action to avoid multiple permissive policies
 -- ==========================================
 
--- Users can view their own memory
-CREATE POLICY "Users can view own memory"
-  ON "ai_user_memory" FOR SELECT
-  USING (auth.uid()::text = "userId");
+-- Drop existing policies first (for idempotency)
+DROP POLICY IF EXISTS "Users can view own memory" ON "ai_user_memory";
+DROP POLICY IF EXISTS "Users can insert own memory" ON "ai_user_memory";
+DROP POLICY IF EXISTS "Users can update own memory" ON "ai_user_memory";
+DROP POLICY IF EXISTS "Service role can manage user memory" ON "ai_user_memory";
+DROP POLICY IF EXISTS "Admins can view all user memory" ON "ai_user_memory";
+DROP POLICY IF EXISTS "ai_user_memory_select_policy" ON "ai_user_memory";
+DROP POLICY IF EXISTS "ai_user_memory_insert_policy" ON "ai_user_memory";
+DROP POLICY IF EXISTS "ai_user_memory_update_policy" ON "ai_user_memory";
 
--- Users can insert their own memory
-CREATE POLICY "Users can insert own memory"
-  ON "ai_user_memory" FOR INSERT
-  WITH CHECK (auth.uid()::text = "userId");
-
--- Users can update their own memory
-CREATE POLICY "Users can update own memory"
-  ON "ai_user_memory" FOR UPDATE
-  USING (auth.uid()::text = "userId");
-
--- Service role can manage all memory
-CREATE POLICY "Service role can manage user memory"
-  ON "ai_user_memory" FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
--- Admins can view all user memory
-CREATE POLICY "Admins can view all user memory"
+-- Consolidated SELECT policy: Users see own data, admins see all
+CREATE POLICY "ai_user_memory_select_policy"
   ON "ai_user_memory" FOR SELECT
   USING (
+    (select auth.uid())::text = "userId"
+    OR
     EXISTS (
       SELECT 1 FROM "User"
-      WHERE "User"."id" = auth.uid()::text
+      WHERE "User"."id" = (select auth.uid())::text
       AND "User"."isAdmin" = true
     )
   );
+
+-- INSERT policy: Users can only insert their own memory
+CREATE POLICY "ai_user_memory_insert_policy"
+  ON "ai_user_memory" FOR INSERT
+  WITH CHECK ((select auth.uid())::text = "userId");
+
+-- UPDATE policy: Users can only update their own memory
+CREATE POLICY "ai_user_memory_update_policy"
+  ON "ai_user_memory" FOR UPDATE
+  USING ((select auth.uid())::text = "userId");
 
 -- ==========================================
 -- AI Memory Entries Policies
+-- Using (select auth.uid()) for performance optimization
+-- Single consolidated policy per action to avoid multiple permissive policies
 -- ==========================================
 
--- Users can view their own memory entries
-CREATE POLICY "Users can view own memory entries"
-  ON "ai_memory_entries" FOR SELECT
-  USING (auth.uid()::text = "userId");
+-- Drop existing policies first (for idempotency)
+DROP POLICY IF EXISTS "Users can view own memory entries" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "Users can insert own memory entries" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "Users can update own memory entries" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "Users can delete own memory entries" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "Service role can manage memory entries" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "Admins can view all memory entries" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "ai_memory_entries_select_policy" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "ai_memory_entries_insert_policy" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "ai_memory_entries_update_policy" ON "ai_memory_entries";
+DROP POLICY IF EXISTS "ai_memory_entries_delete_policy" ON "ai_memory_entries";
 
--- Users can insert their own memory entries
-CREATE POLICY "Users can insert own memory entries"
-  ON "ai_memory_entries" FOR INSERT
-  WITH CHECK (auth.uid()::text = "userId");
-
--- Users can update their own memory entries
-CREATE POLICY "Users can update own memory entries"
-  ON "ai_memory_entries" FOR UPDATE
-  USING (auth.uid()::text = "userId");
-
--- Users can delete their own memory entries
-CREATE POLICY "Users can delete own memory entries"
-  ON "ai_memory_entries" FOR DELETE
-  USING (auth.uid()::text = "userId");
-
--- Service role can manage all memory entries
-CREATE POLICY "Service role can manage memory entries"
-  ON "ai_memory_entries" FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
--- Admins can view all memory entries
-CREATE POLICY "Admins can view all memory entries"
+-- Consolidated SELECT policy: Users see own data, admins see all
+CREATE POLICY "ai_memory_entries_select_policy"
   ON "ai_memory_entries" FOR SELECT
   USING (
+    (select auth.uid())::text = "userId"
+    OR
     EXISTS (
       SELECT 1 FROM "User"
-      WHERE "User"."id" = auth.uid()::text
+      WHERE "User"."id" = (select auth.uid())::text
       AND "User"."isAdmin" = true
     )
   );
+
+-- INSERT policy: Users can only insert their own memory entries
+CREATE POLICY "ai_memory_entries_insert_policy"
+  ON "ai_memory_entries" FOR INSERT
+  WITH CHECK ((select auth.uid())::text = "userId");
+
+-- UPDATE policy: Users can only update their own memory entries
+CREATE POLICY "ai_memory_entries_update_policy"
+  ON "ai_memory_entries" FOR UPDATE
+  USING ((select auth.uid())::text = "userId");
+
+-- DELETE policy: Users can only delete their own memory entries
+CREATE POLICY "ai_memory_entries_delete_policy"
+  ON "ai_memory_entries" FOR DELETE
+  USING ((select auth.uid())::text = "userId");
 
 -- ==========================================
 -- GRANT PERMISSIONS
 -- ==========================================
 
--- Grant full access to service_role for server-side operations
+-- Grant full access to service_role for server-side operations (bypasses RLS)
 GRANT ALL ON "ai_user_memory" TO service_role;
 GRANT ALL ON "ai_memory_entries" TO service_role;
 

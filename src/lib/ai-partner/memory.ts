@@ -10,7 +10,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { Prisma, AIMemoryCategory } from '@prisma/client'
+import { AIMemoryCategory } from '@prisma/client'
 import OpenAI from 'openai'
 
 // Types
@@ -61,61 +61,81 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
+// Default empty memory for when database tables don't exist yet
+const DEFAULT_USER_MEMORY: UserMemory = {
+  currentSubjects: [],
+  masteredTopics: [],
+  strugglingTopics: [],
+  academicGoals: [],
+  pendingQuestions: [],
+  totalSessions: 0,
+  totalStudyMinutes: 0,
+  streakDays: 0,
+}
+
 /**
  * Get or create user memory
+ * Gracefully returns default memory if database tables don't exist yet
  */
 export async function getOrCreateUserMemory(userId: string): Promise<UserMemory> {
-  let memory = await prisma.aIUserMemory.findUnique({
-    where: { userId },
-  })
-
-  if (!memory) {
-    // Create new memory for user
-    memory = await prisma.aIUserMemory.create({
-      data: {
-        userId,
-        currentSubjects: [],
-        masteredTopics: [],
-        strugglingTopics: [],
-        academicGoals: [],
-        pendingQuestions: [],
-        totalSessions: 0,
-        totalStudyMinutes: 0,
-        streakDays: 0,
-        longestStreak: 0,
-      },
+  try {
+    let memory = await prisma.aIUserMemory.findUnique({
+      where: { userId },
     })
-  }
 
-  return {
-    preferredName: memory.preferredName || undefined,
-    preferredLearningStyle: memory.preferredLearningStyle || undefined,
-    preferredDifficulty: memory.preferredDifficulty || undefined,
-    preferredPace: memory.preferredPace || undefined,
-    currentSubjects: memory.currentSubjects,
-    masteredTopics: memory.masteredTopics,
-    strugglingTopics: memory.strugglingTopics,
-    upcomingExams: memory.upcomingExams as UserMemory['upcomingExams'],
-    academicGoals: memory.academicGoals,
-    communicationStyle: memory.communicationStyle || undefined,
-    motivationalNeeds: memory.motivationalNeeds || undefined,
-    humorPreference: memory.humorPreference || undefined,
-    bestStudyTime: memory.bestStudyTime || undefined,
-    avgSessionLength: memory.avgSessionLength || undefined,
-    breakPreference: memory.breakPreference || undefined,
-    totalSessions: memory.totalSessions,
-    totalStudyMinutes: memory.totalStudyMinutes,
-    lastSessionDate: memory.lastSessionDate || undefined,
-    streakDays: memory.streakDays,
-    importantFacts: memory.importantFacts as UserMemory['importantFacts'],
-    lastTopicDiscussed: memory.lastTopicDiscussed || undefined,
-    pendingQuestions: memory.pendingQuestions,
-    customInstructions: memory.customInstructions || undefined,
+    if (!memory) {
+      // Create new memory for user
+      memory = await prisma.aIUserMemory.create({
+        data: {
+          userId,
+          currentSubjects: [],
+          masteredTopics: [],
+          strugglingTopics: [],
+          academicGoals: [],
+          pendingQuestions: [],
+          totalSessions: 0,
+          totalStudyMinutes: 0,
+          streakDays: 0,
+          longestStreak: 0,
+        },
+      })
+    }
+
+    return {
+      preferredName: memory.preferredName || undefined,
+      preferredLearningStyle: memory.preferredLearningStyle || undefined,
+      preferredDifficulty: memory.preferredDifficulty || undefined,
+      preferredPace: memory.preferredPace || undefined,
+      currentSubjects: memory.currentSubjects,
+      masteredTopics: memory.masteredTopics,
+      strugglingTopics: memory.strugglingTopics,
+      upcomingExams: memory.upcomingExams as UserMemory['upcomingExams'],
+      academicGoals: memory.academicGoals,
+      communicationStyle: memory.communicationStyle || undefined,
+      motivationalNeeds: memory.motivationalNeeds || undefined,
+      humorPreference: memory.humorPreference || undefined,
+      bestStudyTime: memory.bestStudyTime || undefined,
+      avgSessionLength: memory.avgSessionLength || undefined,
+      breakPreference: memory.breakPreference || undefined,
+      totalSessions: memory.totalSessions,
+      totalStudyMinutes: memory.totalStudyMinutes,
+      lastSessionDate: memory.lastSessionDate || undefined,
+      streakDays: memory.streakDays,
+      importantFacts: memory.importantFacts as UserMemory['importantFacts'],
+      lastTopicDiscussed: memory.lastTopicDiscussed || undefined,
+      pendingQuestions: memory.pendingQuestions,
+      customInstructions: memory.customInstructions || undefined,
+    }
+  } catch (error) {
+    // If table doesn't exist yet, return default empty memory
+    console.warn('[Memory] AI memory table not available, using defaults:', error instanceof Error ? error.message : 'Unknown error')
+    return DEFAULT_USER_MEMORY
   }
 }
 
 /**
  * Get relevant memory entries for context
+ * Returns empty array if database tables don't exist yet
  */
 export async function getRelevantMemories(
   userId: string,
@@ -125,45 +145,51 @@ export async function getRelevantMemories(
     minImportance?: number
   } = {}
 ): Promise<MemoryEntry[]> {
-  const { categories, limit = 20, minImportance = 3 } = options
+  try {
+    const { categories, limit = 20, minImportance = 3 } = options
 
-  const entries = await prisma.aIMemoryEntry.findMany({
-    where: {
-      userId,
-      isActive: true,
-      importance: { gte: minImportance },
-      ...(categories ? { category: { in: categories } } : {}),
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } },
-      ],
-    },
-    orderBy: [
-      { importance: 'desc' },
-      { createdAt: 'desc' },
-    ],
-    take: limit,
-  })
-
-  // Update access count for retrieved memories
-  if (entries.length > 0) {
-    await prisma.aIMemoryEntry.updateMany({
-      where: { id: { in: entries.map(e => e.id) } },
-      data: {
-        lastAccessed: new Date(),
-        accessCount: { increment: 1 },
+    const entries = await prisma.aIMemoryEntry.findMany({
+      where: {
+        userId,
+        isActive: true,
+        importance: { gte: minImportance },
+        ...(categories ? { category: { in: categories } } : {}),
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } },
+        ],
       },
+      orderBy: [
+        { importance: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: limit,
     })
-  }
 
-  return entries.map(e => ({
-    id: e.id,
-    category: e.category,
-    importance: e.importance,
-    content: e.content,
-    context: e.context || undefined,
-    createdAt: e.createdAt,
-  }))
+    // Update access count for retrieved memories
+    if (entries.length > 0) {
+      await prisma.aIMemoryEntry.updateMany({
+        where: { id: { in: entries.map(e => e.id) } },
+        data: {
+          lastAccessed: new Date(),
+          accessCount: { increment: 1 },
+        },
+      })
+    }
+
+    return entries.map(e => ({
+      id: e.id,
+      category: e.category,
+      importance: e.importance,
+      content: e.content,
+      context: e.context || undefined,
+      createdAt: e.createdAt,
+    }))
+  } catch (error) {
+    // If table doesn't exist yet, return empty array
+    console.warn('[Memory] AI memory entries table not available:', error instanceof Error ? error.message : 'Unknown error')
+    return []
+  }
 }
 
 /**
@@ -264,7 +290,7 @@ export async function extractMemoriesFromConversation(params: {
   sessionId: string
   messages: Array<{ role: string; content: string; id?: string }>
 }): Promise<ExtractedMemory[]> {
-  const { userId, sessionId, messages } = params
+  const { messages } = params
 
   // Only process if we have enough messages
   if (messages.length < 3) {
@@ -331,6 +357,7 @@ Be selective - only extract truly memorable information.`,
 
 /**
  * Save extracted memories to database
+ * Returns 0 if database tables don't exist yet
  */
 export async function saveMemories(params: {
   userId: string
@@ -342,50 +369,56 @@ export async function saveMemories(params: {
 
   if (memories.length === 0) return 0
 
-  // Check for duplicates by comparing content similarity
-  const existingMemories = await prisma.aIMemoryEntry.findMany({
-    where: {
-      userId,
-      isActive: true,
-    },
-    select: {
-      id: true,
-      content: true,
-      category: true,
-    },
-  })
+  try {
+    // Check for duplicates by comparing content similarity
+    const existingMemories = await prisma.aIMemoryEntry.findMany({
+      where: {
+        userId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        content: true,
+        category: true,
+      },
+    })
 
-  const existingContentLower = existingMemories.map(m => m.content.toLowerCase())
+    const existingContentLower = existingMemories.map(m => m.content.toLowerCase())
 
-  // Filter out duplicates
-  const newMemories = memories.filter(m => {
-    const contentLower = m.content.toLowerCase()
-    return !existingContentLower.some(existing =>
-      existing.includes(contentLower) || contentLower.includes(existing)
-    )
-  })
+    // Filter out duplicates
+    const newMemories = memories.filter(m => {
+      const contentLower = m.content.toLowerCase()
+      return !existingContentLower.some(existing =>
+        existing.includes(contentLower) || contentLower.includes(existing)
+      )
+    })
 
-  if (newMemories.length === 0) return 0
+    if (newMemories.length === 0) return 0
 
-  // Save new memories
-  await prisma.aIMemoryEntry.createMany({
-    data: newMemories.map(m => ({
-      userId,
-      sessionId,
-      messageId,
-      category: m.category,
-      content: m.content,
-      importance: m.importance,
-      context: m.context,
-      isActive: true,
-    })),
-  })
+    // Save new memories
+    await prisma.aIMemoryEntry.createMany({
+      data: newMemories.map(m => ({
+        userId,
+        sessionId,
+        messageId,
+        category: m.category,
+        content: m.content,
+        importance: m.importance,
+        context: m.context,
+        isActive: true,
+      })),
+    })
 
-  return newMemories.length
+    return newMemories.length
+  } catch (error) {
+    console.warn('[Memory] Failed to save memories (table may not exist):', error instanceof Error ? error.message : 'Unknown error')
+    return 0
+  }
 }
 
 /**
  * Update user memory from session data
+ * Silently fails if database tables don't exist yet
  */
 export async function updateUserMemoryFromSession(params: {
   userId: string
@@ -394,79 +427,93 @@ export async function updateUserMemoryFromSession(params: {
   durationMinutes: number
   topicsDiscussed?: string[]
 }): Promise<void> {
-  const { userId, sessionId, subject, durationMinutes, topicsDiscussed } = params
+  const { userId, subject, durationMinutes, topicsDiscussed } = params
 
-  const memory = await getOrCreateUserMemory(userId)
+  try {
+    const memory = await getOrCreateUserMemory(userId)
 
-  // Calculate streak
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+    // If we got default memory (tables don't exist), skip update
+    if (memory === DEFAULT_USER_MEMORY) {
+      return
+    }
 
-  let newStreakDays = memory.streakDays
-  if (memory.lastSessionDate) {
-    const lastDate = new Date(memory.lastSessionDate)
-    lastDate.setHours(0, 0, 0, 0)
+    // Calculate streak
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-    const daysDiff = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+    let newStreakDays = memory.streakDays
+    if (memory.lastSessionDate) {
+      const lastDate = new Date(memory.lastSessionDate)
+      lastDate.setHours(0, 0, 0, 0)
 
-    if (daysDiff === 1) {
-      // Consecutive day - increase streak
-      newStreakDays = memory.streakDays + 1
-    } else if (daysDiff > 1) {
-      // Streak broken
+      const daysDiff = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+
+      if (daysDiff === 1) {
+        // Consecutive day - increase streak
+        newStreakDays = memory.streakDays + 1
+      } else if (daysDiff > 1) {
+        // Streak broken
+        newStreakDays = 1
+      }
+      // If daysDiff === 0, same day, keep streak as is
+    } else {
+      // First session ever
       newStreakDays = 1
     }
-    // If daysDiff === 0, same day, keep streak as is
-  } else {
-    // First session ever
-    newStreakDays = 1
-  }
 
-  // Update memory
-  await prisma.aIUserMemory.update({
-    where: { userId },
-    data: {
-      totalSessions: { increment: 1 },
-      totalStudyMinutes: { increment: durationMinutes },
-      lastSessionDate: new Date(),
-      streakDays: newStreakDays,
-      longestStreak: Math.max(memory.streakDays, newStreakDays),
-      lastTopicDiscussed: subject || topicsDiscussed?.[0] || memory.lastTopicDiscussed,
-      // Add subject to current subjects if new
-      ...(subject && !memory.currentSubjects.includes(subject) ? {
-        currentSubjects: [...memory.currentSubjects, subject].slice(-10),
-      } : {}),
-    },
-  })
+    // Update memory
+    await prisma.aIUserMemory.update({
+      where: { userId },
+      data: {
+        totalSessions: { increment: 1 },
+        totalStudyMinutes: { increment: durationMinutes },
+        lastSessionDate: new Date(),
+        streakDays: newStreakDays,
+        longestStreak: Math.max(memory.streakDays, newStreakDays),
+        lastTopicDiscussed: subject || topicsDiscussed?.[0] || memory.lastTopicDiscussed,
+        // Add subject to current subjects if new
+        ...(subject && !memory.currentSubjects.includes(subject) ? {
+          currentSubjects: [...memory.currentSubjects, subject].slice(-10),
+        } : {}),
+      },
+    })
+  } catch (error) {
+    console.warn('[Memory] Failed to update user memory (table may not exist):', error instanceof Error ? error.message : 'Unknown error')
+  }
 }
 
 /**
  * Update specific user memory field
+ * Silently fails if database tables don't exist yet
  */
 export async function updateUserMemoryField(
   userId: string,
   field: keyof UserMemory,
   value: unknown
 ): Promise<void> {
-  await prisma.aIUserMemory.upsert({
-    where: { userId },
-    create: {
-      userId,
-      [field]: value,
-      currentSubjects: [],
-      masteredTopics: [],
-      strugglingTopics: [],
-      academicGoals: [],
-      pendingQuestions: [],
-      totalSessions: 0,
-      totalStudyMinutes: 0,
-      streakDays: 0,
-      longestStreak: 0,
-    },
-    update: {
-      [field]: value,
-    },
-  })
+  try {
+    await prisma.aIUserMemory.upsert({
+      where: { userId },
+      create: {
+        userId,
+        [field]: value,
+        currentSubjects: [],
+        masteredTopics: [],
+        strugglingTopics: [],
+        academicGoals: [],
+        pendingQuestions: [],
+        totalSessions: 0,
+        totalStudyMinutes: 0,
+        streakDays: 0,
+        longestStreak: 0,
+      },
+      update: {
+        [field]: value,
+      },
+    })
+  } catch (error) {
+    console.warn('[Memory] Failed to update memory field (table may not exist):', error instanceof Error ? error.message : 'Unknown error')
+  }
 }
 
 /**
@@ -501,30 +548,37 @@ export async function removeFromUserMemoryArray(
 
 /**
  * Deactivate old or low-importance memories (memory cleanup)
+ * Returns 0 if database tables don't exist yet
  */
 export async function cleanupMemories(userId: string): Promise<number> {
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  try {
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  // Deactivate old, low-importance, rarely accessed memories
-  const result = await prisma.aIMemoryEntry.updateMany({
-    where: {
-      userId,
-      isActive: true,
-      importance: { lte: 3 },
-      accessCount: { lte: 2 },
-      createdAt: { lt: thirtyDaysAgo },
-    },
-    data: {
-      isActive: false,
-    },
-  })
+    // Deactivate old, low-importance, rarely accessed memories
+    const result = await prisma.aIMemoryEntry.updateMany({
+      where: {
+        userId,
+        isActive: true,
+        importance: { lte: 3 },
+        accessCount: { lte: 2 },
+        createdAt: { lt: thirtyDaysAgo },
+      },
+      data: {
+        isActive: false,
+      },
+    })
 
-  return result.count
+    return result.count
+  } catch (error) {
+    console.warn('[Memory] Failed to cleanup memories (table may not exist):', error instanceof Error ? error.message : 'Unknown error')
+    return 0
+  }
 }
 
 /**
  * Get memory stats for user
+ * Returns default stats if database tables don't exist yet
  */
 export async function getMemoryStats(userId: string): Promise<{
   totalMemories: number
@@ -533,32 +587,43 @@ export async function getMemoryStats(userId: string): Promise<{
   totalStudyMinutes: number
   streakDays: number
 }> {
-  const [memoryCount, categoryAggregation, userMemory] = await Promise.all([
-    prisma.aIMemoryEntry.count({
-      where: { userId },
-    }),
-    prisma.aIMemoryEntry.groupBy({
-      by: ['category'],
+  try {
+    const [memoryCount, categoryAggregation, userMemory] = await Promise.all([
+      prisma.aIMemoryEntry.count({
+        where: { userId },
+      }),
+      prisma.aIMemoryEntry.groupBy({
+        by: ['category'],
+        where: { userId, isActive: true },
+        _count: { category: true },
+      }),
+      getOrCreateUserMemory(userId),
+    ])
+
+    const activeCount = await prisma.aIMemoryEntry.count({
       where: { userId, isActive: true },
-      _count: { category: true },
-    }),
-    getOrCreateUserMemory(userId),
-  ])
+    })
 
-  const activeCount = await prisma.aIMemoryEntry.count({
-    where: { userId, isActive: true },
-  })
+    const categoryCounts: Record<string, number> = {}
+    categoryAggregation.forEach(cat => {
+      categoryCounts[cat.category] = cat._count.category
+    })
 
-  const categoryCounts: Record<string, number> = {}
-  categoryAggregation.forEach(cat => {
-    categoryCounts[cat.category] = cat._count.category
-  })
-
-  return {
-    totalMemories: memoryCount,
-    activeMemories: activeCount,
-    categoryCounts,
-    totalStudyMinutes: userMemory.totalStudyMinutes,
-    streakDays: userMemory.streakDays,
+    return {
+      totalMemories: memoryCount,
+      activeMemories: activeCount,
+      categoryCounts,
+      totalStudyMinutes: userMemory.totalStudyMinutes,
+      streakDays: userMemory.streakDays,
+    }
+  } catch (error) {
+    console.warn('[Memory] Failed to get memory stats (table may not exist):', error instanceof Error ? error.message : 'Unknown error')
+    return {
+      totalMemories: 0,
+      activeMemories: 0,
+      categoryCounts: {},
+      totalStudyMinutes: 0,
+      streakDays: 0,
+    }
   }
 }
