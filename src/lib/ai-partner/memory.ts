@@ -194,11 +194,27 @@ export async function getRelevantMemories(
 
 /**
  * Build memory context string for AI prompt
+ * Loads comprehensive history including past session topics for ChatGPT-like memory
  */
-export async function buildMemoryContext(userId: string): Promise<string> {
-  const [userMemory, memoryEntries] = await Promise.all([
+export async function buildMemoryContext(userId: string, currentSubject?: string): Promise<string> {
+  const [userMemory, memoryEntries, pastSessions] = await Promise.all([
     getOrCreateUserMemory(userId),
-    getRelevantMemories(userId, { limit: 15 }),
+    getRelevantMemories(userId, { limit: 30 }), // Increased limit for more context
+    // Get past session topics for comprehensive history
+    prisma.aIPartnerSession.findMany({
+      where: {
+        userId,
+        status: 'COMPLETED',
+      },
+      orderBy: { endedAt: 'desc' },
+      take: 10, // Last 10 sessions for context
+      select: {
+        subject: true,
+        messageCount: true,
+        endedAt: true,
+        rating: true,
+      },
+    }).catch(() => []), // Graceful fallback if table doesn't exist
   ])
 
   const contextParts: string[] = []
@@ -270,6 +286,44 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     contextParts.push(...importantFacts)
   }
 
+  // Study habits and feedback insights
+  const studyInsights = memoryEntries
+    .filter(e => e.category === 'STUDY_HABIT' || e.category === 'FEEDBACK')
+    .slice(0, 3)
+    .map(e => `- ${e.content}`)
+
+  if (studyInsights.length > 0) {
+    contextParts.push('\nStudy insights:')
+    contextParts.push(...studyInsights)
+  }
+
+  // Past session history for comprehensive memory (like ChatGPT)
+  if (pastSessions.length > 0) {
+    const sessionHistory = pastSessions
+      .filter(s => s.subject) // Only sessions with subjects
+      .slice(0, 5)
+      .map(s => {
+        const date = s.endedAt ? new Date(s.endedAt).toLocaleDateString() : 'recently'
+        return `  • ${s.subject} (${s.messageCount} messages, ${date})`
+      })
+
+    if (sessionHistory.length > 0) {
+      contextParts.push('\nPrevious study sessions:')
+      contextParts.push(...sessionHistory)
+    }
+
+    // If continuing same subject, add special note
+    if (currentSubject) {
+      const sameTopic = pastSessions.filter(s =>
+        s.subject?.toLowerCase().includes(currentSubject.toLowerCase()) ||
+        currentSubject.toLowerCase().includes(s.subject?.toLowerCase() || '')
+      )
+      if (sameTopic.length > 0) {
+        contextParts.push(`\n⚡ Note: User is continuing with "${currentSubject}" - they've studied this ${sameTopic.length} time(s) before. Build on previous knowledge.`)
+      }
+    }
+  }
+
   // Custom instructions
   if (userMemory.customInstructions) {
     contextParts.push(`\nUser's custom instructions: ${userMemory.customInstructions}`)
@@ -279,7 +333,7 @@ export async function buildMemoryContext(userId: string): Promise<string> {
     return '' // No memory yet
   }
 
-  return `\n\n## What I Remember About This User:\n${contextParts.join('\n')}\n\nUse this information to personalize the conversation. Reference past topics naturally. Be encouraging about their progress.`
+  return `\n\n## What I Remember About This User:\n${contextParts.join('\n')}\n\nUse this information to personalize the conversation. Reference past topics naturally when relevant. Be encouraging about their progress. If they're returning to a previous topic, acknowledge their dedication and help them build on what they learned before.`
 }
 
 /**

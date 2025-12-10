@@ -59,12 +59,28 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Get the most recent completed session for "continue previous topic" feature
+    const lastCompletedSession = await prisma.aIPartnerSession.findFirst({
+      where: {
+        userId: user.id,
+        status: 'COMPLETED',
+      },
+      orderBy: { endedAt: 'desc' },
+      select: {
+        id: true,
+        subject: true,
+        endedAt: true,
+        messageCount: true,
+      },
+    })
+
     return NextResponse.json({
       success: true,
       showWidget: true,
       hidden: false,
       hasUsedAIPartner: true,
       currentSession,
+      lastCompletedSession,
       stats: {
         totalSessions: stats._count,
         totalDuration: stats._sum.totalDuration || 0,

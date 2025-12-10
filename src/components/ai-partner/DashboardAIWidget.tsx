@@ -14,8 +14,10 @@ import {
   Sparkles,
   Trash2,
   ChevronUp,
-  Zap,
   BookOpen,
+  History,
+  Plus,
+  Brain,
 } from 'lucide-react'
 
 interface CurrentSession {
@@ -32,6 +34,13 @@ interface DashboardStats {
   totalMessages: number
 }
 
+interface LastCompletedSession {
+  id: string
+  subject: string | null
+  endedAt: string | null
+  messageCount: number
+}
+
 interface DashboardAIWidgetProps {
   onHidden?: () => void
 }
@@ -40,6 +49,7 @@ interface DashboardAIWidgetProps {
 const CACHE_KEY_SHOW_WIDGET = 'aipartner_showWidget'
 const CACHE_KEY_SESSION = 'aipartner_currentSession'
 const CACHE_KEY_STATS = 'aipartner_stats'
+const CACHE_KEY_LAST_SESSION = 'aipartner_lastSession'
 const CACHE_EXPIRY = 5 * 60 * 1000 // 5 minutes
 
 // Helper to get cached value with expiry check
@@ -81,9 +91,12 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
   const [isExpanded, setIsExpanded] = useState(false)
   const [currentSession, setCurrentSession] = useState<CurrentSession | null>(() => getCachedValue<CurrentSession>(CACHE_KEY_SESSION))
   const [stats, setStats] = useState<DashboardStats | null>(() => getCachedValue<DashboardStats>(CACHE_KEY_STATS))
+  const [lastCompletedSession, setLastCompletedSession] = useState<LastCompletedSession | null>(() => getCachedValue<LastCompletedSession>(CACHE_KEY_LAST_SESSION))
   const [isResuming, setIsResuming] = useState(false)
   const [isHiding, setIsHiding] = useState(false)
   const [showConfirmHide, setShowConfirmHide] = useState(false)
+  const [showStudyOptions, setShowStudyOptions] = useState(false)
+  const [isStartingSession, setIsStartingSession] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -99,11 +112,13 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
         setShowWidget(data.showWidget)
         setCurrentSession(data.currentSession || null)
         setStats(data.stats || null)
+        setLastCompletedSession(data.lastCompletedSession || null)
 
         // Cache the values for next navigation
         setCachedValue(CACHE_KEY_SHOW_WIDGET, data.showWidget)
         setCachedValue(CACHE_KEY_SESSION, data.currentSession || null)
         setCachedValue(CACHE_KEY_STATS, data.stats || null)
+        setCachedValue(CACHE_KEY_LAST_SESSION, data.lastCompletedSession || null)
       } else {
         // If API says don't show, update cache
         setCachedValue(CACHE_KEY_SHOW_WIDGET, false)
@@ -113,6 +128,41 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
       console.error('Failed to fetch AI Partner dashboard data:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Handle quick start - shows modal with options
+  const handleQuickStart = () => {
+    setShowStudyOptions(true)
+  }
+
+  // Start new session with selected mode
+  const handleStartSession = async (mode: 'continue' | 'new') => {
+    setIsStartingSession(true)
+    try {
+      const res = await fetch('/api/ai-partner/quick-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success(mode === 'continue' ? 'Continuing your study session!' : 'Starting new session!')
+        router.push(data.redirectUrl)
+      } else if (data.existingSessionId) {
+        // User already has an active session
+        toast.error('You already have an active session')
+        router.push(`/ai-partner/${data.existingSessionId}`)
+      } else {
+        toast.error(data.error || 'Failed to start session')
+      }
+    } catch (error) {
+      console.error('Failed to start session:', error)
+      toast.error('Failed to start session')
+    } finally {
+      setIsStartingSession(false)
+      setShowStudyOptions(false)
     }
   }
 
@@ -255,8 +305,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                 <div>
                   <h3 className="font-bold text-white text-lg">AI Study Partner</h3>
                   <p className="text-slate-400 text-xs flex items-center gap-1">
-                    <Zap className="w-3 h-3 text-yellow-400" />
-                    Powered by GPT-4
+                    <Brain className="w-3 h-3 text-purple-400" />
+                    Your personal study assistant
                   </p>
                 </div>
               </div>
@@ -352,7 +402,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
           {!currentSession && (
             <div className="px-5 pb-4">
               <button
-                onClick={() => router.push('/ai-partner')}
+                onClick={handleQuickStart}
                 className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all font-semibold shadow-lg shadow-blue-500/25"
               >
                 <Sparkles className="w-5 h-5" />
@@ -442,6 +492,114 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                   )}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Study Options Modal */}
+      <AnimatePresence>
+        {showStudyOptions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => !isStartingSession && setShowStudyOptions(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-800 rounded-3xl p-6 max-w-md w-full border border-slate-700 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <Bot className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Start Studying</h3>
+                  <p className="text-sm text-slate-400">Choose how you want to begin</p>
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3">
+                {/* Continue Previous Topic - Only show if there's a last session */}
+                {lastCompletedSession?.subject && (
+                  <button
+                    onClick={() => handleStartSession('continue')}
+                    disabled={isStartingSession}
+                    className="w-full p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-2xl hover:border-purple-500/50 hover:bg-purple-500/20 transition-all text-left group disabled:opacity-50"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500/30 transition-colors">
+                        <History className="w-6 h-6 text-purple-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white mb-1">Continue Previous Topic</p>
+                        <p className="text-sm text-slate-400 truncate">
+                          Resume studying: <span className="text-purple-400">{lastCompletedSession.subject}</span>
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          AI will remember your progress and build on it
+                        </p>
+                      </div>
+                      {isStartingSession && (
+                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin flex-shrink-0" />
+                      )}
+                    </div>
+                  </button>
+                )}
+
+                {/* Start New Topic */}
+                <button
+                  onClick={() => handleStartSession('new')}
+                  disabled={isStartingSession}
+                  className="w-full p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl hover:border-blue-500/50 hover:bg-blue-500/20 transition-all text-left group disabled:opacity-50"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/30 transition-colors">
+                      <Plus className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white mb-1">Start New Topic</p>
+                      <p className="text-sm text-slate-400">
+                        Begin a fresh study session on any subject
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        AI will ask what you&apos;d like to learn today
+                      </p>
+                    </div>
+                    {isStartingSession && (
+                      <Loader2 className="w-5 h-5 text-blue-400 animate-spin flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+              </div>
+
+              {/* Memory indicator */}
+              {stats && stats.totalSessions > 0 && (
+                <div className="mt-5 p-3 bg-slate-700/30 rounded-xl">
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <Brain className="w-4 h-4 text-green-400" />
+                    <span>
+                      AI remembers your <span className="text-white font-medium">{stats.totalSessions}</span> previous sessions
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Cancel button */}
+              <button
+                onClick={() => setShowStudyOptions(false)}
+                disabled={isStartingSession}
+                className="w-full mt-4 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition-colors text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
             </motion.div>
           </motion.div>
         )}

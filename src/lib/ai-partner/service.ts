@@ -101,9 +101,9 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
     })
   }
 
-  // Get user memory for personalization
+  // Get user memory for personalization (pass subject for enhanced context)
   const userMemory = await getOrCreateUserMemory(userId)
-  const memoryContext = await buildMemoryContext(userId)
+  const memoryContext = await buildMemoryContext(userId, subject || undefined)
 
   // Create study session first (for integration with existing session features)
   const studySession = await prisma.studySession.create({
@@ -252,10 +252,12 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
 
   // Get user memory for personalization
   const userMemory = await getOrCreateUserMemory(userId)
-  const memoryContext = await buildMemoryContext(userId)
 
   // Build subject string from criteria
   const subject = searchCriteria.subjects?.join(', ') || searchCriteria.subjectDescription || null
+
+  // Build memory context with subject for enhanced personalization
+  const memoryContext = await buildMemoryContext(userId, subject || undefined)
 
   // Build a description of the persona for display
   const personaParts: string[] = []
