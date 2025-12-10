@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get the most recent completed session for "continue previous topic" feature
+    // Include searchCriteria so we can restore all filters (subjects, location, interests, etc.)
     const lastCompletedSession = await prisma.aIPartnerSession.findFirst({
       where: {
         userId: user.id,
@@ -71,6 +72,9 @@ export async function GET(request: NextRequest) {
         subject: true,
         endedAt: true,
         messageCount: true,
+        searchCriteria: true, // Full search criteria for continuing session
+        skillLevel: true,
+        studyGoal: true,
       },
     })
 

@@ -299,7 +299,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     }
   }
 
-  // Create AI session
+  // Create AI session - save full searchCriteria for "Continue Previous Topic" feature
   const aiSession = await prisma.aIPartnerSession.create({
     data: {
       userId,
@@ -307,6 +307,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
       subject,
       skillLevel: skillLevelEnum,
       studyGoal: studyGoal || null,
+      searchCriteria: searchCriteria as object, // Save all search criteria (subjects, location, interests, etc.)
       status: 'ACTIVE',
     },
   })

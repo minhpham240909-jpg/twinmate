@@ -2045,6 +2045,7 @@ model AIPartnerSession {
   subject     String?      // Current study subject
   skillLevel  SkillLevel?  // User's skill level for this session
   studyGoal   String?      @db.Text // What user wants to achieve
+  searchCriteria Json?     // Full search criteria used to start session (subjects, location, interests, etc.)
 
   // Session state
   status      AISessionStatus @default(ACTIVE)
