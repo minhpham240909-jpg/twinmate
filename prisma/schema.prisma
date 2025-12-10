@@ -2147,3 +2147,209 @@ enum AIMessageType {
   TOPIC_CHANGE // User changed study topic
   WHITEBOARD // Whiteboard analysis response
 }
+
+// ==========================================
+// AI MEMORY SYSTEM (Persistent User Context)
+// ==========================================
+
+// User memory - Long-term storage of user preferences and context
+model AIUserMemory {
+  id          String   @id @default(uuid())
+  userId      String   @unique // One memory per user
+
+  // Basic User Preferences (extracted from conversations)
+  preferredName       String?  // How they like to be called
+  preferredLearningStyle String? // visual, auditory, reading/writing, hands-on
+  preferredDifficulty String?  // easy, medium, hard, adaptive
+  preferredPace       String?  // slow, normal, fast
+  timezone            String?  // User's timezone for scheduling references
+
+  // Academic Context
+  currentSubjects     String[] @default([]) // Subjects actively studying
+  masteredTopics      String[] @default([]) // Topics they've mastered
+  strugglingTopics    String[] @default([]) // Topics they struggle with
+  upcomingExams       Json?    // [{subject, date, notes}]
+  academicGoals       String[] @default([]) // Long-term goals
+
+  // Personality & Communication
+  communicationStyle  String?  // formal, casual, encouraging, direct
+  motivationalNeeds   String?  // needs_encouragement, self_motivated, competitive
+  humorPreference     String?  // likes_jokes, serious_only, occasional
+
+  // Study Habits (learned over time)
+  bestStudyTime       String?  // morning, afternoon, evening, night
+  avgSessionLength    Int?     // Average session length in minutes
+  breakPreference     String?  // frequent_short, long_sessions, pomodoro
+
+  // Interaction History Summary
+  totalSessions       Int      @default(0)
+  totalStudyMinutes   Int      @default(0)
+  lastSessionDate     DateTime?
+  streakDays          Int      @default(0)
+  longestStreak       Int      @default(0)
+
+  // Important Facts (AI-extracted key information)
+  importantFacts      Json?    // [{fact, category, extractedAt}]
+
+  // Session Continuity
+  lastTopicDiscussed  String?  // For continuity between sessions
+  pendingQuestions    String[] @default([]) // Questions to follow up on
+
+  // AI Behavior Customization
+  customInstructions  String?  @db.Text // User-provided custom instructions
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+  @@map("ai_user_memory")
+}
+
+// Memory entries - Individual memory items for retrieval
+model AIMemoryEntry {
+  id          String   @id @default(uuid())
+  userId      String
+
+  // Memory classification
+  category    AIMemoryCategory
+  importance  Int      @default(5) // 1-10 scale
+
+  // Content
+  content     String   @db.Text // The memory itself
+  context     String?  @db.Text // Context where this was learned
+
+  // Source tracking
+  sessionId   String?  // Which session this came from
+  messageId   String?  // Which message this was extracted from
+
+  // Retrieval metadata
+  lastAccessed DateTime?
+  accessCount  Int      @default(0)
+
+  // Validity
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime? // Some memories can expire
+
+  // Embeddings for semantic search (enable with pgvector)
+  embedding   Unsupported("vector(1536)")? // For semantic similarity search
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
+  @@index([importance])
+  @@index([userId, category])
+  @@index([userId, isActive])
+  @@map("ai_memory_entries")
+}
+
+enum AIMemoryCategory {
+  PREFERENCE          // User preferences (learning style, pace, etc.)
+  ACADEMIC            // Academic info (subjects, exams, grades)
+  PERSONAL_FACT       // Personal facts about user
+  STUDY_HABIT         // Study habits and patterns
+  ACHIEVEMENT         // Accomplishments and milestones
+  STRUGGLE            // Areas they struggle with
+  GOAL                // Goals and aspirations
+  FEEDBACK            // Feedback they've given
+  CONVERSATION_TOPIC  // Notable topics discussed
+}
+
+// ==========================================
+// AI RESPONSE CACHING
+// ==========================================
+
+model AIResponseCache {
+  id          String   @id @default(uuid())
+  cacheKey    String   @unique // Hash of prompt + options
+
+  // Cached response
+  response    String   @db.Text
+  tokens      Json     // { prompt, completion, total }
+
+  // Cache metadata
+  accessCount Int      @default(1)
+  lastAccessed DateTime @default(now())
+  expiresAt   DateTime
+
+  createdAt   DateTime @default(now())
+
+  @@index([cacheKey])
+  @@index([expiresAt])
+  @@map("ai_response_cache")
+}
+
+// ==========================================
+// AI USAGE MONITORING
+// ==========================================
+
+model AIUsageLog {
+  id              String   @id @default(uuid())
+  userId          String?
+  sessionId       String?
+
+  // Model and operation
+  model           String   // gpt-4o-mini, gpt-4o, etc.
+  operation       String   // chat, quiz_generation, etc.
+
+  // Token usage
+  promptTokens    Int
+  completionTokens Int
+  totalTokens     Int
+
+  // Cost and performance
+  estimatedCost   Float    // In USD
+  latencyMs       Int      // Response time
+
+  // Cache and status
+  cached          Boolean  @default(false)
+  success         Boolean  @default(true)
+  errorType       String?
+  errorMessage    String?  @db.Text
+
+  // Additional context
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([model])
+  @@index([operation])
+  @@index([createdAt])
+  @@index([success])
+  @@map("ai_usage_logs")
+}
+
+// Daily usage aggregation for faster queries
+model AIUsageDailySummary {
+  id              String   @id @default(uuid())
+  date            DateTime @db.Date
+  userId          String?  // null = global summary
+
+  // Aggregated metrics
+  totalRequests   Int      @default(0)
+  totalTokens     Int      @default(0)
+  promptTokens    Int      @default(0)
+  completionTokens Int     @default(0)
+  totalCost       Float    @default(0)
+
+  // Performance
+  avgLatencyMs    Int      @default(0)
+  successCount    Int      @default(0)
+  errorCount      Int      @default(0)
+  cacheHits       Int      @default(0)
+
+  // Breakdown by model
+  tokensByModel   Json?    // { "gpt-4o-mini": 1000, ... }
+  tokensByOperation Json?  // { "chat": 500, "quiz": 300, ... }
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([date, userId])
+  @@index([date])
+  @@index([userId])
+  @@map("ai_usage_daily_summaries")
+}

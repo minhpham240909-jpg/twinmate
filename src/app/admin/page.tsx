@@ -21,6 +21,7 @@ import {
   BarChart3,
   Bot,
   Sparkles,
+  Brain,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -500,6 +501,20 @@ export default function AdminDashboard() {
           >
             <Bot className="w-8 h-8 text-purple-400" />
             <span className="text-sm text-gray-300">AI Partner</span>
+          </Link>
+          <Link
+            href="/admin/ai-memory"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
+          >
+            <Brain className="w-8 h-8 text-pink-400" />
+            <span className="text-sm text-gray-300">AI Memory</span>
+          </Link>
+          <Link
+            href="/admin/ai-monitoring"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
+          >
+            <Activity className="w-8 h-8 text-green-400" />
+            <span className="text-sm text-gray-300">AI Monitoring</span>
           </Link>
         </div>
 

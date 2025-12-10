@@ -20,6 +20,13 @@ import {
   AIMessage,
   SearchCriteria,
 } from './openai'
+import {
+  buildMemoryContext,
+  extractMemoriesFromConversation,
+  saveMemories,
+  updateUserMemoryFromSession,
+  getOrCreateUserMemory,
+} from './memory'
 import type { AISessionStatus, AIMessageRole, AIMessageType, SkillLevel } from '@prisma/client'
 
 // Types
@@ -93,6 +100,10 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
     })
   }
 
+  // Get user memory for personalization
+  const userMemory = await getOrCreateUserMemory(userId)
+  const memoryContext = await buildMemoryContext(userId)
+
   // Create study session first (for integration with existing session features)
   const studySession = await prisma.studySession.create({
     data: {
@@ -122,20 +133,31 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
     },
   })
 
-  // Build system prompt
-  const systemPrompt = buildStudyPartnerSystemPrompt({
+  // Build system prompt with memory context
+  let systemPrompt = buildStudyPartnerSystemPrompt({
     subject: subject || undefined,
     skillLevel: skillLevel || undefined,
     studyGoal: studyGoal || undefined,
-    userName: user?.name || undefined,
+    userName: userMemory.preferredName || user?.name || undefined,
     customPersona: persona?.systemPrompt || undefined,
   })
+
+  // Append memory context to system prompt
+  if (memoryContext) {
+    systemPrompt += memoryContext
+  }
+
+  // Build welcome instruction based on memory
+  let welcomeInstruction = 'Start the session with a warm greeting.'
+  if (userMemory.totalSessions > 0) {
+    welcomeInstruction = `This is a returning user who has had ${userMemory.totalSessions} sessions. Welcome them back warmly. ${userMemory.lastTopicDiscussed ? `Last time you discussed "${userMemory.lastTopicDiscussed}".` : ''} ${userMemory.streakDays > 1 ? `They're on a ${userMemory.streakDays}-day study streak - acknowledge it!` : ''}`
+  }
 
   // Generate welcome message
   const welcomeResult = await sendChatMessage(
     [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: 'Start the session with a warm greeting.' },
+      { role: 'user', content: welcomeInstruction },
     ],
     {
       temperature: persona?.temperature || 0.7,
@@ -227,6 +249,10 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     select: { name: true, email: true },
   })
 
+  // Get user memory for personalization
+  const userMemory = await getOrCreateUserMemory(userId)
+  const memoryContext = await buildMemoryContext(userId)
+
   // Build subject string from criteria
   const subject = searchCriteria.subjects?.join(', ') || searchCriteria.subjectDescription || null
 
@@ -281,14 +307,25 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     },
   })
 
-  // Build dynamic persona prompt from search criteria
-  const systemPrompt = buildDynamicPersonaPrompt(searchCriteria, user?.name || undefined)
+  // Build dynamic persona prompt from search criteria with memory
+  let systemPrompt = buildDynamicPersonaPrompt(searchCriteria, userMemory.preferredName || user?.name || undefined)
+
+  // Append memory context to system prompt
+  if (memoryContext) {
+    systemPrompt += memoryContext
+  }
+
+  // Build welcome instruction based on memory
+  let welcomeInstruction = 'Start the session with a warm, casual greeting as yourself.'
+  if (userMemory.totalSessions > 0) {
+    welcomeInstruction = `This is a returning user who has had ${userMemory.totalSessions} sessions with AI partners. Welcome them back warmly and naturally. ${userMemory.lastTopicDiscussed ? `They last studied "${userMemory.lastTopicDiscussed}".` : ''} ${userMemory.streakDays > 1 ? `They're on a ${userMemory.streakDays}-day study streak!` : ''}`
+  }
 
   // Generate welcome message with dynamic persona
   const welcomeResult = await sendChatMessage(
     [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: 'Start the session with a warm, casual greeting as yourself.' },
+      { role: 'user', content: welcomeInstruction },
     ],
     {
       temperature: 0.8, // Slightly higher for more natural variation
@@ -898,6 +935,7 @@ export async function endSession(params: {
 }): Promise<{
   summary: string
   duration: number
+  memoriesExtracted: number
 }> {
   const { sessionId, userId, rating, feedback } = params
 
@@ -917,6 +955,44 @@ export async function endSession(params: {
 
   const endedAt = new Date()
   const duration = Math.round((endedAt.getTime() - session.startedAt.getTime()) / 1000)
+  const durationMinutes = Math.round(duration / 60)
+
+  // Extract memories from the conversation (async, non-blocking)
+  let memoriesExtracted = 0
+  try {
+    const extractedMemories = await extractMemoriesFromConversation({
+      userId,
+      sessionId,
+      messages: session.messages.map((m) => ({
+        role: m.role.toLowerCase(),
+        content: m.content,
+        id: m.id,
+      })),
+    })
+
+    if (extractedMemories.length > 0) {
+      memoriesExtracted = await saveMemories({
+        userId,
+        sessionId,
+        memories: extractedMemories,
+      })
+    }
+  } catch (error) {
+    console.error('[AI Partner] Memory extraction failed:', error)
+    // Don't fail the session end if memory extraction fails
+  }
+
+  // Update user memory stats
+  try {
+    await updateUserMemoryFromSession({
+      userId,
+      sessionId,
+      subject: session.subject || undefined,
+      durationMinutes,
+    })
+  } catch (error) {
+    console.error('[AI Partner] User memory update failed:', error)
+  }
 
   // Generate session summary
   const summary = await generateSessionSummary({
@@ -982,7 +1058,7 @@ export async function endSession(params: {
     }
   }
 
-  return { summary, duration }
+  return { summary, duration, memoriesExtracted }
 }
 
 /**
