@@ -24,10 +24,5 @@
   "categories": ["education", "productivity", "social"],
   "lang": "en-US",
   "dir": "ltr",
-  "scope": "/",
-  "permissions": [
-    "camera",
-    "microphone",
-    "notifications"
-  ]
+  "scope": "/"
 }
