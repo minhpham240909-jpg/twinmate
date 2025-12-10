@@ -527,32 +527,48 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
 
               {/* Options */}
               <div className="space-y-3">
-                {/* Continue Previous Topic - Only show if there's a last session */}
-                {lastCompletedSession?.subject && (
-                  <button
-                    onClick={() => handleStartSession('continue')}
-                    disabled={isStartingSession}
-                    className="w-full p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-2xl hover:border-purple-500/50 hover:bg-purple-500/20 transition-all text-left group disabled:opacity-50"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500/30 transition-colors">
-                        <History className="w-6 h-6 text-purple-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white mb-1">Continue Previous Topic</p>
-                        <p className="text-sm text-slate-400 truncate">
-                          Resume studying: <span className="text-purple-400">{lastCompletedSession.subject}</span>
+                {/* Continue Previous Topic - Always show, disabled if no previous topic */}
+                <button
+                  onClick={() => handleStartSession('continue')}
+                  disabled={isStartingSession || !lastCompletedSession?.subject}
+                  className={`w-full p-4 rounded-2xl transition-all text-left group disabled:opacity-50 ${
+                    lastCompletedSession?.subject
+                      ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/20'
+                      : 'bg-slate-700/30 border border-slate-600/50 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                      lastCompletedSession?.subject
+                        ? 'bg-purple-500/20 group-hover:bg-purple-500/30'
+                        : 'bg-slate-600/30'
+                    }`}>
+                      <History className={`w-6 h-6 ${lastCompletedSession?.subject ? 'text-purple-400' : 'text-slate-500'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-semibold mb-1 ${lastCompletedSession?.subject ? 'text-white' : 'text-slate-400'}`}>
+                        Continue Previous Topic
+                      </p>
+                      {lastCompletedSession?.subject ? (
+                        <>
+                          <p className="text-sm text-slate-400 truncate">
+                            Resume studying: <span className="text-purple-400">{lastCompletedSession.subject}</span>
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            AI will remember your progress and build on it
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-slate-500">
+                          No previous topic available
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          AI will remember your progress and build on it
-                        </p>
-                      </div>
-                      {isStartingSession && (
-                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin flex-shrink-0" />
                       )}
                     </div>
-                  </button>
-                )}
+                    {isStartingSession && lastCompletedSession?.subject && (
+                      <Loader2 className="w-5 h-5 text-purple-400 animate-spin flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
 
                 {/* Start New Topic */}
                 <button
