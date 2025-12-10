@@ -62,12 +62,16 @@ export function usePushNotifications() {
 
       try {
         // Fetch VAPID public key from server
+        console.log('[PushHooks] Fetching VAPID key from /api/push/subscribe...')
         const keyResponse = await fetch('/api/push/subscribe')
+        console.log('[PushHooks] VAPID response status:', keyResponse.status)
+
         if (keyResponse.ok) {
-          const { publicKey } = await keyResponse.json()
-          setVapidPublicKey(publicKey)
+          const data = await keyResponse.json()
+          console.log('[PushHooks] VAPID key received:', data.publicKey ? 'yes (length: ' + data.publicKey.length + ')' : 'no')
+          setVapidPublicKey(data.publicKey)
         } else if (keyResponse.status === 503) {
-          console.log('[PushHooks] Push not configured (503)')
+          console.log('[PushHooks] Push not configured (503) - VAPID keys missing on server')
           // Push not configured on server
           setState(s => ({
             ...s,
@@ -75,6 +79,8 @@ export function usePushNotifications() {
             error: 'Push notifications not configured',
           }))
           return
+        } else {
+          console.log('[PushHooks] Unexpected response:', keyResponse.status)
         }
 
         // Register service worker

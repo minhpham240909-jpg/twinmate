@@ -76,6 +76,11 @@ export default function PushNotificationPrompt({ delay = 30000 }: PushNotificati
 
   // Don't render anything if not supported or already subscribed
   if (!isSupported || isSubscribed || permission === 'denied') {
+    console.log('[PushPrompt] Not rendering because:', {
+      notSupported: !isSupported,
+      alreadySubscribed: isSubscribed,
+      permissionDenied: permission === 'denied'
+    })
     return null
   }
 
