@@ -19,7 +19,6 @@ import {
   RefreshCw,
   ExternalLink,
   BarChart3,
-  Bot,
   Sparkles,
   Brain,
 } from 'lucide-react'
@@ -419,8 +418,8 @@ export default function AdminDashboard() {
       <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-xl border border-blue-500/30 p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
-              <Bot className="w-6 h-6 text-blue-400" />
+            <div className="p-2 bg-blue-500/20 rounded-lg overflow-hidden">
+              <Image src="/logo.png" alt="AI Partner" width={24} height={24} className="object-contain" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">AI Study Partner</h2>
@@ -499,7 +498,9 @@ export default function AdminDashboard() {
             href="/admin/ai-partner"
             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
           >
-            <Bot className="w-8 h-8 text-purple-400" />
+            <div className="w-8 h-8">
+              <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
+            </div>
             <span className="text-sm text-gray-300">AI Partner</span>
           </Link>
           <Link

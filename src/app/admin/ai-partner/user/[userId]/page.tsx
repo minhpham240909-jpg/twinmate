@@ -7,9 +7,9 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import {
   ArrowLeft,
-  Bot,
   MessageSquare,
   Clock,
   Star,
@@ -116,11 +116,8 @@ function SessionCard({
             session.status === 'BLOCKED' ? 'bg-red-500/20' :
             'bg-blue-500/20'
           }`}>
-            <Bot className={`w-5 h-5 ${
-              session.status === 'ACTIVE' ? 'text-green-400' :
-              session.status === 'PAUSED' ? 'text-amber-400' :
-              session.status === 'BLOCKED' ? 'text-red-400' :
-              'text-blue-400'
+            <Image src="/logo.png" alt="Session" width={20} height={20} className={`object-contain ${
+              session.status === 'COMPLETED' || session.status === 'BLOCKED' ? 'opacity-50' : ''
             }`} />
           </div>
           <div className="text-left">
@@ -326,7 +323,7 @@ export default function AdminAIPartnerUserPage({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-400">AI Partner History</span>
-            <Bot className="w-5 h-5 text-blue-400" />
+            <Image src="/logo.png" alt="AI Partner" width={20} height={20} className="object-contain" />
           </div>
         </div>
       </header>
@@ -440,7 +437,9 @@ export default function AdminAIPartnerUserPage({
             </div>
           ) : (
             <div className="text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700/50">
-              <Bot className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+              <div className="w-12 h-12 mx-auto mb-3 opacity-50">
+                <Image src="/logo.png" alt="No sessions" width={48} height={48} className="object-contain" />
+              </div>
               <p className="text-slate-400">No AI Partner sessions found</p>
             </div>
           )}

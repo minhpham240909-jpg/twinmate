@@ -7,8 +7,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
-  Bot,
   MessageSquare,
   Users,
   Clock,
@@ -197,7 +197,7 @@ export default function AdminAIPartnerPage() {
     {
       title: 'Total Sessions',
       value: data.overview.totalSessions,
-      icon: Bot,
+      icon: Sparkles,
       color: 'blue',
     },
     {
@@ -265,7 +265,7 @@ export default function AdminAIPartnerPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Bot className="w-8 h-8 text-blue-500" />
+            <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
             AI Partner Analytics
           </h1>
           <p className="text-gray-400 mt-1">

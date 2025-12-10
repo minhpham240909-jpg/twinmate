@@ -10,7 +10,6 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  Bot,
   User,
   ArrowLeft,
   MessageSquare,
@@ -323,7 +322,7 @@ export default function AdminAIPartnerSessionDetailPage() {
         {/* Session Stats */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Bot className="w-5 h-5 text-purple-400" />
+            <Image src="/logo.png" alt="AI" width={20} height={20} className="object-contain" />
             Session Statistics
           </h3>
           <div className="space-y-3">
@@ -463,7 +462,7 @@ export default function AdminAIPartnerSessionDetailPage() {
                 ) : msg.role === 'SYSTEM' ? (
                   <Shield className="w-4 h-4 text-white" />
                 ) : (
-                  <Bot className="w-4 h-4 text-white" />
+                  <Image src="/logo.png" alt="AI" width={16} height={16} className="object-contain" />
                 )}
               </div>
               <div

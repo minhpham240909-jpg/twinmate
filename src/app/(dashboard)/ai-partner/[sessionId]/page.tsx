@@ -2,10 +2,10 @@
 
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
-  Bot,
   Loader2,
   LogOut,
   AlertTriangle,
@@ -392,8 +392,8 @@ export default function AIPartnerSessionPage({
               <ArrowLeft className="w-5 h-5 text-slate-400" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                <Image src="/logo.png" alt="AI Partner" width={28} height={28} className="object-contain" />
               </div>
               <div>
                 <h1 className="font-semibold text-white">

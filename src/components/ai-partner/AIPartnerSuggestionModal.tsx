@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
-  Bot,
   Sparkles,
   UserX,
   Loader2,
@@ -165,8 +165,8 @@ export default function AIPartnerSuggestionModal({
 
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                    <Bot className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                    <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-slate-900 rounded-full flex items-center justify-center border-2 border-purple-500">
                     <Sparkles className="w-3 h-3 text-purple-400" />

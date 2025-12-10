@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
-  Bot,
   Sparkles,
   BookOpen,
   Target,
@@ -118,8 +118,8 @@ export default function StartAIPartnerModal({
               </button>
 
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                  <Bot className="w-7 h-7 text-white" />
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                  <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">

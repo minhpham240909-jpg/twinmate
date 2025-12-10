@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'
 import {
-  Bot,
   X,
   Play,
   ArrowRight,
@@ -195,6 +195,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
     try {
       const res = await fetch('/api/ai-partner/hide', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       })
       const data = await res.json()
 
@@ -247,8 +249,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
 
         {/* Main button */}
         <div className="relative flex items-center gap-3 px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700/50 shadow-xl cursor-pointer hover:border-blue-500/50 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg overflow-hidden">
+            <Image src="/logo.png" alt="AI Partner" width={28} height={28} className="object-contain" />
           </div>
           <div className="text-left">
             <p className="text-white font-semibold text-sm">AI Partner</p>
@@ -298,8 +300,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl blur-md opacity-50" />
-                  <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <Bot className="w-6 h-6 text-white" />
+                  <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg overflow-hidden">
+                    <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
                   </div>
                 </div>
                 <div>
@@ -516,8 +518,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
             >
               {/* Header */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                  <Bot className="w-7 h-7 text-white" />
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                  <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">Start Studying</h3>

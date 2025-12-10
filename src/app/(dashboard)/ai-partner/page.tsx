@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { toast } from 'react-hot-toast'
 import {
-  Bot,
   Sparkles,
   Clock,
   MessageSquare,
@@ -114,8 +114,8 @@ export default function AIPartnerPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold">AI Study Partner</h1>
@@ -148,8 +148,8 @@ export default function AIPartnerPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center relative">
-                    <Bot className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center relative overflow-hidden">
+                    <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-950 animate-pulse" />
                   </div>
                   <div className="text-left">
@@ -181,8 +181,8 @@ export default function AIPartnerPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center relative">
-                    <Bot className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center relative overflow-hidden">
+                    <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                     <Pause className="absolute -top-1 -right-1 w-4 h-4 text-amber-400 bg-slate-950 rounded-full p-0.5" />
                   </div>
                   <div className="text-left">
@@ -285,7 +285,9 @@ export default function AIPartnerPage() {
             </div>
           ) : sessions.length === 0 ? (
             <div className="text-center py-12 bg-slate-800/30 rounded-2xl border border-slate-700/50">
-              <Bot className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+              <div className="w-12 h-12 mx-auto mb-3 opacity-50">
+                <Image src="/logo.png" alt="No sessions" width={48} height={48} className="object-contain" />
+              </div>
               <p className="text-slate-400">No sessions yet</p>
               <p className="text-slate-500 text-sm">
                 Search for partners to get started with AI Partner
@@ -310,7 +312,7 @@ export default function AIPartnerPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden ${
                             session.status === 'ACTIVE'
                               ? 'bg-green-500/20'
                               : session.status === 'PAUSED'
@@ -318,15 +320,13 @@ export default function AIPartnerPage() {
                               : 'bg-slate-700/50'
                           }`}
                         >
-                          <Bot
-                            className={`w-5 h-5 ${
-                              session.status === 'ACTIVE'
-                                ? 'text-green-400'
-                                : session.status === 'PAUSED'
-                                ? 'text-amber-400'
-                                : 'text-slate-400'
-                            }`}
-                          />
+                          <Image src="/logo.png" alt="Session" width={24} height={24} className={`object-contain ${
+                            session.status === 'ACTIVE'
+                              ? ''
+                              : session.status === 'PAUSED'
+                              ? ''
+                              : 'opacity-50'
+                          }`} />
                         </div>
                         <div>
                           <p className="font-medium text-white flex items-center gap-2">

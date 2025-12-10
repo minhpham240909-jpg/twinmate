@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Send,
-  Bot,
   User,
   AlertTriangle,
   Loader2,
@@ -89,7 +89,7 @@ export default function AIPartnerChat({
       {/* AI Disclosure Banner */}
       <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-slate-700/50 px-4 py-2">
         <div className="flex items-center gap-2 text-sm text-slate-300">
-          <Bot className="w-4 h-4 text-blue-400" />
+          <Image src="/logo.png" alt="AI" width={16} height={16} className="object-contain" />
           <span>
             <strong className="text-blue-400">AI Study Partner</strong> - This is an automated assistant, not a real person.
           </span>
