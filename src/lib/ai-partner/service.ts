@@ -16,6 +16,7 @@ import {
   generateQuizFromChat,
   analyzeWhiteboardImage,
   generateSessionSummary,
+  extractSubjectFromConversation,
   checkContentSafety,
   AIMessage,
   SearchCriteria,
@@ -972,6 +973,19 @@ export async function endSession(params: {
     content: m.content,
   }))
 
+  // Extract subject from conversation if not already set
+  // This is important for "new topic" sessions where AI asks what to study
+  let extractedSubject: string | null = null
+  if (!session.subject && messagesForSummary.length >= 2) {
+    extractedSubject = await extractSubjectFromConversation(messagesForSummary).catch((error) => {
+      console.error('[AI Partner] Subject extraction failed:', error)
+      return null
+    })
+  }
+
+  // Use either existing subject or extracted one
+  const finalSubject = session.subject || extractedSubject
+
   // Run memory extraction and summary generation IN PARALLEL for speed
   // This is the main performance optimization - these were running sequentially before
   const [extractedMemoriesResult, summary] = await Promise.all([
@@ -986,7 +1000,7 @@ export async function endSession(params: {
     }),
     // Summary generation (runs in parallel with memory extraction)
     generateSessionSummary({
-      subject: session.subject || undefined,
+      subject: finalSubject || undefined,
       messages: messagesForSummary,
       duration,
     }),
@@ -1010,7 +1024,7 @@ export async function endSession(params: {
   updateUserMemoryFromSession({
     userId,
     sessionId,
-    subject: session.subject || undefined,
+    subject: finalSubject || undefined,
     durationMinutes,
   }).catch((error) => {
     console.error('[AI Partner] User memory update failed:', error)
@@ -1027,7 +1041,7 @@ export async function endSession(params: {
     },
   })
 
-  // Update session
+  // Update session - include extracted subject if we found one
   await prisma.aIPartnerSession.update({
     where: { id: sessionId },
     data: {
@@ -1036,6 +1050,8 @@ export async function endSession(params: {
       totalDuration: duration,
       rating,
       feedback,
+      // Save extracted subject if session didn't have one
+      ...(extractedSubject && !session.subject ? { subject: extractedSubject } : {}),
     },
   })
 

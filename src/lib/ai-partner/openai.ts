@@ -738,6 +738,67 @@ ${conversationSummary}`
 }
 
 /**
+ * Extract the main study subject from a conversation
+ * Used when the session was started without a specific subject
+ */
+export async function extractSubjectFromConversation(
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<string | null> {
+  if (messages.length < 2) {
+    return null
+  }
+
+  // Take first 10 messages - the subject is usually established early
+  const earlyMessages = messages.slice(0, 10)
+  const conversationText = earlyMessages
+    .map((m) => `${m.role === 'user' ? 'Student' : 'AI'}: ${m.content.slice(0, 300)}`)
+    .join('\n')
+
+  const systemPrompt = `You are analyzing a study session conversation to identify the main topic being studied.
+
+Your task:
+1. Read the conversation between student and AI tutor
+2. Identify the PRIMARY subject/topic being studied
+3. Return ONLY the subject name (2-5 words max)
+4. If multiple topics, return the main one
+5. If no clear subject, return "General Study"
+
+Examples of good responses:
+- "Calculus Derivatives"
+- "World War II History"
+- "Python Programming"
+- "Organic Chemistry"
+- "Spanish Vocabulary"
+- "Essay Writing"
+
+Return ONLY the subject name, nothing else.`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `What is the main study subject in this conversation?\n\n${conversationText}` },
+      ],
+      temperature: 0.3,
+      max_tokens: 50,
+    })
+
+    const subject = completion.choices[0]?.message?.content?.trim()
+
+    // Validate the response - should be short and not contain obvious errors
+    if (subject && subject.length > 0 && subject.length < 100 && !subject.includes('\n')) {
+      return subject
+    }
+
+    return null
+  } catch (error) {
+    console.error('[AI Partner] Subject extraction error:', error)
+    return null
+  }
+}
+
+/**
  * Stream interface for chat completion
  */
 export interface StreamCallbacks {
