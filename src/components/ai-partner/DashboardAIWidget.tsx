@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Loader2,
   MessageSquare,
-  Clock,
   Sparkles,
   Trash2,
   ChevronUp,
@@ -37,13 +36,51 @@ interface DashboardAIWidgetProps {
   onHidden?: () => void
 }
 
+// Cache keys for localStorage
+const CACHE_KEY_SHOW_WIDGET = 'aipartner_showWidget'
+const CACHE_KEY_SESSION = 'aipartner_currentSession'
+const CACHE_KEY_STATS = 'aipartner_stats'
+const CACHE_EXPIRY = 5 * 60 * 1000 // 5 minutes
+
+// Helper to get cached value with expiry check
+function getCachedValue<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const cached = localStorage.getItem(key)
+    if (!cached) return null
+    const { value, timestamp } = JSON.parse(cached)
+    // Check if cache is expired
+    if (Date.now() - timestamp > CACHE_EXPIRY) {
+      localStorage.removeItem(key)
+      return null
+    }
+    return value as T
+  } catch {
+    return null
+  }
+}
+
+// Helper to set cached value with timestamp
+function setCachedValue<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(key, JSON.stringify({ value, timestamp: Date.now() }))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [showWidget, setShowWidget] = useState(false)
+  // Initialize from cache to prevent flicker on navigation
+  const [isLoading, setIsLoading] = useState(() => {
+    // If we have cached showWidget, don't show loading state
+    return getCachedValue<boolean>(CACHE_KEY_SHOW_WIDGET) === null
+  })
+  const [showWidget, setShowWidget] = useState(() => getCachedValue<boolean>(CACHE_KEY_SHOW_WIDGET) ?? false)
   const [isExpanded, setIsExpanded] = useState(false)
-  const [currentSession, setCurrentSession] = useState<CurrentSession | null>(null)
-  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [currentSession, setCurrentSession] = useState<CurrentSession | null>(() => getCachedValue<CurrentSession>(CACHE_KEY_SESSION))
+  const [stats, setStats] = useState<DashboardStats | null>(() => getCachedValue<DashboardStats>(CACHE_KEY_STATS))
   const [isResuming, setIsResuming] = useState(false)
   const [isHiding, setIsHiding] = useState(false)
   const [showConfirmHide, setShowConfirmHide] = useState(false)
@@ -58,9 +95,19 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
       const data = await res.json()
 
       if (data.success) {
+        // Update state
         setShowWidget(data.showWidget)
         setCurrentSession(data.currentSession || null)
         setStats(data.stats || null)
+
+        // Cache the values for next navigation
+        setCachedValue(CACHE_KEY_SHOW_WIDGET, data.showWidget)
+        setCachedValue(CACHE_KEY_SESSION, data.currentSession || null)
+        setCachedValue(CACHE_KEY_STATS, data.stats || null)
+      } else {
+        // If API says don't show, update cache
+        setCachedValue(CACHE_KEY_SHOW_WIDGET, false)
+        setShowWidget(false)
       }
     } catch (error) {
       console.error('Failed to fetch AI Partner dashboard data:', error)
@@ -105,6 +152,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
         toast.success('AI Partner removed from dashboard', {
           icon: '👋',
         })
+        // Clear cache when hiding
+        setCachedValue(CACHE_KEY_SHOW_WIDGET, false)
         setShowWidget(false)
         setShowConfirmHide(false)
         setIsExpanded(false)

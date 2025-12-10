@@ -26,6 +26,7 @@ import {
   saveMemories,
   updateUserMemoryFromSession,
   getOrCreateUserMemory,
+  ExtractedMemory,
 } from './memory'
 import type { AISessionStatus, AIMessageRole, AIMessageType, SkillLevel } from '@prisma/client'
 
@@ -957,51 +958,60 @@ export async function endSession(params: {
   const duration = Math.round((endedAt.getTime() - session.startedAt.getTime()) / 1000)
   const durationMinutes = Math.round(duration / 60)
 
-  // Extract memories from the conversation (async, non-blocking)
-  let memoriesExtracted = 0
-  try {
-    const extractedMemories = await extractMemoriesFromConversation({
+  // Prepare message data once (reused by multiple operations)
+  const messagesForExtraction = session.messages.map((m) => ({
+    role: m.role.toLowerCase(),
+    content: m.content,
+    id: m.id,
+  }))
+
+  const messagesForSummary = session.messages.map((m) => ({
+    role: m.role.toLowerCase() as 'user' | 'assistant',
+    content: m.content,
+  }))
+
+  // Run memory extraction and summary generation IN PARALLEL for speed
+  // This is the main performance optimization - these were running sequentially before
+  const [extractedMemoriesResult, summary] = await Promise.all([
+    // Memory extraction (non-blocking, catches its own errors)
+    extractMemoriesFromConversation({
       userId,
       sessionId,
-      messages: session.messages.map((m) => ({
-        role: m.role.toLowerCase(),
-        content: m.content,
-        id: m.id,
-      })),
-    })
+      messages: messagesForExtraction,
+    }).catch((error) => {
+      console.error('[AI Partner] Memory extraction failed:', error)
+      return [] as ExtractedMemory[]
+    }),
+    // Summary generation (runs in parallel with memory extraction)
+    generateSessionSummary({
+      subject: session.subject || undefined,
+      messages: messagesForSummary,
+      duration,
+    }),
+  ])
 
-    if (extractedMemories.length > 0) {
+  // Save extracted memories (fast, runs after extraction completes)
+  let memoriesExtracted = 0
+  if (extractedMemoriesResult.length > 0) {
+    try {
       memoriesExtracted = await saveMemories({
         userId,
         sessionId,
-        memories: extractedMemories,
+        memories: extractedMemoriesResult,
       })
+    } catch (error) {
+      console.error('[AI Partner] Memory save failed:', error)
     }
-  } catch (error) {
-    console.error('[AI Partner] Memory extraction failed:', error)
-    // Don't fail the session end if memory extraction fails
   }
 
-  // Update user memory stats
-  try {
-    await updateUserMemoryFromSession({
-      userId,
-      sessionId,
-      subject: session.subject || undefined,
-      durationMinutes,
-    })
-  } catch (error) {
-    console.error('[AI Partner] User memory update failed:', error)
-  }
-
-  // Generate session summary
-  const summary = await generateSessionSummary({
+  // Update user memory stats (fast database operation, non-blocking)
+  updateUserMemoryFromSession({
+    userId,
+    sessionId,
     subject: session.subject || undefined,
-    messages: session.messages.map((m) => ({
-      role: m.role.toLowerCase() as 'user' | 'assistant',
-      content: m.content,
-    })),
-    duration,
+    durationMinutes,
+  }).catch((error) => {
+    console.error('[AI Partner] User memory update failed:', error)
   })
 
   // Save summary as message

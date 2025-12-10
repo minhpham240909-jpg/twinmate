@@ -81,6 +81,19 @@ interface AIPartnerAnalytics {
     totalRated: number
     averageRating: number | null
     ratingPercentage: string
+    recentFeedback: Array<{
+      id: string
+      userId: string
+      userName: string
+      userEmail: string
+      userImage: string | null
+      subject: string | null
+      rating: number | null
+      feedback: string | null
+      endedAt: string | null
+      totalDuration: number | null
+      messageCount: number
+    }>
   }
   charts: {
     dailyGrowth: Array<{ date: string; sessions: number; messages: number; users: number }>
@@ -505,6 +518,104 @@ export default function AdminAIPartnerPage() {
             <p className="text-sm text-gray-400 mt-1">Rating Rate</p>
           </div>
         </div>
+      </div>
+
+      {/* User Feedback Section */}
+      <div id="feedback" className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-blue-400" />
+            Recent User Feedback ({data.ratings.recentFeedback.length})
+          </h3>
+          <span className="text-sm text-gray-400">
+            From AI Partner sessions
+          </span>
+        </div>
+        {data.ratings.recentFeedback.length > 0 ? (
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            {data.ratings.recentFeedback.map(feedback => (
+              <div key={feedback.id} className="p-4 bg-gray-700/30 border border-gray-600/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {feedback.userImage ? (
+                      <img
+                        src={feedback.userImage}
+                        alt={feedback.userName}
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                        <Users className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium text-white truncate">{feedback.userName}</p>
+                      <p className="text-xs text-gray-400 truncate">{feedback.userEmail}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {feedback.rating && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-lg">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star
+                            key={star}
+                            className={`w-4 h-4 ${
+                              star <= feedback.rating!
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-600'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {feedback.feedback && (
+                  <div className="mt-3 p-3 bg-gray-800/50 rounded-lg">
+                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{feedback.feedback}</p>
+                  </div>
+                )}
+
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="w-3 h-3" />
+                      {feedback.subject || 'General'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3" />
+                      {feedback.messageCount} messages
+                    </span>
+                    {feedback.totalDuration && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatDuration(feedback.totalDuration)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {feedback.endedAt && (
+                      <span>{formatRelativeTime(feedback.endedAt)}</span>
+                    )}
+                    <Link
+                      href={`/admin/users/${feedback.userId}`}
+                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    >
+                      View User
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            No feedback yet
+          </div>
+        )}
       </div>
 
       {/* Flagged Messages Section */}

@@ -86,6 +86,9 @@ export async function GET() {
       // Ratings
       ratedSessions,
 
+      // Recent feedback
+      recentFeedback,
+
       // Growth data (last 30 days)
       dailyGrowth,
 
@@ -145,6 +148,28 @@ export async function GET() {
         where: { rating: { not: null } },
         _count: true,
         _avg: { rating: true },
+      }),
+
+      // Recent feedback with text (for admin review)
+      prisma.aIPartnerSession.findMany({
+        where: {
+          OR: [
+            { rating: { not: null } },
+            { feedback: { not: null } },
+          ],
+        },
+        orderBy: { endedAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          userId: true,
+          subject: true,
+          rating: true,
+          feedback: true,
+          endedAt: true,
+          totalDuration: true,
+          messageCount: true,
+        },
       }),
 
       // Daily growth for chart
@@ -237,6 +262,14 @@ export async function GET() {
       count: s._count,
     }))
 
+    // Fetch user info for recent feedback
+    const feedbackUserIds = [...new Set(recentFeedback.map(f => f.userId))]
+    const feedbackUsers = await prisma.user.findMany({
+      where: { id: { in: feedbackUserIds } },
+      select: { id: true, name: true, email: true, avatarUrl: true },
+    })
+    const userMap = new Map(feedbackUsers.map(u => [u.id, u]))
+
     // Log admin view
     await prisma.adminAuditLog.create({
       data: {
@@ -314,6 +347,22 @@ export async function GET() {
           totalRated: ratedSessions._count,
           averageRating: ratedSessions._avg.rating ? Number(ratedSessions._avg.rating.toFixed(2)) : null,
           ratingPercentage: totalSessions > 0 ? ((ratedSessions._count / totalSessions) * 100).toFixed(1) : '0',
+          recentFeedback: recentFeedback.map(f => {
+            const feedbackUser = userMap.get(f.userId)
+            return {
+              id: f.id,
+              userId: f.userId,
+              userName: feedbackUser?.name || 'Unknown',
+              userEmail: feedbackUser?.email || '',
+              userImage: feedbackUser?.avatarUrl || null,
+              subject: f.subject,
+              rating: f.rating,
+              feedback: f.feedback,
+              endedAt: f.endedAt,
+              totalDuration: f.totalDuration,
+              messageCount: f.messageCount,
+            }
+          }),
         },
 
         // Charts data
