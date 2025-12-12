@@ -62,12 +62,18 @@ export default function AIPartnerSuggestionModal({
   // Build display text from search criteria
   const getSearchSummary = () => {
     const parts: string[] = []
-    // Include text search query as a subject (if not a name search)
-    if (searchQuery && searchQuery.trim() && noResultsReason !== 'name_not_found') {
+    // Always include text search query as the first part
+    if (searchQuery && searchQuery.trim()) {
       parts.push(searchQuery.trim())
     }
     if (searchCriteria.subjects?.length) {
-      parts.push(searchCriteria.subjects.join(', '))
+      // Don't duplicate if searchQuery is same as a subject
+      const subjects = searchCriteria.subjects.filter(s =>
+        s.toLowerCase() !== searchQuery?.toLowerCase().trim()
+      )
+      if (subjects.length > 0) {
+        parts.push(subjects.join(', '))
+      }
     }
     if (searchCriteria.school) {
       parts.push(searchCriteria.school)
@@ -91,24 +97,23 @@ export default function AIPartnerSuggestionModal({
       // Build final criteria, incorporating search query as subject if needed
       const finalCriteria = { ...searchCriteria }
 
-      // If user searched with text query, treat it as a subject (same as selective filters)
+      // If user searched with text query, always treat it as a subject
+      // This ensures "business" is treated exactly like selecting "Business" from filters
       if (searchQuery && searchQuery.trim()) {
-        if (noResultsReason === 'name_not_found') {
-          // Searching for a specific person's name
-          finalCriteria.searchedName = searchQuery
-          if (userQualities.trim()) {
-            finalCriteria.userDefinedQualities = userQualities.trim()
-          }
-        } else {
-          // General search - add search query to subjects array
-          // This ensures "business" is treated exactly like selecting "Business" from filters
-          if (!finalCriteria.subjects?.length) {
-            finalCriteria.subjects = [searchQuery.trim()]
-          }
-          // Also set subjectDescription for additional context
-          if (!finalCriteria.subjectDescription) {
-            finalCriteria.subjectDescription = searchQuery.trim()
-          }
+        // Add search query to subjects array
+        if (!finalCriteria.subjects?.length) {
+          finalCriteria.subjects = [searchQuery.trim()]
+        } else if (!finalCriteria.subjects.some(s => s.toLowerCase() === searchQuery.toLowerCase().trim())) {
+          // Add if not already in subjects
+          finalCriteria.subjects = [searchQuery.trim(), ...finalCriteria.subjects]
+        }
+        // Also set subjectDescription for additional context
+        if (!finalCriteria.subjectDescription) {
+          finalCriteria.subjectDescription = searchQuery.trim()
+        }
+        // If user also provided qualities (for name search), include them
+        if (userQualities.trim()) {
+          finalCriteria.userDefinedQualities = userQualities.trim()
         }
       }
 
@@ -193,13 +198,9 @@ export default function AIPartnerSuggestionModal({
 
     // Build a dynamic subtitle based on search criteria
     const buildDynamicSubtitle = () => {
-      // Text search bar - treat same as subjects for personalized message
-      if (searchQuery && searchQuery.trim() && noResultsReason !== 'name_not_found') {
+      // Text search bar - always treat as subject for personalized message
+      if (searchQuery && searchQuery.trim()) {
         return `But I can be your ${searchQuery.trim()} study partner! Let's learn together.`
-      }
-      // Name search - generic message
-      if (searchQuery && noResultsReason === 'name_not_found') {
-        return `But I can be your study partner! I'll adapt to help you with what you're looking for.`
       }
       if (searchCriteria.subjects?.length) {
         return `But I can be your ${searchCriteria.subjects[0]} study partner! Let's learn together.`
@@ -311,7 +312,7 @@ export default function AIPartnerSuggestionModal({
 
               {/* Search criteria display - show if there's any search query or criteria */}
               {(
-                (searchQuery && searchQuery.trim() && noResultsReason !== 'name_not_found') ||
+                (searchQuery && searchQuery.trim()) ||
                 Object.keys(searchCriteria).some(k => {
                   const val = searchCriteria[k as keyof SearchCriteria]
                   return val && (Array.isArray(val) ? val.length > 0 : true)
