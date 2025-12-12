@@ -1181,6 +1181,14 @@
       "viewPartner": "View Partner",
       "continuewithAI": "Continue with AI",
       "dismiss": "Dismiss"
+    },
+    "pausedSession": {
+      "title": "Session Paused",
+      "studySession": "Study Session",
+      "message": "You have a paused study session. Would you like to continue where you left off?",
+      "messages": "Messages",
+      "continue": "Continue",
+      "endSession": "End Session"
     }
   }
 }

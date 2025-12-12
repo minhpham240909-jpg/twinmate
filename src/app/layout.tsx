@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuthProvider } from "@/lib/auth/context";
 import { Toaster } from "react-hot-toast";
 import FloatingSessionButton from "@/components/FloatingSessionButton";
+import PausedSessionFAB from "@/components/ai-partner/PausedSessionFAB";
 import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import IncomingCallModal from "@/components/IncomingCallModal";
@@ -78,6 +79,7 @@ export default function RootLayout({
                               <OfflineIndicator />
                               {children}
                               <FloatingSessionButton />
+                              <PausedSessionFAB />
                               <IncomingCallModal />
                               <Toaster
                                 position="top-right"

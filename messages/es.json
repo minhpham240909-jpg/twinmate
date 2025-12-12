@@ -1180,6 +1180,14 @@
       "viewPartner": "Ver Compañero",
       "continuewithAI": "Continuar con IA",
       "dismiss": "Descartar"
+    },
+    "pausedSession": {
+      "title": "Sesión Pausada",
+      "studySession": "Sesión de Estudio",
+      "message": "Tienes una sesión de estudio pausada. ¿Te gustaría continuar donde lo dejaste?",
+      "messages": "Mensajes",
+      "continue": "Continuar",
+      "endSession": "Terminar Sesión"
     }
   }
 }

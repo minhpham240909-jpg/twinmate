@@ -77,7 +77,138 @@ import {
   getOrCreateUserMemory,
   ExtractedMemory,
 } from './memory'
-import type { AISessionStatus, AIMessageRole, AIMessageType, SkillLevel } from '@prisma/client'
+import type { AISessionStatus, AIMessageRole, AIMessageType, SkillLevel, StudyStyle } from '@prisma/client'
+
+/**
+ * Build a personalized welcome instruction for the AI based on session params and user profile
+ * This creates a rich context so the AI can generate a highly personalized first message
+ */
+interface PersonalizedWelcomeParams {
+  // Session params (from modal input)
+  sessionSubject?: string
+  sessionSkillLevel?: SkillLevel
+  sessionStudyGoal?: string
+  // User memory
+  totalSessions: number
+  lastTopicDiscussed?: string
+  streakDays: number
+  // User profile data
+  userName?: string
+  profileSubjects: string[]
+  profileInterests: string[]
+  profileGoals: string[]
+  profileSkillLevel?: SkillLevel | null
+  profileStudyStyle?: StudyStyle | null
+  profileSchool?: string | null
+  profileLocation?: string | null
+  profileBio?: string | null
+  profileAboutYourself?: string | null
+  // Learning profile
+  strengths: string[]
+  weaknesses: string[]
+}
+
+function buildPersonalizedWelcomeInstruction(params: PersonalizedWelcomeParams): string {
+  const parts: string[] = []
+
+  // Start with context about this being a new session
+  if (params.totalSessions > 0) {
+    parts.push(`This is a returning user who has had ${params.totalSessions} sessions with AI partners.`)
+    if (params.streakDays > 1) {
+      parts.push(`They're on a ${params.streakDays}-day study streak - acknowledge this achievement naturally!`)
+    }
+    if (params.lastTopicDiscussed) {
+      parts.push(`Last time they studied: ${params.lastTopicDiscussed}.`)
+    }
+  } else {
+    parts.push(`This is a new user's first session - give them a warm welcome!`)
+  }
+
+  // Add session-specific information (what they selected in the modal)
+  const sessionDetails: string[] = []
+  if (params.sessionSubject) {
+    sessionDetails.push(`studying ${params.sessionSubject}`)
+  }
+  if (params.sessionSkillLevel) {
+    const levelMap: Record<string, string> = {
+      'BEGINNER': 'beginner',
+      'INTERMEDIATE': 'intermediate',
+      'ADVANCED': 'advanced',
+      'EXPERT': 'expert'
+    }
+    sessionDetails.push(`at ${levelMap[params.sessionSkillLevel] || params.sessionSkillLevel.toLowerCase()} level`)
+  }
+  if (params.sessionStudyGoal) {
+    sessionDetails.push(`with the goal: "${params.sessionStudyGoal}"`)
+  }
+  if (sessionDetails.length > 0) {
+    parts.push(`\nTODAY'S SESSION: The user wants to start ${sessionDetails.join(', ')}.`)
+  }
+
+  // Add rich user profile context
+  const profileContext: string[] = []
+
+  if (params.userName) {
+    profileContext.push(`Name: ${params.userName}`)
+  }
+  if (params.profileSchool) {
+    profileContext.push(`School: ${params.profileSchool}`)
+  }
+  if (params.profileLocation) {
+    profileContext.push(`Location: ${params.profileLocation}`)
+  }
+  if (params.profileSubjects && params.profileSubjects.length > 0) {
+    profileContext.push(`Studies: ${params.profileSubjects.slice(0, 5).join(', ')}`)
+  }
+  if (params.profileInterests && params.profileInterests.length > 0) {
+    profileContext.push(`Interests: ${params.profileInterests.slice(0, 5).join(', ')}`)
+  }
+  if (params.profileGoals && params.profileGoals.length > 0) {
+    profileContext.push(`Goals: ${params.profileGoals.slice(0, 3).join(', ')}`)
+  }
+  if (params.profileSkillLevel) {
+    profileContext.push(`Skill level: ${params.profileSkillLevel}`)
+  }
+  if (params.profileStudyStyle) {
+    const styleMap: Record<string, string> = {
+      'COLLABORATIVE': 'collaborative (enjoys group study)',
+      'INDEPENDENT': 'independent (prefers solo study)',
+      'MIXED': 'mixed (flexible approach)'
+    }
+    profileContext.push(`Study style: ${styleMap[params.profileStudyStyle] || params.profileStudyStyle}`)
+  }
+  if (params.strengths && params.strengths.length > 0) {
+    profileContext.push(`Strengths: ${params.strengths.slice(0, 3).join(', ')}`)
+  }
+  if (params.weaknesses && params.weaknesses.length > 0) {
+    profileContext.push(`Areas to improve: ${params.weaknesses.slice(0, 3).join(', ')}`)
+  }
+  if (params.profileBio) {
+    profileContext.push(`Bio: ${params.profileBio.slice(0, 150)}`)
+  }
+  if (params.profileAboutYourself) {
+    profileContext.push(`About themselves: ${params.profileAboutYourself.slice(0, 150)}`)
+  }
+
+  if (profileContext.length > 0) {
+    parts.push(`\nUSER PROFILE CONTEXT:\n${profileContext.join('\n')}`)
+  }
+
+  // Add instruction for the AI
+  parts.push(`
+INSTRUCTION: Generate a warm, personalized greeting that:
+1. ${params.userName ? `Uses their name (${params.userName})` : 'Greets them warmly'}
+2. ${params.sessionSubject ? `Acknowledges they want to study ${params.sessionSubject}` : 'Asks what they want to study today'}
+3. ${params.sessionStudyGoal ? `References their goal: "${params.sessionStudyGoal}"` : ''}
+4. ${params.profileSubjects.length > 0 || params.profileInterests.length > 0 ? 'Shows you know their background/interests (mention 1-2 naturally)' : ''}
+5. ${params.weaknesses.length > 0 ? 'Offers to help with areas they want to improve (mention one naturally)' : ''}
+6. Keeps it conversational and friendly (2-3 sentences max)
+7. Ends with either starting the study topic OR asking what specific aspect they want to focus on
+
+Do NOT be generic. Use the specific details above to make them feel understood and ready to learn.`)
+
+  return parts.join('\n')
+}
 
 // Types
 export interface CreateAISessionParams {
@@ -131,11 +262,46 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
 }> {
   const { userId, subject, skillLevel, studyGoal, personaId } = params
 
-  // Get user info for personalization
+  // Get user info AND full profile for personalization (single query for performance)
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true },
+    select: {
+      name: true,
+      email: true,
+      profile: {
+        select: {
+          bio: true,
+          subjects: true,
+          interests: true,
+          goals: true,
+          skillLevel: true,
+          studyStyle: true,
+          school: true,
+          languages: true,
+          location_city: true,
+          location_country: true,
+          availableDays: true,
+          availableHours: true,
+          subjectCustomDescription: true,
+          skillLevelCustomDescription: true,
+          studyStyleCustomDescription: true,
+          interestsCustomDescription: true,
+          aboutYourself: true,
+          aboutYourselfItems: true,
+        }
+      },
+      learningProfile: {
+        select: {
+          strengths: true,
+          weaknesses: true,
+        }
+      }
+    },
   })
+
+  // Extract profile data for easy access
+  const profile = user?.profile
+  const learningProfile = user?.learningProfile
 
   // Get persona if provided, or use default
   let persona = null
@@ -197,11 +363,31 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
     systemPrompt += memoryContext
   }
 
-  // Build welcome instruction based on memory
-  let welcomeInstruction = 'Start the session with a warm greeting.'
-  if (userMemory.totalSessions > 0) {
-    welcomeInstruction = `This is a returning user who has had ${userMemory.totalSessions} sessions. Welcome them back warmly. ${userMemory.lastTopicDiscussed ? `Last time you discussed "${userMemory.lastTopicDiscussed}".` : ''} ${userMemory.streakDays > 1 ? `They're on a ${userMemory.streakDays}-day study streak - acknowledge it!` : ''}`
-  }
+  // Build personalized welcome instruction based on session params AND user profile
+  let welcomeInstruction = buildPersonalizedWelcomeInstruction({
+    // Session params (from modal input)
+    sessionSubject: subject || undefined,
+    sessionSkillLevel: skillLevel || undefined,
+    sessionStudyGoal: studyGoal || undefined,
+    // User memory
+    totalSessions: userMemory.totalSessions,
+    lastTopicDiscussed: userMemory.lastTopicDiscussed || undefined,
+    streakDays: userMemory.streakDays,
+    // User profile data
+    userName: user?.name || undefined,
+    profileSubjects: profile?.subjects || [],
+    profileInterests: profile?.interests || [],
+    profileGoals: profile?.goals || [],
+    profileSkillLevel: profile?.skillLevel || undefined,
+    profileStudyStyle: profile?.studyStyle || undefined,
+    profileSchool: profile?.school || undefined,
+    profileLocation: profile?.location_city || profile?.location_country || undefined,
+    profileBio: profile?.bio || undefined,
+    profileAboutYourself: profile?.aboutYourself || undefined,
+    // Learning profile
+    strengths: learningProfile?.strengths || [],
+    weaknesses: learningProfile?.weaknesses || [],
+  })
 
   // Generate welcome message
   const welcomeResult = await sendChatMessage(
@@ -293,11 +479,40 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
 }> {
   const { userId, searchCriteria, studyGoal } = params
 
-  // Get user info for personalization
+  // Get user info AND full profile for personalization (single query for performance)
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true },
+    select: {
+      name: true,
+      email: true,
+      profile: {
+        select: {
+          bio: true,
+          subjects: true,
+          interests: true,
+          goals: true,
+          skillLevel: true,
+          studyStyle: true,
+          school: true,
+          languages: true,
+          location_city: true,
+          location_country: true,
+          aboutYourself: true,
+          aboutYourselfItems: true,
+        }
+      },
+      learningProfile: {
+        select: {
+          strengths: true,
+          weaknesses: true,
+        }
+      }
+    },
   })
+
+  // Extract profile data for easy access
+  const profile = user?.profile
+  const learningProfile = user?.learningProfile
 
   // Get user memory for personalization
   const userMemory = await getOrCreateUserMemory(userId)
@@ -368,11 +583,31 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     systemPrompt += memoryContext
   }
 
-  // Build welcome instruction based on memory
-  let welcomeInstruction = 'Start the session with a warm, casual greeting as yourself.'
-  if (userMemory.totalSessions > 0) {
-    welcomeInstruction = `This is a returning user who has had ${userMemory.totalSessions} sessions with AI partners. Welcome them back warmly and naturally. ${userMemory.lastTopicDiscussed ? `They last studied "${userMemory.lastTopicDiscussed}".` : ''} ${userMemory.streakDays > 1 ? `They're on a ${userMemory.streakDays}-day study streak!` : ''}`
-  }
+  // Build personalized welcome instruction using search criteria AND user profile
+  const welcomeInstruction = buildPersonalizedWelcomeInstruction({
+    // Session params from search criteria
+    sessionSubject: subject || undefined,
+    sessionSkillLevel: skillLevelEnum || undefined,
+    sessionStudyGoal: studyGoal || undefined,
+    // User memory
+    totalSessions: userMemory.totalSessions,
+    lastTopicDiscussed: userMemory.lastTopicDiscussed || undefined,
+    streakDays: userMemory.streakDays,
+    // User profile data
+    userName: user?.name || undefined,
+    profileSubjects: profile?.subjects || [],
+    profileInterests: profile?.interests || [],
+    profileGoals: profile?.goals || [],
+    profileSkillLevel: profile?.skillLevel || undefined,
+    profileStudyStyle: profile?.studyStyle || undefined,
+    profileSchool: profile?.school || undefined,
+    profileLocation: profile?.location_city || profile?.location_country || undefined,
+    profileBio: profile?.bio || undefined,
+    profileAboutYourself: profile?.aboutYourself || undefined,
+    // Learning profile
+    strengths: learningProfile?.strengths || [],
+    weaknesses: learningProfile?.weaknesses || [],
+  })
 
   // Generate welcome message with dynamic persona
   const welcomeResult = await sendChatMessage(

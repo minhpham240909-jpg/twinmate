@@ -495,6 +495,34 @@ export default function AIPartnerSessionPage({
     }
   }
 
+  // Pause session and navigate to dashboard
+  const handlePauseAndLeave = async () => {
+    if (session?.status !== 'ACTIVE') {
+      router.push('/dashboard')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/ai-partner/session/${sessionId}/pause`, {
+        method: 'POST',
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        router.push('/dashboard')
+      } else {
+        // If pause fails, still navigate but log error
+        console.error('Failed to pause session:', data.error)
+        router.push('/dashboard')
+      }
+    } catch (err) {
+      console.error('Failed to pause session:', err)
+      // Still navigate even if pause fails
+      router.push('/dashboard')
+    }
+  }
+
   // Handler for asking AI from flashcards
   const handleAskAIFromFlashcards = async (question: string) => {
     setActiveTab('chat')
@@ -544,8 +572,9 @@ export default function AIPartnerSessionPage({
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push('/ai-partner')}
+              onClick={handlePauseAndLeave}
               className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              title="Pause session and go to dashboard"
             >
               <ArrowLeft className="w-5 h-5 text-slate-400" />
             </button>
