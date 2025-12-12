@@ -8,6 +8,64 @@ const sanitizeEnvVar = (value: string | undefined): string => {
   return value.replace(/[\r\n\s]+/g, '').trim()
 }
 
+/**
+ * H1 FIX: Token refresh with retry logic and exponential backoff
+ * Prevents silent token refresh failures during Supabase service unavailability
+ */
+async function refreshTokenWithRetry(
+  supabase: ReturnType<typeof createServerClient>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 500
+): Promise<{ user: { id: string } | null }> {
+  let lastError: { message?: string; status?: number } | null = null
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      
+      // If successful or no token exists, return immediately
+      if (!error || error.message?.includes('no session')) {
+        return { user: user ? { id: user.id } : null }
+      }
+      
+      // Check if error is retryable (network/service issues)
+      const isRetryable = error.message?.includes('network') ||
+                          error.message?.includes('timeout') ||
+                          error.message?.includes('unavailable') ||
+                          error.status === 503 ||
+                          error.status === 502 ||
+                          error.status === 500
+      
+      if (!isRetryable) {
+        // Non-retryable error (e.g., invalid token) - return immediately
+        return { user: null }
+      }
+      
+      lastError = { message: error.message, status: error.status }
+      
+      // Exponential backoff with jitter for retryable errors
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 100
+        await new Promise(resolve => setTimeout(resolve, delay))
+        console.log(`[Auth] Token refresh retry ${attempt + 1}/${maxRetries} after ${delay}ms`)
+      }
+    } catch (err) {
+      lastError = { message: err instanceof Error ? err.message : 'Unknown error' }
+      
+      // On catch, retry with backoff
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 100
+        await new Promise(resolve => setTimeout(resolve, delay))
+        console.log(`[Auth] Token refresh exception retry ${attempt + 1}/${maxRetries}`)
+      }
+    }
+  }
+  
+  // All retries failed
+  console.error('[Auth] Token refresh failed after all retries:', lastError?.message)
+  return { user: null }
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
     request,
@@ -37,8 +95,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refreshing the auth token and get user
-  const { data: { user } } = await supabase.auth.getUser()
+  // H1 FIX: Refreshing auth token with retry logic for resilience
+  const { user } = await refreshTokenWithRetry(supabase)
 
   const pathname = request.nextUrl.pathname
 

@@ -36,10 +36,12 @@ interface DrawAction {
 
 interface AIPartnerWhiteboardProps {
   sessionId: string
+  subject?: string | null
+  skillLevel?: string | null
   onAIResponse?: (response: string) => void
 }
 
-export default function AIPartnerWhiteboard({ sessionId, onAIResponse }: AIPartnerWhiteboardProps) {
+export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, onAIResponse }: AIPartnerWhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -636,7 +638,7 @@ export default function AIPartnerWhiteboard({ sessionId, onAIResponse }: AIPartn
                 if (e.key === 'Enter') handleAskAI(aiQuestion)
                 if (e.key === 'Escape') setShowQuestionInput(false)
               }}
-              placeholder="Ask a specific question about your drawing... (optional)"
+              placeholder={subject ? `Ask about your ${subject} diagram... (optional)` : "Ask a specific question about your drawing... (optional)"}
               className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500/50 outline-none"
               autoFocus
             />
@@ -714,7 +716,9 @@ export default function AIPartnerWhiteboard({ sessionId, onAIResponse }: AIPartn
 
       {/* Instructions */}
       <p className="text-center text-slate-500 text-sm">
-        Use the whiteboard to draw diagrams, take notes, or visualize concepts
+        {subject
+          ? `Draw ${subject} diagrams, formulas, or notes. AI will analyze with ${skillLevel ? skillLevel.toLowerCase() + '-level' : 'subject-specific'} feedback.`
+          : 'Use the whiteboard to draw diagrams, take notes, or visualize concepts'}
       </p>
     </div>
   )

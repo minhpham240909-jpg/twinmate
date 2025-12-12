@@ -57,6 +57,8 @@ const profileSchema = z.object({
   languages: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().nullable(),
   // Post Privacy
   postPrivacy: z.enum(['PUBLIC', 'PARTNERS_ONLY']).optional(),
+  // H2 FIX: Optimistic locking - client sends the updatedAt timestamp they're basing their changes on
+  expectedUpdatedAt: z.string().datetime().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -127,8 +129,26 @@ export async function POST(request: NextRequest) {
       postPrivacy: data.postPrivacy || 'PUBLIC',
     }
 
-    // Wrap user and profile updates in a transaction to ensure atomicity
+    // H2 FIX: Wrap user and profile updates in a transaction with optimistic locking
     const profile = await prisma.$transaction(async (tx) => {
+      // H2 FIX: Check for concurrent updates using optimistic locking
+      if (data.expectedUpdatedAt) {
+        const currentProfile = await tx.profile.findUnique({
+          where: { userId: user.id },
+          select: { updatedAt: true },
+        })
+        
+        if (currentProfile) {
+          const expectedTime = new Date(data.expectedUpdatedAt).getTime()
+          const currentTime = currentProfile.updatedAt.getTime()
+          
+          // Allow 1 second tolerance for timestamp comparison
+          if (Math.abs(currentTime - expectedTime) > 1000) {
+            throw new Error('CONCURRENT_UPDATE: Profile was modified by another request. Please refresh and try again.')
+          }
+        }
+      }
+
       // Update user name (and avatar only if explicitly provided)
       // If avatarUrl is undefined, don't update it - preserve existing avatar
       const userUpdateData: { name: string; avatarUrl?: string | null } = {
@@ -181,6 +201,15 @@ export async function POST(request: NextRequest) {
     const errorStack = error instanceof Error ? error.stack : ''
     console.error('[Profile Update] Error message:', errorMessage)
     console.error('[Profile Update] Error stack:', errorStack)
+    
+    // H2 FIX: Handle concurrent update error with proper status code
+    if (errorMessage.includes('CONCURRENT_UPDATE')) {
+      return NextResponse.json(
+        { error: 'Profile was modified by another session. Please refresh and try again.', code: 'CONCURRENT_UPDATE' },
+        { status: 409 } // 409 Conflict
+      )
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error', details: errorMessage },
       { status: 500 }

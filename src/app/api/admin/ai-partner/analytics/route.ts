@@ -230,10 +230,13 @@ export async function GET() {
       }),
     ])
 
-    // Calculate average session duration
+    // Max session duration to consider realistic (4 hours)
+    const MAX_SESSION_DURATION = 4 * 60 * 60 // 4 hours = 14400 seconds
+
+    // Calculate average session duration - only count completed sessions with realistic durations
     const avgDuration = await prisma.aIPartnerSession.aggregate({
       where: {
-        totalDuration: { not: null },
+        totalDuration: { not: null, lte: MAX_SESSION_DURATION },
         status: 'COMPLETED',
       },
       _avg: { totalDuration: true },

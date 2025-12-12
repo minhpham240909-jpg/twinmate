@@ -14,6 +14,19 @@ interface AvailablePartner {
   avatarUrl: string | null
   subjects: string[]
   skillLevel: string | null
+  matchedCriteria?: string[] // Which criteria matched (e.g., ['subjects', 'location'])
+}
+
+interface SearchCriteriaSummary {
+  subjects?: string[]
+  skillLevel?: string
+  studyStyle?: string
+  locationCity?: string
+  locationCountry?: string
+  school?: string
+  interests?: string[]
+  goals?: string[]
+  role?: string[]
 }
 
 interface PartnerAvailableNotificationProps {
@@ -34,6 +47,7 @@ export default function PartnerAvailableNotification({
   const [showNotification, setShowNotification] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [isPausing, setIsPausing] = useState(false)
+  const [searchCriteria, setSearchCriteria] = useState<SearchCriteriaSummary | null>(null)
 
   const checkAvailability = useCallback(async () => {
     if (dismissed) return
@@ -46,6 +60,10 @@ export default function PartnerAvailableNotification({
       if (data.available && data.partners.length > 0) {
         setAvailablePartners(data.partners)
         setShowNotification(true)
+        // Store the search criteria from the API response for View All
+        if (data.searchCriteria) {
+          setSearchCriteria(data.searchCriteria)
+        }
       }
     } catch (error) {
       console.error('Failed to check partner availability:', error)
@@ -131,7 +149,43 @@ export default function PartnerAvailableNotification({
         onSessionPaused()
       }
 
-      router.push('/search')
+      // Build URL params from search criteria to pre-fill the search page
+      const params = new URLSearchParams()
+      if (searchCriteria) {
+        if (searchCriteria.subjects?.length) {
+          params.set('subjects', searchCriteria.subjects.join(','))
+        }
+        if (searchCriteria.skillLevel) {
+          params.set('skillLevel', searchCriteria.skillLevel)
+        }
+        if (searchCriteria.studyStyle) {
+          params.set('studyStyle', searchCriteria.studyStyle)
+        }
+        if (searchCriteria.locationCity) {
+          params.set('locationCity', searchCriteria.locationCity)
+        }
+        if (searchCriteria.locationCountry) {
+          params.set('locationCountry', searchCriteria.locationCountry)
+        }
+        if (searchCriteria.school) {
+          params.set('school', searchCriteria.school)
+        }
+        if (searchCriteria.interests?.length) {
+          params.set('interests', searchCriteria.interests.join(','))
+        }
+        if (searchCriteria.goals?.length) {
+          params.set('goals', searchCriteria.goals.join(','))
+        }
+        if (searchCriteria.role?.length) {
+          params.set('role', searchCriteria.role.join(','))
+        }
+      }
+
+      // Add flag to indicate coming from AI partner notification
+      params.set('fromAIPartner', 'true')
+
+      const queryString = params.toString()
+      router.push(`/search${queryString ? `?${queryString}` : ''}`)
     } else {
       toast.error('Failed to pause session. Try again.')
     }
@@ -208,6 +262,11 @@ export default function PartnerAvailableNotification({
                       {partner.subjects.slice(0, 2).join(', ')}
                       {partner.skillLevel && ` • ${partner.skillLevel}`}
                     </p>
+                    {partner.matchedCriteria && partner.matchedCriteria.length > 0 && (
+                      <p className="text-xs text-green-400 mt-0.5">
+                        Matches: {partner.matchedCriteria.join(', ')}
+                      </p>
+                    )}
                   </div>
                   {isPausing ? (
                     <Loader2 className="w-4 h-4 text-green-400 animate-spin" />

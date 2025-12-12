@@ -60,6 +60,7 @@ export async function GET(
         reposts: {
           select: {
             id: true,
+            userId: true,
           },
         },
         _count: {
@@ -79,7 +80,7 @@ export async function GET(
     const postsWithUserData = posts.map(post => ({
       ...post,
       isLikedByUser: post.likes.some(like => like.userId === user.id),
-      isRepostedByUser: post.reposts.some(repost => repost.id),
+      isRepostedByUser: post.reposts.some(repost => repost.userId === user.id),
     }))
 
     return NextResponse.json({ posts: postsWithUserData })

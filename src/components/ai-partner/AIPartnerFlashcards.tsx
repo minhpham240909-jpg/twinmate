@@ -59,6 +59,10 @@ export default function AIPartnerFlashcards({
   const [correctCount, setCorrectCount] = useState(0)
   const [results, setResults] = useState<Array<{ id: string; isCorrect: boolean }>>([])
 
+  // Generation Count
+  const [generateCount, setGenerateCount] = useState(5)
+  const MAX_FLASHCARDS = 20
+
   // Load flashcards from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem(`ai-flashcards-${sessionId}`)
@@ -110,7 +114,7 @@ export default function AIPartnerFlashcards({
         body: JSON.stringify({
           sessionId,
           topic: subject,
-          count: 5,
+          count: generateCount,
         }),
       })
 
@@ -149,7 +153,7 @@ export default function AIPartnerFlashcards({
         body: JSON.stringify({
           sessionId,
           fromConversation: true,
-          count: 5,
+          count: generateCount,
         }),
       })
 
@@ -264,38 +268,12 @@ export default function AIPartnerFlashcards({
   if (viewMode === 'manage') {
     return (
       <div className="space-y-6 p-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-white">Flashcards</h2>
-            <p className="text-slate-400 text-sm">Create or generate flashcards for your study session</p>
-          </div>
-          <div className="flex gap-2 flex-wrap justify-end">
-            <button
-              onClick={handleGenerateFromConversation}
-              disabled={isGenerating}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-cyan-600 transition-all disabled:opacity-50"
-              title="Create flashcards based on what you discussed with AI"
-            >
-              {isGenerating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              From Chat
-            </button>
-            <button
-              onClick={handleGenerateFlashcards}
-              disabled={isGenerating || !subject}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
-              title="Generate flashcards about the session subject"
-            >
-              {isGenerating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              From Topic
-            </button>
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-white">Flashcards</h2>
+              <p className="text-slate-400 text-sm">Create or generate flashcards for your study session</p>
+            </div>
             {flashcards.length > 0 && (
               <button
                 onClick={() => setViewMode('study')}
@@ -305,6 +283,54 @@ export default function AIPartnerFlashcards({
                 Study ({flashcards.length})
               </button>
             )}
+          </div>
+
+          {/* AI Generation Controls */}
+          <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-300 whitespace-nowrap">Generate</label>
+              <input
+                type="number"
+                min={1}
+                max={MAX_FLASHCARDS}
+                value={generateCount}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 1
+                  setGenerateCount(Math.min(Math.max(val, 1), MAX_FLASHCARDS))
+                }}
+                className="w-16 px-2 py-1.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white text-center text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+              />
+              <span className="text-sm text-slate-400">cards (max {MAX_FLASHCARDS})</span>
+            </div>
+
+            <div className="flex gap-2 ml-auto">
+              <button
+                onClick={handleGenerateFromConversation}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-cyan-600 transition-all disabled:opacity-50"
+                title="Create flashcards based on what you discussed with AI"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                From Chat
+              </button>
+              <button
+                onClick={handleGenerateFlashcards}
+                disabled={isGenerating || !subject}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
+                title="Generate flashcards about the session subject"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                From Topic
+              </button>
+            </div>
           </div>
         </div>
 

@@ -30,32 +30,68 @@ interface SendNotificationParams {
 }
 
 /**
- * Send in-app notification
+ * H13 FIX: Send in-app notification with retry logic
+ * Implements exponential backoff for reliability
  */
-export async function createInAppNotification(params: SendNotificationParams) {
-  try {
-    const notification = await prisma.notification.create({
-      data: {
+export async function createInAppNotification(
+  params: SendNotificationParams,
+  options?: { maxRetries?: number; baseDelayMs?: number }
+) {
+  const { maxRetries = 3, baseDelayMs = 500 } = options || {}
+  let lastError: Error | null = null
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: params.userId,
+          type: params.type,
+          title: params.title,
+          message: params.message,
+          actionUrl: params.actionUrl,
+          relatedUserId: params.relatedUserId,
+          relatedMatchId: params.relatedMatchId,
+        },
+      })
+
+      logger.info('In-app notification created', {
         userId: params.userId,
         type: params.type,
-        title: params.title,
-        message: params.message,
-        actionUrl: params.actionUrl,
-        relatedUserId: params.relatedUserId,
-        relatedMatchId: params.relatedMatchId,
-      },
-    })
+        attempt: attempt + 1,
+      })
 
-    logger.info('In-app notification created', {
-      userId: params.userId,
-      type: params.type,
-    })
-
-    return notification
-  } catch (error) {
-    logger.error('Failed to create in-app notification', error as Error)
-    return null
+      return notification
+    } catch (error) {
+      lastError = error as Error
+      logger.warn(`Notification creation attempt ${attempt + 1} failed`, {
+        userId: params.userId,
+        type: params.type,
+        error: (error as Error).message,
+      })
+      
+      // Check if error is retryable (database/network issues)
+      const isRetryable = (error as Error).message?.includes('connection') ||
+                          (error as Error).message?.includes('timeout') ||
+                          (error as Error).message?.includes('deadlock') ||
+                          (error as Error).message?.includes('temporarily')
+      
+      if (!isRetryable) {
+        // Non-retryable error, stop immediately
+        break
+      }
+      
+      // Exponential backoff with jitter before retry
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 100
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
   }
+  
+  // All retries failed
+  logger.error(`Failed to create in-app notification after ${maxRetries} retries for user ${params.userId} (type: ${params.type})`, lastError as Error)
+  
+  return null
 }
 
 /**

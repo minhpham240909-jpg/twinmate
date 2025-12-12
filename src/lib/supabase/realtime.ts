@@ -231,47 +231,76 @@ export function subscribeToNotifications(
   const supabase = createClient()
   let retryCount = 0
   const maxRetries = 3
+  let currentChannel: RealtimeChannel | null = null
+  let isCleanedUp = false
+  let retryTimeout: NodeJS.Timeout | null = null
 
-  const channel = supabase
-    .channel(`notifications:${userId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'Notification',
-        filter: `userId=eq.${userId}`,
-      },
-      (payload) => {
-        onNotification(payload.new)
-      }
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log(`✅ Notifications channel subscribed for user: ${userId}`)
-        retryCount = 0 // Reset retry count on success
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error(`❌ Notifications channel error for user: ${userId}`)
-        if (retryCount < maxRetries) {
-          retryCount++
-          console.log(`🔄 Retrying notification subscription (${retryCount}/${maxRetries})...`)
-          setTimeout(() => {
-            supabase.removeChannel(channel)
-            subscribeToNotifications(userId, onNotification, onError)
-          }, 2000 * retryCount)
-        } else {
-          onError?.('Failed to connect to notifications after multiple attempts')
+  const setupChannel = () => {
+    // Don't setup if already cleaned up
+    if (isCleanedUp) return
+
+    // Clean up existing channel before creating new one
+    if (currentChannel) {
+      supabase.removeChannel(currentChannel)
+      currentChannel = null
+    }
+
+    currentChannel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Notification',
+          filter: `userId=eq.${userId}`,
+        },
+        (payload) => {
+          if (!isCleanedUp) {
+            onNotification(payload.new)
+          }
         }
-      } else if (status === 'TIMED_OUT') {
-        console.error(`⏱️ Notifications channel timed out for user: ${userId}`)
-        onError?.('Notification connection timed out')
-      } else if (status === 'CLOSED') {
-        console.log(`🔒 Notifications channel closed for user: ${userId}`)
-      }
-    })
+      )
+      .subscribe((status) => {
+        if (isCleanedUp) return
 
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ Notifications channel subscribed for user: ${userId}`)
+          retryCount = 0 // Reset retry count on success
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`❌ Notifications channel error for user: ${userId}`)
+          if (retryCount < maxRetries) {
+            retryCount++
+            console.log(`🔄 Retrying notification subscription (${retryCount}/${maxRetries})...`)
+            retryTimeout = setTimeout(() => {
+              setupChannel()
+            }, 2000 * retryCount)
+          } else {
+            onError?.('Failed to connect to notifications after multiple attempts')
+          }
+        } else if (status === 'TIMED_OUT') {
+          console.error(`⏱️ Notifications channel timed out for user: ${userId}`)
+          onError?.('Notification connection timed out')
+        } else if (status === 'CLOSED') {
+          console.log(`🔒 Notifications channel closed for user: ${userId}`)
+        }
+      })
+  }
+
+  // Initial setup
+  setupChannel()
+
+  // Return cleanup function that handles all retries
   return () => {
-    supabase.removeChannel(channel)
+    isCleanedUp = true
+    if (retryTimeout) {
+      clearTimeout(retryTimeout)
+      retryTimeout = null
+    }
+    if (currentChannel) {
+      supabase.removeChannel(currentChannel)
+      currentChannel = null
+    }
   }
 }
 
@@ -330,15 +359,26 @@ export function subscribeToPresence(
 }
 
 /**
- * Subscribe to new messages for unread count updates
+ * H6 FIX: Subscribe to new messages for unread count updates
  * Listens to DM messages where user is the recipient and group messages
+ * Includes polling fallback for reliability during brief disconnections
  */
 export function subscribeToUnreadMessages(
   userId: string,
   onNewMessage: () => void,
-  groupIds?: string[]
+  groupIds?: string[],
+  options?: {
+    pollingIntervalMs?: number  // Default: 30000 (30 seconds)
+    enablePollingFallback?: boolean  // Default: true
+  }
 ): () => void {
   const supabase = createClient()
+  const { pollingIntervalMs = 30000, enablePollingFallback = true } = options || {}
+  
+  let isCleanedUp = false
+  let pollingInterval: NodeJS.Timeout | null = null
+  let realtimeConnected = false
+  let lastPolledAt = Date.now()
 
   const channel = supabase
     .channel(`unread:${userId}`)
@@ -352,7 +392,7 @@ export function subscribeToUnreadMessages(
       },
       () => {
         // New DM received
-        onNewMessage()
+        if (!isCleanedUp) onNewMessage()
       }
     )
     .on(
@@ -365,14 +405,21 @@ export function subscribeToUnreadMessages(
       },
       () => {
         // DM marked as read/unread
-        onNewMessage()
+        if (!isCleanedUp) onNewMessage()
       }
     )
     .subscribe((status) => {
+      if (isCleanedUp) return
+      
       if (status === 'SUBSCRIBED') {
         console.log(`✅ Unread messages channel subscribed for user: ${userId}`)
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error(`❌ Unread messages channel error for user: ${userId}`)
+        realtimeConnected = true
+        
+        // H6 FIX: Reconcile unread counts on reconnection
+        onNewMessage()
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        console.error(`❌ Unread messages channel issue for user: ${userId}`, status)
+        realtimeConnected = false
       }
     })
 
@@ -404,6 +451,8 @@ export function subscribeToUnreadMessages(
         'postgres_changes',
         filterConfig,
         (payload) => {
+          if (isCleanedUp) return
+          
           const message = payload.new as { groupId?: string; senderId?: string }
 
           // Skip messages from self
@@ -417,6 +466,8 @@ export function subscribeToUnreadMessages(
         }
       )
       .subscribe((status) => {
+        if (isCleanedUp) return
+        
         if (status === 'SUBSCRIBED') {
           console.log(`✅ Group unread messages channel subscribed for user: ${userId} (${groupIds.length} groups, DB filter: ${useDbFilter})`)
         } else if (status === 'CHANNEL_ERROR') {
@@ -425,7 +476,33 @@ export function subscribeToUnreadMessages(
       })
   }
 
+  // H6 FIX: Periodic polling fallback to reconcile unread counts
+  // This catches messages missed during brief disconnections
+  if (enablePollingFallback) {
+    pollingInterval = setInterval(() => {
+      if (isCleanedUp) return
+      
+      // Always poll to ensure accuracy, regardless of realtime status
+      const now = Date.now()
+      const timeSinceLastPoll = now - lastPolledAt
+      
+      // If realtime has been disconnected or it's been a while, trigger refresh
+      if (!realtimeConnected || timeSinceLastPoll >= pollingIntervalMs) {
+        lastPolledAt = now
+        console.log(`[Unread Polling] Refreshing unread counts for user: ${userId}`)
+        onNewMessage()
+      }
+    }, pollingIntervalMs)
+  }
+
   return () => {
+    isCleanedUp = true
+    
+    if (pollingInterval) {
+      clearInterval(pollingInterval)
+      pollingInterval = null
+    }
+    
     supabase.removeChannel(channel)
     if (groupChannel) {
       supabase.removeChannel(groupChannel)

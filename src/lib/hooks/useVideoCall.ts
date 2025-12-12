@@ -99,6 +99,10 @@ export function useVideoCall({
   
   // Auto-reconnect state
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // H3 & H4 FIX: Heartbeat and cleanup refs
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastHeartbeatRef = useRef<number>(Date.now())
 
   /**
    * Initialize Agora client and set up event listeners
@@ -896,10 +900,151 @@ export function useVideoCall({
   }, [wasOffline, isOnline, isConnected, isConnecting, joinCall])
 
   /**
+   * H3 FIX: Heartbeat mechanism for session state synchronization
+   * Sends periodic updates to keep participant state in sync
+   */
+  useEffect(() => {
+    if (!isConnected || !clientRef.current) {
+      return
+    }
+    
+    // Send heartbeat every 30 seconds
+    heartbeatIntervalRef.current = setInterval(() => {
+      lastHeartbeatRef.current = Date.now()
+      
+      // Log heartbeat for debugging (can be sent to server for reconciliation)
+      console.log('[Heartbeat] Session active, participants:', remoteUsers.size + 1)
+      
+      // Reconcile participant state by checking Agora client state
+      const agoraClient = clientRef.current
+      if (agoraClient) {
+        const agoraRemoteUsers = agoraClient.remoteUsers || []
+        const currentRemoteCount = remoteUsers.size
+        
+        // Check for state mismatch
+        if (agoraRemoteUsers.length !== currentRemoteCount) {
+          console.warn('[Heartbeat] State mismatch detected - Agora:', agoraRemoteUsers.length, 'Local:', currentRemoteCount)
+          
+          // Reconcile: add missing users or remove stale ones
+          const agoraUids = new Set(agoraRemoteUsers.map(u => u.uid))
+          
+          // Add missing users from Agora state
+          agoraRemoteUsers.forEach((agoraUser) => {
+            if (!remoteUsers.has(agoraUser.uid)) {
+              setRemoteUsers(prev => {
+                const newMap = new Map(prev)
+                newMap.set(agoraUser.uid, {
+                  uid: agoraUser.uid,
+                  hasAudio: agoraUser.hasAudio,
+                  hasVideo: agoraUser.hasVideo,
+                  hasScreenShare: false,
+                  audioTrack: agoraUser.audioTrack,
+                  videoTrack: agoraUser.videoTrack,
+                })
+                remoteUsersRef.current = newMap
+                return newMap
+              })
+            }
+          })
+          
+          // Remove stale users not in Agora state
+          remoteUsers.forEach((_, uid) => {
+            if (!agoraUids.has(uid)) {
+              setRemoteUsers(prev => {
+                const newMap = new Map(prev)
+                newMap.delete(uid)
+                remoteUsersRef.current = newMap
+                return newMap
+              })
+            }
+          })
+        }
+      }
+    }, 30000) // 30 second heartbeat interval
+    
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+    }
+  }, [isConnected, remoteUsers])
+  
+  /**
+   * H4 FIX: Browser close/unload cleanup handler
+   * Attempts to clean up session when user closes browser or navigates away
+   */
+  useEffect(() => {
+    if (!isConnected) {
+      return
+    }
+    
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Attempt synchronous cleanup on page unload
+      try {
+        // Stop local tracks immediately
+        if (localTracksRef.current.videoTrack) {
+          localTracksRef.current.videoTrack.stop()
+        }
+        if (localTracksRef.current.audioTrack) {
+          localTracksRef.current.audioTrack.stop()
+        }
+        if (localTracksRef.current.screenTrack) {
+          localTracksRef.current.screenTrack.stop()
+        }
+        
+        // Attempt to leave channel (may not complete before page closes)
+        const agoraClient = clientRef.current
+        if (agoraClient) {
+          // Use synchronous leave if available, or fire-and-forget
+          agoraClient.leave().catch(() => {
+            // Ignore errors during unload
+          })
+        }
+        
+        // Send beacon to notify server of disconnect (for server-side cleanup)
+        if (navigator.sendBeacon && channelName) {
+          const data = JSON.stringify({
+            channel: channelName,
+            uid: uidRef.current,
+            timestamp: Date.now(),
+          })
+          navigator.sendBeacon('/api/study-sessions/participant-left', data)
+        }
+      } catch (error) {
+        // Ignore cleanup errors during unload
+        console.error('[Cleanup] Error during unload:', error)
+      }
+    }
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isConnected) {
+        // User switched tabs or minimized - send heartbeat to maintain presence
+        lastHeartbeatRef.current = Date.now()
+        console.log('[Visibility] Tab hidden, maintaining connection')
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isConnected, channelName])
+
+  /**
    * Cleanup on unmount
    */
   useEffect(() => {
     return () => {
+      // Clear heartbeat interval
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+      
       // Clear any pending reconnect
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)

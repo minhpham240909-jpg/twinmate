@@ -20,6 +20,7 @@ interface VideoCallProps {
   pipMode?: boolean
   onTogglePip?: () => void
   audioOnly?: boolean // For audio-only calls (no video)
+  onUserJoined?: () => void // Callback when any user joins the call
 }
 
 interface ChatMessage {
@@ -42,6 +43,7 @@ export default function VideoCall({
   pipMode = false,
   onTogglePip,
   audioOnly = false, // Default to video call
+  onUserJoined: onUserJoinedProp,
 }: VideoCallProps) {
   console.log('🎬 VideoCall component rendered with audioOnly:', audioOnly)
   const hasJoinedRef = useRef(false)
@@ -75,6 +77,8 @@ export default function VideoCall({
     onUserJoined: (uid) => {
       console.log('User joined callback:', uid)
       toast.success('Someone joined the call')
+      // Call the parent's onUserJoined callback if provided
+      onUserJoinedProp?.()
     },
     onUserLeft: (uid) => {
       console.log('User left callback:', uid)

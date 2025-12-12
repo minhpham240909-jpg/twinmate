@@ -16,8 +16,23 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const cursor = searchParams.get('cursor') // For pagination
+    // H11 FIX: Use stable cursor (createdAt + id) for consistent pagination
+    const cursor = searchParams.get('cursor') // Format: "createdAt_id" or just "id" for backwards compat
     const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.POSTS_LIMIT)
+    
+    // H11 FIX: Parse stable cursor
+    let cursorId: string | null = null
+    let cursorCreatedAt: Date | null = null
+    if (cursor) {
+      if (cursor.includes('_')) {
+        const [timestamp, id] = cursor.split('_')
+        cursorCreatedAt = new Date(timestamp)
+        cursorId = id
+      } else {
+        // Backwards compatibility: just an ID
+        cursorId = cursor
+      }
+    }
 
     // Get user's profile and settings
     const [profile, settings] = await Promise.all([
@@ -54,10 +69,22 @@ export async function GET(req: NextRequest) {
       match.senderId === user.id ? match.receiverId : match.senderId
     )
 
-    // Build query - include posts based on privacy settings
+    // H11 FIX: Build query with stable cursor for consistent pagination
+    // Using createdAt + id combination prevents duplicates/missing posts when new posts are created
     const posts = await prisma.post.findMany({
       where: {
-        ...(cursor ? { id: { lt: cursor } } : {}),
+        // H11 FIX: Stable cursor condition
+        ...(cursorCreatedAt && cursorId ? {
+          OR: [
+            // Posts with earlier createdAt
+            { createdAt: { lt: cursorCreatedAt } },
+            // Posts with same createdAt but earlier id (for same-timestamp ordering)
+            {
+              createdAt: cursorCreatedAt,
+              id: { lt: cursorId },
+            },
+          ],
+        } : cursorId ? { id: { lt: cursorId } } : {}),
         isDeleted: false, // Exclude soft-deleted posts
         OR: [
           // Public posts from everyone
@@ -101,21 +128,17 @@ export async function GET(req: NextRequest) {
             },
           },
         },
+        // PERFORMANCE: Only fetch current user's like/repost, not all of them
+        // This dramatically reduces data transfer for popular posts (100s of likes -> 1)
         likes: {
-          select: {
-            userId: true,
-          },
-        },
-        comments: {
-          select: {
-            id: true,
-          },
+          where: { userId: user.id },
+          select: { userId: true },
+          take: 1,
         },
         reposts: {
-          select: {
-            id: true,
-            userId: true,
-          },
+          where: { userId: user.id },
+          select: { userId: true },
+          take: 1,
         },
         _count: {
           select: {
@@ -273,16 +296,25 @@ export async function GET(req: NextRequest) {
           ...post.user,
           onlineStatus: connectionStatus === 'connected' ? (post.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE') : null,
         },
-        isLikedByUser: post.likes.some((like: any) => like.userId === user.id),
-        isRepostedByUser: post.reposts.some((repost: any) => repost.userId === user.id),
+        // PERFORMANCE: Since we filtered likes/reposts to user.id, just check if array has items
+        isLikedByUser: post.likes.length > 0,
+        isRepostedByUser: post.reposts.length > 0,
         connectionStatus,
         sharedGroups, // Array of groups that both users are members of
       }
     })
 
+    // H11 FIX: Build stable cursor for next page
+    let nextCursor: string | null = null
+    if (finalPosts.length === limit && finalPosts.length > 0) {
+      const lastPost = finalPosts[finalPosts.length - 1] as { id: string; createdAt: Date }
+      // Stable cursor format: "ISO_timestamp_id"
+      nextCursor = `${lastPost.createdAt.toISOString()}_${lastPost.id}`
+    }
+
     return NextResponse.json({
       posts: postsWithUserData,
-      nextCursor: finalPosts.length === limit ? finalPosts[finalPosts.length - 1].id : null,
+      nextCursor,
       feedAlgorithm, // Include in response so frontend knows which algorithm was used
     }, {
       headers: {

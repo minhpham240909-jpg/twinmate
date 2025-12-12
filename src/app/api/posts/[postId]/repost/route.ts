@@ -100,6 +100,23 @@ export async function DELETE(
 
     const { postId } = await params
 
+    // Check if repost exists before attempting to delete
+    const existingRepost = await prisma.postRepost.findUnique({
+      where: {
+        postId_userId: {
+          postId,
+          userId: user.id,
+        },
+      },
+    })
+
+    if (!existingRepost) {
+      return NextResponse.json(
+        { error: 'Repost not found' },
+        { status: 404 }
+      )
+    }
+
     // Delete repost
     await prisma.postRepost.delete({
       where: {

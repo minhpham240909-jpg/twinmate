@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/lib/auth/context'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
@@ -51,6 +51,7 @@ function formatStudyStyle(studyStyle: string | null | undefined): string {
 export default function SearchPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const t = useTranslations('search')
   const tCommon = useTranslations('common')
   const [searchQuery, setSearchQuery] = useState('')
@@ -105,6 +106,7 @@ export default function SearchPage() {
   const [showAIPartnerModal, setShowAIPartnerModal] = useState(false)
   const [aiPartnerNoResultsReason, setAiPartnerNoResultsReason] = useState<'no_match' | 'name_not_found' | 'no_partners'>('no_match')
   const [lastSearchWasFiltered, setLastSearchWasFiltered] = useState(false)
+  const [shouldAutoSearch, setShouldAutoSearch] = useState(false) // Trigger auto-search after pre-filling from AI Partner
 
   // Ref to track abort controller for cancelling in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -291,6 +293,95 @@ export default function SearchPage() {
     }
   }, [user, loading, router])
 
+  // Read URL params to pre-fill filters (e.g., coming from AI Partner notification "View All")
+  useEffect(() => {
+    if (!searchParams) return
+
+    const fromAIPartner = searchParams.get('fromAIPartner')
+    if (!fromAIPartner) return // Only pre-fill if coming from AI Partner
+
+    // Pre-fill subjects
+    const subjects = searchParams.get('subjects')
+    if (subjects) {
+      setSelectedSubjects(subjects.split(',').filter(Boolean))
+    }
+
+    // Pre-fill skill level
+    const skillLevel = searchParams.get('skillLevel')
+    if (skillLevel) {
+      setSelectedSkillLevel(skillLevel)
+    }
+
+    // Pre-fill study style
+    const studyStyle = searchParams.get('studyStyle')
+    if (studyStyle) {
+      setSelectedStudyStyle(studyStyle)
+    }
+
+    // Pre-fill location
+    const city = searchParams.get('locationCity')
+    if (city) {
+      setLocationCity(city)
+    }
+    const country = searchParams.get('locationCountry')
+    if (country) {
+      setLocationCountry(country)
+    }
+
+    // Pre-fill school
+    const school = searchParams.get('school')
+    if (school) {
+      setSchoolFilter(school)
+    }
+
+    // Pre-fill interests
+    const interests = searchParams.get('interests')
+    if (interests) {
+      setSelectedInterests(interests.split(',').filter(Boolean))
+    }
+
+    // Pre-fill goals
+    const goals = searchParams.get('goals')
+    if (goals) {
+      setSelectedGoals(goals.split(',').filter(Boolean))
+    }
+
+    // Pre-fill role
+    const role = searchParams.get('role')
+    if (role) {
+      setSelectedRoles(role.split(',').filter(Boolean))
+    }
+
+    // Show filters panel and show a toast
+    setShowFilters(true)
+    toast.success('Search filters pre-filled from your AI session', {
+      icon: '🔍',
+      duration: 3000,
+    })
+
+    // Trigger auto-search after state updates
+    setShouldAutoSearch(true)
+
+    // Clear the URL params after reading (prevents re-triggering on refresh)
+    router.replace('/search', { scroll: false })
+  }, [searchParams, router])
+
+  // Auto-search when coming from AI Partner notification (after filters are pre-filled)
+  useEffect(() => {
+    if (shouldAutoSearch && !isSearching) {
+      setShouldAutoSearch(false)
+      // Small delay to ensure state updates have propagated
+      const timer = setTimeout(() => {
+        // Trigger the Find Partner search with pre-filled filters
+        const searchButton = document.querySelector('[data-search-button]') as HTMLButtonElement
+        if (searchButton) {
+          searchButton.click()
+        }
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [shouldAutoSearch, isSearching])
+
   // Search as user types in search bar - optimized debounce
   useEffect(() => {
     if (searchQuery.trim().length >= 2) {
@@ -342,7 +433,7 @@ export default function SearchPage() {
       locationCountry.trim() !== ''
 
     if (!hasFilters) {
-      setSearchError('Please select at least one filter to find partners.')
+      setSearchError("Let's add some information to find your partner!")
       return
     }
 
@@ -893,6 +984,7 @@ export default function SearchPage() {
                 <button
                   onClick={handleFindPartner}
                   disabled={isSearching}
+                  data-search-button
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   {isSearching ? t('searching') : t('searchPartners')}

@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
     }
 
-    // Limit flashcard count
-    const flashcardCount = Math.min(Math.max(count || 5, 1), 10)
+    // Limit flashcard count (max 20)
+    const flashcardCount = Math.min(Math.max(count || 5, 1), 20)
 
     // Generate from conversation context if requested
     if (fromConversation) {

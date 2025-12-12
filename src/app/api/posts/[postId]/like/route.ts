@@ -90,6 +90,23 @@ export async function DELETE(
 
     const { postId } = await params
 
+    // Check if like exists before attempting to delete
+    const existingLike = await prisma.postLike.findUnique({
+      where: {
+        postId_userId: {
+          postId,
+          userId: user.id,
+        },
+      },
+    })
+
+    if (!existingLike) {
+      return NextResponse.json(
+        { error: 'Like not found' },
+        { status: 404 }
+      )
+    }
+
     // Delete like
     await prisma.postLike.delete({
       where: {

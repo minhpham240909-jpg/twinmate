@@ -187,8 +187,36 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
           if (data.success && data.messages && data.messages.length > 0) {
             consecutiveEmptyPolls = 0 // Reset on new messages
             setMessages((prev) => {
+              // H5 FIX: Enhanced deduplication - check both ID and temp ID patterns
               const existingIds = new Set(prev.map(m => m.id))
-              const newMessages = data.messages.filter((m: Message) => !existingIds.has(m.id))
+              
+              // Also track messages by content + sender for better deduplication
+              const existingContentKeys = new Set(
+                prev.map(m => `${m.sender.id}:${m.content.slice(0, 50)}`)
+              )
+              
+              const newMessages = data.messages.filter((m: Message) => {
+                // Skip if ID already exists
+                if (existingIds.has(m.id)) return false
+                
+                // H5 FIX: Skip if this looks like a duplicate of a temp message
+                // (same sender, same content prefix, within 30 seconds)
+                const contentKey = `${m.sender.id}:${m.content.slice(0, 50)}`
+                if (existingContentKeys.has(contentKey)) {
+                  // Check if there's a temp message that matches
+                  const matchingTemp = prev.find(
+                    p => p.id.startsWith('temp-') && 
+                         p.sender.id === m.sender.id && 
+                         p.content === m.content
+                  )
+                  if (matchingTemp) {
+                    // Replace temp with real message instead of adding duplicate
+                    return false
+                  }
+                }
+                
+                return true
+              })
 
               newMessages.forEach((msg: Message) => {
                 if (msg.sender.id !== user?.id) {
@@ -202,7 +230,13 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
                 }
               })
 
-              return newMessages.length > 0 ? [...prev, ...newMessages] : prev
+              if (newMessages.length === 0) return prev
+              
+              // H5 FIX: Merge and sort by timestamp to maintain order
+              const merged = [...prev, ...newMessages]
+              return merged.sort((a, b) => 
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              )
             })
           } else {
             consecutiveEmptyPolls++
@@ -356,12 +390,19 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
       const data = await res.json()
 
       if (data.success) {
-        // Replace optimistic message with real message from server
-        setMessages((prev) =>
-          prev.map((msg) =>
+        // H5 FIX: Replace optimistic message with real message and maintain order
+        setMessages((prev) => {
+          // Replace temp message with server response
+          const updated = prev.map((msg) =>
             msg.id === tempId ? { ...data.message } : msg
           )
-        )
+          
+          // H5 FIX: Re-sort by createdAt to ensure proper ordering
+          // This handles cases where server timestamp differs from client
+          return updated.sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        })
       } else {
         // Remove optimistic message on error
         setMessages((prev) => prev.filter((msg) => msg.id !== tempId))

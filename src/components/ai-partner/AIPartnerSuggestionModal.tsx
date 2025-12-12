@@ -115,23 +115,104 @@ export default function AIPartnerSuggestionModal({
     }
   }
 
-  // Determine the message based on the reason
+  // Determine the message based on the reason - using consistent format across the app
   const getMessage = () => {
-    if (noResultsReason === 'name_not_found' && searchQuery) {
-      return {
-        title: `"${searchQuery}" isn't available right now`,
-        subtitle: "I can be your study partner instead! Tell me what you were hoping for.",
+    // Build a dynamic title based on search criteria (similar to search page logic)
+    const buildDynamicTitle = () => {
+      if (searchQuery) {
+        return `${searchQuery} partners aren't available right now`
       }
-    }
-    if (noResultsReason === 'no_partners') {
-      return {
-        title: 'No partners available right now',
-        subtitle: "Don't worry! I can help you study while you wait for someone.",
+      if (searchCriteria.subjects?.length) {
+        const subjectsText = searchCriteria.subjects.slice(0, 2).join(', ') +
+          (searchCriteria.subjects.length > 2 ? ' & more' : '')
+        return `${subjectsText} partners aren't available right now`
       }
+      if (searchCriteria.subjectDescription) {
+        const desc = searchCriteria.subjectDescription.slice(0, 30) +
+          (searchCriteria.subjectDescription.length > 30 ? '...' : '')
+        return `Partners for ${desc} aren't available`
+      }
+      if (searchCriteria.skillLevel) {
+        return `${searchCriteria.skillLevel.charAt(0) + searchCriteria.skillLevel.slice(1).toLowerCase()} level partners aren't available right now`
+      }
+      if (searchCriteria.studyStyle) {
+        return `${searchCriteria.studyStyle.charAt(0) + searchCriteria.studyStyle.slice(1).toLowerCase()} study style partners aren't available`
+      }
+      if (searchCriteria.interests?.length) {
+        return `Partners interested in ${searchCriteria.interests.slice(0, 2).join(' & ')} aren't available`
+      }
+      if (searchCriteria.goals?.length) {
+        return `Partners with ${searchCriteria.goals.slice(0, 2).join(' & ')} goals aren't available`
+      }
+      if (searchCriteria.role?.length) {
+        return `${searchCriteria.role.join(' / ')} partners aren't available right now`
+      }
+      if (searchCriteria.ageRange) {
+        return `Partners in the ${searchCriteria.ageRange} range aren't available`
+      }
+      if (searchCriteria.availableDays?.length || searchCriteria.availableHours) {
+        const daysText = searchCriteria.availableDays?.length
+          ? 'on ' + searchCriteria.availableDays.slice(0, 2).join(' & ')
+          : ''
+        const hoursText = searchCriteria.availableHours ? ` (${searchCriteria.availableHours})` : ''
+        return `Partners available ${daysText}${hoursText} aren't available`
+      }
+      if (searchCriteria.locationCity || searchCriteria.locationState || searchCriteria.locationCountry) {
+        return `Partners in ${searchCriteria.locationCity || searchCriteria.locationState || searchCriteria.locationCountry} aren't available right now`
+      }
+      if (searchCriteria.school) {
+        return `Partners from ${searchCriteria.school} aren't available right now`
+      }
+      if (searchCriteria.languages) {
+        return `Partners who speak ${searchCriteria.languages} aren't available right now`
+      }
+      return 'No matching partners found'
     }
+
+    // Build a dynamic subtitle based on search criteria
+    const buildDynamicSubtitle = () => {
+      if (searchQuery) {
+        return `But I can be your study partner! I'll adapt to help you with what you're looking for.`
+      }
+      if (searchCriteria.subjects?.length) {
+        return `But I can be your ${searchCriteria.subjects[0]} study partner! Let's learn together.`
+      }
+      if (searchCriteria.subjectDescription) {
+        return `But I can help you with ${searchCriteria.subjectDescription.slice(0, 50)}! Let's learn together.`
+      }
+      if (searchCriteria.skillLevel) {
+        return `But I can adapt to your ${searchCriteria.skillLevel.toLowerCase()} level! Let's study together.`
+      }
+      if (searchCriteria.studyStyle) {
+        return `But I can match your ${searchCriteria.studyStyle.toLowerCase()} study style! Let's learn together.`
+      }
+      if (searchCriteria.interests?.length) {
+        return `But I can help you with ${searchCriteria.interests[0].toLowerCase()}! Let's study together.`
+      }
+      if (searchCriteria.goals?.length) {
+        return `But I can help you achieve your ${searchCriteria.goals[0].toLowerCase()} goal! Let's work together.`
+      }
+      if (searchCriteria.role?.length) {
+        return `But I can be your AI study buddy for ${searchCriteria.role[0].toLowerCase()}s! Let's learn together.`
+      }
+      if (searchCriteria.availableDays?.length || searchCriteria.availableHours) {
+        return `But I'm always available whenever you need! Let's study together.`
+      }
+      if (searchCriteria.locationCity || searchCriteria.locationState || searchCriteria.locationCountry) {
+        return `But I can be your virtual study partner from anywhere! Let's connect.`
+      }
+      if (searchCriteria.school) {
+        return `But I can help you study as if we were classmates! Let's learn together.`
+      }
+      if (searchCriteria.languages) {
+        return `But I can communicate in multiple languages! Let's study together.`
+      }
+      return "But I can be your AI study partner! I'm always available to help you learn."
+    }
+
     return {
-      title: 'No matching partners found',
-      subtitle: `I can be your ${getSearchSummary()} study partner!`,
+      title: buildDynamicTitle(),
+      subtitle: buildDynamicSubtitle(),
     }
   }
 

@@ -942,33 +942,38 @@ export default function DashboardPage() {
             {searchQuery.trim().length >= 2 && !isSearching && searchResults.partners.length === 0 && searchResults.groups.length === 0 && (
               <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="bg-white dark:bg-white/5 backdrop-blur-xl rounded-2xl shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 p-12 text-center">
-                  <div className="w-20 h-20 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-10 h-10 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{tCommon('noResults')}</h3>
-                  <p className="text-gray-700 dark:text-slate-300 max-w-md mx-auto mb-6">{tCommon('noMatchingResults')}</p>
-
-                  {/* AI Partner Suggestion */}
-                  <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl border border-blue-500/20 max-w-md mx-auto">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {/* AI Partner Suggestion - Dynamic personalized message */}
+                  <div className="p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl border border-blue-500/20 max-w-lg mx-auto">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
-                      <span className="text-sm font-medium text-blue-400">Try AI Partner</span>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-slate-300 mb-3">
-                      No match found? Study with an AI partner instead!
+
+                    {/* Dynamic personalized message based on search query */}
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      {searchQuery.trim()} partners aren&apos;t available right now
+                    </h3>
+
+                    <p className="text-base text-gray-600 dark:text-slate-300 mb-4">
+                      But I can be your {searchQuery.trim()} study partner! Let&apos;s learn together.
                     </p>
+
+                    {/* Show search query tag */}
+                    <div className="flex flex-wrap justify-center gap-2 mb-4">
+                      <span className="px-3 py-1 bg-slate-500/20 text-slate-600 dark:text-slate-400 text-xs rounded-full border border-slate-500/30">
+                        Search: {searchQuery.trim().length > 25 ? searchQuery.trim().slice(0, 25) + '...' : searchQuery.trim()}
+                      </span>
+                    </div>
+
                     <button
                       onClick={() => setShowAIPartnerModal(true)}
-                      className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg flex items-center gap-2 mx-auto"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg flex items-center gap-2 mx-auto"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      Start AI Partner
+                      Start Studying with AI Partner
                     </button>
                   </div>
                 </div>

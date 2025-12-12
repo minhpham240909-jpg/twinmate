@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -16,12 +17,36 @@ import {
   Target,
   Lightbulb,
 } from 'lucide-react'
-import AIPartnerChat from '@/components/ai-partner/AIPartnerChat'
+// Regular imports for light components
 import AIPartnerSessionTimer from '@/components/ai-partner/AIPartnerSessionTimer'
-import AIPartnerFlashcards from '@/components/ai-partner/AIPartnerFlashcards'
-import AIPartnerWhiteboard from '@/components/ai-partner/AIPartnerWhiteboard'
 import EndSessionModal from '@/components/ai-partner/EndSessionModal'
 import PartnerAvailableNotification from '@/components/ai-partner/PartnerAvailableNotification'
+
+// PERFORMANCE: Dynamic imports for heavy AI Partner components
+// This reduces initial bundle size by ~100-200KB per component
+const LoadingSkeleton = () => (
+  <div className="flex items-center justify-center h-64 bg-slate-900/50 rounded-xl">
+    <div className="text-center">
+      <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-2" />
+      <p className="text-slate-400 text-sm">Loading...</p>
+    </div>
+  </div>
+)
+
+const AIPartnerChat = dynamic(
+  () => import('@/components/ai-partner/AIPartnerChat'),
+  { loading: LoadingSkeleton, ssr: false }
+)
+
+const AIPartnerFlashcards = dynamic(
+  () => import('@/components/ai-partner/AIPartnerFlashcards'),
+  { loading: LoadingSkeleton, ssr: false }
+)
+
+const AIPartnerWhiteboard = dynamic(
+  () => import('@/components/ai-partner/AIPartnerWhiteboard'),
+  { loading: LoadingSkeleton, ssr: false }
+)
 
 interface Message {
   id: string
@@ -30,6 +55,10 @@ interface Message {
   messageType: string
   wasFlagged: boolean
   createdAt: Date | string
+  imageUrl?: string | null
+  imageBase64?: string | null
+  imageMimeType?: string | null
+  imageType?: string | null
 }
 
 interface AISession {
@@ -315,6 +344,135 @@ export default function AIPartnerSessionPage({
     }
   }
 
+  const handleSendMessageWithImage = async (content: string, imageBase64: string, imageMimeType: string) => {
+    setIsSending(true)
+    setError(null)
+
+    // Add optimistic user message with image
+    const tempUserMsgId = `temp-user-${Date.now()}`
+    const tempAiMsgId = `temp-ai-${Date.now()}`
+
+    const tempUserMsg: Message = {
+      id: tempUserMsgId,
+      role: 'USER',
+      content: content || 'Uploaded an image',
+      messageType: 'IMAGE',
+      wasFlagged: false,
+      createdAt: new Date(),
+      imageBase64: imageBase64,
+      imageMimeType: imageMimeType,
+      imageType: 'uploaded',
+    }
+
+    const tempAiMsg: Message = {
+      id: tempAiMsgId,
+      role: 'ASSISTANT',
+      content: '',
+      messageType: 'IMAGE',
+      wasFlagged: false,
+      createdAt: new Date(),
+    }
+
+    setMessages((prev) => [...prev, tempUserMsg, tempAiMsg])
+
+    try {
+      const res = await fetch('/api/ai-partner/image/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          content,
+          imageBase64,
+          imageMimeType,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        // Update messages with real IDs and content
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id === tempUserMsgId) {
+              return { ...m, id: data.userMessage.id }
+            }
+            if (m.id === tempAiMsgId) {
+              return { ...m, id: data.aiMessage.id, content: data.aiMessage.content }
+            }
+            return m
+          })
+        )
+      } else {
+        setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')))
+        setError(data.error || 'Failed to process image')
+      }
+    } catch (err) {
+      console.error('Failed to send image message:', err)
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')))
+      setError('Failed to process image. Please try again.')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const handleGenerateImage = async (prompt: string, style: string) => {
+    setIsSending(true)
+    setError(null)
+
+    // Add optimistic AI message for loading state
+    const tempMsgId = `temp-ai-${Date.now()}`
+    const tempMsg: Message = {
+      id: tempMsgId,
+      role: 'ASSISTANT',
+      content: `Generating ${style}: "${prompt}"...`,
+      messageType: 'IMAGE',
+      wasFlagged: false,
+      createdAt: new Date(),
+    }
+
+    setMessages((prev) => [...prev, tempMsg])
+
+    try {
+      const res = await fetch('/api/ai-partner/image/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          prompt,
+          style,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        // Update with real message
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempMsgId
+              ? {
+                  ...m,
+                  id: data.messageId,
+                  content: `I've created a ${style} to help visualize: "${prompt}"`,
+                  imageUrl: data.imageUrl,
+                  imageType: 'generated',
+                }
+              : m
+          )
+        )
+      } else {
+        setMessages((prev) => prev.filter((m) => m.id !== tempMsgId))
+        setError(data.error || 'Failed to generate image')
+      }
+    } catch (err) {
+      console.error('Failed to generate image:', err)
+      setMessages((prev) => prev.filter((m) => m.id !== tempMsgId))
+      setError('Failed to generate image. Please try again.')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   const handleEndSession = async (rating?: number, feedback?: string) => {
     try {
       const res = await fetch(`/api/ai-partner/session/${sessionId}`, {
@@ -467,6 +625,8 @@ export default function AIPartnerSessionPage({
                 sessionId={session.id}
                 messages={messages}
                 onSendMessage={handleSendMessage}
+                onSendMessageWithImage={handleSendMessageWithImage}
+                onGenerateImage={handleGenerateImage}
                 onGenerateQuiz={handleGenerateQuiz}
                 onGenerateFlashcards={handleGenerateFlashcards}
                 isLoading={isSending}
@@ -488,7 +648,11 @@ export default function AIPartnerSessionPage({
 
             {activeTab === 'whiteboard' && (
               <div className="h-full">
-                <AIPartnerWhiteboard sessionId={session.id} />
+                <AIPartnerWhiteboard
+                  sessionId={session.id}
+                  subject={session.subject}
+                  skillLevel={session.skillLevel}
+                />
               </div>
             )}
           </div>

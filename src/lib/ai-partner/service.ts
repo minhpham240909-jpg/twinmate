@@ -18,9 +18,57 @@ import {
   generateSessionSummary,
   extractSubjectFromConversation,
   checkContentSafety,
+  analyzeUploadedImage,
+  sendChatMessageWithImage,
+  generateEducationalImage,
+  shouldSuggestImageGeneration,
   AIMessage,
   SearchCriteria,
+  ImageGenerationStyle,
+  VALID_IMAGE_STYLES,
 } from './openai'
+
+// Re-export image types for use by API routes and components
+export type { ImageGenerationStyle }
+export { VALID_IMAGE_STYLES }
+
+// H8 FIX: Request deduplication cache to prevent rapid duplicate requests
+const recentRequestsCache = new Map<string, { timestamp: number; content: string }>()
+const REQUEST_GRACE_PERIOD_MS = 500 // 500ms grace period for duplicate requests
+const CACHE_CLEANUP_INTERVAL = 60000 // Clean cache every minute
+
+// H8 FIX: Cleanup old cache entries periodically
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [key, value] of recentRequestsCache.entries()) {
+      if (now - value.timestamp > 5000) { // Remove entries older than 5 seconds
+        recentRequestsCache.delete(key)
+      }
+    }
+  }, CACHE_CLEANUP_INTERVAL)
+}
+
+/**
+ * H8 FIX: Check if request is a duplicate within grace period
+ */
+function isDuplicateRequest(userId: string, sessionId: string, content: string): boolean {
+  const cacheKey = `${userId}:${sessionId}`
+  const cached = recentRequestsCache.get(cacheKey)
+  
+  if (cached) {
+    const timeSinceLastRequest = Date.now() - cached.timestamp
+    // Check if same content within grace period
+    if (timeSinceLastRequest < REQUEST_GRACE_PERIOD_MS && cached.content === content) {
+      console.log(`[AI Partner] Duplicate request detected within ${timeSinceLastRequest}ms, blocking`)
+      return true
+    }
+  }
+  
+  // Update cache
+  recentRequestsCache.set(cacheKey, { timestamp: Date.now(), content })
+  return false
+}
 import {
   buildMemoryContext,
   extractMemoriesFromConversation,
@@ -272,7 +320,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     personaParts.push(searchCriteria.skillLevel.charAt(0) + searchCriteria.skillLevel.slice(1).toLowerCase())
   }
   const personaDescription = personaParts.length > 0
-    ? personaParts.join(' • ')
+    ? personaParts.join(' � ')
     : 'Study Partner'
 
   // Create study session
@@ -400,13 +448,21 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
 
 /**
  * Send a message to the AI partner and get a response
+ * H8 FIX: Includes duplicate request detection to prevent rapid navigation exhausting quota
  */
 export async function sendMessage(params: SendMessageParams): Promise<{
   userMessage: { id: string; content: string; wasFlagged: boolean }
   aiMessage: { id: string; content: string }
   safetyBlocked: boolean
+  wasDuplicate?: boolean  // H8 FIX: Indicate if request was blocked as duplicate
 }> {
   const { sessionId, userId, content, messageType = 'CHAT' } = params
+
+  // H8 FIX: Check for duplicate requests within grace period
+  if (isDuplicateRequest(userId, sessionId, content)) {
+    // Return cached/dummy response for duplicates to prevent quota exhaustion
+    throw new Error('Duplicate request detected. Please wait a moment before sending again.')
+  }
 
   // Get session
   const session = await prisma.aIPartnerSession.findUnique({
@@ -586,11 +642,12 @@ export async function generateQuiz(params: {
     .map((q) => (q.quizData as { question?: string })?.question)
     .filter(Boolean) as string[]
 
-  // Generate quiz
+  // Generate quiz with skill level context
   const quiz = await generateQuizQuestion({
     subject: session.subject || 'General',
     topic,
     difficulty,
+    skillLevel: session.skillLevel || undefined,
     previousQuestions,
   })
 
@@ -643,10 +700,11 @@ export async function generateFlashcardsForSession(params: {
     throw new Error('Session not found or unauthorized')
   }
 
-  // Generate flashcards
+  // Generate flashcards with skill level context
   const flashcards = await generateFlashcards({
     subject: session.subject || 'General',
     topic,
+    skillLevel: session.skillLevel || undefined,
     count,
   })
 
@@ -729,10 +787,11 @@ export async function generateFlashcardsFromConversation(params: {
     .map((m) => `${m.role === 'USER' ? 'Student' : 'Tutor'}: ${m.content}`)
     .join('\n')
 
-  // Generate flashcards from conversation using OpenAI
+  // Generate flashcards from conversation using OpenAI with skill level context
   const flashcards = await generateFlashcardsFromChat({
     conversationSummary,
     subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
     count,
   })
 
@@ -821,10 +880,11 @@ export async function generateQuizFromConversation(params: {
     .map((m) => `${m.role === 'USER' ? 'Student' : 'Tutor'}: ${m.content}`)
     .join('\n')
 
-  // Generate quiz from conversation using OpenAI
+  // Generate quiz from conversation using OpenAI with skill level context
   const questions = await generateQuizFromChat({
     conversationSummary,
     subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
     count,
     difficulty,
   })
@@ -886,10 +946,11 @@ export async function analyzeWhiteboard(params: {
     throw new Error('Session not found or unauthorized')
   }
 
-  // Analyze whiteboard using OpenAI vision
+  // Analyze whiteboard using OpenAI vision with full session context
   const result = await analyzeWhiteboardImage({
     imageBase64,
     subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
     userQuestion,
   })
 
@@ -897,11 +958,11 @@ export async function analyzeWhiteboard(params: {
   let responseContent = `**Whiteboard Analysis**\n\n${result.analysis}`
 
   if (result.suggestions.length > 0) {
-    responseContent += `\n\n**Suggestions:**\n${result.suggestions.map(s => `• ${s}`).join('\n')}`
+    responseContent += `\n\n**Suggestions:**\n${result.suggestions.map(s => `� ${s}`).join('\n')}`
   }
 
   if (result.relatedConcepts.length > 0) {
-    responseContent += `\n\n**Related Concepts to Explore:**\n${result.relatedConcepts.map(c => `• ${c}`).join('\n')}`
+    responseContent += `\n\n**Related Concepts to Explore:**\n${result.relatedConcepts.map(c => `� ${c}`).join('\n')}`
   }
 
   // Save as message
@@ -1351,4 +1412,243 @@ export async function getActiveOrPausedSession(userId: string): Promise<{
     messageCount: session.messageCount,
     startedAt: session.startedAt,
   }
+}
+
+/**
+ * Send a message with an uploaded image
+ * Analyzes the image and provides AI response
+ */
+export async function sendMessageWithImage(params: {
+  sessionId: string
+  userId: string
+  content: string
+  imageBase64: string
+  imageMimeType: string
+}): Promise<{
+  userMessage: { id: string; content: string; imageUrl?: string }
+  aiMessage: { id: string; content: string }
+  imageAnalysis?: { detectedContent: string; suggestedFollowUp: string[] }
+}> {
+  const { sessionId, userId, content, imageBase64, imageMimeType } = params
+
+  // Get session
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      persona: true,
+      studySession: true,
+    },
+  })
+
+  if (!session) {
+    throw new Error('Session not found')
+  }
+
+  if (session.userId !== userId) {
+    throw new Error('Unauthorized')
+  }
+
+  if (session.status !== 'ACTIVE') {
+    throw new Error('Session is not active')
+  }
+
+  // Get conversation history for context
+  const history = await prisma.aIPartnerMessage.findMany({
+    where: {
+      sessionId: session.id,
+      role: { in: ['USER', 'ASSISTANT', 'SYSTEM'] },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 15,
+  })
+
+  // Build messages array for OpenAI
+  const messages: AIMessage[] = history.map((msg) => ({
+    role: msg.role.toLowerCase() as 'system' | 'user' | 'assistant',
+    content: msg.content,
+  }))
+
+  // Save user message with image
+  const userMsg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId: session.id,
+      studySessionId: session.studySessionId,
+      role: 'USER',
+      content: content || 'Uploaded an image',
+      messageType: 'IMAGE',
+      imageBase64: imageBase64,
+      imageMimeType: imageMimeType,
+      imageType: 'uploaded',
+      wasModerated: false,
+    },
+  })
+
+  // Get AI response with image analysis
+  const aiResponse = await sendChatMessageWithImage({
+    messages,
+    imageBase64,
+    mimeType: imageMimeType,
+    userMessage: content || 'Please help me with this image.',
+    subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
+  })
+
+  // Also get structured analysis for follow-up suggestions
+  let imageAnalysis
+  try {
+    const analysisResult = await analyzeUploadedImage({
+      imageBase64,
+      mimeType: imageMimeType,
+      userMessage: content,
+      subject: session.subject || undefined,
+      skillLevel: session.skillLevel || undefined,
+    })
+    imageAnalysis = {
+      detectedContent: analysisResult.detectedContent,
+      suggestedFollowUp: analysisResult.suggestedFollowUp,
+    }
+  } catch {
+    // Analysis is optional, continue without it
+  }
+
+  // Save AI response
+  const aiMsg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId: session.id,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: aiResponse.content,
+      messageType: 'IMAGE',
+      imageAnalysis: imageAnalysis as unknown as Prisma.InputJsonValue,
+      promptTokens: aiResponse.promptTokens,
+      completionTokens: aiResponse.completionTokens,
+      totalTokens: aiResponse.totalTokens,
+    },
+  })
+
+  // Update session message count
+  await prisma.aIPartnerSession.update({
+    where: { id: session.id },
+    data: {
+      messageCount: { increment: 2 },
+    },
+  })
+
+  return {
+    userMessage: {
+      id: userMsg.id,
+      content: userMsg.content,
+    },
+    aiMessage: {
+      id: aiMsg.id,
+      content: aiResponse.content,
+    },
+    imageAnalysis,
+  }
+}
+
+/**
+ * Generate an educational image for the session
+ * Creates diagrams, charts, visualizations, logos, illustrations, and more
+ */
+export async function generateImageForSession(params: {
+  sessionId: string
+  userId: string
+  prompt: string
+  style?: ImageGenerationStyle
+}): Promise<{
+  imageUrl: string
+  messageId: string
+  revisedPrompt: string
+}> {
+  const { sessionId, userId, prompt, style = 'diagram' } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  if (session.status !== 'ACTIVE') {
+    throw new Error('Session is not active')
+  }
+
+  // Generate the image
+  const result = await generateEducationalImage({
+    prompt,
+    subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
+    style,
+  })
+
+  // Save as message
+  const msg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: `I've created a ${style} to help visualize: "${prompt}"`,
+      messageType: 'IMAGE',
+      imageUrl: result.imageUrl,
+      imageType: 'generated',
+      imagePrompt: prompt,
+    },
+  })
+
+  // Update message count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return {
+    imageUrl: result.imageUrl,
+    messageId: msg.id,
+    revisedPrompt: result.revisedPrompt,
+  }
+}
+
+/**
+ * Check if AI should suggest generating a visual for the current conversation
+ */
+export async function checkImageSuggestion(params: {
+  sessionId: string
+  userId: string
+}): Promise<{
+  shouldSuggest: boolean
+  suggestedPrompt?: string
+  reason?: string
+}> {
+  const { sessionId, userId } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      messages: {
+        where: { role: { in: ['USER', 'ASSISTANT'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        select: { role: true, content: true },
+      },
+    },
+  })
+
+  if (!session || session.userId !== userId) {
+    return { shouldSuggest: false }
+  }
+
+  // Reverse to get chronological order
+  const recentMessages = session.messages.reverse().map(m => ({
+    role: m.role.toLowerCase(),
+    content: m.content,
+  }))
+
+  return shouldSuggestImageGeneration({
+    recentMessages,
+    subject: session.subject || undefined,
+  })
 }

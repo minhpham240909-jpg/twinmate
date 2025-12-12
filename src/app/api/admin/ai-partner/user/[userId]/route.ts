@@ -63,6 +63,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Max session duration to count (4 hours in seconds)
+    // Sessions longer than this are likely left open and shouldn't count as real study time
+    const MAX_SESSION_DURATION = 4 * 60 * 60 // 4 hours = 14400 seconds
+
     // Get all user's AI Partner sessions
     const [sessions, sessionStats, messageStats, flaggedMessages] = await Promise.all([
       // All sessions with basic info
@@ -90,9 +94,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         }
       }),
 
-      // Aggregate session stats
+      // Aggregate session stats - only count COMPLETED sessions for accurate duration
       prisma.aIPartnerSession.aggregate({
-        where: { userId },
+        where: { userId, status: 'COMPLETED' },
         _count: true,
         _sum: {
           messageCount: true,
@@ -195,6 +199,20 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       }
     })
 
+    // Calculate realistic total duration by capping each session
+    // This prevents sessions left open for days from inflating the total
+    const realisticTotalDuration = sessions.reduce((total, s) => {
+      if (s.status === 'COMPLETED' && s.totalDuration) {
+        // Cap each session at max duration
+        return total + Math.min(s.totalDuration, MAX_SESSION_DURATION)
+      }
+      return total
+    }, 0)
+
+    // Count all sessions (not just completed)
+    const totalSessionCount = sessions.length
+    const completedSessionCount = sessions.filter(s => s.status === 'COMPLETED').length
+
     return NextResponse.json({
       success: true,
       data: {
@@ -202,14 +220,17 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
         // Overall stats
         stats: {
-          totalSessions: sessionStats._count,
+          totalSessions: totalSessionCount,
+          completedSessions: completedSessionCount,
           totalMessages: sessionStats._sum.messageCount || 0,
           totalQuizzes: sessionStats._sum.quizCount || 0,
           totalFlashcards: sessionStats._sum.flashcardCount || 0,
-          totalDuration: sessionStats._sum.totalDuration || 0,
-          totalDurationFormatted: formatDuration(sessionStats._sum.totalDuration || 0),
+          totalDuration: realisticTotalDuration,
+          totalDurationFormatted: formatDuration(realisticTotalDuration),
           averageRating: sessionStats._avg.rating ? Number(sessionStats._avg.rating.toFixed(1)) : null,
-          averageSessionDuration: Math.round(sessionStats._avg.totalDuration || 0),
+          averageSessionDuration: completedSessionCount > 0
+            ? Math.round(realisticTotalDuration / completedSessionCount)
+            : 0,
           averageMessagesPerSession: Math.round(sessionStats._avg.messageCount || 0),
           totalFlaggedMessages: flaggedMessages.length,
           flaggedSessionCount: sessions.filter(s => s.flaggedCount > 0).length,

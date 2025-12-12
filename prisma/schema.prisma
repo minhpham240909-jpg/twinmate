@@ -584,6 +584,10 @@ model StudySession {
   @@index([agoraChannel])
   @@index([isAISession])
   @@index([partnerType])
+  // PERFORMANCE: Composite indexes for common filter combinations
+  @@index([status, isPublic, startedAt]) // For public session discovery
+  @@index([status, type]) // For filtered session lists
+  @@index([createdAt]) // For sorting by creation date
 }
 
 model SessionParticipant {
@@ -2113,6 +2117,14 @@ model AIPartnerMessage {
   // For flashcard generation
   flashcardData Json?      // Generated flashcard data
 
+  // For image messages (upload or generated)
+  imageUrl      String?    // URL of the image (uploaded or generated)
+  imageBase64   String?    @db.Text // Base64 encoded image data (for uploaded images)
+  imageMimeType String?    // MIME type of the image (e.g., 'image/png', 'image/jpeg')
+  imageType     String?    // 'uploaded' or 'generated'
+  imagePrompt   String?    @db.Text // For generated images: the prompt used
+  imageAnalysis Json?      // Analysis result for uploaded images
+
   // Moderation
   wasModerated  Boolean    @default(false) // Was this message checked by moderation
   moderationResult Json?   // OpenAI moderation API result
@@ -2147,6 +2159,7 @@ enum AIMessageType {
   TIMER      // Timer-related message (pomodoro encouragement)
   TOPIC_CHANGE // User changed study topic
   WHITEBOARD // Whiteboard analysis response
+  IMAGE      // Image upload or AI-generated image
 }
 
 // ==========================================

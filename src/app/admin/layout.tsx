@@ -14,7 +14,6 @@ import {
   Megaphone,
   BarChart3,
   Settings,
-  Shield,
   LogOut,
   Menu,
   X,
@@ -247,7 +246,7 @@ export default function AdminLayout({
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700">
           {sidebarOpen && (
             <div className="flex items-center gap-2">
-              <Shield className="w-8 h-8 text-blue-500" />
+              <Image src="/logo.png" alt="Clerva" width={32} height={32} className="rounded-lg" />
               <span className="text-lg font-bold text-white">Admin Panel</span>
             </div>
           )}
@@ -349,7 +348,7 @@ export default function AdminLayout({
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gray-800 border-b border-gray-700 h-16 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <Shield className="w-6 h-6 text-blue-500" />
+          <Image src="/logo.png" alt="Clerva" width={24} height={24} className="rounded-lg" />
           <span className="text-lg font-bold text-white">Admin</span>
         </div>
         <button
@@ -376,7 +375,7 @@ export default function AdminLayout({
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
-            <Shield className="w-8 h-8 text-blue-500" />
+            <Image src="/logo.png" alt="Clerva" width={32} height={32} className="rounded-lg" />
             <span className="text-lg font-bold text-white">Admin Panel</span>
           </div>
           <button
