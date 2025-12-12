@@ -62,6 +62,10 @@ export default function AIPartnerSuggestionModal({
   // Build display text from search criteria
   const getSearchSummary = () => {
     const parts: string[] = []
+    // Include text search query as a subject (if not a name search)
+    if (searchQuery && searchQuery.trim() && noResultsReason !== 'name_not_found') {
+      parts.push(searchQuery.trim())
+    }
     if (searchCriteria.subjects?.length) {
       parts.push(searchCriteria.subjects.join(', '))
     }
@@ -185,7 +189,12 @@ export default function AIPartnerSuggestionModal({
 
     // Build a dynamic subtitle based on search criteria
     const buildDynamicSubtitle = () => {
-      if (searchQuery) {
+      // Text search bar - treat same as subjects for personalized message
+      if (searchQuery && searchQuery.trim() && noResultsReason !== 'name_not_found') {
+        return `But I can be your ${searchQuery.trim()} study partner! Let's learn together.`
+      }
+      // Name search - generic message
+      if (searchQuery && noResultsReason === 'name_not_found') {
         return `But I can be your study partner! I'll adapt to help you with what you're looking for.`
       }
       if (searchCriteria.subjects?.length) {
@@ -296,14 +305,17 @@ export default function AIPartnerSuggestionModal({
                 </div>
               </div>
 
-              {/* Search criteria display */}
-              {Object.keys(searchCriteria).some(k => {
-                const val = searchCriteria[k as keyof SearchCriteria]
-                return val && (Array.isArray(val) ? val.length > 0 : true)
-              }) && (
+              {/* Search criteria display - show if there's any search query or criteria */}
+              {(
+                (searchQuery && searchQuery.trim() && noResultsReason !== 'name_not_found') ||
+                Object.keys(searchCriteria).some(k => {
+                  const val = searchCriteria[k as keyof SearchCriteria]
+                  return val && (Array.isArray(val) ? val.length > 0 : true)
+                })
+              ) && (
                 <div className="mb-6 p-4 bg-slate-800/30 rounded-xl border border-slate-700/30">
                   <p className="text-xs text-slate-400 mb-2">I'll match your search:</p>
-                  <p className="text-sm text-slate-200">{getSearchSummary()}</p>
+                  <p className="text-sm text-blue-400 font-medium">{getSearchSummary()}</p>
                 </div>
               )}
 
