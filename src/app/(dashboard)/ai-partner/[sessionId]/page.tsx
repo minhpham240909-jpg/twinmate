@@ -516,8 +516,11 @@ export default function AIPartnerSessionPage({
         console.log('[AI Partner] Session paused successfully, navigating to dashboard')
         // Update local session state to reflect pause
         setSession(prev => prev ? { ...prev, status: 'PAUSED' } : null)
-        // Small delay to ensure state is updated before navigation
-        await new Promise(resolve => setTimeout(resolve, 100))
+
+        // Dispatch custom event to notify FAB to check for paused session
+        window.dispatchEvent(new CustomEvent('ai-partner-session-paused'))
+
+        // Navigate to dashboard
         router.push('/dashboard')
       } else {
         // If pause fails, still navigate but log error

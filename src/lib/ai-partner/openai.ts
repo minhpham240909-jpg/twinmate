@@ -283,30 +283,37 @@ export interface SearchCriteria {
  */
 export function buildDynamicPersonaPrompt(criteria: SearchCriteria, userName?: string): string {
   const parts: string[] = []
+  const truncateText = (text?: string | null, max = 180): string | undefined =>
+    text ? text.slice(0, max) : undefined
 
   // Build location context
   let locationContext = ''
   if (criteria.school) {
-    locationContext = criteria.school
+    locationContext = truncateText(criteria.school, 120) || ''
   }
   if (criteria.locationCity) {
-    locationContext += locationContext ? ` in ${criteria.locationCity}` : criteria.locationCity
+    const city = truncateText(criteria.locationCity, 80)
+    locationContext += city ? (locationContext ? ` in ${city}` : city) : ''
   }
   if (criteria.locationState && !criteria.locationCity) {
-    locationContext += locationContext ? `, ${criteria.locationState}` : criteria.locationState
+    const state = truncateText(criteria.locationState, 80)
+    locationContext += state ? (locationContext ? `, ${state}` : state) : ''
   }
   if (criteria.locationCountry) {
-    locationContext += locationContext ? `, ${criteria.locationCountry}` : criteria.locationCountry
+    const country = truncateText(criteria.locationCountry, 80)
+    locationContext += country ? (locationContext ? `, ${country}` : country) : ''
   }
 
   // Build subject expertise
   let subjectExpertise = ''
   if (criteria.subjects && criteria.subjects.length > 0) {
-    subjectExpertise = criteria.subjects.join(', ')
+    subjectExpertise = criteria.subjects.map((s) => truncateText(s, 80) || '').filter(Boolean).slice(0, 5).join(', ')
   }
   if (criteria.subjectDescription) {
-    subjectExpertise += subjectExpertise ? ` (${criteria.subjectDescription})` : criteria.subjectDescription
+    const desc = truncateText(criteria.subjectDescription, 160)
+    subjectExpertise += desc ? (subjectExpertise ? ` (${desc})` : desc) : ''
   }
+  subjectExpertise = subjectExpertise.slice(0, 240)
 
   // Build the persona introduction
   parts.push(`You are a friendly study partner helping ${userName || 'a fellow student'}.`)
@@ -334,7 +341,10 @@ export function buildDynamicPersonaPrompt(criteria: SearchCriteria, userName?: s
     }
     // Add custom skill level description if provided
     if (criteria.skillLevelDescription) {
-      parts.push(`Your skill level can also be described as: ${criteria.skillLevelDescription}. This shapes how you approach teaching and learning.`)
+      const desc = truncateText(criteria.skillLevelDescription, 200)
+      if (desc) {
+        parts.push(`Your skill level can also be described as: ${desc}. This shapes how you approach teaching and learning.`)
+      }
     }
   }
 
@@ -350,17 +360,26 @@ export function buildDynamicPersonaPrompt(criteria: SearchCriteria, userName?: s
     }
     // Add custom study style description if provided
     if (criteria.studyStyleDescription) {
-      parts.push(`Your study style preference: ${criteria.studyStyleDescription}. This influences how you collaborate with others.`)
+      const desc = truncateText(criteria.studyStyleDescription, 200)
+      if (desc) {
+        parts.push(`Your study style preference: ${desc}. This influences how you collaborate with others.`)
+      }
     }
   }
 
   // Add interests
   if (criteria.interests && criteria.interests.length > 0) {
-    parts.push(`You're interested in: ${criteria.interests.join(', ')}. These interests shape how you approach studying.`)
+    const interests = criteria.interests.map((i) => truncateText(i, 60) || '').filter(Boolean).slice(0, 6).join(', ')
+    if (interests) {
+      parts.push(`You're interested in: ${interests}. These interests shape how you approach studying.`)
+    }
   }
   // Add custom interests description if provided
   if (criteria.interestsDescription) {
-    parts.push(`Additional interests and passions: ${criteria.interestsDescription}. These give you a unique perspective.`)
+    const desc = truncateText(criteria.interestsDescription, 200)
+    if (desc) {
+      parts.push(`Additional interests and passions: ${desc}. These give you a unique perspective.`)
+    }
   }
 
   // Add goals

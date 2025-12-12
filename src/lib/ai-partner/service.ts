@@ -79,6 +79,16 @@ import {
 } from './memory'
 import type { AISessionStatus, AIMessageRole, AIMessageType, SkillLevel, StudyStyle } from '@prisma/client'
 
+// Utility: safely truncate strings and lists to keep prompts lean
+const truncateText = (value?: string | null, max = 180): string | undefined =>
+  value ? value.slice(0, max) : undefined
+
+const truncateList = (values: string[] = [], maxItems = 5, maxLen = 80): string[] =>
+  values
+    .filter(Boolean)
+    .slice(0, maxItems)
+    .map((v) => v.slice(0, maxLen))
+
 /**
  * Build a personalized welcome instruction for the AI based on session params and user profile
  * This creates a rich context so the AI can generate a highly personalized first message
@@ -126,8 +136,10 @@ function buildPersonalizedWelcomeInstruction(params: PersonalizedWelcomeParams):
 
   // Add session-specific information (what they selected in the modal)
   const sessionDetails: string[] = []
-  if (params.sessionSubject) {
-    sessionDetails.push(`studying ${params.sessionSubject}`)
+  const sessionSubject = truncateText(params.sessionSubject, 120)
+  const sessionGoal = truncateText(params.sessionStudyGoal, 160)
+  if (sessionSubject) {
+    sessionDetails.push(`studying ${sessionSubject}`)
   }
   if (params.sessionSkillLevel) {
     const levelMap: Record<string, string> = {
@@ -138,8 +150,8 @@ function buildPersonalizedWelcomeInstruction(params: PersonalizedWelcomeParams):
     }
     sessionDetails.push(`at ${levelMap[params.sessionSkillLevel] || params.sessionSkillLevel.toLowerCase()} level`)
   }
-  if (params.sessionStudyGoal) {
-    sessionDetails.push(`with the goal: "${params.sessionStudyGoal}"`)
+  if (sessionGoal) {
+    sessionDetails.push(`with the goal: "${sessionGoal}"`)
   }
   if (sessionDetails.length > 0) {
     parts.push(`\nTODAY'S SESSION: The user wants to start ${sessionDetails.join(', ')}.`)
@@ -149,22 +161,25 @@ function buildPersonalizedWelcomeInstruction(params: PersonalizedWelcomeParams):
   const profileContext: string[] = []
 
   if (params.userName) {
-    profileContext.push(`Name: ${params.userName}`)
+    profileContext.push(`Name: ${truncateText(params.userName, 80)}`)
   }
   if (params.profileSchool) {
-    profileContext.push(`School: ${params.profileSchool}`)
+    profileContext.push(`School: ${truncateText(params.profileSchool, 120)}`)
   }
   if (params.profileLocation) {
-    profileContext.push(`Location: ${params.profileLocation}`)
+    profileContext.push(`Location: ${truncateText(params.profileLocation, 120)}`)
   }
-  if (params.profileSubjects && params.profileSubjects.length > 0) {
-    profileContext.push(`Studies: ${params.profileSubjects.slice(0, 5).join(', ')}`)
+  const profileSubjects = truncateList(params.profileSubjects, 5, 60)
+  const profileInterests = truncateList(params.profileInterests, 5, 60)
+  const profileGoals = truncateList(params.profileGoals, 3, 80)
+  if (profileSubjects.length > 0) {
+    profileContext.push(`Studies: ${profileSubjects.join(', ')}`)
   }
-  if (params.profileInterests && params.profileInterests.length > 0) {
-    profileContext.push(`Interests: ${params.profileInterests.slice(0, 5).join(', ')}`)
+  if (profileInterests.length > 0) {
+    profileContext.push(`Interests: ${profileInterests.join(', ')}`)
   }
-  if (params.profileGoals && params.profileGoals.length > 0) {
-    profileContext.push(`Goals: ${params.profileGoals.slice(0, 3).join(', ')}`)
+  if (profileGoals.length > 0) {
+    profileContext.push(`Goals: ${profileGoals.join(', ')}`)
   }
   if (params.profileSkillLevel) {
     profileContext.push(`Skill level: ${params.profileSkillLevel}`)
@@ -178,16 +193,16 @@ function buildPersonalizedWelcomeInstruction(params: PersonalizedWelcomeParams):
     profileContext.push(`Study style: ${styleMap[params.profileStudyStyle] || params.profileStudyStyle}`)
   }
   if (params.strengths && params.strengths.length > 0) {
-    profileContext.push(`Strengths: ${params.strengths.slice(0, 3).join(', ')}`)
+    profileContext.push(`Strengths: ${truncateList(params.strengths, 3, 80).join(', ')}`)
   }
   if (params.weaknesses && params.weaknesses.length > 0) {
-    profileContext.push(`Areas to improve: ${params.weaknesses.slice(0, 3).join(', ')}`)
+    profileContext.push(`Areas to improve: ${truncateList(params.weaknesses, 3, 80).join(', ')}`)
   }
   if (params.profileBio) {
-    profileContext.push(`Bio: ${params.profileBio.slice(0, 150)}`)
+    profileContext.push(`Bio: ${truncateText(params.profileBio, 150)}`)
   }
   if (params.profileAboutYourself) {
-    profileContext.push(`About themselves: ${params.profileAboutYourself.slice(0, 150)}`)
+    profileContext.push(`About themselves: ${truncateText(params.profileAboutYourself, 150)}`)
   }
 
   if (profileContext.length > 0) {
@@ -773,18 +788,25 @@ export async function sendMessage(params: SendMessageParams): Promise<{
     }
   }
 
-  // Get conversation history (last 20 messages for context)
-  const history = await prisma.aIPartnerMessage.findMany({
-    where: {
-      sessionId: session.id,
-      role: { in: ['USER', 'ASSISTANT', 'SYSTEM'] },
-    },
+  // Get pinned system/persona prompts (keep all) and latest user/assistant messages
+  const systemMessages = await prisma.aIPartnerMessage.findMany({
+    where: { sessionId: session.id, role: 'SYSTEM' },
     orderBy: { createdAt: 'asc' },
-    take: 20,
   })
 
+  const conversationMessages = await prisma.aIPartnerMessage.findMany({
+    where: { sessionId: session.id, role: { in: ['USER', 'ASSISTANT'] } },
+    orderBy: { createdAt: 'desc' },
+    take: 20, // keep recent turns but don't drop system prompts
+  })
+
+  const limitedHistory = [
+    ...systemMessages,
+    ...conversationMessages.reverse(), // chronological
+  ]
+
   // Build messages array for OpenAI
-  const messages: AIMessage[] = history.map((msg) => ({
+  const messages: AIMessage[] = limitedHistory.map((msg) => ({
     role: msg.role.toLowerCase() as 'system' | 'user' | 'assistant',
     content: msg.content,
   }))

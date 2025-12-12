@@ -12,7 +12,22 @@ import {
   moderateContent,
   checkContentSafety,
   AIMessage,
+  manageContextWindow,
 } from '@/lib/ai-partner/openai'
+
+// Simple per-user rate limit to protect OpenAI/DB (30 requests per minute)
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 30
+const rateLimitMap = new Map<string, number[]>()
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = rateLimitMap.get(userId) || []
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  recent.push(now)
+  rateLimitMap.set(userId, recent)
+  return recent.length > RATE_LIMIT_MAX
+}
 
 // POST: Send message to AI partner with streaming response
 export async function POST(request: NextRequest) {
@@ -23,6 +38,13 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (isRateLimited(user.id)) {
+      return new Response(JSON.stringify({ error: 'Too many requests. Please slow down.' }), {
+        status: 429,
         headers: { 'Content-Type': 'application/json' },
       })
     }
@@ -141,18 +163,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get conversation history (last 20 messages for context)
-    const history = await prisma.aIPartnerMessage.findMany({
-      where: {
-        sessionId: session.id,
-        role: { in: ['USER', 'ASSISTANT', 'SYSTEM'] },
-      },
+    // Get pinned system/persona prompts (keep all) and latest user/assistant messages
+    const systemMessages = await prisma.aIPartnerMessage.findMany({
+      where: { sessionId: session.id, role: 'SYSTEM' },
       orderBy: { createdAt: 'asc' },
+    })
+
+    const conversationMessages = await prisma.aIPartnerMessage.findMany({
+      where: { sessionId: session.id, role: { in: ['USER', 'ASSISTANT'] } },
+      orderBy: { createdAt: 'desc' },
       take: 20,
     })
 
+    const limitedHistory = [
+      ...systemMessages,
+      ...conversationMessages.reverse(),
+    ]
+
     // Build messages array for OpenAI
-    const messages: AIMessage[] = history.map((msg) => ({
+    let messages: AIMessage[] = limitedHistory.map((msg) => ({
       role: msg.role.toLowerCase() as 'system' | 'user' | 'assistant',
       content: msg.content,
     }))
@@ -167,6 +196,12 @@ export async function POST(request: NextRequest) {
         content: 'The user went off-topic. Gently redirect them back to studying while being friendly.',
       })
     }
+
+    // Trim/summarize context while preserving system prompts
+    messages = await manageContextWindow(messages, {
+      preserveSystemPrompt: true,
+      reserveTokens: 800,
+    })
 
     // Create a TransformStream to send SSE data
     const encoder = new TextEncoder()

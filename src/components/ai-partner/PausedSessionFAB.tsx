@@ -49,6 +49,12 @@ export default function PausedSessionFAB() {
     }
   }, [])
 
+  // Check on initial mount
+  useEffect(() => {
+    console.log('[PausedSessionFAB] Component mounted, initial check')
+    checkPausedSession()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Re-check when pathname changes (navigating between pages)
   useEffect(() => {
     console.log('[PausedSessionFAB] Pathname changed to:', pathname)
@@ -75,10 +81,19 @@ export default function PausedSessionFAB() {
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
+    // Listen for custom event when session is paused
+    const handleSessionPaused = () => {
+      console.log('[PausedSessionFAB] Session paused event received, checking for paused session')
+      // Small delay to ensure database is updated
+      setTimeout(checkPausedSession, 200)
+    }
+    window.addEventListener('ai-partner-session-paused', handleSessionPaused)
+
     return () => {
       clearInterval(interval)
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('ai-partner-session-paused', handleSessionPaused)
     }
   }, [checkPausedSession])
 

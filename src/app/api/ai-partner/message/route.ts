@@ -7,6 +7,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendMessage } from '@/lib/ai-partner'
 
+// Simple per-user rate limit to protect OpenAI/DB (30 requests per minute)
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 30
+const rateLimitMap = new Map<string, number[]>()
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = rateLimitMap.get(userId) || []
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  recent.push(now)
+  rateLimitMap.set(userId, recent)
+  return recent.length > RATE_LIMIT_MAX
+}
+
 // POST: Send message to AI partner
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +29,13 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (isRateLimited(user.id)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429 }
+      )
     }
 
     const body = await request.json()
@@ -49,6 +70,12 @@ export async function POST(request: NextRequest) {
     console.error('[AI Partner] Send message error:', error)
 
     if (error instanceof Error) {
+      if (error.message.includes('Duplicate request detected')) {
+        return NextResponse.json(
+          { error: 'Duplicate request detected. Please wait a moment before sending again.' },
+          { status: 429 }
+        )
+      }
       if (error.message === 'Session not found') {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 })
       }
