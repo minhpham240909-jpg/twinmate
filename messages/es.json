@@ -30,7 +30,10 @@
     "minutesAgo": "hace {count}m",
     "hoursAgo": "hace {count}h",
     "daysAgo": "hace {count}d",
-    "weeksAgo": "hace {count}s"
+    "weeksAgo": "hace {count}s",
+    "connect": "Conectar",
+    "message": "Mensaje",
+    "cancelRequest": "Cancelar Solicitud"
   },
   "navigation": {
     "dashboard": "Panel",
@@ -813,7 +816,8 @@
     "videoCall": "Videollamada",
     "messageDeleted": "Este mensaje fue eliminado",
     "justNow": "Ahora mismo",
-    "scrollToBottom": "Desplazar hacia abajo"
+    "scrollToBottom": "Desplazar hacia abajo",
+    "loadMore": "Cargar mensajes antiguos"
   },
   "chat": {
     "title": "Chat",
@@ -984,5 +988,198 @@
     "offline": "Fuera de línea",
     "busy": "Ocupado",
     "more": "más"
+  },
+  "report": {
+    "title": "Reportar",
+    "subtitle": "Ayúdanos a mantener la comunidad segura",
+    "selectReason": "¿Por qué estás reportando esto?",
+    "selectReasonError": "Por favor, selecciona una razón para reportar",
+    "additionalDetails": "Detalles adicionales (opcional)",
+    "additionalDetailsPlaceholder": "Proporciona cualquier contexto adicional que pueda ayudarnos a entender el problema...",
+    "warning": "Los reportes falsos pueden resultar en acciones contra tu cuenta. Por favor, solo reporta violaciones genuinas.",
+    "submitReport": "Enviar Reporte",
+    "submitting": "Enviando...",
+    "reportSubmitted": "Reporte enviado exitosamente. Nuestro equipo lo revisará.",
+    "reportFailed": "Error al enviar reporte",
+    "contentTypes": {
+      "user": "Usuario",
+      "post": "Publicación",
+      "message": "Mensaje",
+      "group": "Grupo",
+      "comment": "Comentario"
+    },
+    "types": {
+      "HARASSMENT": {
+        "label": "Acoso o Intimidación",
+        "description": "Amenazas, intimidación o ataques a alguien"
+      },
+      "SPAM": {
+        "label": "Spam",
+        "description": "Contenido promocional no deseado o mensajes repetitivos"
+      },
+      "INAPPROPRIATE_CONTENT": {
+        "label": "Contenido Inapropiado",
+        "description": "Contenido que viola las normas de la comunidad"
+      },
+      "FAKE_ACCOUNT": {
+        "label": "Cuenta Falsa",
+        "description": "Hacerse pasar por alguien o usar una identidad falsa"
+      },
+      "HATE_SPEECH": {
+        "label": "Discurso de Odio",
+        "description": "Contenido que promueve el odio contra grupos o individuos"
+      },
+      "VIOLENCE": {
+        "label": "Violencia o Amenazas",
+        "description": "Contenido que promueve la violencia o hace amenazas"
+      },
+      "SCAM": {
+        "label": "Estafa o Fraude",
+        "description": "Intentos de engañar o defraudar a usuarios"
+      },
+      "OTHER": {
+        "label": "Otro",
+        "description": "Algo más no mencionado arriba"
+      }
+    }
+  },
+  "aiPartner": {
+    "title": "Compañero IA",
+    "aiStudyPartner": "Compañero de Estudio IA",
+    "startSession": "Iniciar Sesión",
+    "startInstantSession": "Inicia una sesión de estudio instantánea",
+    "noHumanPartnersAvailable": "No hay compañeros humanos disponibles ahora",
+    "aiPartnerReady": "Tu compañero de estudio IA está listo para ayudarte mientras esperas a un compañero humano. Pueden estudiar juntos hasta que alguien esté disponible.",
+    "aiDisclosure": "Este es un asistente de IA",
+    "notRealPerson": "no una persona real",
+    "conversationsModerated": "Las conversaciones son moderadas por seguridad.",
+    "whatSubject": "¿Qué materia estás estudiando?",
+    "selectSubject": "Selecciona una materia (opcional)",
+    "enterYourSubject": "Ingresa tu materia",
+    "yourSkillLevel": "Tu nivel de habilidad",
+    "whatToAchieve": "¿Qué quieres lograr hoy?",
+    "studyGoalPlaceholder": "ej., Entender derivadas de cálculo, Practicar escritura de ensayos, Repasar para examen...",
+    "starting": "Iniciando...",
+    "cancel": "Cancelar",
+    "failedToStart": "Error al iniciar la sesión. Por favor, inténtalo de nuevo.",
+    "subjects": {
+      "mathematics": "Matemáticas",
+      "physics": "Física",
+      "chemistry": "Química",
+      "biology": "Biología",
+      "computerScience": "Ciencias de la Computación",
+      "english": "Inglés",
+      "history": "Historia",
+      "economics": "Economía",
+      "psychology": "Psicología",
+      "art": "Arte",
+      "music": "Música",
+      "other": "Otro"
+    },
+    "skillLevels": {
+      "beginner": "Principiante",
+      "beginnerDesc": "Recién empezando",
+      "intermediate": "Intermedio",
+      "intermediateDesc": "Algo de experiencia",
+      "advanced": "Avanzado",
+      "advancedDesc": "Base sólida",
+      "expert": "Experto",
+      "expertDesc": "Conocimiento profundo"
+    },
+    "chat": {
+      "typeMessage": "Escribe tu mensaje...",
+      "send": "Enviar",
+      "generating": "Generando...",
+      "contentFlagged": "Este contenido fue marcado por seguridad",
+      "aiThinking": "Pensando...",
+      "generateQuiz": "Generar Quiz",
+      "generateFlashcards": "Crear Tarjetas",
+      "generateImage": "Generar Imagen",
+      "uploadImage": "Subir Imagen",
+      "askAboutImage": "Pregunta sobre esta imagen...",
+      "imageGeneration": "Generación de Imagen",
+      "describeImage": "Describe la imagen que quieres crear",
+      "imageStyle": "Estilo de imagen",
+      "generate": "Generar",
+      "close": "Cerrar",
+      "flashcardsGeneration": "Generar Tarjetas de Estudio",
+      "enterTopic": "Ingresa el tema para las tarjetas",
+      "topicPlaceholder": "ej., Vocabulario de Francés, Fórmulas de Física...",
+      "createFlashcards": "Crear Tarjetas",
+      "imageStyles": {
+        "diagram": "Diagrama",
+        "diagramDesc": "Diagrama educativo claro",
+        "realistic": "Realista",
+        "realisticDesc": "Imagen fotorrealista",
+        "anime": "Anime",
+        "animeDesc": "Estilo anime/manga japonés",
+        "watercolor": "Acuarela",
+        "watercolorDesc": "Pintura artística",
+        "sketch": "Boceto",
+        "sketchDesc": "Dibujo a lápiz",
+        "3d": "3D",
+        "3dDesc": "Renderizado 3D",
+        "minimalist": "Minimalista",
+        "minimalistDesc": "Diseño simple y limpio",
+        "comic": "Cómic",
+        "comicDesc": "Estilo de cómic/historieta"
+      }
+    },
+    "flashcards": {
+      "title": "Tarjetas de Estudio",
+      "flip": "Voltear",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "progress": "{current} de {total}",
+      "noCards": "Aún no hay tarjetas de estudio",
+      "generateCards": "Pide a tu compañero IA que genere tarjetas de estudio para tu tema",
+      "newCardsAdded": "¡Nuevas tarjetas agregadas! Reiniciando mazo."
+    },
+    "whiteboard": {
+      "title": "Pizarra",
+      "tools": "Herramientas",
+      "pen": "Lápiz",
+      "highlighter": "Resaltador",
+      "eraser": "Borrador",
+      "text": "Texto",
+      "shapes": "Formas",
+      "colors": "Colores",
+      "clear": "Limpiar",
+      "undo": "Deshacer",
+      "download": "Descargar",
+      "analyzeWithAI": "Analizar con IA",
+      "analyzing": "Analizando...",
+      "enterText": "Ingresa texto...",
+      "addText": "Agregar Texto",
+      "rectangle": "Rectángulo",
+      "circle": "Círculo",
+      "line": "Línea",
+      "arrow": "Flecha"
+    },
+    "session": {
+      "studySession": "Sesión de Estudio",
+      "activeSession": "Sesión Activa",
+      "sessionEnded": "Sesión Terminada",
+      "duration": "Duración",
+      "subject": "Materia",
+      "goal": "Objetivo",
+      "endSession": "Terminar Sesión",
+      "confirmEnd": "¿Estás seguro de que quieres terminar esta sesión de estudio?",
+      "summary": "Resumen de la Sesión",
+      "messagesExchanged": "Mensajes Intercambiados",
+      "topicsCovered": "Temas Cubiertos",
+      "startNewSession": "Iniciar Nueva Sesión",
+      "returnToDashboard": "Volver al Panel",
+      "sessionNotFound": "Sesión no encontrada",
+      "loadingSession": "Cargando sesión...",
+      "tools": "Herramientas de Estudio"
+    },
+    "partnerAvailable": {
+      "title": "¡Compañero Disponible!",
+      "humanPartnerFound": "¡Se encontró un compañero de estudio humano que coincide con tus criterios!",
+      "viewPartner": "Ver Compañero",
+      "continuewithAI": "Continuar con IA",
+      "dismiss": "Descartar"
+    }
   }
 }

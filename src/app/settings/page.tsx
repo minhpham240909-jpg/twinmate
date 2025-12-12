@@ -3381,7 +3381,8 @@ function DeletedPostsHistory() {
     }
 
     try {
-      const response = await fetch(`/api/posts/${postId}`, {
+      // Use ?permanent=true to trigger hard delete instead of soft delete
+      const response = await fetch(`/api/posts/${postId}?permanent=true`, {
         method: 'DELETE',
       })
 

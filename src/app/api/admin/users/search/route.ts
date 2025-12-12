@@ -49,23 +49,25 @@ export async function GET(request: NextRequest) {
         email: true,
         avatarUrl: true,
         subscriptionStatus: true,
+        isAdmin: true,
       },
       take: limit,
       orderBy: { name: 'asc' }
     })
 
-    // Format response with tier info
+    // Format response with tier info and isAdmin status
     const formattedUsers = users.map(u => ({
       id: u.id,
       name: u.name || 'Unknown',
       email: u.email,
       avatarUrl: u.avatarUrl,
-      tier: u.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE'
+      tier: u.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE',
+      isAdmin: u.isAdmin,
     }))
 
     return NextResponse.json({
       success: true,
-      users: formattedUsers
+      data: formattedUsers,  // Match frontend expectation
     })
   } catch (error) {
     console.error('[Admin User Search] Error:', error)

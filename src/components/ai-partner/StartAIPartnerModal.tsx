@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import {
   X,
   Sparkles,
@@ -24,27 +25,24 @@ interface StartAIPartnerModalProps {
   isFallback?: boolean // True if shown because no human partner available
 }
 
-const SUBJECTS = [
-  'Mathematics',
-  'Physics',
-  'Chemistry',
-  'Biology',
-  'Computer Science',
-  'English',
-  'History',
-  'Economics',
-  'Psychology',
-  'Art',
-  'Music',
-  'Other',
-]
+// Subject keys for translation lookup
+const SUBJECT_KEYS = [
+  'mathematics',
+  'physics',
+  'chemistry',
+  'biology',
+  'computerScience',
+  'english',
+  'history',
+  'economics',
+  'psychology',
+  'art',
+  'music',
+  'other',
+] as const
 
-const SKILL_LEVELS = [
-  { value: 'BEGINNER', label: 'Beginner', description: 'Just starting out' },
-  { value: 'INTERMEDIATE', label: 'Intermediate', description: 'Some experience' },
-  { value: 'ADVANCED', label: 'Advanced', description: 'Strong foundation' },
-  { value: 'EXPERT', label: 'Expert', description: 'Deep knowledge' },
-]
+// Skill level keys for translation lookup
+const SKILL_LEVEL_KEYS = ['beginner', 'intermediate', 'advanced', 'expert'] as const
 
 export default function StartAIPartnerModal({
   isOpen,
@@ -52,6 +50,7 @@ export default function StartAIPartnerModal({
   onStart,
   isFallback = false,
 }: StartAIPartnerModalProps) {
+  const t = useTranslations('aiPartner')
   const [subject, setSubject] = useState('')
   const [customSubject, setCustomSubject] = useState('')
   const [skillLevel, setSkillLevel] = useState('')
@@ -65,13 +64,13 @@ export default function StartAIPartnerModal({
 
     try {
       await onStart({
-        subject: subject === 'Other' ? customSubject : subject,
-        skillLevel,
+        subject: subject === 'other' ? customSubject : t(`subjects.${subject as typeof SUBJECT_KEYS[number]}`),
+        skillLevel: skillLevel.toUpperCase(),
         studyGoal,
       })
       onClose()
     } catch (err) {
-      setError('Failed to start session. Please try again.')
+      setError(t('failedToStart'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -123,12 +122,12 @@ export default function StartAIPartnerModal({
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">
-                    AI Study Partner
+                    {t('aiStudyPartner')}
                   </h2>
                   <p className="text-slate-400 text-sm">
                     {isFallback
-                      ? 'No human partners available right now'
-                      : 'Start an instant study session'}
+                      ? t('noHumanPartnersAvailable')
+                      : t('startInstantSession')}
                   </p>
                 </div>
               </div>
@@ -137,8 +136,7 @@ export default function StartAIPartnerModal({
                 <div className="mt-4 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
                   <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-200">
-                    Your AI study partner is ready to help while you wait for a human partner.
-                    You can study together until someone becomes available.
+                    {t('aiPartnerReady')}
                   </p>
                 </div>
               )}
@@ -149,8 +147,8 @@ export default function StartAIPartnerModal({
               <p className="text-xs text-slate-400 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-purple-400" />
                 <span>
-                  <strong className="text-purple-300">This is an AI assistant</strong> - not a real person.
-                  Conversations are moderated for safety.
+                  <strong className="text-purple-300">{t('aiDisclosure')}</strong> - {t('notRealPerson')}.{' '}
+                  {t('conversationsModerated')}
                 </span>
               </p>
             </div>
@@ -161,26 +159,26 @@ export default function StartAIPartnerModal({
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   <BookOpen className="w-4 h-4 text-blue-400" />
-                  What subject are you studying?
+                  {t('whatSubject')}
                 </label>
                 <select
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
                 >
-                  <option value="">Select a subject (optional)</option>
-                  {SUBJECTS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                  <option value="">{t('selectSubject')}</option>
+                  {SUBJECT_KEYS.map((key) => (
+                    <option key={key} value={key}>
+                      {t(`subjects.${key}`)}
                     </option>
                   ))}
                 </select>
-                {subject === 'Other' && (
+                {subject === 'other' && (
                   <input
                     type="text"
                     value={customSubject}
                     onChange={(e) => setCustomSubject(e.target.value)}
-                    placeholder="Enter your subject"
+                    placeholder={t('enterYourSubject')}
                     className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
                   />
                 )}
@@ -190,21 +188,21 @@ export default function StartAIPartnerModal({
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   <GraduationCap className="w-4 h-4 text-green-400" />
-                  Your skill level
+                  {t('yourSkillLevel')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {SKILL_LEVELS.map((level) => (
+                  {SKILL_LEVEL_KEYS.map((key) => (
                     <button
-                      key={level.value}
-                      onClick={() => setSkillLevel(level.value)}
+                      key={key}
+                      onClick={() => setSkillLevel(key)}
                       className={`p-3 rounded-xl border text-left transition-all ${
-                        skillLevel === level.value
+                        skillLevel === key
                           ? 'bg-blue-600/20 border-blue-500 text-blue-300'
                           : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
                       }`}
                     >
-                      <p className="font-medium text-sm">{level.label}</p>
-                      <p className="text-xs opacity-70">{level.description}</p>
+                      <p className="font-medium text-sm">{t(`skillLevels.${key}`)}</p>
+                      <p className="text-xs opacity-70">{t(`skillLevels.${key}Desc`)}</p>
                     </button>
                   ))}
                 </div>
@@ -214,12 +212,12 @@ export default function StartAIPartnerModal({
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   <Target className="w-4 h-4 text-purple-400" />
-                  What do you want to achieve today?
+                  {t('whatToAchieve')}
                 </label>
                 <textarea
                   value={studyGoal}
                   onChange={(e) => setStudyGoal(e.target.value)}
-                  placeholder="e.g., Understand calculus derivatives, Practice essay writing, Review for test..."
+                  placeholder={t('studyGoalPlaceholder')}
                   rows={3}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
                 />
@@ -241,7 +239,7 @@ export default function StartAIPartnerModal({
                   disabled={isLoading}
                   className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleStart}
@@ -251,12 +249,12 @@ export default function StartAIPartnerModal({
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Starting...
+                      {t('starting')}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5" />
-                      Start Session
+                      {t('startSession')}
                     </>
                   )}
                 </button>

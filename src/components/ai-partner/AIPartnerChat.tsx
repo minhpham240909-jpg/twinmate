@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import {
   Send,
   User,
@@ -55,6 +56,8 @@ export default function AIPartnerChat({
   isLoading = false,
   subject,
 }: AIPartnerChatProps) {
+  const t = useTranslations('aiPartner')
+  const tCommon = useTranslations('common')
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [showFlashcardModal, setShowFlashcardModal] = useState(false)
@@ -188,7 +191,7 @@ export default function AIPartnerChat({
         {message.wasFlagged && (
           <div className="flex items-center gap-1 text-amber-400 text-xs mb-2">
             <AlertTriangle className="w-3 h-3" />
-            Content redirected
+            {t('chat.contentFlagged')}
           </div>
         )}
 
@@ -242,7 +245,7 @@ export default function AIPartnerChat({
         <div className="flex items-center gap-2 text-sm text-slate-300">
           <Image src="/logo.png" alt="AI" width={16} height={16} className="object-contain" />
           <span>
-            <strong className="text-blue-400">AI Study Partner</strong> - This is an automated assistant, not a real person.
+            <strong className="text-blue-400">{t('aiStudyPartner')}</strong> - {t('aiDisclosure')}, {t('notRealPerson')}.
           </span>
         </div>
       </div>
@@ -255,7 +258,7 @@ export default function AIPartnerChat({
           className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-300 rounded-lg hover:bg-purple-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
         >
           <Brain className="w-4 h-4" />
-          Quiz Me
+          {t('chat.generateQuiz')}
         </button>
         <button
           onClick={() => setShowFlashcardModal(true)}
@@ -263,7 +266,7 @@ export default function AIPartnerChat({
           className="flex items-center gap-2 px-3 py-1.5 bg-green-600/20 text-green-300 rounded-lg hover:bg-green-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
         >
           <BookOpen className="w-4 h-4" />
-          Flashcards
+          {tCommon('flashcards')}
         </button>
         <button
           onClick={() => setShowImageGenModal(true)}
@@ -271,7 +274,7 @@ export default function AIPartnerChat({
           className="flex items-center gap-2 px-3 py-1.5 bg-amber-600/20 text-amber-300 rounded-lg hover:bg-amber-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
         >
           <Wand2 className="w-4 h-4" />
-          Generate Image
+          {t('chat.generateImage')}
         </button>
         <div className="flex-1" />
         {subject && (
@@ -333,7 +336,7 @@ export default function AIPartnerChat({
               <div className="flex items-center gap-2 text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-sm">
-                  {isGeneratingImage ? 'Creating image...' : 'Thinking...'}
+                  {isGeneratingImage ? t('chat.generating') : t('chat.aiThinking')}
                 </span>
               </div>
             </div>
@@ -377,7 +380,7 @@ export default function AIPartnerChat({
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading || isSending || isGeneratingImage}
             className="p-3 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Upload image"
+            title={t('chat.uploadImage')}
           >
             <ImageIcon className="w-5 h-5" />
           </button>
@@ -386,7 +389,7 @@ export default function AIPartnerChat({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder={selectedImage ? "Add a message about your image..." : "Ask your AI study partner..."}
+            placeholder={selectedImage ? t('chat.askAboutImage') : t('chat.typeMessage')}
             rows={1}
             className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
             disabled={isLoading || isSending || isGeneratingImage}
@@ -408,7 +411,7 @@ export default function AIPartnerChat({
 
         {/* Safety reminder */}
         <p className="text-xs text-slate-500 mt-2 text-center">
-          Upload images or ask questions. Messages are moderated for safety.
+          {t('conversationsModerated')}
         </p>
       </div>
 
@@ -432,7 +435,7 @@ export default function AIPartnerChat({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-green-400" />
-                  Generate Flashcards
+                  {t('chat.flashcardsGeneration')}
                 </h3>
                 <button
                   onClick={() => setShowFlashcardModal(false)}
@@ -443,14 +446,14 @@ export default function AIPartnerChat({
               </div>
 
               <p className="text-slate-400 text-sm mb-4">
-                Enter a topic and we&apos;ll create flashcards to help you study.
+                {t('chat.enterTopic')}
               </p>
 
               <input
                 type="text"
                 value={flashcardTopic}
                 onChange={(e) => setFlashcardTopic(e.target.value)}
-                placeholder="e.g., Photosynthesis, World War II, Calculus derivatives"
+                placeholder={t('chat.topicPlaceholder')}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-green-500 mb-4"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleFlashcardGeneration()
@@ -462,14 +465,14 @@ export default function AIPartnerChat({
                   onClick={() => setShowFlashcardModal(false)}
                   className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleFlashcardGeneration}
                   disabled={!flashcardTopic.trim()}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-500 transition-colors disabled:opacity-50"
                 >
-                  Generate
+                  {t('chat.createFlashcards')}
                 </button>
               </div>
             </motion.div>
@@ -497,7 +500,7 @@ export default function AIPartnerChat({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Wand2 className="w-5 h-5 text-amber-400" />
-                  Generate Educational Image
+                  {t('chat.imageGeneration')}
                 </h3>
                 <button
                   onClick={() => setShowImageGenModal(false)}
@@ -508,7 +511,7 @@ export default function AIPartnerChat({
               </div>
 
               <p className="text-slate-400 text-sm mb-4">
-                Describe what you want to visualize and AI will create an educational image.
+                {t('chat.describeImage')}
               </p>
 
               <textarea
@@ -520,14 +523,14 @@ export default function AIPartnerChat({
               />
 
               <div className="mb-4">
-                <label className="text-sm text-slate-400 mb-2 block">Style</label>
+                <label className="text-sm text-slate-400 mb-2 block">{t('chat.imageStyle')}</label>
 
                 {/* Educational Styles */}
                 <div className="mb-3">
                   <span className="text-xs text-slate-500 mb-1.5 block">Educational</span>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { value: 'diagram', label: 'Diagram' },
+                      { value: 'diagram', label: t('chat.imageStyles.diagram') },
                       { value: 'illustration', label: 'Illustration' },
                       { value: 'chart', label: 'Chart' },
                       { value: 'infographic', label: 'Infographic' },
@@ -558,10 +561,10 @@ export default function AIPartnerChat({
                     {[
                       { value: 'logo', label: 'Logo' },
                       { value: 'picture', label: 'Picture' },
-                      { value: 'sketch', label: 'Sketch' },
+                      { value: 'sketch', label: t('chat.imageStyles.sketch') },
                       { value: 'poster', label: 'Poster' },
                       { value: 'icon', label: 'Icon' },
-                      { value: 'cartoon', label: 'Cartoon' },
+                      { value: 'cartoon', label: t('chat.imageStyles.comic') },
                       { value: 'technical', label: 'Technical' },
                     ].map((style) => (
                       <button
@@ -585,7 +588,7 @@ export default function AIPartnerChat({
                   onClick={() => setShowImageGenModal(false)}
                   className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleImageGeneration}
@@ -593,7 +596,7 @@ export default function AIPartnerChat({
                   className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Wand2 className="w-4 h-4" />
-                  Generate
+                  {t('chat.generate')}
                 </button>
               </div>
             </motion.div>
