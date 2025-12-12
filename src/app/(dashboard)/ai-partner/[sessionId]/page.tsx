@@ -503,13 +503,16 @@ export default function AIPartnerSessionPage({
     }
 
     try {
+      console.log('[AI Partner] Pausing session:', sessionId)
       const res = await fetch(`/api/ai-partner/session/${sessionId}/pause`, {
         method: 'POST',
       })
 
       const data = await res.json()
+      console.log('[AI Partner] Pause response:', data)
 
       if (data.success) {
+        console.log('[AI Partner] Session paused successfully')
         router.push('/dashboard')
       } else {
         // If pause fails, still navigate but log error

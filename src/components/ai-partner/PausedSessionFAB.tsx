@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
@@ -17,6 +17,7 @@ interface PausedSession {
 
 export default function PausedSessionFAB() {
   const router = useRouter()
+  const pathname = usePathname()
   const t = useTranslations('aiPartner')
 
   const [pausedSession, setPausedSession] = useState<PausedSession | null>(null)
@@ -28,24 +29,57 @@ export default function PausedSessionFAB() {
   const checkPausedSession = useCallback(async () => {
     try {
       const res = await fetch('/api/ai-partner/paused-session')
+
+      if (!res.ok) {
+        // User not logged in or other auth issue - silently ignore
+        return
+      }
+
       const data = await res.json()
 
       if (data.success && data.hasPausedSession) {
+        console.log('[PausedSessionFAB] Found paused session:', data.session)
         setPausedSession(data.session)
       } else {
         setPausedSession(null)
       }
     } catch (err) {
+      // Silently ignore errors (e.g., user not logged in)
       console.error('Failed to check paused session:', err)
     }
   }, [])
 
+  // Re-check when pathname changes (navigating between pages)
   useEffect(() => {
+    console.log('[PausedSessionFAB] Pathname changed to:', pathname)
     checkPausedSession()
+  }, [pathname, checkPausedSession])
 
+  useEffect(() => {
     // Check every 30 seconds
     const interval = setInterval(checkPausedSession, 30000)
-    return () => clearInterval(interval)
+
+    // Also check when window regains focus (e.g., after navigating back)
+    const handleFocus = () => {
+      console.log('[PausedSessionFAB] Window focused, checking for paused session')
+      checkPausedSession()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    // Also check on visibility change (when tab becomes visible)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[PausedSessionFAB] Tab visible, checking for paused session')
+        checkPausedSession()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [checkPausedSession])
 
   // Handle continue session

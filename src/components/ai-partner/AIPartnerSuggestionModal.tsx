@@ -81,12 +81,23 @@ export default function AIPartnerSuggestionModal({
     setIsLoading(true)
 
     try {
-      // If user was searching for a name and provided qualities, add them to criteria
+      // Build final criteria, incorporating search query as subject if needed
       const finalCriteria = { ...searchCriteria }
-      if (searchQuery && noResultsReason === 'name_not_found') {
-        finalCriteria.searchedName = searchQuery
-        if (userQualities.trim()) {
-          finalCriteria.userDefinedQualities = userQualities.trim()
+
+      // If user searched with text query, use it as subject/description
+      if (searchQuery && searchQuery.trim()) {
+        if (noResultsReason === 'name_not_found') {
+          // Searching for a specific person's name
+          finalCriteria.searchedName = searchQuery
+          if (userQualities.trim()) {
+            finalCriteria.userDefinedQualities = userQualities.trim()
+          }
+        } else {
+          // General search - use the search query as subject description
+          // This ensures "computer science" search text becomes the study topic
+          if (!finalCriteria.subjects?.length && !finalCriteria.subjectDescription) {
+            finalCriteria.subjectDescription = searchQuery.trim()
+          }
         }
       }
 
