@@ -91,7 +91,7 @@ export default function AIPartnerSuggestionModal({
       // Build final criteria, incorporating search query as subject if needed
       const finalCriteria = { ...searchCriteria }
 
-      // If user searched with text query, use it as subject/description
+      // If user searched with text query, treat it as a subject (same as selective filters)
       if (searchQuery && searchQuery.trim()) {
         if (noResultsReason === 'name_not_found') {
           // Searching for a specific person's name
@@ -100,9 +100,13 @@ export default function AIPartnerSuggestionModal({
             finalCriteria.userDefinedQualities = userQualities.trim()
           }
         } else {
-          // General search - use the search query as subject description
-          // This ensures "computer science" search text becomes the study topic
-          if (!finalCriteria.subjects?.length && !finalCriteria.subjectDescription) {
+          // General search - add search query to subjects array
+          // This ensures "business" is treated exactly like selecting "Business" from filters
+          if (!finalCriteria.subjects?.length) {
+            finalCriteria.subjects = [searchQuery.trim()]
+          }
+          // Also set subjectDescription for additional context
+          if (!finalCriteria.subjectDescription) {
             finalCriteria.subjectDescription = searchQuery.trim()
           }
         }
