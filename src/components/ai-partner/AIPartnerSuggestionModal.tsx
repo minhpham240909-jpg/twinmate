@@ -23,8 +23,11 @@ interface SearchCriteria {
   locationState?: string
   locationCountry?: string
   skillLevel?: string
+  skillLevelDescription?: string
   studyStyle?: string
+  studyStyleDescription?: string
   interests?: string[]
+  interestsDescription?: string
   goals?: string[]
   availableDays?: string[]
   availableHours?: string

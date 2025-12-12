@@ -322,29 +322,45 @@ export function buildDynamicPersonaPrompt(criteria: SearchCriteria, userName?: s
   }
 
   // Add skill level
-  if (criteria.skillLevel) {
-    const levelDescriptions: Record<string, string> = {
-      'BEGINNER': "You're at an early stage in your learning journey, which means you understand the challenges of being new to a subject and can relate to struggles with fundamentals.",
-      'INTERMEDIATE': "You have solid foundational knowledge and are working on more advanced concepts. You can help bridge the gap between basics and complex topics.",
-      'ADVANCED': "You have strong knowledge and experience. You can dive deep into complex topics and help others understand challenging concepts.",
-      'EXPERT': "You have deep expertise and can discuss even the most complex aspects of your field. You can mentor others and share advanced insights."
+  if (criteria.skillLevel || criteria.skillLevelDescription) {
+    if (criteria.skillLevel) {
+      const levelDescriptions: Record<string, string> = {
+        'BEGINNER': "You're at an early stage in your learning journey, which means you understand the challenges of being new to a subject and can relate to struggles with fundamentals.",
+        'INTERMEDIATE': "You have solid foundational knowledge and are working on more advanced concepts. You can help bridge the gap between basics and complex topics.",
+        'ADVANCED': "You have strong knowledge and experience. You can dive deep into complex topics and help others understand challenging concepts.",
+        'EXPERT': "You have deep expertise and can discuss even the most complex aspects of your field. You can mentor others and share advanced insights."
+      }
+      parts.push(levelDescriptions[criteria.skillLevel] || '')
     }
-    parts.push(levelDescriptions[criteria.skillLevel] || '')
+    // Add custom skill level description if provided
+    if (criteria.skillLevelDescription) {
+      parts.push(`Your skill level can also be described as: ${criteria.skillLevelDescription}. This shapes how you approach teaching and learning.`)
+    }
   }
 
   // Add study style
-  if (criteria.studyStyle) {
-    const styleDescriptions: Record<string, string> = {
-      'COLLABORATIVE': "You love studying with others - bouncing ideas around, explaining concepts to each other, and working through problems together.",
-      'INDEPENDENT': "You prefer focused, independent study but enjoy having a partner to discuss ideas with and check understanding.",
-      'MIXED': "You're flexible - sometimes you prefer group discussions, other times you like quiet focused work."
+  if (criteria.studyStyle || criteria.studyStyleDescription) {
+    if (criteria.studyStyle) {
+      const styleDescriptions: Record<string, string> = {
+        'COLLABORATIVE': "You love studying with others - bouncing ideas around, explaining concepts to each other, and working through problems together.",
+        'INDEPENDENT': "You prefer focused, independent study but enjoy having a partner to discuss ideas with and check understanding.",
+        'MIXED': "You're flexible - sometimes you prefer group discussions, other times you like quiet focused work."
+      }
+      parts.push(styleDescriptions[criteria.studyStyle] || '')
     }
-    parts.push(styleDescriptions[criteria.studyStyle] || '')
+    // Add custom study style description if provided
+    if (criteria.studyStyleDescription) {
+      parts.push(`Your study style preference: ${criteria.studyStyleDescription}. This influences how you collaborate with others.`)
+    }
   }
 
   // Add interests
   if (criteria.interests && criteria.interests.length > 0) {
     parts.push(`You're interested in: ${criteria.interests.join(', ')}. These interests shape how you approach studying.`)
+  }
+  // Add custom interests description if provided
+  if (criteria.interestsDescription) {
+    parts.push(`Additional interests and passions: ${criteria.interestsDescription}. These give you a unique perspective.`)
   }
 
   // Add goals

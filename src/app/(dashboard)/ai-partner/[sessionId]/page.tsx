@@ -512,7 +512,11 @@ export default function AIPartnerSessionPage({
       console.log('[AI Partner] Pause response:', data)
 
       if (data.success) {
-        console.log('[AI Partner] Session paused successfully')
+        console.log('[AI Partner] Session paused successfully, navigating to dashboard')
+        // Update local session state to reflect pause
+        setSession(prev => prev ? { ...prev, status: 'PAUSED' } : null)
+        // Small delay to ensure state is updated before navigation
+        await new Promise(resolve => setTimeout(resolve, 100))
         router.push('/dashboard')
       } else {
         // If pause fails, still navigate but log error
