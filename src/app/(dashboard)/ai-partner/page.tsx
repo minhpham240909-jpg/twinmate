@@ -59,6 +59,7 @@ export default function AIPartnerPage() {
     try {
       const res = await fetch(`/api/ai-partner/session/${sessionId}/resume`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
       const data = await res.json()
 

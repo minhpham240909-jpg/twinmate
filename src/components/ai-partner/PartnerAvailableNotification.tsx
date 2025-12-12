@@ -90,6 +90,7 @@ export default function PartnerAvailableNotification({
     try {
       const response = await fetch(`/api/ai-partner/session/${sessionId}/pause`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       if (!response.ok) {

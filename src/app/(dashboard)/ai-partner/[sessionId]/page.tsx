@@ -506,6 +506,7 @@ export default function AIPartnerSessionPage({
       console.log('[AI Partner] Pausing session:', sessionId)
       const res = await fetch(`/api/ai-partner/session/${sessionId}/pause`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()

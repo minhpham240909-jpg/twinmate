@@ -90,6 +90,7 @@ export default function PausedSessionFAB() {
     try {
       const res = await fetch(`/api/ai-partner/session/${pausedSession.id}/resume`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()

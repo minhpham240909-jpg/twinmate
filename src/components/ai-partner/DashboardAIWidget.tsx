@@ -173,6 +173,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
     try {
       const res = await fetch(`/api/ai-partner/session/${currentSession.id}/resume`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
       const data = await res.json()
 
