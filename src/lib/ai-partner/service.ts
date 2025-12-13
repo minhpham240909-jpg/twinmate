@@ -715,63 +715,165 @@ function detectImageGenerationRequest(content: string): {
   const lowerContent = content.toLowerCase()
 
   // Keywords that indicate image generation request
+  // Comprehensive list covering all variations: singular/plural, with/without articles
   const imageKeywords = [
+    // Direct requests - generate (singular)
     'generate an image',
     'generate image',
+    'generate the image',
+    // Direct requests - generate (plural)
+    'generate images',
+    'generate the images',
+    // Direct requests - generate picture (singular)
+    'generate a picture',
+    'generate picture',
+    'generate the picture',
+    // Direct requests - generate picture (plural)
+    'generate pictures',
+    'generate the pictures',
+    // Direct requests - create (singular)
     'create an image',
     'create image',
-    'draw',
+    'create the image',
+    // Direct requests - create (plural)
+    'create images',
+    'create the images',
+    // Direct requests - create picture
+    'create a picture',
+    'create picture',
+    'create the picture',
+    'create pictures',
+    'create the pictures',
+    // Direct requests - make (singular)
     'make an image',
     'make image',
+    'make the image',
+    // Direct requests - make (plural)
+    'make images',
+    'make the images',
+    // Direct requests - make picture
+    'make a picture',
+    'make picture',
+    'make the picture',
+    'make pictures',
+    'make the pictures',
+    // Draw
+    'draw',
+    // Show me
     'show me a picture',
     'show me an image',
+    'show me the image',
+    'show me the picture',
+    'show me pictures',
+    'show me images',
+    // Visualize / illustrate
     'visualize',
+    'illustrate',
+    'illustration of',
+    'illustration for',
+    // Diagram variations
     'create a diagram',
     'create diagram',
+    'create the diagram',
     'make a diagram',
     'make diagram',
+    'make the diagram',
     'generate a diagram',
+    'generate diagram',
+    'generate the diagram',
     'draw a diagram',
+    'draw diagram',
+    'draw the diagram',
+    // Illustration variations
     'create an illustration',
     'create illustration',
+    'create the illustration',
     'make an illustration',
-    'illustrate',
-    'generate a picture',
-    'create a picture',
-    'make a picture',
+    'make illustration',
+    'make the illustration',
+    'generate an illustration',
+    'generate illustration',
+    // Visual variations
     'generate a visual',
     'create a visual',
+    'make a visual',
+    // Question forms - can you (all variations)
     'can you draw',
     'can you create an image',
+    'can you create the image',
+    'can you create images',
+    'can you create the images',
+    'can you create pictures',
     'can you generate an image',
+    'can you generate the image',
+    'can you generate images',
+    'can you generate the images',
+    'can you generate pictures',
     'can you make an image',
+    'can you make the image',
+    'can you make images',
+    'can you make the images',
+    'can you make pictures',
+    'can you illustrate',
+    // Could you variations
     'could you draw',
     'could you create an image',
+    'could you create images',
+    'could you generate an image',
+    'could you generate images',
+    'could you make an image',
+    'could you make images',
+    'could you illustrate',
+    // Please variations
     'please draw',
     'please create an image',
+    'please create images',
     'please generate an image',
+    'please generate images',
+    'please make an image',
+    'please make images',
+    'please illustrate',
+    // Want/need variations
     'i want an image',
-    'i need an image',
+    'i want images',
     'i want a picture',
+    'i want pictures',
+    'i need an image',
+    'i need images',
     'i need a picture',
+    'i need pictures',
+    // Show me / give me variations
     'show me visually',
     'give me an image',
+    'give me images',
     'give me a picture',
+    'give me pictures',
+    // Chart variations
     'create a chart',
     'make a chart',
     'generate a chart',
+    // Flowchart variations
     'create a flowchart',
     'make a flowchart',
+    'generate a flowchart',
+    // Infographic variations
     'create an infographic',
     'make an infographic',
+    'generate an infographic',
+    // Mindmap variations
     'create a mindmap',
     'make a mindmap',
+    'generate a mindmap',
+    // Logo variations
     'create a logo',
     'make a logo',
     'design a logo',
+    'generate a logo',
+    // Poster variations
     'create a poster',
     'make a poster',
     'design a poster',
+    'generate a poster',
   ]
 
   const isImageRequest = imageKeywords.some(keyword => lowerContent.includes(keyword))
