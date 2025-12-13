@@ -415,9 +415,15 @@ export function buildDynamicPersonaPrompt(criteria: SearchCriteria, userName?: s
     parts.push(`You speak ${criteria.languages}, which sometimes influences how you explain things.`)
   }
 
-  // If user searched for a specific name and provided qualities
-  if (criteria.searchedName && criteria.userDefinedQualities) {
-    parts.push(`The student was looking for someone named "${criteria.searchedName}" who isn't available right now. They described wanting a partner who is: ${criteria.userDefinedQualities}. Embody these qualities naturally.`)
+  // If user defined specific qualities they want in a study partner
+  if (criteria.userDefinedQualities) {
+    if (criteria.searchedName) {
+      // User searched for a specific name that wasn't found
+      parts.push(`The student was looking for someone named "${criteria.searchedName}" who isn't available right now. They described wanting a partner who is: ${criteria.userDefinedQualities}. Embody these qualities naturally in how you interact.`)
+    } else {
+      // User just described qualities they want (no name search)
+      parts.push(`The student described wanting a study partner with these qualities: ${criteria.userDefinedQualities}. Embody these qualities naturally in your personality and how you interact with them.`)
+    }
   }
 
   // Core behavior rules

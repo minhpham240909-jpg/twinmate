@@ -22,6 +22,8 @@ import {
   Shield,
   Activity,
   BookOpen,
+  ImageIcon,
+  Upload,
 } from 'lucide-react'
 import { AreaChartCard, PieChartCard } from '@/components/admin/charts'
 
@@ -70,6 +72,22 @@ interface AIPartnerAnalytics {
     totalQuizzes: number
     totalFlashcards: number
     whiteboardAnalyses: number
+    generatedImages: number
+    uploadedImages: number
+    totalImages: number
+  }
+  imageGeneration: {
+    totalGenerated: number
+    totalUploaded: number
+    recentImages: Array<{
+      id: string
+      imageUrl: string | null
+      prompt: string | null
+      createdAt: string
+      sessionId: string
+      userId: string
+      subject: string | null
+    }>
   }
   tokens: {
     totalPromptTokens: number
@@ -239,6 +257,18 @@ export default function AdminAIPartnerPage() {
       color: 'pink',
     },
     {
+      title: 'Images Generated',
+      value: data.features.generatedImages,
+      icon: ImageIcon,
+      color: 'cyan',
+    },
+    {
+      title: 'Images Uploaded',
+      value: data.features.uploadedImages,
+      icon: Upload,
+      color: 'orange',
+    },
+    {
       title: 'Flagged Messages',
       value: data.moderation.flaggedMessages,
       icon: AlertTriangle,
@@ -255,6 +285,8 @@ export default function AdminAIPartnerPage() {
     indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', icon: 'bg-indigo-500' },
     teal: { bg: 'bg-teal-500/10', text: 'text-teal-400', icon: 'bg-teal-500' },
     pink: { bg: 'bg-pink-500/10', text: 'text-pink-400', icon: 'bg-pink-500' },
+    cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', icon: 'bg-cyan-500' },
+    orange: { bg: 'bg-orange-500/10', text: 'text-orange-400', icon: 'bg-orange-500' },
     red: { bg: 'bg-red-500/10', text: 'text-red-400', icon: 'bg-red-500' },
     gray: { bg: 'bg-gray-500/10', text: 'text-gray-400', icon: 'bg-gray-500' },
   }
@@ -614,6 +646,71 @@ export default function AdminAIPartnerPage() {
           <div className="text-center py-8 text-gray-500">
             <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
             No feedback yet
+          </div>
+        )}
+      </div>
+
+      {/* Recent Generated Images Section */}
+      <div id="images" className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-cyan-400" />
+            Recent Generated Images ({data.imageGeneration.totalGenerated})
+          </h3>
+          <div className="flex items-center gap-4 text-sm text-gray-400">
+            <span className="flex items-center gap-1">
+              <ImageIcon className="w-4 h-4 text-cyan-400" />
+              {data.imageGeneration.totalGenerated} generated
+            </span>
+            <span className="flex items-center gap-1">
+              <Upload className="w-4 h-4 text-orange-400" />
+              {data.imageGeneration.totalUploaded} uploaded
+            </span>
+          </div>
+        </div>
+        {data.imageGeneration.recentImages.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {data.imageGeneration.recentImages.map(img => (
+              <div key={img.id} className="group relative bg-gray-700/30 rounded-lg overflow-hidden border border-gray-600/50 hover:border-cyan-500/50 transition-colors">
+                {img.imageUrl ? (
+                  <div className="aspect-square relative">
+                    <img
+                      src={img.imageUrl}
+                      alt={img.prompt || 'Generated image'}
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Overlay on hover */}
+                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                      <p className="text-xs text-white line-clamp-3 mb-1">
+                        {img.prompt || 'No prompt'}
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>{img.subject || 'General'}</span>
+                        <span>{formatRelativeTime(img.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="aspect-square flex items-center justify-center bg-gray-700/50">
+                    <ImageIcon className="w-8 h-8 text-gray-500" />
+                  </div>
+                )}
+                <div className="p-2 border-t border-gray-600/50">
+                  <Link
+                    href={`/admin/users/${img.userId}`}
+                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    View User
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            No generated images yet
           </div>
         )}
       </div>

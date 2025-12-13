@@ -1189,6 +1189,18 @@
       "messages": "Messages",
       "continue": "Continue",
       "endSession": "End Session"
+    },
+    "completedSession": {
+      "title": "Session Completed",
+      "studySession": "Study Session",
+      "message": "Great job! Your study session has ended. Ready for another round?",
+      "duration": "Duration",
+      "messages": "Messages",
+      "minutes": "min",
+      "continueWithContext": "Continue Topic",
+      "startFresh": "Start Fresh",
+      "dismiss": "Dismiss",
+      "studyAgain": "Study Again"
     }
   }
 }

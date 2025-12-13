@@ -14,7 +14,6 @@ import {
   Brain,
   X,
   ImageIcon,
-  Wand2,
   Upload,
   ZoomIn,
 } from 'lucide-react'
@@ -37,7 +36,6 @@ interface AIPartnerChatProps {
   messages: Message[]
   onSendMessage: (content: string) => Promise<void>
   onSendMessageWithImage: (content: string, imageBase64: string, imageMimeType: string) => Promise<void>
-  onGenerateImage: (prompt: string, style: string) => Promise<void>
   onGenerateQuiz: () => Promise<void>
   onGenerateFlashcards: (topic: string) => Promise<void>
   isLoading?: boolean
@@ -50,7 +48,6 @@ export default function AIPartnerChat({
   messages,
   onSendMessage,
   onSendMessageWithImage,
-  onGenerateImage,
   onGenerateQuiz,
   onGenerateFlashcards,
   isLoading = false,
@@ -61,13 +58,9 @@ export default function AIPartnerChat({
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [showFlashcardModal, setShowFlashcardModal] = useState(false)
-  const [showImageGenModal, setShowImageGenModal] = useState(false)
   const [flashcardTopic, setFlashcardTopic] = useState('')
-  const [imageGenPrompt, setImageGenPrompt] = useState('')
-  const [imageGenStyle, setImageGenStyle] = useState<string>('diagram')
   const [selectedImage, setSelectedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null)
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null)
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -123,22 +116,6 @@ export default function AIPartnerChat({
     setShowFlashcardModal(false)
     await onGenerateFlashcards(flashcardTopic.trim())
     setFlashcardTopic('')
-  }
-
-  const handleImageGeneration = async () => {
-    if (!imageGenPrompt.trim()) return
-    setIsGeneratingImage(true)
-    setShowImageGenModal(false)
-
-    try {
-      await onGenerateImage(imageGenPrompt.trim(), imageGenStyle)
-    } catch (error) {
-      console.error('Failed to generate image:', error)
-    } finally {
-      setIsGeneratingImage(false)
-      setImageGenPrompt('')
-      setImageGenStyle('diagram')
-    }
   }
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,7 +190,7 @@ export default function AIPartnerChat({
             </div>
             {message.imageType === 'generated' && (
               <span className="text-xs text-purple-400 mt-1 flex items-center gap-1">
-                <Wand2 className="w-3 h-3" />
+                <Sparkles className="w-3 h-3" />
                 AI Generated
               </span>
             )}
@@ -268,14 +245,6 @@ export default function AIPartnerChat({
           <BookOpen className="w-4 h-4" />
           {tCommon('flashcards')}
         </button>
-        <button
-          onClick={() => setShowImageGenModal(true)}
-          disabled={isLoading || isSending || isGeneratingImage}
-          className="flex items-center gap-2 px-3 py-1.5 bg-amber-600/20 text-amber-300 rounded-lg hover:bg-amber-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
-        >
-          <Wand2 className="w-4 h-4" />
-          {t('chat.generateImage')}
-        </button>
         <div className="flex-1" />
         {subject && (
           <span className="text-xs text-slate-400 bg-slate-700/50 px-2 py-1 rounded whitespace-nowrap">
@@ -323,7 +292,7 @@ export default function AIPartnerChat({
         </AnimatePresence>
 
         {/* Loading indicator */}
-        {(isLoading || isSending || isGeneratingImage) && (
+        {(isLoading || isSending) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -336,7 +305,7 @@ export default function AIPartnerChat({
               <div className="flex items-center gap-2 text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-sm">
-                  {isGeneratingImage ? t('chat.generating') : t('chat.aiThinking')}
+                  {t('chat.aiThinking')}
                 </span>
               </div>
             </div>
@@ -378,7 +347,7 @@ export default function AIPartnerChat({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading || isSending || isGeneratingImage}
+          disabled={isLoading || isSending}
             className="p-3 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={t('chat.uploadImage')}
           >
@@ -392,11 +361,11 @@ export default function AIPartnerChat({
             placeholder={selectedImage ? t('chat.askAboutImage') : t('chat.typeMessage')}
             rows={1}
             className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
-            disabled={isLoading || isSending || isGeneratingImage}
+          disabled={isLoading || isSending}
           />
           <button
             onClick={handleSend}
-            disabled={(!input.trim() && !selectedImage) || isLoading || isSending || isGeneratingImage}
+          disabled={(!input.trim() && !selectedImage) || isLoading || isSending}
             className="px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
@@ -473,130 +442,6 @@ export default function AIPartnerChat({
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-500 transition-colors disabled:opacity-50"
                 >
                   {t('chat.createFlashcards')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Image Generation Modal */}
-      <AnimatePresence>
-        {showImageGenModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowImageGenModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-700"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Wand2 className="w-5 h-5 text-amber-400" />
-                  {t('chat.imageGeneration')}
-                </h3>
-                <button
-                  onClick={() => setShowImageGenModal(false)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <p className="text-slate-400 text-sm mb-4">
-                {t('chat.describeImage')}
-              </p>
-
-              <textarea
-                value={imageGenPrompt}
-                onChange={(e) => setImageGenPrompt(e.target.value)}
-                placeholder="e.g., The process of photosynthesis showing sunlight, water, and CO2 being converted to glucose..."
-                rows={3}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500 mb-4 resize-none"
-              />
-
-              <div className="mb-4">
-                <label className="text-sm text-slate-400 mb-2 block">{t('chat.imageStyle')}</label>
-
-                {/* Educational Styles */}
-                <div className="mb-3">
-                  <span className="text-xs text-slate-500 mb-1.5 block">Educational</span>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'diagram', label: t('chat.imageStyles.diagram') },
-                      { value: 'illustration', label: 'Illustration' },
-                      { value: 'chart', label: 'Chart' },
-                      { value: 'infographic', label: 'Infographic' },
-                      { value: 'concept-map', label: 'Concept Map' },
-                      { value: 'flowchart', label: 'Flowchart' },
-                      { value: 'mindmap', label: 'Mind Map' },
-                      { value: 'timeline', label: 'Timeline' },
-                    ].map((style) => (
-                      <button
-                        key={style.value}
-                        onClick={() => setImageGenStyle(style.value)}
-                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                          imageGenStyle === style.value
-                            ? 'bg-amber-600 text-white'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                        }`}
-                      >
-                        {style.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Creative/Design Styles */}
-                <div>
-                  <span className="text-xs text-slate-500 mb-1.5 block">Creative & Design</span>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'logo', label: 'Logo' },
-                      { value: 'picture', label: 'Picture' },
-                      { value: 'sketch', label: t('chat.imageStyles.sketch') },
-                      { value: 'poster', label: 'Poster' },
-                      { value: 'icon', label: 'Icon' },
-                      { value: 'cartoon', label: t('chat.imageStyles.comic') },
-                      { value: 'technical', label: 'Technical' },
-                    ].map((style) => (
-                      <button
-                        key={style.value}
-                        onClick={() => setImageGenStyle(style.value)}
-                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                          imageGenStyle === style.value
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                        }`}
-                      >
-                        {style.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowImageGenModal(false)}
-                  className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
-                >
-                  {t('cancel')}
-                </button>
-                <button
-                  onClick={handleImageGeneration}
-                  disabled={!imageGenPrompt.trim() || imageGenPrompt.length < 10}
-                  className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <Wand2 className="w-4 h-4" />
-                  {t('chat.generate')}
                 </button>
               </div>
             </motion.div>

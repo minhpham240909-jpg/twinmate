@@ -415,64 +415,6 @@ export default function AIPartnerSessionPage({
     }
   }
 
-  const handleGenerateImage = async (prompt: string, style: string) => {
-    setIsSending(true)
-    setError(null)
-
-    // Add optimistic AI message for loading state
-    const tempMsgId = `temp-ai-${Date.now()}`
-    const tempMsg: Message = {
-      id: tempMsgId,
-      role: 'ASSISTANT',
-      content: `Generating ${style}: "${prompt}"...`,
-      messageType: 'IMAGE',
-      wasFlagged: false,
-      createdAt: new Date(),
-    }
-
-    setMessages((prev) => [...prev, tempMsg])
-
-    try {
-      const res = await fetch('/api/ai-partner/image/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          prompt,
-          style,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        // Update with real message
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === tempMsgId
-              ? {
-                  ...m,
-                  id: data.messageId,
-                  content: `I've created a ${style} to help visualize: "${prompt}"`,
-                  imageUrl: data.imageUrl,
-                  imageType: 'generated',
-                }
-              : m
-          )
-        )
-      } else {
-        setMessages((prev) => prev.filter((m) => m.id !== tempMsgId))
-        setError(data.error || 'Failed to generate image')
-      }
-    } catch (err) {
-      console.error('Failed to generate image:', err)
-      setMessages((prev) => prev.filter((m) => m.id !== tempMsgId))
-      setError('Failed to generate image. Please try again.')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
   const handleEndSession = async (rating?: number, feedback?: string) => {
     try {
       const res = await fetch(`/api/ai-partner/session/${sessionId}`, {
@@ -484,8 +426,13 @@ export default function AIPartnerSessionPage({
       const data = await res.json()
 
       if (data.success) {
-        // Show summary briefly then redirect
-        router.push('/ai-partner')
+        console.log('[AI Partner] Session ended successfully')
+
+        // Dispatch custom event to notify CompletedSessionFAB
+        window.dispatchEvent(new CustomEvent('ai-partner-session-ended'))
+
+        // Redirect to dashboard so user can see the completed session FAB
+        router.push('/dashboard')
       } else {
         throw new Error(data.error)
       }
@@ -666,7 +613,6 @@ export default function AIPartnerSessionPage({
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 onSendMessageWithImage={handleSendMessageWithImage}
-                onGenerateImage={handleGenerateImage}
                 onGenerateQuiz={handleGenerateQuiz}
                 onGenerateFlashcards={handleGenerateFlashcards}
                 isLoading={isSending}

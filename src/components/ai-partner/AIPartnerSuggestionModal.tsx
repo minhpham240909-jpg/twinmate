@@ -111,10 +111,11 @@ export default function AIPartnerSuggestionModal({
         if (!finalCriteria.subjectDescription) {
           finalCriteria.subjectDescription = searchQuery.trim()
         }
-        // If user also provided qualities (for name search), include them
-        if (userQualities.trim()) {
-          finalCriteria.userDefinedQualities = userQualities.trim()
-        }
+      }
+
+      // Always include user-defined qualities if provided (works for ALL scenarios)
+      if (userQualities.trim()) {
+        finalCriteria.userDefinedQualities = userQualities.trim()
       }
 
       const response = await fetch('/api/ai-partner/session-from-search', {
@@ -324,37 +325,35 @@ export default function AIPartnerSuggestionModal({
                 </div>
               )}
 
-              {/* Name search - ask for qualities */}
-              {noResultsReason === 'name_not_found' && searchQuery && (
-                <div className="mb-6">
-                  {!showQualitiesInput ? (
-                    <button
-                      onClick={() => setShowQualitiesInput(true)}
-                      className="w-full p-3 text-left bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-colors"
-                    >
-                      <p className="text-sm text-slate-300">
-                        What qualities were you looking for in {searchQuery}?
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Click to describe (optional)
-                      </p>
-                    </button>
-                  ) : (
-                    <div>
-                      <label className="text-sm text-slate-300 mb-2 block">
-                        What qualities were you looking for?
-                      </label>
-                      <textarea
-                        value={userQualities}
-                        onChange={(e) => setUserQualities(e.target.value)}
-                        placeholder="e.g., Someone good at explaining complex topics, patient, likes to work through problems step by step..."
-                        rows={3}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none text-sm"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Qualities input - always show for all scenarios */}
+              <div className="mb-6">
+                {!showQualitiesInput ? (
+                  <button
+                    onClick={() => setShowQualitiesInput(true)}
+                    className="w-full p-3 text-left bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-colors"
+                  >
+                    <p className="text-sm text-slate-300">
+                      What qualities are you looking for in a study partner?
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Click to describe (optional) - AI will match these qualities
+                    </p>
+                  </button>
+                ) : (
+                  <div>
+                    <label className="text-sm text-slate-300 mb-2 block">
+                      What qualities are you looking for?
+                    </label>
+                    <textarea
+                      value={userQualities}
+                      onChange={(e) => setUserQualities(e.target.value)}
+                      placeholder="e.g., Patient, explains things simply, good at breaking down complex topics, encouraging, likes to work through problems step by step..."
+                      rows={3}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none text-sm"
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* Notification about real partners */}
               <div className="mb-6 flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">

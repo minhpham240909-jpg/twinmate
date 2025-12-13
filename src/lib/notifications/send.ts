@@ -144,10 +144,13 @@ export async function sendEmailIfEnabled(
 
 /**
  * Unified notification sender - sends both in-app and email
+ * OPTIMIZED: Accepts pre-fetched user data to avoid N+1 queries
  */
 export async function sendNotification(params: SendNotificationParams & {
   emailType?: 'CONNECTION_REQUEST' | 'CONNECTION_ACCEPTED' | 'SESSION_INVITE' | 'NEW_MESSAGE'
   emailContext?: Partial<NotificationContext>
+  // Pre-fetched data to avoid additional queries
+  recipientData?: { email: string; name: string }
 }) {
   try {
     // Always create in-app notification
@@ -155,32 +158,26 @@ export async function sendNotification(params: SendNotificationParams & {
 
     // Send email if enabled and context provided
     if (params.emailType && params.emailContext) {
-      // Get user data for email
-      const user = await prisma.user.findUnique({
-        where: { id: params.userId },
-        select: { email: true, name: true },
-      })
-
-      if (!user) {
-        logger.warn('User not found for email notification', { userId: params.userId })
-        return
-      }
-
-      // Get sender data if relatedUserId provided
-      let senderName = params.emailContext.senderName
-      if (params.relatedUserId && !senderName) {
-        const sender = await prisma.user.findUnique({
-          where: { id: params.relatedUserId },
-          select: { name: true },
+      // Use pre-fetched data or fetch if not provided
+      let userData = params.recipientData
+      if (!userData) {
+        const user = await prisma.user.findUnique({
+          where: { id: params.userId },
+          select: { email: true, name: true },
         })
-        senderName = sender?.name || 'Someone'
+        if (!user) {
+          logger.warn('User not found for email notification', { userId: params.userId })
+          return
+        }
+        userData = user
       }
 
+      // senderName should already be in emailContext (passed from caller to avoid N+1)
       const emailContext: NotificationContext = {
-        userName: user.name,
-        userEmail: user.email,
+        userName: userData.name,
+        userEmail: userData.email,
         actionUrl: params.actionUrl,
-        senderName,
+        senderName: params.emailContext.senderName || 'Someone',
         ...params.emailContext,
       }
 
@@ -193,59 +190,70 @@ export async function sendNotification(params: SendNotificationParams & {
 
 /**
  * Helper functions for specific notification types
+ * OPTIMIZED: Batch fetch sender and receiver data in single query to avoid N+1
  */
 
 export async function notifyConnectionRequest(senderId: string, receiverId: string, matchId: string) {
-  const sender = await prisma.user.findUnique({
-    where: { id: senderId },
-    select: { name: true },
-  })
+  try {
+    // Batch fetch both users in single query
+    const users = await prisma.user.findMany({
+      where: { id: { in: [senderId, receiverId] } },
+      select: { id: true, name: true, email: true },
+    })
+    const sender = users.find(u => u.id === senderId)
+    const receiver = users.find(u => u.id === receiverId)
+    const senderName = sender?.name || 'Someone'
 
-  const senderName = sender?.name || 'Someone'
+    // Send in-app + email notification with pre-fetched data
+    await sendNotification({
+      userId: receiverId,
+      type: 'CONNECTION_REQUEST',
+      title: 'New Connection Request',
+      message: `${senderName} wants to connect with you`,
+      actionUrl: `/connections`,
+      relatedUserId: senderId,
+      relatedMatchId: matchId,
+      emailType: 'CONNECTION_REQUEST',
+      emailContext: { senderName },
+      recipientData: receiver ? { email: receiver.email, name: receiver.name } : undefined,
+    })
 
-  // Send in-app + email notification
-  await sendNotification({
-    userId: receiverId,
-    type: 'CONNECTION_REQUEST',
-    title: 'New Connection Request',
-    message: `${senderName} wants to connect with you`,
-    actionUrl: `/connections`,
-    relatedUserId: senderId,
-    relatedMatchId: matchId,
-    emailType: 'CONNECTION_REQUEST',
-    emailContext: {
-      senderName,
-    },
-  })
-
-  // Send web push notification
-  await pushConnectionRequest(receiverId, senderName, matchId)
+    // Send web push notification
+    await pushConnectionRequest(receiverId, senderName, matchId)
+  } catch (error) {
+    logger.error('Failed to send connection request notification', error as Error)
+  }
 }
 
 export async function notifyConnectionAccepted(senderId: string, receiverId: string) {
-  const sender = await prisma.user.findUnique({
-    where: { id: senderId },
-    select: { name: true },
-  })
+  try {
+    // Batch fetch both users in single query
+    const users = await prisma.user.findMany({
+      where: { id: { in: [senderId, receiverId] } },
+      select: { id: true, name: true, email: true },
+    })
+    const sender = users.find(u => u.id === senderId)
+    const receiver = users.find(u => u.id === receiverId)
+    const senderName = sender?.name || 'Someone'
 
-  const senderName = sender?.name || 'Someone'
+    // Send in-app + email notification with pre-fetched data
+    await sendNotification({
+      userId: receiverId,
+      type: 'CONNECTION_ACCEPTED',
+      title: 'Connection Accepted!',
+      message: `${senderName} accepted your connection request`,
+      actionUrl: `/chat?partner=${senderId}`,
+      relatedUserId: senderId,
+      emailType: 'CONNECTION_ACCEPTED',
+      emailContext: { senderName },
+      recipientData: receiver ? { email: receiver.email, name: receiver.name } : undefined,
+    })
 
-  // Send in-app + email notification
-  await sendNotification({
-    userId: receiverId,
-    type: 'CONNECTION_ACCEPTED',
-    title: 'Connection Accepted!',
-    message: `${senderName} accepted your connection request`,
-    actionUrl: `/chat?partner=${senderId}`,
-    relatedUserId: senderId,
-    emailType: 'CONNECTION_ACCEPTED',
-    emailContext: {
-      senderName,
-    },
-  })
-
-  // Send web push notification
-  await pushConnectionAccepted(receiverId, senderName)
+    // Send web push notification
+    await pushConnectionAccepted(receiverId, senderName)
+  } catch (error) {
+    logger.error('Failed to send connection accepted notification', error as Error)
+  }
 }
 
 export async function notifySessionInvite(
@@ -254,30 +262,34 @@ export async function notifySessionInvite(
   sessionId: string,
   sessionTitle: string
 ) {
-  const sender = await prisma.user.findUnique({
-    where: { id: senderId },
-    select: { name: true },
-  })
+  try {
+    // Batch fetch both users in single query
+    const users = await prisma.user.findMany({
+      where: { id: { in: [senderId, receiverId] } },
+      select: { id: true, name: true, email: true },
+    })
+    const sender = users.find(u => u.id === senderId)
+    const receiver = users.find(u => u.id === receiverId)
+    const senderName = sender?.name || 'Someone'
 
-  const senderName = sender?.name || 'Someone'
+    // Send in-app + email notification with pre-fetched data
+    await sendNotification({
+      userId: receiverId,
+      type: 'SESSION_INVITE',
+      title: 'Study Session Invite',
+      message: `${senderName} invited you to "${sessionTitle}"`,
+      actionUrl: `/study-sessions/${sessionId}`,
+      relatedUserId: senderId,
+      emailType: 'SESSION_INVITE',
+      emailContext: { senderName, additionalData: { sessionTitle } },
+      recipientData: receiver ? { email: receiver.email, name: receiver.name } : undefined,
+    })
 
-  // Send in-app + email notification
-  await sendNotification({
-    userId: receiverId,
-    type: 'SESSION_INVITE',
-    title: 'Study Session Invite',
-    message: `${senderName} invited you to "${sessionTitle}"`,
-    actionUrl: `/study-sessions/${sessionId}`,
-    relatedUserId: senderId,
-    emailType: 'SESSION_INVITE',
-    emailContext: {
-      senderName,
-      additionalData: { sessionTitle },
-    },
-  })
-
-  // Send web push notification
-  await pushSessionInvite(receiverId, senderName, sessionTitle, sessionId)
+    // Send web push notification
+    await pushSessionInvite(receiverId, senderName, sessionTitle, sessionId)
+  } catch (error) {
+    logger.error('Failed to send session invite notification', error as Error)
+  }
 }
 
 export async function notifyNewMessage(
@@ -286,29 +298,34 @@ export async function notifyNewMessage(
   messagePreview?: string,
   conversationType: 'partner' | 'group' = 'partner'
 ) {
-  const sender = await prisma.user.findUnique({
-    where: { id: senderId },
-    select: { name: true },
-  })
+  try {
+    // Batch fetch both users in single query
+    const users = await prisma.user.findMany({
+      where: { id: { in: [senderId, receiverId] } },
+      select: { id: true, name: true, email: true },
+    })
+    const sender = users.find(u => u.id === senderId)
+    const receiver = users.find(u => u.id === receiverId)
+    const senderName = sender?.name || 'Someone'
 
-  const senderName = sender?.name || 'Someone'
+    // Send in-app + email notification with pre-fetched data
+    await sendNotification({
+      userId: receiverId,
+      type: 'NEW_MESSAGE',
+      title: 'New Message',
+      message: `${senderName} sent you a message`,
+      actionUrl: `/chat?partner=${senderId}`,
+      relatedUserId: senderId,
+      emailType: 'NEW_MESSAGE',
+      emailContext: { senderName },
+      recipientData: receiver ? { email: receiver.email, name: receiver.name } : undefined,
+    })
 
-  // Send in-app + email notification
-  await sendNotification({
-    userId: receiverId,
-    type: 'NEW_MESSAGE',
-    title: 'New Message',
-    message: `${senderName} sent you a message`,
-    actionUrl: `/chat?partner=${senderId}`,
-    relatedUserId: senderId,
-    emailType: 'NEW_MESSAGE',
-    emailContext: {
-      senderName,
-    },
-  })
-
-  // Send web push notification
-  await pushNewMessage(receiverId, senderName, messagePreview || 'New message', conversationType)
+    // Send web push notification
+    await pushNewMessage(receiverId, senderName, messagePreview || 'New message', conversationType)
+  } catch (error) {
+    logger.error('Failed to send new message notification', error as Error)
+  }
 }
 
 /**
@@ -320,53 +337,61 @@ export async function notifyIncomingCall(
   sessionId: string,
   callType: 'AUDIO' | 'VIDEO'
 ) {
-  const caller = await prisma.user.findUnique({
-    where: { id: callerId },
-    select: { name: true },
-  })
+  try {
+    // Single query for caller name
+    const caller = await prisma.user.findUnique({
+      where: { id: callerId },
+      select: { name: true },
+    })
+    const callerName = caller?.name || 'Someone'
 
-  const callerName = caller?.name || 'Someone'
+    // Create in-app notification
+    await createInAppNotification({
+      userId: receiverId,
+      type: 'INCOMING_CALL',
+      title: `Incoming ${callType.toLowerCase()} call`,
+      message: `${callerName} is calling you`,
+      actionUrl: `/study-sessions/${sessionId}/lobby`,
+      relatedUserId: callerId,
+    })
 
-  // Create in-app notification
-  await createInAppNotification({
-    userId: receiverId,
-    type: 'INCOMING_CALL',
-    title: `Incoming ${callType.toLowerCase()} call`,
-    message: `${callerName} is calling you`,
-    actionUrl: `/study-sessions/${sessionId}/lobby`,
-    relatedUserId: callerId,
-  })
-
-  // Send web push notification (high priority)
-  await pushIncomingCall(receiverId, callerName, sessionId, callType)
+    // Send web push notification (high priority)
+    await pushIncomingCall(receiverId, callerName, sessionId, callType)
+  } catch (error) {
+    logger.error('Failed to send incoming call notification', error as Error)
+  }
 }
 
 /**
  * Notify user about post like
  */
 export async function notifyPostLike(likerId: string, postOwnerId: string, postId: string) {
-  // Don't notify yourself
-  if (likerId === postOwnerId) return
+  try {
+    // Don't notify yourself
+    if (likerId === postOwnerId) return
 
-  const liker = await prisma.user.findUnique({
-    where: { id: likerId },
-    select: { name: true },
-  })
+    // Single query for liker name
+    const liker = await prisma.user.findUnique({
+      where: { id: likerId },
+      select: { name: true },
+    })
+    const likerName = liker?.name || 'Someone'
 
-  const likerName = liker?.name || 'Someone'
+    // Create in-app notification
+    await createInAppNotification({
+      userId: postOwnerId,
+      type: 'POST_LIKE',
+      title: 'Someone liked your post',
+      message: `${likerName} liked your post`,
+      actionUrl: `/community`,
+      relatedUserId: likerId,
+    })
 
-  // Create in-app notification
-  await createInAppNotification({
-    userId: postOwnerId,
-    type: 'POST_LIKE',
-    title: 'Someone liked your post',
-    message: `${likerName} liked your post`,
-    actionUrl: `/community`,
-    relatedUserId: likerId,
-  })
-
-  // Send web push notification
-  await pushPostLike(postOwnerId, likerName, postId)
+    // Send web push notification
+    await pushPostLike(postOwnerId, likerName, postId)
+  } catch (error) {
+    logger.error('Failed to send post like notification', error as Error)
+  }
 }
 
 /**
@@ -378,26 +403,30 @@ export async function notifyPostComment(
   postId: string,
   commentPreview: string
 ) {
-  // Don't notify yourself
-  if (commenterId === postOwnerId) return
+  try {
+    // Don't notify yourself
+    if (commenterId === postOwnerId) return
 
-  const commenter = await prisma.user.findUnique({
-    where: { id: commenterId },
-    select: { name: true },
-  })
+    // Single query for commenter name
+    const commenter = await prisma.user.findUnique({
+      where: { id: commenterId },
+      select: { name: true },
+    })
+    const commenterName = commenter?.name || 'Someone'
 
-  const commenterName = commenter?.name || 'Someone'
+    // Create in-app notification
+    await createInAppNotification({
+      userId: postOwnerId,
+      type: 'POST_COMMENT',
+      title: `${commenterName} commented on your post`,
+      message: commentPreview.length > 100 ? commentPreview.substring(0, 100) + '...' : commentPreview,
+      actionUrl: `/community`,
+      relatedUserId: commenterId,
+    })
 
-  // Create in-app notification
-  await createInAppNotification({
-    userId: postOwnerId,
-    type: 'POST_COMMENT',
-    title: `${commenterName} commented on your post`,
-    message: commentPreview.length > 100 ? commentPreview.substring(0, 100) + '...' : commentPreview,
-    actionUrl: `/community`,
-    relatedUserId: commenterId,
-  })
-
-  // Send web push notification
-  await pushPostComment(postOwnerId, commenterName, commentPreview, postId)
+    // Send web push notification
+    await pushPostComment(postOwnerId, commenterName, commentPreview, postId)
+  } catch (error) {
+    logger.error('Failed to send post comment notification', error as Error)
+  }
 }

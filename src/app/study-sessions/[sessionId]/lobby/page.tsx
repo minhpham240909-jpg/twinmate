@@ -359,6 +359,7 @@ export default function WaitingLobbyPage() {
 
     let isSubscribed = true
     let pollingInterval: NodeJS.Timeout | null = null
+    let consecutiveErrors = 0
 
     // Fast polling (500ms) for instant message updates
     const startFastPolling = () => {
@@ -374,6 +375,9 @@ export default function WaitingLobbyPage() {
 
           const res = await fetch(`/api/study-sessions/${sessionId}/messages?after=${encodeURIComponent(lastMessageTime)}`)
           const data = await res.json()
+
+          // Reset error counter on success
+          consecutiveErrors = 0
 
           if (data.success && data.messages && data.messages.length > 0) {
             setMessages((prev) => {
@@ -393,7 +397,13 @@ export default function WaitingLobbyPage() {
             })
           }
         } catch (error) {
-          // Silently handle errors
+          // Track consecutive errors but don't spam console
+          consecutiveErrors++
+          // Only log if we have multiple consecutive failures
+          if (consecutiveErrors >= 5) {
+            console.warn('Message polling experiencing issues:', error)
+            consecutiveErrors = 0 // Reset to avoid repeated warnings
+          }
         }
       }, 200) // 200ms for fast message updates
     }

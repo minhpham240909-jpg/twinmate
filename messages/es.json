@@ -1188,6 +1188,18 @@
       "messages": "Mensajes",
       "continue": "Continuar",
       "endSession": "Terminar Sesión"
+    },
+    "completedSession": {
+      "title": "Sesión Completada",
+      "studySession": "Sesión de Estudio",
+      "message": "¡Buen trabajo! Tu sesión de estudio ha terminado. ¿Listo para otra ronda?",
+      "duration": "Duración",
+      "messages": "Mensajes",
+      "minutes": "min",
+      "continueWithContext": "Continuar Tema",
+      "startFresh": "Empezar Nuevo",
+      "dismiss": "Descartar",
+      "studyAgain": "Estudiar de Nuevo"
     }
   }
 }

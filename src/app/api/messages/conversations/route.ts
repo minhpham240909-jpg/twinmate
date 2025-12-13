@@ -32,7 +32,8 @@ export async function GET(request: Request) {
     const userId = user.id
 
     // Execute all queries in parallel for maximum performance
-    const [matches, groupMemberships, userPresences] = await Promise.all([
+    // Note: We fetch matches once and extract partner IDs from it (avoiding duplicate query)
+    const [matches, groupMemberships] = await Promise.all([
       // Get all accepted partners with their profiles in one query
       prisma.match.findMany({
         where: {
@@ -83,28 +84,19 @@ export async function GET(request: Request) {
         orderBy: {
           joinedAt: 'desc'
         }
-      }),
-      // Get presence data for all partners
-      prisma.match.findMany({
-        where: {
-          OR: [
-            { senderId: userId, status: 'ACCEPTED' },
-            { receiverId: userId, status: 'ACCEPTED' }
-          ]
-        },
-        select: {
-          senderId: true,
-          receiverId: true
-        }
-      }).then(async (matches) => {
-        // Extract partner IDs
-        const partnerIds = matches.map(match =>
-          match.senderId === userId ? match.receiverId : match.senderId
-        )
-        // Fetch presence for all partners
-        return prisma.userPresence.findMany({
+      })
+    ])
+
+    // Extract partner IDs from matches (no duplicate query needed)
+    const partnerIdsFromMatches = matches.map(match =>
+      match.senderId === userId ? match.receiverId : match.senderId
+    )
+
+    // Fetch presence for all partners (only if there are partners)
+    const userPresences = partnerIdsFromMatches.length > 0
+      ? await prisma.userPresence.findMany({
           where: {
-            userId: { in: partnerIds }
+            userId: { in: partnerIdsFromMatches }
           },
           select: {
             userId: true,
@@ -113,8 +105,7 @@ export async function GET(request: Request) {
             isPrivate: true
           }
         })
-      })
-    ])
+      : []
 
     // Create presence lookup map
     const presenceMap = new Map(
@@ -249,6 +240,10 @@ export async function GET(request: Request) {
 
     const messageData = await Promise.all(messageQueries)
 
+    // Create lookup Maps for O(1) access (avoid .find() in loops)
+    const partnerMap = new Map(partners.map(p => [p.id, p]))
+    const groupMap = new Map(groups.map(g => [g.id, g]))
+
     // Process message data
     messageData.forEach(data => {
       if (data.type === 'partner') {
@@ -264,7 +259,7 @@ export async function GET(request: Request) {
           }
         })
 
-        // Map to partners
+        // Map to partners using partnerMap for O(1) lookup
         partners.forEach(partner => {
           const lastMsg = lastMessageMap.get(partner.id)
           if (lastMsg) {
@@ -273,25 +268,34 @@ export async function GET(request: Request) {
           }
         })
       } else if (data.type === 'partner-unread') {
+        // Use partnerMap for O(1) lookup instead of .find()
         data.results.forEach((item: unknown) => {
           const unread = item as { senderId: string | null; _count: { _all: number } }
-          const partner = partners.find(p => p.id === unread.senderId)
-          if (partner) partner.unreadCount = unread._count._all
+          if (unread.senderId) {
+            const partner = partnerMap.get(unread.senderId)
+            if (partner) partner.unreadCount = unread._count._all
+          }
         })
       } else if (data.type === 'group') {
+        // Use groupMap for O(1) lookup instead of .find()
         data.results.forEach((msg: unknown) => {
           const message = msg as { groupId: string | null; content: string; createdAt: Date }
-          const group = groups.find(g => g.id === message.groupId)
-          if (group) {
-            group.lastMessage = message.content
-            group.lastMessageTime = message.createdAt
+          if (message.groupId) {
+            const group = groupMap.get(message.groupId)
+            if (group) {
+              group.lastMessage = message.content
+              group.lastMessageTime = message.createdAt
+            }
           }
         })
       } else if (data.type === 'group-unread') {
+        // Use groupMap for O(1) lookup instead of .find()
         data.results.forEach((item: unknown) => {
           const unread = item as { groupId: string | null; _count: { _all: number } }
-          const group = groups.find(g => g.id === unread.groupId)
-          if (group) group.unreadCount = unread._count._all
+          if (unread.groupId) {
+            const group = groupMap.get(unread.groupId)
+            if (group) group.unreadCount = unread._count._all
+          }
         })
       }
     })

@@ -80,6 +80,11 @@ export async function GET() {
       totalFlashcards,
       whiteboardMessages,
 
+      // Image generation stats
+      totalGeneratedImages,
+      totalUploadedImages,
+      recentGeneratedImages,
+
       // Token usage (cost tracking)
       tokenStats,
 
@@ -133,6 +138,33 @@ export async function GET() {
       prisma.aIPartnerSession.aggregate({ _sum: { quizCount: true } }),
       prisma.aIPartnerSession.aggregate({ _sum: { flashcardCount: true } }),
       prisma.aIPartnerMessage.count({ where: { messageType: 'WHITEBOARD' } }),
+
+      // Image generation stats - count by imageType
+      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'generated' } }),
+      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'uploaded' } }),
+      // Recent generated images with session and user info
+      prisma.aIPartnerMessage.findMany({
+        where: {
+          messageType: 'IMAGE',
+          imageType: 'generated',
+          imageUrl: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          imageUrl: true,
+          imagePrompt: true,
+          createdAt: true,
+          session: {
+            select: {
+              id: true,
+              userId: true,
+              subject: true,
+            },
+          },
+        },
+      }),
 
       // Tokens
       prisma.aIPartnerMessage.aggregate({
@@ -335,6 +367,24 @@ export async function GET() {
           totalQuizzes: totalQuizzes._sum.quizCount || 0,
           totalFlashcards: totalFlashcards._sum.flashcardCount || 0,
           whiteboardAnalyses: whiteboardMessages,
+          generatedImages: totalGeneratedImages,
+          uploadedImages: totalUploadedImages,
+          totalImages: totalGeneratedImages + totalUploadedImages,
+        },
+
+        // Image generation details
+        imageGeneration: {
+          totalGenerated: totalGeneratedImages,
+          totalUploaded: totalUploadedImages,
+          recentImages: recentGeneratedImages.map(img => ({
+            id: img.id,
+            imageUrl: img.imageUrl,
+            prompt: img.imagePrompt,
+            createdAt: img.createdAt,
+            sessionId: img.session.id,
+            userId: img.session.userId,
+            subject: img.session.subject,
+          })),
         },
 
         // Token usage and costs
