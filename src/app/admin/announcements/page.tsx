@@ -202,18 +202,18 @@ export default function AdminAnnouncementsPage() {
       expiresAt: announcement.expiresAt ? new Date(announcement.expiresAt).toISOString().slice(0, 16) : '',
     })
 
-    // Load existing targeted users if any
+    // Load existing targeted users if any (batch fetch in single request)
     if (announcement.targetUserIds && announcement.targetUserIds.length > 0) {
       setShowUserSearch(true)
-      // Fetch user details for the IDs
       try {
-        const userPromises = announcement.targetUserIds.map(async (userId) => {
-          const response = await fetch(`/api/admin/users/search?q=${userId}&limit=1`)
-          const data = await response.json()
-          return data.users?.[0] || null
-        })
-        const users = await Promise.all(userPromises)
-        setSelectedUsers(users.filter(Boolean))
+        // Use batch lookup with comma-separated IDs (single request instead of N+1)
+        const response = await fetch(`/api/admin/users/search?ids=${announcement.targetUserIds.join(',')}`)
+        const data = await response.json()
+        if (data.success && data.users) {
+          setSelectedUsers(data.users)
+        } else {
+          setSelectedUsers([])
+        }
       } catch (error) {
         console.error('Error loading targeted users:', error)
         setSelectedUsers([])

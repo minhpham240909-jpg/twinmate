@@ -5,7 +5,7 @@
  * Returns comprehensive analytics including:
  * - Total sessions, messages, users
  * - Usage trends over time
- * - Subject distribution
+ * - Subject distribution (normalized to merge similar names)
  * - Session ratings and feedback
  * - Flagged/moderated content alerts
  * - Token usage costs
@@ -14,6 +14,194 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+
+/**
+ * Normalize a subject name for comparison
+ * - Lowercase
+ * - Trim whitespace
+ * - Remove extra spaces
+ * - Handle common abbreviations
+ */
+function normalizeSubjectKey(subject: string): string {
+  if (!subject) return 'general'
+
+  let normalized = subject
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+
+  // Common abbreviations mapping (expand abbreviations to full form for matching)
+  // This handles common shortcuts - but ALL subjects are normalized by case/whitespace
+  const abbreviations: Record<string, string> = {
+    // Computer Science & Tech
+    'cs': 'computer science',
+    'comp sci': 'computer science',
+    'compsci': 'computer science',
+    'it': 'information technology',
+    'ai': 'artificial intelligence',
+    'ml': 'machine learning',
+    'ds': 'data science',
+    'ux': 'user experience',
+    'ui': 'user interface',
+    'db': 'database',
+    'os': 'operating systems',
+    'oop': 'object oriented programming',
+    'dsa': 'data structures and algorithms',
+    'se': 'software engineering',
+    'web dev': 'web development',
+    'webdev': 'web development',
+
+    // Mathematics
+    'math': 'mathematics',
+    'maths': 'mathematics',
+    'stats': 'statistics',
+    'calc': 'calculus',
+    'alg': 'algebra',
+    'trig': 'trigonometry',
+    'geom': 'geometry',
+    'precalc': 'precalculus',
+    'pre-calc': 'precalculus',
+
+    // Sciences
+    'bio': 'biology',
+    'chem': 'chemistry',
+    'phys': 'physics',
+    'env sci': 'environmental science',
+    'envsci': 'environmental science',
+    'astro': 'astronomy',
+    'neuro': 'neuroscience',
+    'biochem': 'biochemistry',
+    'orgo': 'organic chemistry',
+    'organic chem': 'organic chemistry',
+
+    // Social Sciences & Humanities
+    'econ': 'economics',
+    'psych': 'psychology',
+    'soc': 'sociology',
+    'anthro': 'anthropology',
+    'poli sci': 'political science',
+    'polisci': 'political science',
+    'poly sci': 'political science',
+    'gov': 'government',
+    'govt': 'government',
+    'civics': 'government',
+    'phil': 'philosophy',
+    'philo': 'philosophy',
+
+    // History & Geography
+    'hist': 'history',
+    'geo': 'geography',
+    'geog': 'geography',
+    'world hist': 'world history',
+    'us hist': 'us history',
+    'us history': 'united states history',
+    'american hist': 'american history',
+    'euro hist': 'european history',
+    'art hist': 'art history',
+
+    // Languages & Literature
+    'eng': 'english',
+    'lit': 'literature',
+    'eng lit': 'english literature',
+    'lang': 'language',
+    'lang arts': 'language arts',
+    'ela': 'english language arts',
+    'span': 'spanish',
+    'french': 'french',
+    'ger': 'german',
+    'lat': 'latin',
+    'esl': 'english as second language',
+
+    // Arts
+    'art': 'art',
+    'fine arts': 'fine arts',
+    'vis arts': 'visual arts',
+    'visual arts': 'visual arts',
+    'music': 'music',
+    'music theory': 'music theory',
+    'drama': 'drama',
+    'theater': 'theater',
+    'theatre': 'theater',
+    'film': 'film studies',
+    'photo': 'photography',
+
+    // Business & Professional
+    'acct': 'accounting',
+    'mgmt': 'management',
+    'mktg': 'marketing',
+    'fin': 'finance',
+    'hr': 'human resources',
+    'bus': 'business',
+    'biz': 'business',
+    'bus admin': 'business administration',
+    'mba': 'business administration',
+    'entrepreneurship': 'entrepreneurship',
+
+    // Health & Medicine
+    'health': 'health',
+    'med': 'medicine',
+    'nursing': 'nursing',
+    'nutrition': 'nutrition',
+    'anatomy': 'anatomy',
+    'physio': 'physiology',
+    'pharm': 'pharmacology',
+    'public health': 'public health',
+
+    // Other Common
+    'pe': 'physical education',
+    'phys ed': 'physical education',
+    'law': 'law',
+    'criminal justice': 'criminal justice',
+    'cj': 'criminal justice',
+    'comm': 'communications',
+    'communications': 'communications',
+    'journalism': 'journalism',
+    'education': 'education',
+    'ed': 'education',
+    'engineering': 'engineering',
+    'engr': 'engineering',
+    'architecture': 'architecture',
+    'arch': 'architecture',
+  }
+
+  // Check if the normalized subject matches any abbreviation
+  if (abbreviations[normalized]) {
+    return abbreviations[normalized]
+  }
+
+  return normalized
+}
+
+/**
+ * Get the best display name for a subject
+ * Prefers: Title Case > Most common form > First occurrence
+ */
+function getBestDisplayName(variations: Array<{ name: string; count: number }>): string {
+  if (variations.length === 0) return 'General'
+  if (variations.length === 1) return toTitleCase(variations[0].name)
+
+  // Sort by count descending to get most common first
+  const sorted = [...variations].sort((a, b) => b.count - a.count)
+
+  // Check if any variation is already in proper title case
+  const titleCaseMatch = sorted.find(v => v.name === toTitleCase(v.name))
+  if (titleCaseMatch) return titleCaseMatch.name
+
+  // Otherwise, use the most common variation but convert to title case
+  return toTitleCase(sorted[0].name)
+}
+
+/**
+ * Convert string to Title Case
+ */
+function toTitleCase(str: string): string {
+  if (!str) return ''
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
 
 export async function GET() {
   try {
@@ -217,13 +405,11 @@ export async function GET() {
         ORDER BY date ASC
       `,
 
-      // Subject distribution
+      // Subject distribution - fetch ALL subjects to normalize and merge similar ones
       prisma.aIPartnerSession.groupBy({
         by: ['subject'],
         where: { subject: { not: null } },
         _count: true,
-        orderBy: { _count: { subject: 'desc' } },
-        take: 10,
       }),
 
       // Recent flagged messages (for alerts)
@@ -291,11 +477,32 @@ export async function GET() {
       users: Number(day.users),
     }))
 
-    // Format subject distribution
-    const subjects = subjectDistribution.map(s => ({
-      subject: s.subject || 'General',
-      count: s._count,
-    }))
+    // Normalize and merge similar subjects
+    // Step 1: Group by normalized key
+    const subjectGroups = new Map<string, { variations: Array<{ name: string; count: number }>; totalCount: number }>()
+
+    for (const s of subjectDistribution) {
+      const originalName = s.subject || 'General'
+      const normalizedKey = normalizeSubjectKey(originalName)
+      const count = s._count
+
+      if (!subjectGroups.has(normalizedKey)) {
+        subjectGroups.set(normalizedKey, { variations: [], totalCount: 0 })
+      }
+
+      const group = subjectGroups.get(normalizedKey)!
+      group.variations.push({ name: originalName, count })
+      group.totalCount += count
+    }
+
+    // Step 2: Convert to array with best display names, sorted by total count
+    const subjects = Array.from(subjectGroups.entries())
+      .map(([_key, group]) => ({
+        subject: getBestDisplayName(group.variations),
+        count: group.totalCount,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10) // Top 10 subjects after merging
 
     // Fetch user info for recent feedback
     const feedbackUserIds = [...new Set(recentFeedback.map(f => f.userId))]

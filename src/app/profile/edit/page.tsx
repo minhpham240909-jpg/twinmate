@@ -62,7 +62,7 @@ export default function ProfilePage() {
         name: profile.name || '',
         bio: profile.bio || '',
         age: (profile as { age?: number }).age || undefined,
-        role: (profile as { role?: string }).role || '',
+        role: (profile as { profileRole?: string }).profileRole || '',
         subjects: profile.subjects || [],
         interests: profile.interests || [],
         goals: profile.goals || [],

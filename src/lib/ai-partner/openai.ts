@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai'
+import { createClient } from '@/lib/supabase/server'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -1873,8 +1874,53 @@ Style requirements:
       throw new Error('No image generated')
     }
 
+    // DALL-E URLs are temporary (expire in ~1 hour)
+    // Download and upload to Supabase for permanent storage
+    let permanentUrl = imageData.url
+
+    try {
+      // Download the image from DALL-E's temporary URL
+      const imageResponse = await fetch(imageData.url)
+      if (!imageResponse.ok) {
+        throw new Error('Failed to download generated image')
+      }
+
+      const imageBuffer = await imageResponse.arrayBuffer()
+      const buffer = Buffer.from(imageBuffer)
+
+      // Generate unique filename
+      const timestamp = Date.now()
+      const randomId = Math.random().toString(36).substring(2, 8)
+      const filePath = `ai-generated/${timestamp}-${randomId}.png`
+
+      // Upload to Supabase Storage
+      const supabase = await createClient()
+      const { error: uploadError } = await supabase.storage
+        .from('user-uploads')
+        .upload(filePath, buffer, {
+          contentType: 'image/png',
+          upsert: false,
+        })
+
+      if (uploadError) {
+        console.error('[AI Partner] Failed to upload image to storage:', uploadError)
+        // Fall back to temporary URL if upload fails
+      } else {
+        // Get the permanent public URL
+        const { data: urlData } = supabase.storage
+          .from('user-uploads')
+          .getPublicUrl(filePath)
+
+        permanentUrl = urlData.publicUrl
+        console.log('[AI Partner] Image uploaded to permanent storage:', permanentUrl)
+      }
+    } catch (uploadErr) {
+      console.error('[AI Partner] Error uploading to permanent storage:', uploadErr)
+      // Fall back to temporary URL if anything fails
+    }
+
     return {
-      imageUrl: imageData.url,
+      imageUrl: permanentUrl,
       revisedPrompt: imageData.revised_prompt || dallePrompt,
     }
   } catch (error) {

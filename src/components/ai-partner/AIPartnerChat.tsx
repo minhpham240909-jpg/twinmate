@@ -36,6 +36,7 @@ interface AIPartnerChatProps {
   messages: Message[]
   onSendMessage: (content: string) => Promise<void>
   onSendMessageWithImage: (content: string, imageBase64: string, imageMimeType: string) => Promise<void>
+  onGenerateImage?: (prompt: string, style?: string) => Promise<void>
   onGenerateQuiz: () => Promise<void>
   onGenerateFlashcards: (topic: string) => Promise<void>
   isLoading?: boolean
@@ -48,6 +49,7 @@ export default function AIPartnerChat({
   messages,
   onSendMessage,
   onSendMessageWithImage,
+  onGenerateImage,
   onGenerateQuiz,
   onGenerateFlashcards,
   isLoading = false,
@@ -86,6 +88,23 @@ export default function AIPartnerChat({
         setIsSending(false)
       }
       return
+    }
+
+    // If user typed an inline image command, generate image via chat flow
+    if (onGenerateImage) {
+      const parsed = parseImageCommand(input)
+      if (parsed) {
+        setIsSending(true)
+        try {
+          await onGenerateImage(parsed.prompt, parsed.style)
+          setInput('')
+        } catch (error) {
+          console.error('Failed to generate image:', error)
+        } finally {
+          setIsSending(false)
+        }
+        return
+      }
     }
 
     // Regular text message
@@ -157,6 +176,39 @@ export default function AIPartnerChat({
 
   const removeSelectedImage = () => {
     setSelectedImage(null)
+  }
+
+  // Parse inline image generation commands (e.g., "/image diagram of cell", "/img --style=diagram cell")
+  const parseImageCommand = (raw: string): { prompt: string; style?: string } | null => {
+    const input = raw.trim()
+    if (!input) return null
+
+    const lower = input.toLowerCase()
+    const triggers = [
+      '/image',
+      '/img',
+      'image:',
+      'generate image',
+      'generate an image',
+      'create an image',
+    ]
+
+    const matched = triggers.find((t) => lower.startsWith(t))
+    if (!matched) return null
+
+    let rest = input.slice(matched.length).trim()
+    if (!rest) return null
+
+    // Optional style flag: --style=diagram
+    let style: string | undefined
+    const styleMatch = rest.match(/--style=([a-z0-9-]+)/i)
+    if (styleMatch) {
+      style = styleMatch[1]
+      rest = rest.replace(styleMatch[0], '').trim()
+    }
+
+    if (!rest) return null
+    return { prompt: rest, style }
   }
 
   // Render message with image support

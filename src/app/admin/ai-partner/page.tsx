@@ -26,6 +26,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { AreaChartCard, PieChartCard } from '@/components/admin/charts'
+import ExpandableList from '@/components/admin/ExpandableList'
 
 interface AIPartnerAnalytics {
   overview: {
@@ -563,91 +564,150 @@ export default function AdminAIPartnerPage() {
             From AI Partner sessions
           </span>
         </div>
-        {data.ratings.recentFeedback.length > 0 ? (
-          <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            {data.ratings.recentFeedback.map(feedback => (
-              <div key={feedback.id} className="p-4 bg-gray-700/30 border border-gray-600/50 rounded-lg hover:bg-gray-700/50 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {feedback.userImage ? (
-                      <img
-                        src={feedback.userImage}
-                        alt={feedback.userName}
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
-                        <Users className="w-5 h-5 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium text-white truncate">{feedback.userName}</p>
-                      <p className="text-xs text-gray-400 truncate">{feedback.userEmail}</p>
+        <ExpandableList
+          items={data.ratings.recentFeedback}
+          title="User Feedback"
+          icon={<MessageSquare className="w-5 h-5" />}
+          previewLimit={10}
+          searchKeys={['userName', 'userEmail', 'subject', 'feedback']}
+          searchPlaceholder="Search by name, email, subject, or feedback..."
+          emptyMessage="No feedback yet"
+          emptyIcon={<MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />}
+          modalTitle="All User Feedback"
+          renderPreviewItem={(feedback) => (
+            <div className="p-4 bg-gray-700/30 border border-gray-600/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  {feedback.userImage ? (
+                    <img
+                      src={feedback.userImage}
+                      alt={feedback.userName}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-5 h-5 text-gray-400" />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {feedback.rating && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-lg">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= feedback.rating!
-                                ? 'text-yellow-400 fill-current'
-                                : 'text-gray-600'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    )}
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium text-white truncate">{feedback.userName}</p>
+                    <p className="text-xs text-gray-400 truncate">{feedback.userEmail}</p>
                   </div>
                 </div>
-
-                {feedback.feedback && (
-                  <div className="mt-3 p-3 bg-gray-800/50 rounded-lg">
-                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{feedback.feedback}</p>
-                  </div>
-                )}
-
-                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-3 h-3" />
-                      {feedback.subject || 'General'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="w-3 h-3" />
-                      {feedback.messageCount} messages
-                    </span>
-                    {feedback.totalDuration && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatDuration(feedback.totalDuration)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {feedback.endedAt && (
-                      <span>{formatRelativeTime(feedback.endedAt)}</span>
-                    )}
-                    <Link
-                      href={`/admin/users/${feedback.userId}`}
-                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                    >
-                      View User
-                      <ExternalLink className="w-3 h-3" />
-                    </Link>
-                  </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {feedback.rating && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-lg">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= feedback.rating!
+                              ? 'text-yellow-400 fill-current'
+                              : 'text-gray-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            No feedback yet
-          </div>
-        )}
+              {feedback.feedback && (
+                <div className="mt-3 p-3 bg-gray-800/50 rounded-lg">
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-2">{feedback.feedback}</p>
+                </div>
+              )}
+              <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" />
+                    {feedback.subject || 'General'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3" />
+                    {feedback.messageCount} messages
+                  </span>
+                </div>
+                {feedback.endedAt && (
+                  <span>{formatRelativeTime(feedback.endedAt)}</span>
+                )}
+              </div>
+            </div>
+          )}
+          renderFullItem={(feedback) => (
+            <div className="p-4 bg-gray-700/30 border border-gray-600/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  {feedback.userImage ? (
+                    <img
+                      src={feedback.userImage}
+                      alt={feedback.userName}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium text-white truncate">{feedback.userName}</p>
+                    <p className="text-xs text-gray-400 truncate">{feedback.userEmail}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {feedback.rating && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-lg">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= feedback.rating!
+                              ? 'text-yellow-400 fill-current'
+                              : 'text-gray-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {feedback.feedback && (
+                <div className="mt-3 p-3 bg-gray-800/50 rounded-lg">
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{feedback.feedback}</p>
+                </div>
+              )}
+              <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" />
+                    {feedback.subject || 'General'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3" />
+                    {feedback.messageCount} messages
+                  </span>
+                  {feedback.totalDuration && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatDuration(feedback.totalDuration)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {feedback.endedAt && (
+                    <span>{formatRelativeTime(feedback.endedAt)}</span>
+                  )}
+                  <Link
+                    href={`/admin/users/${feedback.userId}`}
+                    className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    View User
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
       {/* Recent Generated Images Section */}
@@ -668,51 +728,80 @@ export default function AdminAIPartnerPage() {
             </span>
           </div>
         </div>
-        {data.imageGeneration.recentImages.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {data.imageGeneration.recentImages.map(img => (
-              <div key={img.id} className="group relative bg-gray-700/30 rounded-lg overflow-hidden border border-gray-600/50 hover:border-cyan-500/50 transition-colors">
-                {img.imageUrl ? (
-                  <div className="aspect-square relative">
-                    <img
-                      src={img.imageUrl}
-                      alt={img.prompt || 'Generated image'}
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Overlay on hover */}
-                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                      <p className="text-xs text-white line-clamp-3 mb-1">
-                        {img.prompt || 'No prompt'}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>{img.subject || 'General'}</span>
-                        <span>{formatRelativeTime(img.createdAt)}</span>
+        <ExpandableList
+          items={data.imageGeneration.recentImages}
+          title="Generated Images"
+          icon={<ImageIcon className="w-5 h-5" />}
+          previewLimit={10}
+          searchKeys={['prompt', 'subject', 'userId']}
+          searchPlaceholder="Search by prompt, subject, or user ID..."
+          emptyMessage="No generated images yet"
+          emptyIcon={<ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />}
+          modalTitle="All Generated Images"
+          modalGridCols={4}
+          renderPreviewItem={(img, index) => (
+            index < 5 ? (
+              <div className="inline-block w-[calc(20%-0.8rem)] mr-4 mb-4">
+                <div className="group relative bg-gray-700/30 rounded-lg overflow-hidden border border-gray-600/50 hover:border-cyan-500/50 transition-colors">
+                  {img.imageUrl ? (
+                    <div className="aspect-square relative">
+                      <img
+                        src={img.imageUrl}
+                        alt={img.prompt || 'Generated image'}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                        <p className="text-xs text-white line-clamp-2 mb-1">
+                          {img.prompt || 'No prompt'}
+                        </p>
+                        <span className="text-xs text-gray-400">{img.subject || 'General'}</span>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="aspect-square flex items-center justify-center bg-gray-700/50">
-                    <ImageIcon className="w-8 h-8 text-gray-500" />
-                  </div>
-                )}
-                <div className="p-2 border-t border-gray-600/50">
-                  <Link
-                    href={`/admin/users/${img.userId}`}
-                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                  >
-                    View User
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
+                  ) : (
+                    <div className="aspect-square flex items-center justify-center bg-gray-700/50">
+                      <ImageIcon className="w-8 h-8 text-gray-500" />
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            No generated images yet
-          </div>
-        )}
+            ) : null
+          )}
+          renderFullItem={(img) => (
+            <div className="group relative bg-gray-700/30 rounded-lg overflow-hidden border border-gray-600/50 hover:border-cyan-500/50 transition-colors">
+              {img.imageUrl ? (
+                <div className="aspect-square relative">
+                  <img
+                    src={img.imageUrl}
+                    alt={img.prompt || 'Generated image'}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                    <p className="text-xs text-white line-clamp-3 mb-1">
+                      {img.prompt || 'No prompt'}
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span>{img.subject || 'General'}</span>
+                      <span>{formatRelativeTime(img.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="aspect-square flex items-center justify-center bg-gray-700/50">
+                  <ImageIcon className="w-8 h-8 text-gray-500" />
+                </div>
+              )}
+              <div className="p-2 border-t border-gray-600/50">
+                <Link
+                  href={`/admin/users/${img.userId}`}
+                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                >
+                  View User
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
       {/* Flagged Messages Section */}
@@ -726,49 +815,81 @@ export default function AdminAIPartnerPage() {
             {data.moderation.flaggedPercentage}% of all messages flagged
           </span>
         </div>
-        {data.moderation.recentFlagged.length > 0 ? (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {data.moderation.recentFlagged.map(msg => (
-              <div key={msg.id} className="p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
-                    }`}>
-                      {msg.role === 'USER' ? 'User' : 'AI'}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {msg.session.subject || 'General'} session
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-400">{formatRelativeTime(msg.createdAt)}</span>
+        <ExpandableList
+          items={data.moderation.recentFlagged}
+          title="Flagged Content"
+          icon={<Shield className="w-5 h-5" />}
+          previewLimit={10}
+          searchKeys={['content', 'role', 'flagCategories']}
+          searchPlaceholder="Search flagged content..."
+          emptyMessage="No flagged content"
+          emptyIcon={<Shield className="w-12 h-12 mx-auto mb-2 opacity-50" />}
+          modalTitle="All Flagged Content"
+          renderPreviewItem={(msg) => (
+            <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                  }`}>
+                    {msg.role === 'USER' ? 'User' : 'AI'}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {msg.session.subject || 'General'} session
+                  </span>
                 </div>
-                <p className="text-gray-300 text-sm mb-2 line-clamp-3">{msg.content}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-wrap gap-1">
-                    {msg.flagCategories.map((cat, idx) => (
-                      <span key={idx} className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                  <Link
-                    href={`/admin/users/${msg.session.userId}`}
-                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                  >
-                    View User
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
-                </div>
+                <span className="text-xs text-gray-400">{formatRelativeTime(msg.createdAt)}</span>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <Shield className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            No flagged content
-          </div>
-        )}
+              <p className="text-gray-300 text-sm mb-2 line-clamp-2">{msg.content}</p>
+              <div className="flex flex-wrap gap-1">
+                {msg.flagCategories.slice(0, 3).map((cat, idx) => (
+                  <span key={idx} className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded">
+                    {cat}
+                  </span>
+                ))}
+                {msg.flagCategories.length > 3 && (
+                  <span className="text-xs px-2 py-0.5 bg-gray-500/20 text-gray-400 rounded">
+                    +{msg.flagCategories.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          renderFullItem={(msg) => (
+            <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                  }`}>
+                    {msg.role === 'USER' ? 'User' : 'AI'}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {msg.session.subject || 'General'} session
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400">{formatRelativeTime(msg.createdAt)}</span>
+              </div>
+              <p className="text-gray-300 text-sm mb-2">{msg.content}</p>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-wrap gap-1">
+                  {msg.flagCategories.map((cat, idx) => (
+                    <span key={idx} className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded">
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+                <Link
+                  href={`/admin/users/${msg.session.userId}`}
+                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                >
+                  View User
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
       {/* Quick Actions */}

@@ -25,8 +25,41 @@ export async function GET(request: NextRequest) {
     // Get search query
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get('q') || ''
+    const ids = searchParams.get('ids') // Comma-separated IDs for batch lookup
     const limit = parseInt(searchParams.get('limit') || '10')
 
+    // If IDs are provided, do a batch lookup (for loading existing targeted users)
+    if (ids) {
+      const userIds = ids.split(',').filter(id => id.trim())
+      if (userIds.length === 0) {
+        return NextResponse.json({ success: true, users: [] })
+      }
+
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          subscriptionStatus: true,
+          isAdmin: true,
+        },
+      })
+
+      const formattedUsers = users.map(u => ({
+        id: u.id,
+        name: u.name || 'Unknown',
+        email: u.email,
+        avatarUrl: u.avatarUrl,
+        tier: u.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE',
+        isAdmin: u.isAdmin,
+      }))
+
+      return NextResponse.json({ success: true, users: formattedUsers })
+    }
+
+    // Regular search by name/email
     if (!query || query.length < 2) {
       return NextResponse.json({
         success: true,
@@ -67,7 +100,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: formattedUsers,  // Match frontend expectation
+      users: formattedUsers,  // Match frontend expectation (data.users)
     })
   } catch (error) {
     console.error('[Admin User Search] Error:', error)

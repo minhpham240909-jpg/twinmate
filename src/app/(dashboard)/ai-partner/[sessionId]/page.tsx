@@ -415,6 +415,59 @@ export default function AIPartnerSessionPage({
     }
   }
 
+  // Chat-driven image generation (no button). Called when user types an inline image command.
+  const handleGenerateImage = async (prompt: string, style: string = 'diagram') => {
+    setIsSending(true)
+    setError(null)
+
+    const tempMsgId = `temp-ai-${Date.now()}`
+    const tempMsg: Message = {
+      id: tempMsgId,
+      role: 'ASSISTANT',
+      content: `Generating ${style}: "${prompt}"...`,
+      messageType: 'IMAGE',
+      wasFlagged: false,
+      createdAt: new Date(),
+    }
+    setMessages((prev) => [...prev, tempMsg])
+
+    try {
+      const res = await fetch('/api/ai-partner/image/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, prompt, style }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempMsgId
+              ? {
+                  ...m,
+                  id: data.messageId || m.id,
+                  content: `Here's a ${style} for: "${prompt}"`,
+                  imageUrl: data.imageUrl,
+                  imageType: 'generated',
+                  createdAt: new Date(),
+                }
+              : m
+          )
+        )
+      } else {
+        setMessages((prev) => prev.filter((m) => m.id !== tempMsgId))
+        setError(data.error || 'Failed to generate image')
+      }
+    } catch (err) {
+      console.error('Failed to generate image:', err)
+      setMessages((prev) => prev.filter((m) => m.id !== tempMsgId))
+      setError('Failed to generate image. Please try again.')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   const handleEndSession = async (rating?: number, feedback?: string) => {
     try {
       const res = await fetch(`/api/ai-partner/session/${sessionId}`, {
@@ -613,6 +666,7 @@ export default function AIPartnerSessionPage({
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 onSendMessageWithImage={handleSendMessageWithImage}
+                onGenerateImage={handleGenerateImage}
                 onGenerateQuiz={handleGenerateQuiz}
                 onGenerateFlashcards={handleGenerateFlashcards}
                 isLoading={isSending}
