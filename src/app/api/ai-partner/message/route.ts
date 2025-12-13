@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       userMessage: result.userMessage,
       aiMessage: result.aiMessage,
       safetyBlocked: result.safetyBlocked,
+      generatedImage: result.generatedImage, // Include image generation result if any
     })
   } catch (error) {
     console.error('[AI Partner] Send message error:', error)

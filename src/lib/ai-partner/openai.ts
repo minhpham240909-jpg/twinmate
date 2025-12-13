@@ -486,40 +486,50 @@ export function buildStudyPartnerSystemPrompt(params: {
   const conversationRules = `
 
 ADAPTIVE CONVERSATION FLOW - CRITICAL RULES:
-Follow this natural conversation pattern like a real tutor:
+You are a study partner. Follow these rules strictly:
 
-1. WHEN USER ASKS A QUESTION → Answer directly and helpfully
-   - Provide a clear, complete answer
-   - Do NOT end with a question unless it's truly necessary for clarification
-   - Example: "The mitochondria is the powerhouse of the cell. It produces ATP through cellular respiration."
+1. DO NOT ASK A QUESTION IN EVERY MESSAGE
+   - Most responses should just provide helpful information
+   - End naturally without asking "Does that make sense?" or similar
+   - Let the student process before prompting again
 
-2. WHEN USER SEEMS STUCK OR SILENT → Offer a helpful prompt
-   - Suggest a direction or offer assistance
-   - Example: "Would you like me to explain this concept differently?" or "Should we try a practice problem?"
+2. ASK QUESTIONS ONLY WHEN NEEDED:
+   - For clarification: "Are you focusing on Algebra or Geometry?"
+   - For progress check: "Ready to try a practice problem?"
+   - For re-engagement: If student seems stuck with short replies like "ok", "idk"
+   - For offering help: "Would you like me to explain this differently?"
 
-3. WHEN USER COMPLETES SOMETHING → Suggest next steps
-   - Acknowledge their progress, then offer what's next
-   - Example: "Great work! You've got the basics down. Ready to try a harder problem, or should we move to the next topic?"
+3. PROACTIVE QUESTION COOLDOWN:
+   - After asking a proactive question, wait at least 4-6 responses before asking another
+   - Reset this cooldown if the student asks YOU a question
+   - This prevents being annoying or overwhelming
 
-4. WHEN USER IS WORKING → Stay in the background
-   - Let them work without interruption
-   - Only respond when they ask or clearly need help
+4. SESSION FLOW:
+   - START (first 2-3 exchanges): Ask about their goal and time available
+   - WORKING (default): Provide answers, explanations, examples - minimal questions
+   - STUCK (short replies, confusion): Offer ONE helpful question or alternative approach
+   - PROGRESS CHECK (every ~10 minutes of studying): "Want to continue or switch topics?"
 
-5. QUESTION STRATEGY - IMPORTANT:
-   - Only ask questions when they ADD VALUE:
-     * To clarify: "Are you focusing on Algebra or Geometry?"
-     * To check progress: "Want to try a practice question?"
-     * To offer help: "Should I explain more or are you ready to move on?"
-     * To suggest visuals: "Would a diagram help you visualize this?"
-   - Do NOT ask a question in every message
-   - If the answer is complete, just end the response naturally
-   - Avoid redundant questions like "Does that make sense?" after every explanation
+5. VISUAL SUGGESTIONS:
+   - Only offer to generate images/diagrams when the topic genuinely benefits from visuals
+   - Good topics for visuals: scientific processes, anatomy, circuits, graphs, timelines, flowcharts
+   - Don't offer visuals for every topic - only when it would actually help
 
 6. RESPONSE STYLE:
    - Be direct and educational
-   - Use natural transitions between topics
-   - Match the student's energy - brief replies to brief questions, detailed when needed
-   - End responses naturally - not every message needs a question
+   - Match the student's energy - brief replies to brief questions
+   - Provide complete answers without trailing questions
+   - Use natural endings, not forced engagement hooks
+
+EXAMPLES OF GOOD RESPONSES (no unnecessary questions):
+- "The mitochondria produces ATP through cellular respiration. It has an inner membrane with cristae that increases surface area for reactions."
+- "Here's how to solve quadratic equations using the formula: x = (-b ± √(b²-4ac)) / 2a. Let me show you an example..."
+- "Great work on that problem! The next topic in this chapter covers derivatives."
+
+EXAMPLES OF WHEN TO ASK (appropriate questions):
+- After 5+ exchanges with no questions: "Would you like to try a practice problem?"
+- When student says "I don't get it": "Would you like me to explain this a different way?"
+- When student gives very short replies multiple times: "Should we take a break or switch topics?"
 
 `
 
@@ -1941,8 +1951,307 @@ Style requirements:
 }
 
 /**
+ * Session States for Proactive AI Behavior
+ * Controls when and how AI asks questions or suggests visuals
+ */
+export type SessionState = 'START' | 'WORKING' | 'STUCK' | 'PROGRESS_CHECK' | 'WRAP_UP'
+
+/**
+ * Proactive suggestion types
+ */
+export type ProactiveSuggestionType =
+  | 'setup_question'      // At START: ask about goal/time
+  | 'clarification'       // During WORKING: user seems confused
+  | 'engagement'          // During STUCK: user disengaged
+  | 'progress_check'      // Every ~10 min: check if want to continue
+  | 'visual_suggestion'   // When topic benefits from image
+  | 'practice_offer'      // Offer practice question
+  | 'wrap_up'             // Session ending suggestions
+  | 'none'
+
+export interface ProactiveSuggestion {
+  type: ProactiveSuggestionType
+  suggestion?: string
+  imageSuggestion?: {
+    prompt: string
+    reason: string
+  }
+  shouldAsk: boolean
+}
+
+/**
+ * Detect user signals from their message
+ */
+function detectUserSignals(content: string): {
+  isShort: boolean
+  isConfused: boolean
+  isCompleted: boolean
+  isQuestion: boolean
+  isDisengaged: boolean
+} {
+  const lowerContent = content.toLowerCase().trim()
+  const wordCount = content.split(/\s+/).length
+
+  return {
+    isShort: wordCount <= 3,
+    isConfused: /i don'?t (get|understand)|confused|what do you mean|huh\??|i'?m lost|makes no sense|explain again/i.test(lowerContent),
+    isCompleted: /done|finished|got it|i understand|makes sense|thank you|thanks|next|move on/i.test(lowerContent),
+    isQuestion: /\?$|^(what|how|why|when|where|who|can you|could you|is it|are there)/i.test(lowerContent),
+    isDisengaged: /^(ok|okay|k|sure|yea|yeah|yes|no|idk|hmm|mhm|fine|whatever|i guess)\.?$/i.test(lowerContent),
+  }
+}
+
+/**
+ * Determine session state based on context
+ */
+function determineSessionState(params: {
+  messageCount: number
+  sessionDurationMinutes: number
+  recentUserSignals: ReturnType<typeof detectUserSignals>[]
+  lastProactiveAskMessageIndex: number
+  currentMessageIndex: number
+}): SessionState {
+  const { messageCount, sessionDurationMinutes, recentUserSignals, lastProactiveAskMessageIndex, currentMessageIndex } = params
+
+  // START: First 2-4 messages of session
+  if (messageCount <= 4) {
+    return 'START'
+  }
+
+  // WRAP_UP: Session > 45 minutes or user signals completion multiple times
+  if (sessionDurationMinutes >= 45) {
+    return 'WRAP_UP'
+  }
+
+  // PROGRESS_CHECK: Every ~10 minutes (but not too often)
+  if (sessionDurationMinutes > 0 && sessionDurationMinutes % 10 < 2 && sessionDurationMinutes >= 10) {
+    // Only if we haven't asked recently (at least 4 AI messages ago)
+    if (currentMessageIndex - lastProactiveAskMessageIndex >= 4) {
+      return 'PROGRESS_CHECK'
+    }
+  }
+
+  // STUCK: Recent signals show disengagement or confusion
+  const recentSignals = recentUserSignals.slice(-3)
+  const disengagedCount = recentSignals.filter(s => s.isDisengaged || s.isShort).length
+  const confusedRecently = recentSignals.some(s => s.isConfused)
+
+  if (disengagedCount >= 2 || confusedRecently) {
+    return 'STUCK'
+  }
+
+  // Default: WORKING
+  return 'WORKING'
+}
+
+/**
+ * Check if topic would benefit from a visual
+ * (Scientific, mathematical, historical, biological, physics, flowcharts)
+ */
+function topicBenefitsFromVisual(content: string, subject?: string): boolean {
+  const lowerContent = (content + ' ' + (subject || '')).toLowerCase()
+
+  const visualTopics = [
+    // Scientific processes
+    'cell division', 'mitosis', 'meiosis', 'photosynthesis', 'respiration',
+    'chemical reaction', 'molecule', 'atom', 'electron', 'dna', 'rna',
+    'protein synthesis', 'enzyme', 'metabolism', 'ecosystem', 'food chain',
+    'water cycle', 'carbon cycle', 'nitrogen cycle',
+
+    // Biology
+    'anatomy', 'organ', 'tissue', 'cell structure', 'membrane', 'nucleus',
+    'heart', 'brain', 'lung', 'digestive', 'circulatory', 'nervous system',
+    'skeleton', 'muscle', 'plant structure', 'leaf', 'root', 'stem',
+
+    // Physics
+    'force', 'motion', 'gravity', 'friction', 'acceleration', 'velocity',
+    'wave', 'frequency', 'amplitude', 'circuit', 'electricity', 'magnetism',
+    'light', 'reflection', 'refraction', 'lens', 'mirror', 'energy',
+    'momentum', 'thermodynamics', 'pressure', 'fluid',
+
+    // Math
+    'graph', 'coordinate', 'function', 'parabola', 'sine', 'cosine',
+    'triangle', 'circle', 'polygon', 'angle', 'geometry', 'vector',
+    'matrix', 'probability', 'statistics', 'histogram', 'pie chart',
+
+    // History/Geography
+    'timeline', 'map', 'territory', 'empire', 'migration', 'trade route',
+    'battle', 'civilization', 'dynasty', 'revolution',
+
+    // Computer Science
+    'algorithm', 'flowchart', 'data structure', 'tree', 'linked list',
+    'binary', 'sorting', 'recursion', 'network', 'database schema',
+
+    // Process/Comparison
+    'process', 'step by step', 'stages', 'phases', 'compare', 'difference',
+    'versus', 'vs', 'relationship', 'hierarchy', 'structure', 'diagram',
+  ]
+
+  return visualTopics.some(topic => lowerContent.includes(topic))
+}
+
+/**
+ * Main proactive suggestion system
+ * Determines when AI should ask questions or suggest visuals based on session state
+ */
+export async function getProactiveSuggestion(params: {
+  recentMessages: Array<{ role: string; content: string; createdAt?: Date | string }>
+  subject?: string
+  sessionStartedAt: Date | string
+  lastProactiveAskMessageIndex: number
+  aiMessageCountSinceLastAsk: number
+}): Promise<ProactiveSuggestion> {
+  const { recentMessages, subject, sessionStartedAt, lastProactiveAskMessageIndex, aiMessageCountSinceLastAsk } = params
+
+  // Calculate session duration
+  const startTime = new Date(sessionStartedAt).getTime()
+  const now = Date.now()
+  const sessionDurationMinutes = Math.floor((now - startTime) / 60000)
+
+  // Get user signals from recent messages
+  const userMessages = recentMessages.filter(m => m.role === 'user')
+  const recentUserSignals = userMessages.slice(-5).map(m => detectUserSignals(m.content))
+  const latestUserSignal = recentUserSignals[recentUserSignals.length - 1]
+
+  // Count messages
+  const messageCount = recentMessages.length
+  const currentMessageIndex = messageCount
+
+  // Determine session state
+  const state = determineSessionState({
+    messageCount,
+    sessionDurationMinutes,
+    recentUserSignals,
+    lastProactiveAskMessageIndex,
+    currentMessageIndex,
+  })
+
+  // COOLDOWN CHECK: Only allow 1 proactive question every 4-6 AI messages
+  // Reset if user asked a question
+  const cooldownActive = aiMessageCountSinceLastAsk < 4 && !latestUserSignal?.isQuestion
+
+  // Get last AI and user messages
+  const lastAiMessage = recentMessages.filter(m => m.role === 'assistant').slice(-1)[0]
+  const lastUserMessage = userMessages.slice(-1)[0]
+
+  // === STATE-BASED LOGIC ===
+
+  // STATE: START - Ask 1-2 setup questions
+  if (state === 'START' && messageCount <= 3) {
+    return {
+      type: 'setup_question',
+      suggestion: messageCount === 1
+        ? "What would you like to focus on today?"
+        : "How much time do you have for studying?",
+      shouldAsk: true,
+    }
+  }
+
+  // STATE: WRAP_UP - Offer summary/homework
+  if (state === 'WRAP_UP' && !cooldownActive) {
+    return {
+      type: 'wrap_up',
+      suggestion: "Would you like a summary of what we covered, or some practice questions to try later?",
+      shouldAsk: true,
+    }
+  }
+
+  // STATE: PROGRESS_CHECK - Ask about continuing
+  if (state === 'PROGRESS_CHECK' && !cooldownActive) {
+    return {
+      type: 'progress_check',
+      suggestion: "You're doing great! Want to keep going with this topic, or try something more challenging?",
+      shouldAsk: true,
+    }
+  }
+
+  // STATE: STUCK - User seems disengaged or confused
+  if (state === 'STUCK' && !cooldownActive) {
+    if (latestUserSignal?.isConfused) {
+      return {
+        type: 'clarification',
+        suggestion: "Would you like me to explain this in a different way?",
+        shouldAsk: true,
+      }
+    }
+    if (latestUserSignal?.isDisengaged || latestUserSignal?.isShort) {
+      return {
+        type: 'engagement',
+        suggestion: "Should we try a quick practice question, or would you prefer to move to a different topic?",
+        shouldAsk: true,
+      }
+    }
+  }
+
+  // STATE: WORKING - Default behavior, minimal questions
+  // Only ask if there's a clear signal
+
+  // Check if user just completed something
+  if (latestUserSignal?.isCompleted && !cooldownActive) {
+    return {
+      type: 'practice_offer',
+      suggestion: "Great! Ready to try a practice problem, or should we move on?",
+      shouldAsk: true,
+    }
+  }
+
+  // === VISUAL SUGGESTION (kept from original, applies in any state) ===
+  // Only suggest if topic benefits AND cooldown allows
+  if (!cooldownActive && lastAiMessage && topicBenefitsFromVisual(lastAiMessage.content, subject)) {
+    // Use lightweight check - no API call needed
+    const aiContent = lastAiMessage.content.toLowerCase()
+
+    // Determine what kind of visual to suggest
+    let visualPrompt = ''
+    let visualReason = ''
+
+    if (/cell|mitosis|meiosis|membrane|nucleus/.test(aiContent)) {
+      visualPrompt = `Detailed diagram of ${subject || 'cell structure'}`
+      visualReason = 'A visual diagram could help you see the structure clearly'
+    } else if (/circuit|electricity|current|voltage/.test(aiContent)) {
+      visualPrompt = 'Circuit diagram showing the flow of electricity'
+      visualReason = 'Seeing the circuit layout makes it easier to understand'
+    } else if (/graph|function|coordinate|parabola/.test(aiContent)) {
+      visualPrompt = `Graph showing ${subject || 'the mathematical function'}`
+      visualReason = 'A graph would help visualize the relationship'
+    } else if (/process|step|stage|cycle/.test(aiContent)) {
+      visualPrompt = `Flowchart showing the ${subject || 'process'} steps`
+      visualReason = 'A flowchart can make the sequence clearer'
+    } else if (/anatomy|organ|body|heart|brain|lung/.test(aiContent)) {
+      visualPrompt = `Anatomical illustration of ${subject || 'the organ'}`
+      visualReason = 'An illustration would help you see the structure'
+    } else if (/timeline|history|empire|war|revolution/.test(aiContent)) {
+      visualPrompt = `Timeline of ${subject || 'historical events'}`
+      visualReason = 'A timeline helps visualize the sequence of events'
+    } else if (/compare|difference|versus|vs/.test(aiContent)) {
+      visualPrompt = `Comparison chart for ${subject || 'the concepts'}`
+      visualReason = 'A comparison chart makes differences clearer'
+    }
+
+    if (visualPrompt) {
+      return {
+        type: 'visual_suggestion',
+        imageSuggestion: {
+          prompt: visualPrompt,
+          reason: visualReason,
+        },
+        shouldAsk: false, // Visual suggestions don't count as "asking"
+      }
+    }
+  }
+
+  // DEFAULT: No proactive action needed
+  return {
+    type: 'none',
+    shouldAsk: false,
+  }
+}
+
+/**
  * Check if AI should suggest generating an image based on conversation
  * Returns suggestion if a visual would help explain the current topic
+ *
+ * @deprecated Use getProactiveSuggestion instead for state-based suggestions
  */
 export async function shouldSuggestImageGeneration(params: {
   recentMessages: Array<{ role: string; content: string }>

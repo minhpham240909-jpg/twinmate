@@ -16,6 +16,9 @@ import {
   Clock,
   Target,
   Lightbulb,
+  ImageIcon,
+  X,
+  Sparkles,
 } from 'lucide-react'
 // Regular imports for light components
 import AIPartnerSessionTimer from '@/components/ai-partner/AIPartnerSessionTimer'
@@ -92,6 +95,19 @@ export default function AIPartnerSessionPage({
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('chat')
 
+  // State-based proactive suggestion system
+  // Types: setup_question, clarification, engagement, progress_check, visual_suggestion, practice_offer, wrap_up, none
+  const [proactiveSuggestion, setProactiveSuggestion] = useState<{
+    show: boolean
+    type: string
+    suggestion?: string
+    imageSuggestion?: { prompt: string; reason: string }
+  }>({ show: false, type: 'none' })
+
+  // Track state for proactive system (cooldowns, last ask index)
+  const [lastProactiveAskIndex, setLastProactiveAskIndex] = useState(0)
+  const [aiMessagesSinceLastAsk, setAiMessagesSinceLastAsk] = useState(0)
+
   useEffect(() => {
     fetchSession()
   }, [sessionId])
@@ -113,6 +129,58 @@ export default function AIPartnerSessionPage({
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // State-based proactive suggestion check
+  // Called after AI responses to determine if we should suggest something
+  const checkProactiveSuggestion = async () => {
+    // Don't check if suggestion already showing
+    if (proactiveSuggestion.show) return
+
+    try {
+      const res = await fetch(
+        `/api/ai-partner/proactive?sessionId=${sessionId}&lastProactiveIndex=${lastProactiveAskIndex}&aiMessagesSinceAsk=${aiMessagesSinceLastAsk}`
+      )
+      const data = await res.json()
+
+      // Only show if there's an actual suggestion
+      if (data.type !== 'none' && (data.suggestion || data.imageSuggestion)) {
+        setProactiveSuggestion({
+          show: true,
+          type: data.type,
+          suggestion: data.suggestion,
+          imageSuggestion: data.imageSuggestion,
+        })
+
+        // If this was a "shouldAsk" type, update tracking
+        if (data.shouldAsk) {
+          const currentMessageCount = messages.filter(m => m.role !== 'SYSTEM').length
+          setLastProactiveAskIndex(currentMessageCount)
+          setAiMessagesSinceLastAsk(0)
+        }
+      }
+    } catch (err) {
+      // Silently fail - this is just an enhancement
+      console.error('Proactive suggestion check failed:', err)
+    }
+  }
+
+  // Handle accepting a proactive question suggestion (add to chat as AI message)
+  const handleAcceptProactiveSuggestion = async () => {
+    if (proactiveSuggestion.type === 'visual_suggestion' && proactiveSuggestion.imageSuggestion) {
+      // Generate image
+      setProactiveSuggestion({ show: false, type: 'none' })
+      await handleGenerateImage(proactiveSuggestion.imageSuggestion.prompt, 'illustration')
+    } else if (proactiveSuggestion.suggestion) {
+      // For questions/suggestions, we can show as a soft prompt or dismiss
+      // The AI will naturally incorporate these into responses
+      setProactiveSuggestion({ show: false, type: 'none' })
+    }
+  }
+
+  // Dismiss the proactive suggestion
+  const handleDismissProactiveSuggestion = () => {
+    setProactiveSuggestion({ show: false, type: 'none' })
   }
 
   const handleSendMessage = async (content: string) => {
@@ -152,7 +220,7 @@ export default function AIPartnerSessionPage({
         body: JSON.stringify({ sessionId, content }),
       })
 
-      // Check if it's a blocked response (JSON, not stream)
+      // Check if it's a JSON response (blocked, image, or error - not stream)
       const contentType = res.headers.get('Content-Type')
       if (contentType?.includes('application/json')) {
         const data = await res.json()
@@ -181,6 +249,34 @@ export default function AIPartnerSessionPage({
           })
           setError('Session ended due to content policy violation.')
           setTimeout(() => router.push('/ai-partner'), 3000)
+          return
+        }
+        // Handle image generation response
+        if (data.type === 'image') {
+          setMessages((prev) => {
+            const filtered = prev.filter((m) => !m.id.startsWith('temp-'))
+            return [
+              ...filtered,
+              {
+                id: data.userMessageId,
+                role: 'USER',
+                content,
+                messageType: 'CHAT',
+                wasFlagged: data.userMessageWasFlagged,
+                createdAt: new Date(),
+              },
+              {
+                id: data.aiMessageId,
+                role: 'ASSISTANT',
+                content: data.content,
+                messageType: 'IMAGE',
+                wasFlagged: false,
+                createdAt: new Date(),
+                imageUrl: data.imageUrl,
+                imageType: 'generated',
+              },
+            ]
+          })
           return
         }
         if (data.error) {
@@ -245,6 +341,10 @@ export default function AIPartnerSessionPage({
                       : m
                   )
                 )
+                // Increment AI message counter for cooldown tracking
+                setAiMessagesSinceLastAsk(prev => prev + 1)
+                // Check for state-based proactive suggestion
+                checkProactiveSuggestion()
               } else if (data.type === 'error') {
                 setMessages((prev) => prev.filter((m) => m.id !== tempAiMsgId))
                 setError(data.error || 'Failed to get AI response')
@@ -652,6 +752,90 @@ export default function AIPartnerSessionPage({
             <AlertTriangle className="w-4 h-4" />
             {error}
           </p>
+        </motion.div>
+      )}
+
+      {/* State-based Proactive Suggestion Banner (smart, non-annoying, dismissable) */}
+      {proactiveSuggestion.show && activeTab === 'chat' && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className={`border-b px-4 py-3 ${
+            proactiveSuggestion.type === 'visual_suggestion'
+              ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/20'
+              : proactiveSuggestion.type === 'clarification' || proactiveSuggestion.type === 'engagement'
+              ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/20'
+              : 'bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-blue-500/20'
+          }`}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className={`p-2 rounded-lg ${
+                proactiveSuggestion.type === 'visual_suggestion'
+                  ? 'bg-purple-500/20'
+                  : proactiveSuggestion.type === 'clarification' || proactiveSuggestion.type === 'engagement'
+                  ? 'bg-amber-500/20'
+                  : 'bg-blue-500/20'
+              }`}>
+                {proactiveSuggestion.type === 'visual_suggestion' ? (
+                  <ImageIcon className="w-5 h-5 text-purple-400" />
+                ) : proactiveSuggestion.type === 'clarification' || proactiveSuggestion.type === 'engagement' ? (
+                  <Lightbulb className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <Sparkles className="w-5 h-5 text-blue-400" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-slate-200 font-medium">
+                  {proactiveSuggestion.type === 'visual_suggestion'
+                    ? 'Would a visual help?'
+                    : proactiveSuggestion.type === 'clarification'
+                    ? 'Need a different explanation?'
+                    : proactiveSuggestion.type === 'engagement'
+                    ? 'Let\'s try something different'
+                    : proactiveSuggestion.type === 'progress_check'
+                    ? 'Quick check-in'
+                    : proactiveSuggestion.type === 'wrap_up'
+                    ? 'Session wrap-up'
+                    : proactiveSuggestion.type === 'practice_offer'
+                    ? 'Ready to practice?'
+                    : 'Suggestion'}
+                </p>
+                <p className="text-xs text-slate-400 truncate">
+                  {proactiveSuggestion.imageSuggestion?.reason ||
+                   proactiveSuggestion.suggestion ||
+                   'I have a suggestion that might help'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {proactiveSuggestion.type === 'visual_suggestion' ? (
+                <button
+                  onClick={handleAcceptProactiveSuggestion}
+                  disabled={isSending}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-50"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  Generate
+                </button>
+              ) : (
+                <button
+                  onClick={handleDismissProactiveSuggestion}
+                  className="px-3 py-1.5 bg-slate-700 text-white text-sm rounded-lg hover:bg-slate-600 transition-colors"
+                >
+                  Got it
+                </button>
+              )}
+              <button
+                onClick={handleDismissProactiveSuggestion}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </motion.div>
       )}
 

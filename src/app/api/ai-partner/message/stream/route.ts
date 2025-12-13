@@ -13,7 +13,140 @@ import {
   checkContentSafety,
   AIMessage,
   manageContextWindow,
+  generateEducationalImage,
+  ImageGenerationStyle,
 } from '@/lib/ai-partner/openai'
+
+/**
+ * Detect if user is asking for image generation
+ */
+function detectImageGenerationRequest(content: string): {
+  isImageRequest: boolean
+  prompt?: string
+  style?: ImageGenerationStyle
+} {
+  const lowerContent = content.toLowerCase()
+
+  // Keywords that indicate image generation request
+  const imageKeywords = [
+    'generate an image',
+    'generate image',
+    'create an image',
+    'create image',
+    'draw',
+    'make an image',
+    'make image',
+    'show me a picture',
+    'show me an image',
+    'visualize',
+    'create a diagram',
+    'create diagram',
+    'make a diagram',
+    'make diagram',
+    'generate a diagram',
+    'draw a diagram',
+    'create an illustration',
+    'create illustration',
+    'make an illustration',
+    'illustrate',
+    'generate a picture',
+    'create a picture',
+    'make a picture',
+    'generate a visual',
+    'create a visual',
+    'can you draw',
+    'can you create an image',
+    'can you generate an image',
+    'can you make an image',
+    'could you draw',
+    'could you create an image',
+    'please draw',
+    'please create an image',
+    'please generate an image',
+    'i want an image',
+    'i need an image',
+    'i want a picture',
+    'i need a picture',
+    'show me visually',
+    'give me an image',
+    'give me a picture',
+    'create a chart',
+    'make a chart',
+    'generate a chart',
+    'create a flowchart',
+    'make a flowchart',
+    'create an infographic',
+    'make an infographic',
+    'create a mindmap',
+    'make a mindmap',
+    'create a logo',
+    'make a logo',
+    'design a logo',
+    'create a poster',
+    'make a poster',
+    'design a poster',
+  ]
+
+  const isImageRequest = imageKeywords.some(keyword => lowerContent.includes(keyword))
+
+  if (!isImageRequest) {
+    return { isImageRequest: false }
+  }
+
+  // Determine style based on keywords
+  let style: ImageGenerationStyle = 'illustration' // default
+
+  if (lowerContent.includes('diagram')) {
+    style = 'diagram'
+  } else if (lowerContent.includes('chart') && !lowerContent.includes('flowchart')) {
+    style = 'chart'
+  } else if (lowerContent.includes('flowchart')) {
+    style = 'flowchart'
+  } else if (lowerContent.includes('infographic')) {
+    style = 'infographic'
+  } else if (lowerContent.includes('mindmap') || lowerContent.includes('mind map')) {
+    style = 'mindmap'
+  } else if (lowerContent.includes('timeline')) {
+    style = 'timeline'
+  } else if (lowerContent.includes('concept map')) {
+    style = 'concept-map'
+  } else if (lowerContent.includes('logo')) {
+    style = 'logo'
+  } else if (lowerContent.includes('poster')) {
+    style = 'poster'
+  } else if (lowerContent.includes('icon')) {
+    style = 'icon'
+  } else if (lowerContent.includes('cartoon')) {
+    style = 'cartoon'
+  } else if (lowerContent.includes('sketch')) {
+    style = 'sketch'
+  } else if (lowerContent.includes('technical') || lowerContent.includes('blueprint')) {
+    style = 'technical'
+  } else if (lowerContent.includes('realistic') || lowerContent.includes('photo')) {
+    style = 'picture'
+  }
+
+  // Extract the prompt - remove the image generation keywords to get the actual subject
+  let prompt = content
+  for (const keyword of imageKeywords) {
+    const regex = new RegExp(keyword, 'gi')
+    prompt = prompt.replace(regex, '')
+  }
+  // Clean up common filler words
+  prompt = prompt
+    .replace(/^(of|about|for|showing|depicting|with|that shows|that depicts)\s+/i, '')
+    .replace(/\s+(of|about|for|showing|depicting|with)\s*$/i, '')
+    .replace(/^\s*[,.:;]\s*/, '')
+    .replace(/\s*[,.:;]\s*$/, '')
+    .trim()
+
+  // If prompt is too short, use the original content
+  if (prompt.length < 5) {
+    prompt = content
+  }
+
+  return { isImageRequest: true, prompt, style }
+}
 
 // Simple per-user rate limit to protect OpenAI/DB (30 requests per minute)
 const RATE_LIMIT_WINDOW_MS = 60_000
@@ -161,6 +294,68 @@ export async function POST(request: NextRequest) {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
+    }
+
+    // IMAGE GENERATION: Check if user is asking for an image
+    const imageRequest = detectImageGenerationRequest(content)
+
+    if (imageRequest.isImageRequest && imageRequest.prompt) {
+      console.log('[AI Partner Stream] Image generation request detected:', imageRequest)
+
+      try {
+        // Generate the image using DALL-E
+        const imageResult = await generateEducationalImage({
+          prompt: imageRequest.prompt,
+          subject: session.subject || undefined,
+          skillLevel: session.skillLevel || undefined,
+          style: imageRequest.style || 'illustration',
+        })
+
+        // Create a friendly response about the generated image
+        const imageDescription = `I've created a ${imageRequest.style || 'illustration'} for you! Here's what I visualized based on your request: "${imageRequest.prompt}"`
+
+        // Save AI message with image
+        const aiMsg = await prisma.aIPartnerMessage.create({
+          data: {
+            sessionId: session.id,
+            studySessionId: session.studySessionId,
+            role: 'ASSISTANT',
+            content: imageDescription,
+            messageType: 'IMAGE',
+            imageUrl: imageResult.imageUrl,
+            imageType: 'generated',
+            imagePrompt: imageRequest.prompt,
+            wasModerated: false,
+          },
+        })
+
+        // Update session message count
+        await prisma.aIPartnerSession.update({
+          where: { id: session.id },
+          data: {
+            messageCount: { increment: 2 },
+            ...(moderation.flagged ? { flaggedCount: { increment: 1 } } : {}),
+          },
+        })
+
+        // Return image generation result (no streaming needed for images)
+        return new Response(JSON.stringify({
+          type: 'image',
+          userMessageId: userMsg.id,
+          userMessageWasFlagged: moderation.flagged,
+          aiMessageId: aiMsg.id,
+          content: imageDescription,
+          imageUrl: imageResult.imageUrl,
+          revisedPrompt: imageResult.revisedPrompt,
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (imageError) {
+        console.error('[AI Partner Stream] Image generation failed:', imageError)
+        // If image generation fails, fall back to text response
+        // Continue with normal streaming response below
+      }
     }
 
     // Get pinned system/persona prompts (keep all) and latest user/assistant messages
