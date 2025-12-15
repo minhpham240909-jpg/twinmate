@@ -250,10 +250,21 @@ export default function AIPartnerChat({
         )}
 
         <div className="whitespace-pre-wrap text-sm leading-relaxed">
-          {message.content}
-          {/* Show blinking cursor for streaming AI messages */}
-          {message.role === 'ASSISTANT' && message.id.startsWith('temp-') && (
-            <span className="inline-block w-2 h-4 bg-blue-400 ml-0.5 animate-pulse" />
+          {/* Show typing indicator when streaming but no content yet */}
+          {message.role === 'ASSISTANT' && message.id.startsWith('temp-') && !message.content ? (
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          ) : (
+            <>
+              {message.content}
+              {/* Show blinking cursor for streaming AI messages */}
+              {message.role === 'ASSISTANT' && message.id.startsWith('temp-') && message.content && (
+                <span className="inline-block w-2 h-4 bg-blue-400 ml-0.5 animate-pulse" />
+              )}
+            </>
           )}
         </div>
 
@@ -343,8 +354,8 @@ export default function AIPartnerChat({
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator */}
-        {(isLoading || isSending) && (
+        {/* Loading indicator - only show if no streaming message exists */}
+        {(isLoading || isSending) && !messages.some(m => m.role === 'ASSISTANT' && m.id.startsWith('temp-')) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
