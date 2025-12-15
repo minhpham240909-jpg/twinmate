@@ -139,19 +139,53 @@ export async function POST(request: NextRequest) {
           let targetUsers: { id: string }[] = []
 
           // Determine target users based on targeting options
-          if (Array.isArray(targetUserIds) && targetUserIds.length > 0) {
-            // Specific users selected
-            targetUsers = await prisma.user.findMany({
+          if (targetRole === 'SPECIFIC') {
+            // SPECIFIC mode: Only send to selected users, no one else
+            if (Array.isArray(targetUserIds) && targetUserIds.length > 0) {
+              targetUsers = await prisma.user.findMany({
+                where: {
+                  id: { in: targetUserIds },
+                  deactivatedAt: null, // Only active users
+                },
+                select: { id: true },
+              })
+            }
+            // If no users selected in SPECIFIC mode, targetUsers stays empty
+          } else if (Array.isArray(targetUserIds) && targetUserIds.length > 0 && !targetRole) {
+            // Specific users selected with "All Users" - send to BOTH selected users AND all users
+            // This combines the targeting
+            const specificUsers = await prisma.user.findMany({
               where: { id: { in: targetUserIds } },
               select: { id: true },
             })
-          } else if (targetRole) {
-            // Users with specific role (e.g., 'FREE', 'PREMIUM')
-            // Cast string to enum value for Prisma
-            targetUsers = await prisma.user.findMany({
-              where: { role: targetRole as 'FREE' | 'PREMIUM' },
+            const allUsers = await prisma.user.findMany({
+              where: { deactivatedAt: null },
               select: { id: true },
             })
+            // Merge and dedupe
+            const userIdSet = new Set([...specificUsers.map(u => u.id), ...allUsers.map(u => u.id)])
+            targetUsers = Array.from(userIdSet).map(id => ({ id }))
+          } else if (targetRole === 'FREE' || targetRole === 'PREMIUM') {
+            // Users with specific role (e.g., 'FREE', 'PREMIUM')
+            targetUsers = await prisma.user.findMany({
+              where: {
+                role: targetRole as 'FREE' | 'PREMIUM',
+                deactivatedAt: null,
+              },
+              select: { id: true },
+            })
+            // If specific users also selected, add them too
+            if (Array.isArray(targetUserIds) && targetUserIds.length > 0) {
+              const additionalUsers = await prisma.user.findMany({
+                where: {
+                  id: { in: targetUserIds },
+                  deactivatedAt: null,
+                },
+                select: { id: true },
+              })
+              const userIdSet = new Set([...targetUsers.map(u => u.id), ...additionalUsers.map(u => u.id)])
+              targetUsers = Array.from(userIdSet).map(id => ({ id }))
+            }
           } else {
             // All active users (not deactivated)
             targetUsers = await prisma.user.findMany({

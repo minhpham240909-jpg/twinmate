@@ -193,11 +193,14 @@ export default function AdminAnnouncementsPage() {
 
   // Open edit modal
   const openEditModal = async (announcement: AnnouncementData) => {
+    // Determine targetRole - if SPECIFIC is stored, use it; otherwise use what's stored
+    let targetRoleValue = announcement.targetRole || ''
+
     setFormData({
       title: announcement.title,
       content: announcement.content,
       priority: announcement.priority,
-      targetRole: announcement.targetRole || '',
+      targetRole: targetRoleValue,
       startsAt: announcement.startsAt ? new Date(announcement.startsAt).toISOString().slice(0, 16) : '',
       expiresAt: announcement.expiresAt ? new Date(announcement.expiresAt).toISOString().slice(0, 16) : '',
     })
@@ -440,7 +443,7 @@ export default function AdminAnnouncementsPage() {
                         <span className={`text-xs px-2 py-1 rounded ${priorityBadge.color}`}>
                           {priorityBadge.label}
                         </span>
-                        {announcement.targetRole && (
+                        {announcement.targetRole && announcement.targetRole !== 'SPECIFIC' && (
                           <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-400 flex items-center gap-1">
                             {announcement.targetRole === 'PREMIUM' ? (
                               <Crown className="w-3 h-3" />
@@ -450,10 +453,16 @@ export default function AdminAnnouncementsPage() {
                             {announcement.targetRole} Only
                           </span>
                         )}
-                        {announcement.targetUserIds && announcement.targetUserIds.length > 0 && (
+                        {announcement.targetRole === 'SPECIFIC' && announcement.targetUserIds && announcement.targetUserIds.length > 0 && (
                           <span className="text-xs px-2 py-1 rounded bg-cyan-500/20 text-cyan-400 flex items-center gap-1">
                             <UserPlus className="w-3 h-3" />
-                            {announcement.targetUserIds.length} specific user{announcement.targetUserIds.length !== 1 ? 's' : ''}
+                            {announcement.targetUserIds.length} specific user{announcement.targetUserIds.length !== 1 ? 's' : ''} only
+                          </span>
+                        )}
+                        {announcement.targetRole !== 'SPECIFIC' && announcement.targetUserIds && announcement.targetUserIds.length > 0 && (
+                          <span className="text-xs px-2 py-1 rounded bg-cyan-500/20 text-cyan-400 flex items-center gap-1">
+                            <UserPlus className="w-3 h-3" />
+                            +{announcement.targetUserIds.length} additional user{announcement.targetUserIds.length !== 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
@@ -652,13 +661,26 @@ export default function AdminAnnouncementsPage() {
                   </label>
                   <select
                     value={formData.targetRole}
-                    onChange={(e) => setFormData({ ...formData, targetRole: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData({ ...formData, targetRole: value })
+                      // Auto-show user search when "SPECIFIC" is selected
+                      if (value === 'SPECIFIC') {
+                        setShowUserSearch(true)
+                      }
+                    }}
                     className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
                     <option value="">All Users</option>
-                    <option value="FREE">Free Users</option>
-                    <option value="PREMIUM">Premium Users</option>
+                    <option value="FREE">Free Users Only</option>
+                    <option value="PREMIUM">Premium Users Only</option>
+                    <option value="SPECIFIC">Specific Users Only</option>
                   </select>
+                  {formData.targetRole === 'SPECIFIC' && selectedUsers.length === 0 && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      ⚠️ Please select at least one user below
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -789,7 +811,9 @@ export default function AdminAnnouncementsPage() {
                     )}
 
                     <p className="text-xs text-gray-500">
-                      These users will receive this announcement in addition to the target audience above.
+                      {formData.targetRole === 'SPECIFIC'
+                        ? 'Only these selected users will receive the announcement.'
+                        : 'These users will receive this announcement in addition to the target audience above.'}
                     </p>
                   </div>
                 )}
@@ -832,7 +856,7 @@ export default function AdminAnnouncementsPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || !formData.title || !formData.content}
+                disabled={isSubmitting || !formData.title || !formData.content || (formData.targetRole === 'SPECIFIC' && selectedUsers.length === 0)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting ? (

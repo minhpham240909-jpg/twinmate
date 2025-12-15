@@ -316,7 +316,9 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         body: JSON.stringify({ notificationIds: Array.from(selectedNotifications) })
       })
 
-      if (response.ok) {
+      const data = await response.json()
+
+      if (response.ok && data.success) {
         setNotifications(prev => prev.filter(n => !selectedNotifications.has(n.id)))
         setSelectedNotifications(new Set())
 
@@ -326,11 +328,12 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         ).length
         onUnreadCountChange(remainingUnread)
       } else {
-        alert('Failed to delete notifications')
+        console.error('Delete failed:', data)
+        alert(data.error || 'Failed to delete notifications')
       }
     } catch (error) {
       console.error('Error deleting notifications:', error)
-      alert('Failed to delete notifications')
+      alert('Failed to delete notifications. Please try again.')
     }
   }
 
