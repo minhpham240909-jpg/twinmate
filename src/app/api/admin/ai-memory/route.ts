@@ -112,12 +112,15 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    // Enrich top users with user info
+    // Enrich top users with user info (userId is a string, not a relation)
+    // This is acceptable since the list is small (10 users max)
     const userIds = topUsers.map(u => u.userId)
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, name: true, email: true, avatarUrl: true },
-    })
+    const users = userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        })
+      : []
 
     const usersMap = users.reduce((acc, u) => {
       acc[u.id] = u

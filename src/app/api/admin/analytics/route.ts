@@ -556,34 +556,37 @@ export async function GET(request: NextRequest) {
         take: 100
       })
 
-      // Get user info for each activity
+      // Get user info for each activity (userId is a string, not a relation)
+      // This is acceptable for paginated results (max 100 activities)
       const userIds = [...new Set(activities.map(a => a.userId))]
-      const users = await prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, name: true, email: true, avatarUrl: true }
-      })
+      const users = userIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, name: true, email: true, avatarUrl: true }
+          })
+        : []
       const userMap = new Map(users.map(u => [u.id, u]))
 
-      // Stats by type
-      const statsByType = await prisma.suspiciousActivityLog.groupBy({
-        by: ['type'],
-        where: { createdAt: { gte: startDate } },
-        _count: { id: true }
-      })
-
-      // Stats by severity
-      const statsBySeverity = await prisma.suspiciousActivityLog.groupBy({
-        by: ['severity'],
-        where: { createdAt: { gte: startDate } },
-        _count: { id: true }
-      })
+      // Stats by type and severity in parallel
+      const [statsByType, statsBySeverity] = await Promise.all([
+        prisma.suspiciousActivityLog.groupBy({
+          by: ['type'],
+          where: { createdAt: { gte: startDate } },
+          _count: { id: true }
+        }),
+        prisma.suspiciousActivityLog.groupBy({
+          by: ['severity'],
+          where: { createdAt: { gte: startDate } },
+          _count: { id: true }
+        }),
+      ])
 
       return NextResponse.json({
         success: true,
         data: {
           activities: activities.map(a => ({
             ...a,
-            user: userMap.get(a.userId)
+            user: userMap.get(a.userId) || null
           })),
           statsByType: statsByType.map(s => ({ type: s.type, count: s._count.id })),
           statsBySeverity: statsBySeverity.map(s => ({ severity: s.severity, count: s._count.id })),

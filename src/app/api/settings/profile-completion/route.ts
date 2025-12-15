@@ -80,8 +80,13 @@ export async function GET(request: NextRequest) {
     // Required fields are worth 70%, optional fields are worth 30%
     const requiredWeight = 0.7
     const optionalWeight = 0.3
-    const requiredPercentage = (completedRequired / requiredFields.length) * 100
-    const optionalPercentage = (completedOptional / optionalFields.length) * 100
+    // Division by zero fix: Guard against empty field arrays
+    const requiredPercentage = requiredFields.length > 0
+      ? (completedRequired / requiredFields.length) * 100
+      : 100  // If no required fields, consider it 100% complete
+    const optionalPercentage = optionalFields.length > 0
+      ? (completedOptional / optionalFields.length) * 100
+      : 100  // If no optional fields, consider it 100% complete
     const completionPercentage = Math.round(
       (requiredPercentage * requiredWeight) + (optionalPercentage * optionalWeight)
     )

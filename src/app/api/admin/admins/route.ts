@@ -45,15 +45,18 @@ export async function GET() {
       orderBy: { adminGrantedAt: 'desc' },
     })
 
-    // Get who granted admin access
+    // Get who granted admin access (adminGrantedBy is a plain string ID, not a relation)
+    // This is acceptable since the admin list is typically small (<100 users)
     const grantedByIds = admins
       .filter(a => a.adminGrantedBy)
       .map(a => a.adminGrantedBy as string)
 
-    const granters = await prisma.user.findMany({
-      where: { id: { in: grantedByIds } },
-      select: { id: true, name: true, email: true },
-    })
+    const granters = grantedByIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: grantedByIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : []
 
     const granterMap = new Map(granters.map(g => [g.id, g]))
 

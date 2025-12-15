@@ -34,33 +34,29 @@ export async function GET(
     }
 
     // SECURITY: Verify user is a JOINED participant (not just INVITED)
-    const participant = await prisma.sessionParticipant.findFirst({
+    // Combined query: Get participant status AND session in ONE query
+    const participantWithSession = await prisma.sessionParticipant.findFirst({
       where: {
         sessionId,
         userId: user.id,
         status: 'JOINED', // Only JOINED participants can view flashcards
       },
+      include: {
+        session: {
+          select: { id: true, createdBy: true }
+        }
+      }
     })
 
-    if (!participant) {
+    if (!participantWithSession) {
       return NextResponse.json(
         { error: 'Not a participant in this session' },
         { status: 403 }
       )
     }
 
-    // Get session details to identify the host
-    const session = await prisma.studySession.findUnique({
-      where: { id: sessionId },
-      select: { createdBy: true }
-    })
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      )
-    }
+    // Session is guaranteed to exist if participant exists (FK constraint)
+    // Note: session data available via participantWithSession.session if needed
 
     // Get URL search params for filtering
     const searchParams = request.nextUrl.searchParams
@@ -136,29 +132,31 @@ export async function POST(
       )
     }
 
-    // Verify user is a participant in the session
-    const participant = await prisma.sessionParticipant.findFirst({
+    // SECURITY: Verify user is a JOINED participant
+    // Combined query: Get participant status AND session in ONE query (avoids N+1)
+    const participantWithSession = await prisma.sessionParticipant.findFirst({
       where: {
         sessionId,
         userId: user.id,
+        status: 'JOINED', // Only JOINED participants can create flashcards
       },
+      include: {
+        session: {
+          select: { id: true, createdBy: true }
+        }
+      }
     })
 
-    if (!participant) {
+    if (!participantWithSession) {
       return NextResponse.json(
         { error: 'Not a participant in this session' },
         { status: 403 }
       )
     }
 
-    // Check if user is the host
-    const session = await prisma.studySession.findUnique({
-      where: { id: sessionId },
-      select: { createdBy: true }
-    })
-
-    // REMOVED: Host-only restriction. Any participant can create cards.
-    // if (!session || session.createdBy !== user.id) { ... }
+    // Session is guaranteed to exist if participant exists (FK constraint)
+    // Note: Any participant can create cards (host-only restriction removed)
+    // Session data available via participantWithSession.session if needed
 
     // Validate request body
     const body = await request.json()

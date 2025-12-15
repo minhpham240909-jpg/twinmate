@@ -504,12 +504,15 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10) // Top 10 subjects after merging
 
-    // Fetch user info for recent feedback
+    // Fetch user info for recent feedback (userId is a string, not a relation)
+    // This is acceptable since the list is small (20 users max)
     const feedbackUserIds = [...new Set(recentFeedback.map(f => f.userId))]
-    const feedbackUsers = await prisma.user.findMany({
-      where: { id: { in: feedbackUserIds } },
-      select: { id: true, name: true, email: true, avatarUrl: true },
-    })
+    const feedbackUsers = feedbackUserIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: feedbackUserIds } },
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        })
+      : []
     const userMap = new Map(feedbackUsers.map(u => [u.id, u]))
 
     // Log admin view

@@ -90,12 +90,15 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ])
 
-    // Check for active bans
+    // Check for active bans (userId is stored in UserBan, no relation on User)
+    // This is acceptable for paginated results (max users per page)
     const userIds = users.map((u) => u.id)
-    const bans = await prisma.userBan.findMany({
-      where: { userId: { in: userIds } },
-      select: { userId: true, type: true, expiresAt: true },
-    })
+    const bans = userIds.length > 0
+      ? await prisma.userBan.findMany({
+          where: { userId: { in: userIds } },
+          select: { userId: true, type: true, expiresAt: true },
+        })
+      : []
 
     const banMap = new Map(bans.map((b) => [b.userId, b]))
 

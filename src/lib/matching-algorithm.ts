@@ -100,7 +100,9 @@ function calculateSubjectScore(user1: UserProfile, user2: UserProfile): {
 
   // Score based on percentage of overlap
   const totalUnique = new Set([...subjects1Lower, ...subjects2Lower]).size
-  const overlapRatio = sharedSubjects.length / Math.max(subjects1.length, subjects2.length)
+  // Division by zero fix: Guard against empty arrays
+  const maxLength = Math.max(subjects1.length, subjects2.length)
+  const overlapRatio = maxLength > 0 ? sharedSubjects.length / maxLength : 0
   
   // Bonus for multiple shared subjects
   const bonusMultiplier = Math.min(1 + (sharedSubjects.length - 1) * 0.1, 1.5)

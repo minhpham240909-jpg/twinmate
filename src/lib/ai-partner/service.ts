@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import {
   sendChatMessage,
+  sendSmartChatMessage,
   moderateContent,
   buildStudyPartnerSystemPrompt,
   buildDynamicPersonaPrompt,
@@ -30,7 +31,45 @@ import {
   ProactiveSuggestion,
   ProactiveSuggestionType,
   SessionState,
+  SmartChatResult,
 } from './openai'
+
+// Intelligence System
+import { INTELLIGENCE_VERSION, INITIAL_ADAPTIVE_STATE } from './intelligence'
+
+// =============================================================================
+// SMART ROUTING CONFIGURATION (v2.1)
+// =============================================================================
+
+/**
+ * Smart Routing Feature Flags
+ *
+ * Controls the rollout of smart AI features:
+ * - Model routing (gpt-4o-mini vs gpt-4o)
+ * - Dynamic response length
+ * - Response caching
+ *
+ * Set via environment variables for gradual rollout
+ */
+const SMART_ROUTING_CONFIG = {
+  // Master switch for smart routing
+  enabled: process.env.SMART_ROUTING_ENABLED !== 'false', // Default ON
+
+  // Enable response caching
+  cacheEnabled: process.env.SMART_CACHE_ENABLED !== 'false', // Default ON
+
+  // Enable AI fallback for query analysis (slower but more accurate)
+  useAIFallback: process.env.SMART_AI_FALLBACK === 'true', // Default OFF (use fast regex)
+
+  // Skip analysis for very simple messages (greetings, short responses)
+  skipAnalysisThreshold: 15, // Characters below which to skip analysis
+
+  // Fallback to legacy sendChatMessage on errors
+  fallbackOnError: true,
+
+  // Log smart routing decisions for monitoring
+  logDecisions: process.env.NODE_ENV === 'development' || process.env.SMART_ROUTING_DEBUG === 'true',
+} as const
 
 // Re-export proactive types for use by API routes and components
 export type { ProactiveSuggestion, ProactiveSuggestionType, SessionState }
@@ -358,7 +397,7 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
     },
   })
 
-  // Create AI session
+  // Create AI session with Intelligence System v2.0 enabled
   const aiSession = await prisma.aIPartnerSession.create({
     data: {
       userId,
@@ -368,6 +407,11 @@ export async function createAISession(params: CreateAISessionParams): Promise<{
       skillLevel,
       studyGoal,
       status: 'ACTIVE',
+      // Intelligence System v2.0
+      intelligenceVersion: INTELLIGENCE_VERSION,
+      adaptiveState: INITIAL_ADAPTIVE_STATE as unknown as Prisma.InputJsonValue,
+      totalTokensUsed: 0,
+      fallbackCallCount: 0,
     },
   })
 
@@ -584,7 +628,8 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     }
   }
 
-  // Create AI session - save full searchCriteria for "Continue Previous Topic" feature
+  // Create AI session with Intelligence System v2.0 enabled
+  // Save full searchCriteria for "Continue Previous Topic" feature
   const aiSession = await prisma.aIPartnerSession.create({
     data: {
       userId,
@@ -594,6 +639,11 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
       studyGoal: studyGoal || null,
       searchCriteria: searchCriteria as object, // Save all search criteria (subjects, location, interests, etc.)
       status: 'ACTIVE',
+      // Intelligence System v2.0
+      intelligenceVersion: INTELLIGENCE_VERSION,
+      adaptiveState: INITIAL_ADAPTIVE_STATE as unknown as Prisma.InputJsonValue,
+      totalTokensUsed: 0,
+      fallbackCallCount: 0,
     },
   })
 
@@ -714,224 +764,193 @@ function detectImageGenerationRequest(content: string): {
 } {
   const lowerContent = content.toLowerCase()
 
-  // Keywords that indicate image generation request
-  // Comprehensive list covering all variations: singular/plural, with/without articles
-  const imageKeywords = [
-    // Direct requests - generate (singular)
-    'generate an image',
-    'generate image',
-    'generate the image',
-    // Direct requests - generate (plural)
-    'generate images',
-    'generate the images',
-    // Direct requests - generate picture (singular)
-    'generate a picture',
-    'generate picture',
-    'generate the picture',
-    // Direct requests - generate picture (plural)
-    'generate pictures',
-    'generate the pictures',
-    // Direct requests - create (singular)
-    'create an image',
-    'create image',
-    'create the image',
-    // Direct requests - create (plural)
-    'create images',
-    'create the images',
-    // Direct requests - create picture
-    'create a picture',
-    'create picture',
-    'create the picture',
-    'create pictures',
-    'create the pictures',
-    // Direct requests - make (singular)
-    'make an image',
-    'make image',
-    'make the image',
-    // Direct requests - make (plural)
-    'make images',
-    'make the images',
-    // Direct requests - make picture
-    'make a picture',
-    'make picture',
-    'make the picture',
-    'make pictures',
-    'make the pictures',
-    // Draw
-    'draw',
-    // Show me
-    'show me a picture',
-    'show me an image',
-    'show me the image',
-    'show me the picture',
-    'show me pictures',
-    'show me images',
-    // Visualize / illustrate
-    'visualize',
-    'illustrate',
-    'illustration of',
-    'illustration for',
-    // Diagram variations
-    'create a diagram',
-    'create diagram',
-    'create the diagram',
-    'make a diagram',
-    'make diagram',
-    'make the diagram',
-    'generate a diagram',
-    'generate diagram',
-    'generate the diagram',
-    'draw a diagram',
-    'draw diagram',
-    'draw the diagram',
-    // Illustration variations
-    'create an illustration',
-    'create illustration',
-    'create the illustration',
-    'make an illustration',
-    'make illustration',
-    'make the illustration',
-    'generate an illustration',
-    'generate illustration',
-    // Visual variations
-    'generate a visual',
-    'create a visual',
-    'make a visual',
-    // Question forms - can you (all variations)
-    'can you draw',
-    'can you create an image',
-    'can you create the image',
-    'can you create images',
-    'can you create the images',
-    'can you create pictures',
-    'can you generate an image',
-    'can you generate the image',
-    'can you generate images',
-    'can you generate the images',
-    'can you generate pictures',
-    'can you make an image',
-    'can you make the image',
-    'can you make images',
-    'can you make the images',
-    'can you make pictures',
-    'can you illustrate',
-    // Could you variations
-    'could you draw',
-    'could you create an image',
-    'could you create images',
-    'could you generate an image',
-    'could you generate images',
-    'could you make an image',
-    'could you make images',
-    'could you illustrate',
-    // Please variations
-    'please draw',
-    'please create an image',
-    'please create images',
-    'please generate an image',
-    'please generate images',
-    'please make an image',
-    'please make images',
-    'please illustrate',
-    // Want/need variations
-    'i want an image',
-    'i want images',
-    'i want a picture',
-    'i want pictures',
-    'i need an image',
-    'i need images',
-    'i need a picture',
-    'i need pictures',
-    // Show me / give me variations
-    'show me visually',
-    'give me an image',
-    'give me images',
-    'give me a picture',
-    'give me pictures',
-    // Chart variations
-    'create a chart',
-    'make a chart',
-    'generate a chart',
-    // Flowchart variations
-    'create a flowchart',
-    'make a flowchart',
-    'generate a flowchart',
-    // Infographic variations
-    'create an infographic',
-    'make an infographic',
-    'generate an infographic',
-    // Mindmap variations
-    'create a mindmap',
-    'make a mindmap',
-    'generate a mindmap',
-    // Logo variations
-    'create a logo',
-    'make a logo',
-    'design a logo',
-    'generate a logo',
-    // Poster variations
-    'create a poster',
-    'make a poster',
-    'design a poster',
-    'generate a poster',
+  // ==========================================================================
+  // SMART IMAGE DETECTION - Uses patterns instead of exact phrases
+  // ==========================================================================
+
+  // Action verbs that indicate creation/generation
+  const actionVerbs = [
+    'generate', 'create', 'make', 'draw', 'design', 'build', 'produce',
+    'render', 'illustrate', 'visualize', 'sketch', 'paint', 'show'
   ]
 
-  const isImageRequest = imageKeywords.some(keyword => lowerContent.includes(keyword))
+  // Visual content types (what the user wants created)
+  const visualTypes = [
+    'image', 'images', 'picture', 'pictures', 'photo', 'photos',
+    'diagram', 'diagrams', 'illustration', 'illustrations',
+    'chart', 'charts', 'graph', 'graphs',
+    'flowchart', 'flowcharts', 'flow chart', 'flow charts',
+    'infographic', 'infographics',
+    'mindmap', 'mindmaps', 'mind map', 'mind maps',
+    'timeline', 'timelines', 'time line', 'time lines',
+    'concept map', 'concept maps', 'conceptmap', 'conceptmaps',
+    'visual', 'visuals', 'visualization', 'visualizations',
+    'logo', 'logos', 'icon', 'icons',
+    'poster', 'posters', 'banner', 'banners',
+    'sketch', 'sketches', 'drawing', 'drawings',
+    'graphic', 'graphics', 'artwork', 'art',
+    'figure', 'figures', 'representation', 'depiction'
+  ]
+
+  // Request patterns (how users ask)
+  const requestPatterns = [
+    'can you', 'could you', 'would you', 'will you',
+    'please', 'i want', 'i need', 'i would like',
+    'help me', 'show me', 'give me', 'get me',
+    'let me see', 'i\'d like', 'id like'
+  ]
+
+  // ==========================================================================
+  // DETECTION LOGIC
+  // ==========================================================================
+
+  let isImageRequest = false
+
+  // Method 1: Check for action verb + visual type combination
+  // e.g., "generate a diagram", "create an illustration", "make me an image"
+  for (const verb of actionVerbs) {
+    if (lowerContent.includes(verb)) {
+      for (const visualType of visualTypes) {
+        if (lowerContent.includes(visualType)) {
+          isImageRequest = true
+          break
+        }
+      }
+      if (isImageRequest) break
+    }
+  }
+
+  // Method 2: Check for request pattern + visual type
+  // e.g., "can you show me a diagram", "i need an illustration"
+  if (!isImageRequest) {
+    for (const pattern of requestPatterns) {
+      if (lowerContent.includes(pattern)) {
+        for (const visualType of visualTypes) {
+          if (lowerContent.includes(visualType)) {
+            isImageRequest = true
+            break
+          }
+        }
+        if (isImageRequest) break
+      }
+    }
+  }
+
+  // Method 3: Direct visual type mentions with context clues
+  // e.g., "diagram of...", "illustration showing...", "a flowchart for..."
+  if (!isImageRequest) {
+    const directPatterns = [
+      /\b(diagram|illustration|flowchart|mindmap|infographic|chart|graph|timeline|poster|logo|icon|sketch)\s+(of|for|about|showing|depicting|explaining|representing)/i,
+      /\b(a|an|the)\s+(diagram|illustration|flowchart|mindmap|infographic|chart|graph|timeline|poster|logo|icon|sketch)\b/i,
+      /(show|display|render|depict|portray)\s+(this|it|that)?\s*(visually|graphically|as an? (image|picture|diagram))/i,
+    ]
+
+    for (const pattern of directPatterns) {
+      if (pattern.test(lowerContent)) {
+        isImageRequest = true
+        break
+      }
+    }
+  }
+
+  // Method 4: Explicit image/visual requests
+  // e.g., "visually explain", "pictorial representation", "graphical view"
+  if (!isImageRequest) {
+    const explicitPatterns = [
+      'visually explain', 'visual explanation', 'pictorial', 'graphical',
+      'in picture form', 'as an image', 'as a picture', 'with a diagram',
+      'with an illustration', 'draw it', 'picture this', 'visualise', 'visualize this'
+    ]
+
+    for (const pattern of explicitPatterns) {
+      if (lowerContent.includes(pattern)) {
+        isImageRequest = true
+        break
+      }
+    }
+  }
 
   if (!isImageRequest) {
     return { isImageRequest: false }
   }
 
-  // Determine style based on keywords
+  // ==========================================================================
+  // DETERMINE STYLE based on keywords in the request
+  // ==========================================================================
   let style: ImageGenerationStyle = 'illustration' // default
 
-  if (lowerContent.includes('diagram')) {
-    style = 'diagram'
-  } else if (lowerContent.includes('chart') && !lowerContent.includes('flowchart')) {
-    style = 'chart'
-  } else if (lowerContent.includes('flowchart')) {
+  // Check for specific style keywords (order matters - more specific first)
+  if (lowerContent.includes('flowchart') || lowerContent.includes('flow chart')) {
     style = 'flowchart'
-  } else if (lowerContent.includes('infographic')) {
-    style = 'infographic'
   } else if (lowerContent.includes('mindmap') || lowerContent.includes('mind map')) {
     style = 'mindmap'
-  } else if (lowerContent.includes('timeline')) {
-    style = 'timeline'
-  } else if (lowerContent.includes('concept map')) {
+  } else if (lowerContent.includes('concept map') || lowerContent.includes('conceptmap')) {
     style = 'concept-map'
+  } else if (lowerContent.includes('infographic')) {
+    style = 'infographic'
+  } else if (lowerContent.includes('timeline') || lowerContent.includes('time line')) {
+    style = 'timeline'
+  } else if (lowerContent.includes('diagram')) {
+    style = 'diagram'
+  } else if (lowerContent.includes('chart') || lowerContent.includes('graph')) {
+    style = 'chart'
   } else if (lowerContent.includes('logo')) {
     style = 'logo'
-  } else if (lowerContent.includes('poster')) {
+  } else if (lowerContent.includes('poster') || lowerContent.includes('banner')) {
     style = 'poster'
   } else if (lowerContent.includes('icon')) {
     style = 'icon'
   } else if (lowerContent.includes('cartoon')) {
     style = 'cartoon'
-  } else if (lowerContent.includes('sketch')) {
+  } else if (lowerContent.includes('sketch') || lowerContent.includes('drawing')) {
     style = 'sketch'
   } else if (lowerContent.includes('technical') || lowerContent.includes('blueprint')) {
     style = 'technical'
-  } else if (lowerContent.includes('realistic') || lowerContent.includes('photo')) {
+  } else if (lowerContent.includes('realistic') || lowerContent.includes('photo') || lowerContent.includes('picture')) {
     style = 'picture'
+  } else if (lowerContent.includes('illustration')) {
+    style = 'illustration'
   }
 
-  // Extract the prompt - remove the image generation keywords to get the actual subject
+  // ==========================================================================
+  // EXTRACT THE PROMPT - Smart extraction of what user wants visualized
+  // ==========================================================================
   let prompt = content
-  for (const keyword of imageKeywords) {
-    const regex = new RegExp(keyword, 'gi')
-    prompt = prompt.replace(regex, '')
+
+  // Remove action verbs and request patterns
+  const removePatterns = [
+    // Action verbs with articles
+    /\b(generate|create|make|draw|design|build|produce|render|illustrate|visualize|sketch|paint|show)\s+(me\s+)?(a|an|the)?\s*/gi,
+    // Request patterns
+    /\b(can you|could you|would you|will you|please|i want|i need|i would like|help me|show me|give me|get me|let me see)\s*/gi,
+    // Visual type words (we already captured the style)
+    /\b(image|images|picture|pictures|photo|photos|diagram|diagrams|illustration|illustrations|chart|charts|graph|graphs|flowchart|flowcharts|infographic|infographics|mindmap|mindmaps|mind map|mind maps|timeline|timelines|concept map|concept maps|visual|visuals|visualization|visualizations|logo|logos|icon|icons|poster|posters|banner|banners|sketch|sketches|drawing|drawings|graphic|graphics|artwork|art|figure|figures)\s*/gi,
+    // Common filler words at start/end
+    /^(of|about|for|showing|depicting|with|that shows|that depicts|explaining|representing)\s+/i,
+    /\s+(of|about|for|showing|depicting|with)\s*$/i,
+  ]
+
+  for (const pattern of removePatterns) {
+    prompt = prompt.replace(pattern, ' ')
   }
-  // Clean up common filler words
+
+  // Clean up punctuation and extra spaces
   prompt = prompt
-    .replace(/^(of|about|for|showing|depicting|with|that shows|that depicts)\s+/i, '')
-    .replace(/\s+(of|about|for|showing|depicting|with)\s*$/i, '')
-    .replace(/^\s*[,.:;]\s*/, '')
-    .replace(/\s*[,.:;]\s*$/, '')
+    .replace(/^\s*[,.:;?!]\s*/, '')
+    .replace(/\s*[,.:;?!]\s*$/, '')
+    .replace(/\s+/g, ' ')
     .trim()
 
-  // If prompt is too short, use the original content
+  // If prompt is too short after cleaning, use intelligent extraction
   if (prompt.length < 5) {
-    prompt = content
+    // Try to extract the subject matter using regex
+    const subjectMatch = content.match(/(?:of|about|for|showing|depicting|explaining|on)\s+(.+?)(?:\.|$)/i)
+    if (subjectMatch && subjectMatch[1]) {
+      prompt = subjectMatch[1].trim()
+    } else {
+      // Last resort: use original content
+      prompt = content
+    }
   }
 
   return { isImageRequest: true, prompt, style }
@@ -1124,11 +1143,70 @@ export async function sendMessage(params: SendMessageParams): Promise<{
     })
   }
 
-  // Get AI response
-  const aiResponse = await sendChatMessage(messages, {
-    temperature: session.persona?.temperature || 0.7,
-    maxTokens: session.persona?.maxTokens || 500,
-  })
+  // ==========================================================================
+  // SMART ROUTING: Use intelligent model selection and caching
+  // ==========================================================================
+  let aiResponse: SmartChatResult | { content: string; promptTokens: number; completionTokens: number; totalTokens: number }
+  let smartRoutingUsed = false
+  let modelUsed: string | undefined
+  let wasCacheHit = false
+  let routingReason: string | undefined
+
+  // Determine if we should use smart routing
+  const shouldUseSmartRouting =
+    SMART_ROUTING_CONFIG.enabled &&
+    content.length >= SMART_ROUTING_CONFIG.skipAnalysisThreshold
+
+  if (shouldUseSmartRouting) {
+    try {
+      // Use smart routing with caching and model selection
+      const smartResult = await sendSmartChatMessage(content, messages, {
+        userId,
+        subject: session.subject || undefined,
+        skillLevel: session.skillLevel || undefined,
+        enableCache: SMART_ROUTING_CONFIG.cacheEnabled,
+        useAIFallback: SMART_ROUTING_CONFIG.useAIFallback,
+        skipAnalysis: content.length < 30, // Very short messages get fast analysis
+        manageContext: true,
+      })
+
+      aiResponse = smartResult
+      smartRoutingUsed = true
+      modelUsed = smartResult.modelUsed
+      wasCacheHit = smartResult.cacheHit
+      routingReason = smartResult.routingDecision?.reason
+
+      // Log routing decision for monitoring
+      if (SMART_ROUTING_CONFIG.logDecisions) {
+        console.log('[Smart Routing] Decision:', {
+          model: modelUsed,
+          cached: wasCacheHit,
+          complexity: smartResult.queryAnalysis?.complexity,
+          responseLength: smartResult.queryAnalysis?.responseLength,
+          reason: routingReason,
+          totalTimeMs: smartResult.totalTimeMs,
+        })
+      }
+    } catch (smartError) {
+      // Fallback to legacy sendChatMessage on error
+      console.error('[Smart Routing] Error, falling back to legacy:', smartError)
+
+      if (SMART_ROUTING_CONFIG.fallbackOnError) {
+        aiResponse = await sendChatMessage(messages, {
+          temperature: session.persona?.temperature || 0.7,
+          maxTokens: session.persona?.maxTokens || 500,
+        })
+      } else {
+        throw smartError
+      }
+    }
+  } else {
+    // Use legacy sendChatMessage for very short messages or when disabled
+    aiResponse = await sendChatMessage(messages, {
+      temperature: session.persona?.temperature || 0.7,
+      maxTokens: session.persona?.maxTokens || 500,
+    })
+  }
 
   // Save AI message
   const aiMsg = await prisma.aIPartnerMessage.create({
@@ -1156,7 +1234,15 @@ export async function sendMessage(params: SendMessageParams): Promise<{
 
   return {
     userMessage: { id: userMsg.id, content: userMsg.content, wasFlagged: moderation.flagged },
-    aiMessage: { id: aiMsg.id, content: aiResponse.content },
+    aiMessage: {
+      id: aiMsg.id,
+      content: aiResponse.content,
+      // Include smart routing info for frontend (optional)
+      ...(smartRoutingUsed ? {
+        modelUsed,
+        wasCacheHit,
+      } : {}),
+    },
     safetyBlocked: false,
   }
 }
@@ -1279,17 +1365,16 @@ export async function generateFlashcardsForSession(params: {
   })
 
   // Also create actual flashcard records if studySession exists
-  if (session.studySessionId) {
-    for (const card of flashcards) {
-      await prisma.sessionFlashcard.create({
-        data: {
-          sessionId: session.studySessionId,
-          userId,
-          front: card.front,
-          back: card.back,
-        },
-      })
-    }
+  // N+1 FIX: Use createMany instead of loop to batch insert all flashcards
+  if (session.studySessionId && flashcards.length > 0) {
+    await prisma.sessionFlashcard.createMany({
+      data: flashcards.map(card => ({
+        sessionId: session.studySessionId!,
+        userId,
+        front: card.front,
+        back: card.back,
+      })),
+    })
   }
 
   // Update flashcard count
@@ -1366,17 +1451,16 @@ export async function generateFlashcardsFromConversation(params: {
   })
 
   // Also create actual flashcard records if studySession exists
-  if (session.studySessionId) {
-    for (const card of flashcards) {
-      await prisma.sessionFlashcard.create({
-        data: {
-          sessionId: session.studySessionId,
-          userId,
-          front: card.front,
-          back: card.back,
-        },
-      })
-    }
+  // N+1 FIX: Use createMany instead of loop to batch insert all flashcards
+  if (session.studySessionId && flashcards.length > 0) {
+    await prisma.sessionFlashcard.createMany({
+      data: flashcards.map(card => ({
+        sessionId: session.studySessionId!,
+        userId,
+        front: card.front,
+        back: card.back,
+      })),
+    })
   }
 
   // Update flashcard count

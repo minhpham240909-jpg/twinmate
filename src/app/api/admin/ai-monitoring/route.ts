@@ -59,6 +59,10 @@ export async function GET(request: NextRequest) {
       recentLogs,
       topUsers,
       cacheStats,
+      // Smart routing specific stats
+      cachedRequests,
+      miniModelRequests,
+      fullModelRequests,
     ] = await Promise.all([
       // Period logs count
       prisma.aIUsageLog.count({
@@ -107,6 +111,8 @@ export async function GET(request: NextRequest) {
           latencyMs: true,
           success: true,
           errorMessage: true,
+          cached: true,
+          metadata: true,
           createdAt: true,
         },
       }) : [],
@@ -127,7 +133,30 @@ export async function GET(request: NextRequest) {
       // Cache stats
       prisma.aIResponseCache.aggregate({
         _count: { _all: true },
-        _sum: { accessCount: true },
+        _sum: { hitCount: true },
+      }),
+
+      // Smart routing: Cached request count
+      prisma.aIUsageLog.count({
+        where: { createdAt: { gte: startDate }, cached: true },
+      }),
+
+      // Smart routing: gpt-4o-mini requests (routed to cheaper model)
+      prisma.aIUsageLog.count({
+        where: {
+          createdAt: { gte: startDate },
+          model: { contains: 'mini' },
+          cached: false,
+        },
+      }),
+
+      // Smart routing: gpt-4o requests (routed to full model)
+      prisma.aIUsageLog.count({
+        where: {
+          createdAt: { gte: startDate },
+          model: { not: { contains: 'mini' } },
+          cached: false,
+        },
       }),
     ])
 
@@ -158,6 +187,24 @@ export async function GET(request: NextRequest) {
       user: u.userId ? usersMap[u.userId] : null,
     }))
 
+    // Calculate smart routing stats
+    const totalNonCachedRequests = miniModelRequests + fullModelRequests
+    const miniModelPercentage = totalNonCachedRequests > 0
+      ? Math.round((miniModelRequests / totalNonCachedRequests) * 1000) / 10
+      : 0
+    const fullModelPercentage = totalNonCachedRequests > 0
+      ? Math.round((fullModelRequests / totalNonCachedRequests) * 1000) / 10
+      : 0
+
+    // Calculate cost savings from smart routing
+    // GPT-4o: ~$5 per 1M input tokens, ~$15 per 1M output tokens
+    // GPT-4o-mini: ~$0.15 per 1M input tokens, ~$0.6 per 1M output tokens
+    // Approximate savings: Using mini saves ~97% on input, ~96% on output
+    const miniModelStats = modelStats.find(m => m.model?.includes('mini'))
+    const miniTokens = miniModelStats?._sum?.totalTokens || 0
+    // If these queries went to gpt-4o instead, they'd cost ~30x more
+    const estimatedSavings = miniTokens * 0.000025 // ~$25 per 1M tokens saved
+
     return NextResponse.json({
       success: true,
       period,
@@ -170,7 +217,26 @@ export async function GET(request: NextRequest) {
         errorCount: errorLogs,
         errorRate: Math.round(errorRate * 100) / 100,
         cacheEntries: cacheStats._count?._all || 0,
-        cacheHits: cacheStats._sum?.accessCount || 0,
+        cacheHits: cacheStats._sum?.hitCount || 0,
+      },
+      // Smart routing statistics
+      smartRouting: {
+        enabled: process.env.SMART_ROUTING_ENABLED !== 'false',
+        cacheEnabled: process.env.SMART_CACHE_ENABLED !== 'false',
+        totalRequests: periodLogs,
+        cachedRequests,
+        cacheHitRate: periodLogs > 0
+          ? Math.round((cachedRequests / periodLogs) * 1000) / 10
+          : 0,
+        miniModelRequests,
+        fullModelRequests,
+        miniModelPercentage,
+        fullModelPercentage,
+        estimatedSavings: Math.round(estimatedSavings * 10000) / 10000,
+        // Routing efficiency: higher = more queries routed to cheaper model
+        routingEfficiency: totalNonCachedRequests > 0
+          ? Math.round(((cachedRequests + miniModelRequests) / periodLogs) * 1000) / 10
+          : 0,
       },
       operationStats: operationStats.map(op => ({
         operation: op.operation,

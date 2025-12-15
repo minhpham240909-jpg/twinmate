@@ -32,19 +32,25 @@ export async function GET() {
     })
 
     // Delete images from storage for expired posts
+    // N+1 FIX: Collect all file paths first, then batch delete
+    const allFilePaths: string[] = []
     for (const post of expiredPosts) {
       if (post.imageUrls && post.imageUrls.length > 0) {
         for (const imageUrl of post.imageUrls) {
-          try {
-            const urlParts = imageUrl.split('/post-images/')
-            if (urlParts.length === 2) {
-              const filePath = urlParts[1]
-              await supabase.storage.from('post-images').remove([filePath])
-            }
-          } catch (error) {
-            console.error('Error deleting image:', error)
+          const urlParts = imageUrl.split('/post-images/')
+          if (urlParts.length === 2) {
+            allFilePaths.push(urlParts[1])
           }
         }
+      }
+    }
+
+    // Batch delete all images at once
+    if (allFilePaths.length > 0) {
+      try {
+        await supabase.storage.from('post-images').remove(allFilePaths)
+      } catch (error) {
+        console.error('Error batch deleting images:', error)
       }
     }
 

@@ -122,17 +122,20 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    // Get user details for each session
+    // Get user details for each session (userId is a string, not a relation)
+    // This is acceptable for paginated results (max 100 unique users per page)
     const userIds = [...new Set(sessions.map(s => s.userId))]
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-      }
-    })
+    const users = userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+          }
+        })
+      : []
     const userMap = new Map(users.map(u => [u.id, u]))
 
     // Format sessions with user info

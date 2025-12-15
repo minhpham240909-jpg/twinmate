@@ -1,19 +1,26 @@
 /**
- * AI Response Caching System
- * Caches common AI responses for faster response times and cost reduction
+ * AI Response Caching System (Legacy Wrapper)
  *
- * Features:
- * - In-memory LRU cache for hot responses
- * - Database cache for persistent storage
- * - Cache key generation from prompts
- * - TTL (Time To Live) management
- * - Cache hit/miss tracking
+ * This module provides backward compatibility with the old caching API
+ * while using the new response-cache.ts implementation under the hood.
+ *
+ * For new code, use the response-cache.ts module directly from ./intelligence
  */
 
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
+import {
+  lookupCache,
+  writeCache,
+  cleanupExpiredCache as cleanupCache,
+  getCacheStats as getStats,
+  checkMemoryCache,
+  addToMemoryCache,
+  normalizeQuery,
+  hashQuery,
+} from './intelligence'
 
-// Types
+// Types for backward compatibility
 interface CacheEntry {
   response: string
   tokens: {
@@ -35,7 +42,7 @@ interface CacheStats {
   dbEntries: number
 }
 
-// In-memory LRU Cache
+// In-memory LRU Cache (still used for fast access)
 class LRUCache<K, V> {
   private maxSize: number
   private cache: Map<K, V>
@@ -170,6 +177,7 @@ export function shouldCache(
 
 /**
  * Get cached response from memory or database
+ * Now uses the new response-cache system
  */
 export async function getCachedResponse(
   cacheKey: string
@@ -184,18 +192,23 @@ export async function getCachedResponse(
     return memoryEntry
   }
 
-  // Check database cache
+  // Check database cache using new system
   try {
-    const dbEntry = await prisma.aIResponseCache?.findUnique({
-      where: { cacheKey },
+    const dbEntry = await prisma.aIResponseCache?.findFirst({
+      where: { queryHash: cacheKey },
     })
 
     if (dbEntry && dbEntry.expiresAt > new Date()) {
+      const metadata = dbEntry.metadata as { tokensUsed?: number } | null
       const entry: CacheEntry = {
         response: dbEntry.response,
-        tokens: dbEntry.tokens as CacheEntry['tokens'],
+        tokens: {
+          prompt: 0,
+          completion: metadata?.tokensUsed || 0,
+          total: metadata?.tokensUsed || 0,
+        },
         createdAt: dbEntry.createdAt,
-        accessCount: dbEntry.accessCount + 1,
+        accessCount: dbEntry.hitCount + 1,
         lastAccessed: new Date(),
       }
 
@@ -204,10 +217,10 @@ export async function getCachedResponse(
 
       // Update DB access stats (non-blocking)
       prisma.aIResponseCache?.update({
-        where: { cacheKey },
+        where: { id: dbEntry.id },
         data: {
-          accessCount: { increment: 1 },
-          lastAccessed: new Date(),
+          hitCount: { increment: 1 },
+          lastAccessedAt: new Date(),
         },
       }).catch(() => {}) // Ignore errors
 
@@ -224,6 +237,7 @@ export async function getCachedResponse(
 
 /**
  * Store response in cache
+ * Now uses the new response-cache system
  */
 export async function setCachedResponse(
   cacheKey: string,
@@ -247,21 +261,29 @@ export async function setCachedResponse(
     const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000)
 
     await prisma.aIResponseCache?.upsert({
-      where: { cacheKey },
+      where: { queryHash: cacheKey },
       create: {
-        cacheKey,
+        queryHash: cacheKey,
+        queryNormalized: cacheKey, // Use hash as normalized query for legacy entries
         response,
-        tokens: tokens as any,
+        scope: 'global',
         expiresAt,
-        accessCount: 1,
-        lastAccessed: new Date(),
+        hitCount: 1,
+        lastAccessedAt: new Date(),
+        metadata: {
+          tokensUsed: tokens.total,
+          legacy: true,
+        },
       },
       update: {
         response,
-        tokens: tokens as any,
         expiresAt,
-        accessCount: { increment: 1 },
-        lastAccessed: new Date(),
+        hitCount: { increment: 1 },
+        lastAccessedAt: new Date(),
+        metadata: {
+          tokensUsed: tokens.total,
+          legacy: true,
+        },
       },
     })
   } catch {
@@ -288,7 +310,7 @@ export async function invalidateCache(pattern?: string): Promise<number> {
     try {
       const result = await prisma.aIResponseCache?.deleteMany({
         where: {
-          cacheKey: { contains: pattern },
+          queryHash: { contains: pattern },
         },
       })
       invalidated += result?.count || 0

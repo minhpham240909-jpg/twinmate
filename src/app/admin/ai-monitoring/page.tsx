@@ -15,6 +15,11 @@ import {
   RefreshCw,
   BarChart3,
   Cpu,
+  Route,
+  Sparkles,
+  PiggyBank,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
 
 interface MonitoringData {
@@ -35,6 +40,19 @@ interface MonitoringData {
     errorRate: number
     cacheEntries: number
     cacheHits: number
+  }
+  smartRouting?: {
+    enabled: boolean
+    cacheEnabled: boolean
+    totalRequests: number
+    cachedRequests: number
+    cacheHitRate: number
+    miniModelRequests: number
+    fullModelRequests: number
+    miniModelPercentage: number
+    fullModelPercentage: number
+    estimatedSavings: number
+    routingEfficiency: number
   }
   operationStats: Array<{
     operation: string
@@ -289,6 +307,124 @@ export default function AIMonitoringPage() {
                 </div>
               </div>
             </div>
+
+            {/* Smart Routing Section */}
+            {data.smartRouting && (
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Route className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <h2 className="font-semibold text-gray-900 dark:text-white">Smart Routing v2.0</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                      data.smartRouting.enabled
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    }`}>
+                      {data.smartRouting.enabled ? (
+                        <><CheckCircle2 className="w-3 h-3" /> Routing ON</>
+                      ) : (
+                        <><XCircle className="w-3 h-3" /> Routing OFF</>
+                      )}
+                    </span>
+                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                      data.smartRouting.cacheEnabled
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    }`}>
+                      {data.smartRouting.cacheEnabled ? (
+                        <><CheckCircle2 className="w-3 h-3" /> Cache ON</>
+                      ) : (
+                        <><XCircle className="w-3 h-3" /> Cache OFF</>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {/* Routing Efficiency */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Sparkles className="w-4 h-4 text-indigo-500" />
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">Efficiency</p>
+                    </div>
+                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {data.smartRouting.routingEfficiency}%
+                    </p>
+                    <p className="text-xs text-gray-500">cost-optimized</p>
+                  </div>
+
+                  {/* Mini Model Usage */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">GPT-4o-mini</p>
+                    <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                      {formatNumber(data.smartRouting.miniModelRequests)}
+                    </p>
+                    <p className="text-xs text-green-600">{data.smartRouting.miniModelPercentage}% of queries</p>
+                  </div>
+
+                  {/* Full Model Usage */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">GPT-4o (Full)</p>
+                    <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                      {formatNumber(data.smartRouting.fullModelRequests)}
+                    </p>
+                    <p className="text-xs text-orange-600">{data.smartRouting.fullModelPercentage}% of queries</p>
+                  </div>
+
+                  {/* Cached Requests */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Cache Hits</p>
+                    <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                      {formatNumber(data.smartRouting.cachedRequests)}
+                    </p>
+                    <p className="text-xs text-purple-600">{data.smartRouting.cacheHitRate}% hit rate</p>
+                  </div>
+
+                  {/* Estimated Savings */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      <PiggyBank className="w-4 h-4 text-green-500" />
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">Est. Savings</p>
+                    </div>
+                    <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                      {formatCost(data.smartRouting.estimatedSavings)}
+                    </p>
+                    <p className="text-xs text-gray-500">this {period}</p>
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs mb-2">Model Distribution</p>
+                    <div className="flex h-4 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                      {data.smartRouting.cachedRequests > 0 && (
+                        <div
+                          className="bg-purple-500 transition-all"
+                          style={{ width: `${data.smartRouting.cacheHitRate}%` }}
+                          title={`Cached: ${data.smartRouting.cacheHitRate}%`}
+                        />
+                      )}
+                      <div
+                        className="bg-green-500 transition-all"
+                        style={{ width: `${data.smartRouting.miniModelPercentage * (100 - data.smartRouting.cacheHitRate) / 100}%` }}
+                        title={`Mini: ${data.smartRouting.miniModelPercentage}%`}
+                      />
+                      <div
+                        className="bg-orange-500 transition-all"
+                        style={{ width: `${data.smartRouting.fullModelPercentage * (100 - data.smartRouting.cacheHitRate) / 100}%` }}
+                        title={`Full: ${data.smartRouting.fullModelPercentage}%`}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs">
+                      <span className="text-purple-600">Cache</span>
+                      <span className="text-green-600">Mini</span>
+                      <span className="text-orange-600">Full</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Operation Stats */}

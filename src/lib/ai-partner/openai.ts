@@ -656,6 +656,290 @@ export async function sendChatMessage(
   }
 }
 
+// =============================================================================
+// SMART CHAT - Integrates Query Analysis, Model Routing, and Caching
+// =============================================================================
+
+import {
+  analyzeQuery,
+  analyzeQueryFast,
+  routeQuery,
+  lookupCache,
+  writeCache,
+  checkMemoryCache,
+  addToMemoryCache,
+  hashQuery,
+  normalizeQuery,
+  determineCacheScope,
+  type QueryAnalysis,
+  type RoutingDecision,
+} from './intelligence'
+
+export interface SmartChatOptions {
+  // User context
+  userId?: string
+  subject?: string
+  skillLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT'
+
+  // Routing options
+  forceModel?: 'gpt-4o-mini' | 'gpt-4o'
+  forceLength?: 'short' | 'medium' | 'detailed'
+
+  // Cache options
+  enableCache?: boolean
+  cacheScope?: 'global' | 'user'
+
+  // Analysis options
+  skipAnalysis?: boolean // Use defaults instead of analyzing
+  useAIFallback?: boolean // Use AI for uncertain complexity detection
+
+  // Context management
+  manageContext?: boolean
+}
+
+export interface SmartChatResult extends ChatCompletionResult {
+  // Routing info
+  modelUsed: string
+  wasRouted: boolean
+  routingDecision?: RoutingDecision
+  queryAnalysis?: QueryAnalysis
+
+  // Cache info
+  wasCached: boolean
+  cacheHit: boolean
+  cacheKey?: string
+
+  // Performance info
+  analysisTimeMs: number
+  cacheCheckTimeMs: number
+  generationTimeMs: number
+  totalTimeMs: number
+}
+
+/**
+ * Smart Chat Message - Integrates all smart features
+ *
+ * Features:
+ * 1. Query Analysis - Determines complexity and response length
+ * 2. Model Routing - Uses gpt-4o-mini or gpt-4o based on complexity
+ * 3. Response Caching - Returns cached responses when available
+ * 4. Dynamic Length - Adjusts response length based on query
+ *
+ * @param userMessage - The user's message to analyze and respond to
+ * @param messages - Full conversation history (for context)
+ * @param options - Smart chat options
+ */
+export async function sendSmartChatMessage(
+  userMessage: string,
+  messages: AIMessage[],
+  options: SmartChatOptions = {}
+): Promise<SmartChatResult> {
+  const startTime = Date.now()
+  let analysisTimeMs = 0
+  let cacheCheckTimeMs = 0
+  let generationTimeMs = 0
+
+  const {
+    userId,
+    subject,
+    skillLevel,
+    forceModel,
+    forceLength,
+    enableCache = true,
+    cacheScope,
+    skipAnalysis = false,
+    useAIFallback = true,
+    manageContext = true,
+  } = options
+
+  // ==========================================================================
+  // STEP 1: Check memory cache first (fastest)
+  // ==========================================================================
+  const cacheStartTime = Date.now()
+  const scope = cacheScope || determineCacheScope(userMessage, {
+    hasUserContext: !!userId,
+  })
+  const normalizedQuery = normalizeQuery(userMessage)
+  const cacheKey = hashQuery(normalizedQuery, scope, userId)
+
+  // Quick memory cache check
+  if (enableCache) {
+    const memoryHit = checkMemoryCache(cacheKey)
+    if (memoryHit) {
+      cacheCheckTimeMs = Date.now() - cacheStartTime
+      return {
+        content: memoryHit,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        modelUsed: 'cache',
+        wasRouted: false,
+        wasCached: true,
+        cacheHit: true,
+        cacheKey,
+        analysisTimeMs: 0,
+        cacheCheckTimeMs,
+        generationTimeMs: 0,
+        totalTimeMs: Date.now() - startTime,
+      }
+    }
+
+    // Check database cache
+    const dbCacheResult = await lookupCache(userMessage, {
+      userId,
+      subject,
+      scope,
+    })
+
+    cacheCheckTimeMs = Date.now() - cacheStartTime
+
+    if (dbCacheResult.status === 'hit' && dbCacheResult.response) {
+      // Add to memory cache for faster future access
+      addToMemoryCache(cacheKey, dbCacheResult.response)
+
+      return {
+        content: dbCacheResult.response,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        modelUsed: 'cache',
+        wasRouted: false,
+        wasCached: true,
+        cacheHit: true,
+        cacheKey,
+        analysisTimeMs: 0,
+        cacheCheckTimeMs,
+        generationTimeMs: 0,
+        totalTimeMs: Date.now() - startTime,
+      }
+    }
+  }
+
+  // ==========================================================================
+  // STEP 2: Analyze query complexity
+  // ==========================================================================
+  const analysisStartTime = Date.now()
+  let queryAnalysis: QueryAnalysis
+
+  if (skipAnalysis) {
+    // Use fast analysis only
+    queryAnalysis = analyzeQueryFast(userMessage)
+  } else {
+    // Full analysis with optional AI fallback
+    queryAnalysis = await analyzeQuery(userMessage, {
+      subject,
+      openai: useAIFallback ? openai : undefined,
+      confidenceThreshold: 0.6,
+    })
+  }
+
+  analysisTimeMs = Date.now() - analysisStartTime
+
+  // ==========================================================================
+  // STEP 3: Route to appropriate model
+  // ==========================================================================
+  let routingDecision = routeQuery(queryAnalysis)
+
+  // Apply overrides if specified
+  if (forceModel) {
+    routingDecision = {
+      ...routingDecision,
+      model: forceModel,
+      reason: routingDecision.reason + ` (forced: ${forceModel})`,
+    }
+  }
+
+  if (forceLength) {
+    const lengthToTokens = { short: 150, medium: 400, detailed: 800 }
+    routingDecision = {
+      ...routingDecision,
+      maxTokens: lengthToTokens[forceLength],
+    }
+  }
+
+  // ==========================================================================
+  // STEP 4: Inject length instruction into system prompt
+  // ==========================================================================
+  const enhancedMessages = [...messages]
+
+  // Find and enhance system message with length instruction
+  const systemIndex = enhancedMessages.findIndex(m => m.role === 'system')
+  if (systemIndex !== -1) {
+    enhancedMessages[systemIndex] = {
+      ...enhancedMessages[systemIndex],
+      content: enhancedMessages[systemIndex].content + '\n\n' + routingDecision.lengthInstruction,
+    }
+  }
+
+  // ==========================================================================
+  // STEP 5: Send to AI with routed model
+  // ==========================================================================
+  const generationStartTime = Date.now()
+
+  const result = await sendChatMessage(enhancedMessages, {
+    model: routingDecision.model,
+    maxTokens: routingDecision.maxTokens,
+    temperature: routingDecision.temperature,
+    manageContext,
+  })
+
+  generationTimeMs = Date.now() - generationStartTime
+
+  // ==========================================================================
+  // STEP 6: Cache the response
+  // ==========================================================================
+  let wasCached = false
+
+  if (enableCache && result.content) {
+    // Write to database cache (async, don't await)
+    writeCache(userMessage, result.content, {
+      userId,
+      subject,
+      skillLevel,
+      scope,
+      modelUsed: routingDecision.model,
+      tokensUsed: result.totalTokens,
+      responseLength: queryAnalysis.responseLength,
+      complexity: queryAnalysis.complexity,
+      isFactualQuestion: queryAnalysis.isFactualQuestion,
+      isConceptualQuestion: queryAnalysis.isConceptualQuestion,
+      isProceduralQuestion: queryAnalysis.isProceduralQuestion,
+    }).then(() => {
+      // Add to memory cache
+      addToMemoryCache(cacheKey, result.content)
+    }).catch(err => {
+      console.error('[SmartChat] Cache write error:', err)
+    })
+
+    wasCached = true
+  }
+
+  // ==========================================================================
+  // STEP 7: Return enhanced result
+  // ==========================================================================
+  return {
+    ...result,
+    modelUsed: routingDecision.model,
+    wasRouted: true,
+    routingDecision,
+    queryAnalysis,
+    wasCached,
+    cacheHit: false,
+    cacheKey,
+    analysisTimeMs,
+    cacheCheckTimeMs,
+    generationTimeMs,
+    totalTimeMs: Date.now() - startTime,
+  }
+}
+
+/**
+ * Get OpenAI client instance (for use in other modules)
+ */
+export function getOpenAIClient(): OpenAI {
+  return openai
+}
+
 /**
  * Moderate content using OpenAI's moderation API
  * Returns flagged categories for teen safety
@@ -2130,9 +2414,8 @@ export async function getProactiveSuggestion(params: {
   // Reset if user asked a question
   const cooldownActive = aiMessageCountSinceLastAsk < 4 && !latestUserSignal?.isQuestion
 
-  // Get last AI and user messages
+  // Get last AI message for context
   const lastAiMessage = recentMessages.filter(m => m.role === 'assistant').slice(-1)[0]
-  const lastUserMessage = userMessages.slice(-1)[0]
 
   // === STATE-BASED LOGIC ===
 

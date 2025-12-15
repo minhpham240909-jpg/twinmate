@@ -202,19 +202,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ available: false, partners: [], reason: 'no_matchable_criteria' })
     }
 
-    // Get users who are online
-    const onlineUsers = await prisma.user.findMany({
-      where: {
-        id: { in: onlineUserIds }
-      },
-      select: {
-        id: true,
-        name: true,
-        avatarUrl: true,
-      }
-    })
-
-    // Get profiles for online users that match AT LEAST ONE of the criteria
+    // N+1 FIX: Use include to JOIN user data with profile in a single query
+    // Instead of fetching users separately and doing client-side lookup
     const matchingProfiles = await prisma.profile.findMany({
       where: {
         userId: { in: onlineUserIds },
@@ -233,12 +222,21 @@ export async function GET(request: NextRequest) {
         school: true,
         studyStyle: true,
         role: true,
+        // Include user data via relation (single query with JOIN)
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          }
+        }
       }
     })
 
     // Combine profile data with user data and calculate which criteria matched
     const partners = matchingProfiles.map(profile => {
-      const userData = onlineUsers.find(u => u.id === profile.userId)
+      // User data is now directly available via the relation
+      const userData = profile.user
 
       // Determine which criteria matched for display
       const matchedCriteria: string[] = []

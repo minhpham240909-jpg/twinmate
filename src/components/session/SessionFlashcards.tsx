@@ -320,7 +320,7 @@ export default function SessionFlashcards({ sessionId, isHost = false, currentUs
 
   // RESULTS MODE
   if (viewMode === 'results') {
-      const percentage = Math.round((correctCount / flashcards.length) * 100)
+      const percentage = flashcards.length > 0 ? Math.round((correctCount / flashcards.length) * 100) : 0
 
       return (
           <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 animate-in fade-in zoom-in-95 duration-300">

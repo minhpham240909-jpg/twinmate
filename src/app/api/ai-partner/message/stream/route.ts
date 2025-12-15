@@ -1,6 +1,12 @@
 /**
  * AI Partner Streaming Message API
  * POST /api/ai-partner/message/stream - Send message to AI partner with streaming response
+ *
+ * Enhanced with Intelligence System v2.0:
+ * - Intent classification (fast path + AI fallback)
+ * - Dynamic response configuration
+ * - Adaptive behavior tracking
+ * - Memory-aware decisions
  */
 
 import { NextRequest } from 'next/server'
@@ -16,6 +22,18 @@ import {
   generateEducationalImage,
   ImageGenerationStyle,
 } from '@/lib/ai-partner/openai'
+
+// Intelligence System imports
+import {
+  makeDecision,
+  injectDecisionIntoPrompt,
+  restoreAdaptiveTracker,
+  isLegacySession,
+  INTELLIGENCE_VERSION,
+  type SessionContext,
+  type MemoryContext,
+  DEFAULT_MEMORY_CONTEXT,
+} from '@/lib/ai-partner/intelligence'
 
 /**
  * Detect if user is asking for image generation
@@ -475,11 +493,81 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // =========================================================================
+    // INTELLIGENCE SYSTEM v2.0
+    // Only apply to new sessions (sessions with intelligenceVersion set)
+    // Legacy sessions continue with old behavior for compatibility
+    // =========================================================================
+    let decision = null
+    let adaptiveTracker = null
+    const useIntelligenceSystem = !isLegacySession(session.intelligenceVersion)
+
+    if (useIntelligenceSystem) {
+      try {
+        // Restore adaptive tracker from session state
+        adaptiveTracker = restoreAdaptiveTracker(
+          session.adaptiveState ? JSON.stringify(session.adaptiveState) : null
+        )
+
+        // Process user message for adaptive signals
+        adaptiveTracker.processUserMessage(content, Date.now())
+
+        // Build session context for decision making
+        const sessionContext: SessionContext = {
+          sessionId: session.id,
+          userId: user.id,
+          subject: session.subject,
+          skillLevel: session.skillLevel,
+          sessionState: 'WORKING', // Will be determined by tracker
+          messageCount: session.messageCount,
+          totalTokensUsed: session.totalTokensUsed || 0,
+          fallbackCallCount: session.fallbackCallCount || 0,
+          startedAt: session.startedAt,
+          recentMessages: conversationMessages.reverse().map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+          intelligenceVersion: session.intelligenceVersion,
+        }
+
+        // Get memory context (simplified - can be enhanced with full memory system)
+        const memoryContext: MemoryContext = DEFAULT_MEMORY_CONTEXT
+
+        // Make intelligent decision about how to respond
+        decision = await makeDecision(
+          content,
+          sessionContext,
+          memoryContext,
+          adaptiveTracker.getState()
+        )
+
+        console.log('[AI Partner Stream] Intelligence decision:', {
+          intent: decision.meta.intent,
+          confidence: decision.meta.confidence,
+          style: decision.responseConfig.style,
+          usedFallback: decision.meta.usedAIFallback,
+          processingTimeMs: decision.meta.processingTimeMs,
+        })
+
+        // Inject decision into system prompt (first system message)
+        if (messages.length > 0 && messages[0].role === 'system') {
+          messages[0].content = injectDecisionIntoPrompt(messages[0].content, decision)
+        }
+      } catch (intelligenceError) {
+        console.error('[AI Partner Stream] Intelligence system error (falling back to default):', intelligenceError)
+        // Continue with default behavior if intelligence system fails
+        decision = null
+      }
+    }
+
     // Trim/summarize context while preserving system prompts
     messages = await manageContextWindow(messages, {
       preserveSystemPrompt: true,
       reserveTokens: 800,
     })
+
+    // Determine max tokens based on decision or default
+    const maxTokens = decision?.responseConfig.maxTokens || session.persona?.maxTokens || 500
 
     // Create a TransformStream to send SSE data
     const encoder = new TextEncoder()
@@ -497,6 +585,11 @@ export async function POST(request: NextRequest) {
           type: 'start',
           userMessageId: userMsg.id,
           userMessageWasFlagged: moderation.flagged,
+          // Include intelligence metadata if available
+          ...(decision ? {
+            intent: decision.meta.intent,
+            confidence: decision.meta.confidence,
+          } : {}),
         })}\n\n`))
 
         await sendChatMessageStream(
@@ -510,14 +603,19 @@ export async function POST(request: NextRequest) {
                 content: token,
               })}\n\n`))
             },
-            onComplete: async (content, usage) => {
+            onComplete: async (responseContent, usage) => {
+              // Update adaptive tracker with AI response
+              if (adaptiveTracker) {
+                adaptiveTracker.processAIMessage(responseContent)
+              }
+
               // Save AI message to database
               const aiMsg = await prisma.aIPartnerMessage.create({
                 data: {
                   sessionId: session.id,
                   studySessionId: session.studySessionId,
                   role: 'ASSISTANT',
-                  content,
+                  content: responseContent,
                   messageType,
                   wasModerated: false,
                   promptTokens: usage.promptTokens,
@@ -527,20 +625,36 @@ export async function POST(request: NextRequest) {
               })
               aiMessageId = aiMsg.id
 
-              // Update session message count
+              // Update session with intelligence tracking
+              const sessionUpdate: Prisma.AIPartnerSessionUpdateInput = {
+                messageCount: { increment: 2 },
+                ...(moderation.flagged ? { flaggedCount: { increment: 1 } } : {}),
+              }
+
+              // Add intelligence system updates if applicable
+              if (useIntelligenceSystem && adaptiveTracker) {
+                sessionUpdate.adaptiveState = adaptiveTracker.getState() as unknown as Prisma.InputJsonValue
+                sessionUpdate.totalTokensUsed = { increment: usage.totalTokens }
+                if (decision?.meta.usedAIFallback) {
+                  sessionUpdate.fallbackCallCount = { increment: 1 }
+                }
+              }
+
               await prisma.aIPartnerSession.update({
                 where: { id: session.id },
-                data: {
-                  messageCount: { increment: 2 },
-                  ...(moderation.flagged ? { flaggedCount: { increment: 1 } } : {}),
-                },
+                data: sessionUpdate,
               })
 
               // Send complete event
               await writer.write(encoder.encode(`data: ${JSON.stringify({
                 type: 'complete',
                 aiMessageId,
-                content,
+                content: responseContent,
+                // Include intelligence metadata if available
+                ...(decision ? {
+                  intent: decision.meta.intent,
+                  style: decision.responseConfig.style,
+                } : {}),
               })}\n\n`))
 
               await writer.close()
@@ -556,7 +670,7 @@ export async function POST(request: NextRequest) {
           },
           {
             temperature: session.persona?.temperature || 0.7,
-            maxTokens: session.persona?.maxTokens || 500,
+            maxTokens,
           }
         )
       } catch (err) {

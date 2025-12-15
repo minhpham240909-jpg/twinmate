@@ -90,9 +90,12 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Build Map for O(1) lookups instead of O(n) find()
+    const participantMap = new Map(participantRecords.map(p => [p.sessionId, p]))
+
     // Format response
     const formattedSessions = sessions.map(session => {
-      const participantRecord = participantRecords.find(p => p.sessionId === session.id)
+      const participantRecord = participantMap.get(session.id)
       return {
         id: session.id,
         title: session.title,

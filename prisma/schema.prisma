@@ -2072,6 +2072,12 @@ model AIPartnerSession {
   flaggedCount  Int        @default(0) // Number of flagged messages
   wasSafetyBlocked Boolean @default(false) // Session was ended due to safety
 
+  // Intelligence System (v2.0+)
+  intelligenceVersion String?    // Version of intelligence system used
+  adaptiveState       Json?      // Serialized adaptive tracker state
+  totalTokensUsed     Int        @default(0) // Token budget tracking
+  fallbackCallCount   Int        @default(0) // AI fallback calls used
+
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -2271,26 +2277,42 @@ enum AIMemoryCategory {
 }
 
 // ==========================================
-// AI RESPONSE CACHING
+// AI RESPONSE CACHING (Enhanced for Smart Routing)
 // ==========================================
 
 model AIResponseCache {
   id          String   @id @default(uuid())
-  cacheKey    String   @unique // Hash of prompt + options
+
+  // Query identification
+  queryHash       String   @unique  // SHA256 hash for exact matching
+  queryNormalized String   @db.Text // Normalized query for fuzzy matching
 
   // Cached response
   response    String   @db.Text
-  tokens      Json     // { prompt, completion, total }
 
-  // Cache metadata
-  accessCount Int      @default(1)
-  lastAccessed DateTime @default(now())
-  expiresAt   DateTime
+  // Scope and ownership (hybrid caching)
+  scope       String   @default("global") // 'global', 'user', 'session'
+  userId      String?  // NULL for global scope
+  subject     String?  // Subject context (optional)
+  skillLevel  String?  // Skill level context (optional)
+
+  // Cache management
+  hitCount    Int      @default(0)    // Number of times this cache was used
+  expiresAt   DateTime               // When this cache entry expires
+  lastAccessedAt DateTime @default(now())
+
+  // Metadata (JSONB for flexibility)
+  // Contains: originalQuery, modelUsed, tokensUsed, responseLength, complexity
+  metadata    Json     @default("{}")
 
   createdAt   DateTime @default(now())
 
-  @@index([cacheKey])
+  @@index([queryHash])
+  @@index([scope])
+  @@index([userId])
   @@index([expiresAt])
+  @@index([subject])
+  @@index([scope, expiresAt, hitCount])
   @@map("ai_response_cache")
 }
 

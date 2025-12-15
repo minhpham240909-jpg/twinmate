@@ -208,14 +208,15 @@ export async function POST(
       },
     })
 
-    // Create notifications in parallel (don't block response)
+    // Create notifications in parallel (fire-and-forget with proper void operator)
     if (otherParticipants.length > 0) {
       const senderName = message.sender.name || message.sender.email || 'Someone'
       const contentPreview = content.trim().length > 50
         ? content.trim().substring(0, 50) + '...'
         : content.trim()
 
-      prisma.notification.createMany({
+      // Using void to explicitly mark as intentional fire-and-forget
+      void prisma.notification.createMany({
         data: otherParticipants.map(p => ({
           userId: p.userId,
           type: 'NEW_MESSAGE',
