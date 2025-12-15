@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { deleteNotificationSchema, validateRequest } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,51 +18,109 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    // Validate request body
-    const validation = validateRequest(deleteNotificationSchema, body)
-    if (!validation.success) {
-      return NextResponse.json({ error: validation.error }, { status: 400 })
+    const { notificationIds } = body
+
+    // Validate that notificationIds is an array with at least one item
+    if (!Array.isArray(notificationIds) || notificationIds.length === 0) {
+      return NextResponse.json(
+        { error: 'notificationIds must be a non-empty array' },
+        { status: 400 }
+      )
     }
 
-    const { notificationIds } = validation.data
+    // Separate announcement IDs (prefixed with "announcement-") from regular notification IDs
+    const announcementIds: string[] = []
+    const regularNotificationIds: string[] = []
 
-    // First, verify the notifications exist and belong to this user
-    const existingNotifications = await prisma.notification.findMany({
-      where: {
-        id: { in: notificationIds },
-        userId: user.id,
-      },
-      select: { id: true },
-    })
+    for (const id of notificationIds) {
+      if (typeof id !== 'string') continue
 
-    if (existingNotifications.length === 0) {
-      // No notifications found - either they don't exist or don't belong to user
-      // This is still a success case (nothing to delete)
-      return NextResponse.json({
-        success: true,
-        message: 'No notifications found to delete',
-        deletedCount: 0,
+      if (id.startsWith('announcement-')) {
+        // Extract the actual announcement ID
+        const announcementId = id.replace('announcement-', '')
+        if (announcementId) {
+          announcementIds.push(announcementId)
+        }
+      } else {
+        // Regular notification ID - should be a UUID
+        regularNotificationIds.push(id)
+      }
+    }
+
+    let deletedCount = 0
+    let dismissedCount = 0
+
+    // Handle regular notifications deletion
+    if (regularNotificationIds.length > 0) {
+      // First, verify the notifications exist and belong to this user
+      const existingNotifications = await prisma.notification.findMany({
+        where: {
+          id: { in: regularNotificationIds },
+          userId: user.id,
+        },
+        select: { id: true },
       })
+
+      if (existingNotifications.length > 0) {
+        // Delete only the verified notifications
+        const deleteResult = await prisma.notification.deleteMany({
+          where: {
+            id: { in: existingNotifications.map(n => n.id) },
+            userId: user.id,
+          },
+        })
+        deletedCount = deleteResult.count
+      }
     }
 
-    // Delete only the verified notifications
-    const deleteResult = await prisma.notification.deleteMany({
-      where: {
-        id: { in: existingNotifications.map(n => n.id) },
-        userId: user.id, // Security: only delete user's own notifications
-      },
-    })
+    // Handle announcement dismissals (create dismissal records instead of deleting)
+    if (announcementIds.length > 0) {
+      // Verify these announcements exist
+      const existingAnnouncements = await prisma.announcement.findMany({
+        where: {
+          id: { in: announcementIds },
+        },
+        select: { id: true },
+      })
 
-    console.log(`Deleted ${deleteResult.count} notification(s) for user ${user.id}`)
+      if (existingAnnouncements.length > 0) {
+        // Create dismissal records for each announcement (skip duplicates)
+        for (const announcement of existingAnnouncements) {
+          try {
+            await prisma.announcementDismissal.create({
+              data: {
+                userId: user.id,
+                announcementId: announcement.id,
+              },
+            })
+            dismissedCount++
+          } catch (e: any) {
+            // Ignore unique constraint errors (already dismissed)
+            if (e?.code !== 'P2002') {
+              console.error('Error dismissing announcement:', e)
+            } else {
+              // Already dismissed, count it as success
+              dismissedCount++
+            }
+          }
+        }
+      }
+    }
+
+    const totalCount = deletedCount + dismissedCount
+    console.log(`User ${user.id}: Deleted ${deletedCount} notification(s), dismissed ${dismissedCount} announcement(s)`)
 
     return NextResponse.json({
       success: true,
-      message: `${deleteResult.count} notification(s) deleted`,
-      deletedCount: deleteResult.count,
+      message: totalCount > 0
+        ? `${totalCount} notification(s) removed`
+        : 'No notifications found to remove',
+      deletedCount,
+      dismissedCount,
+      totalCount,
     })
   } catch (error) {
     console.error('Error in delete notifications API:', error)
-    // Log more details for debugging
     if (error instanceof Error) {
       console.error('Error details:', error.message, error.stack)
     }
