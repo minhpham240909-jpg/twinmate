@@ -21,10 +21,26 @@ import {
   BarChart3,
   Sparkles,
   Brain,
+  Eye,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { AreaChartCard } from '@/components/admin/charts'
+
+// Real-time online users data interface
+interface OnlineUsersData {
+  count: number
+  activeDevices: number
+  users: Array<{
+    id: string
+    name: string
+    avatarUrl: string | null
+    currentPage: string | null
+    lastSeen: string
+  }>
+  pageBreakdown: Array<{ page: string; count: number }>
+  timestamp: string
+}
 
 interface DashboardStats {
   users: {
@@ -67,6 +83,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [growthData, setGrowthData] = useState<GrowthDataPoint[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentUser[]>([])
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUsersData | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
@@ -90,16 +107,38 @@ export default function AdminDashboard() {
     }
   }, [])
 
+  // Fetch real-time online users (separate from main dashboard for faster refresh)
+  const fetchOnlineUsers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/analytics/online-users')
+      const result = await response.json()
+      if (result.success) {
+        setOnlineUsers(result.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch online users:', err)
+    }
+  }, [])
+
   useEffect(() => {
     fetchDashboardData()
+    fetchOnlineUsers() // Initial fetch for online users
 
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(() => {
+    // Auto-refresh dashboard every 60 seconds
+    const dashboardInterval = setInterval(() => {
       fetchDashboardData()
     }, 60000)
 
-    return () => clearInterval(interval)
-  }, [fetchDashboardData])
+    // Auto-refresh online users every 15 seconds (faster for real-time feel)
+    const onlineUsersInterval = setInterval(() => {
+      fetchOnlineUsers()
+    }, 15000)
+
+    return () => {
+      clearInterval(dashboardInterval)
+      clearInterval(onlineUsersInterval)
+    }
+  }, [fetchDashboardData, fetchOnlineUsers])
 
   // Format number with K/M suffix
   const formatNumber = (num: number): string => {
@@ -278,6 +317,86 @@ export default function AdminDashboard() {
             </div>
           )
         })}
+      </div>
+
+      {/* Real-Time Online Users - Prominent Display */}
+      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+              <span className="text-green-100 text-sm font-medium">LIVE</span>
+            </div>
+            <div className="text-5xl font-bold mb-1">
+              {onlineUsers?.count ?? 0}
+            </div>
+            <div className="text-green-100">Users Online Right Now</div>
+            {onlineUsers && (
+              <div className="text-green-200 text-xs mt-2">
+                {onlineUsers.activeDevices} active device{onlineUsers.activeDevices !== 1 ? 's' : ''} •
+                Updated {new Date(onlineUsers.timestamp).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col items-start sm:items-end gap-3">
+            <Activity className="w-16 h-16 text-white/30 hidden sm:block" />
+            {onlineUsers && onlineUsers.users.length > 0 && (
+              <div>
+                <div className="text-xs text-green-200 mb-2">Currently Active:</div>
+                <div className="flex -space-x-2">
+                  {onlineUsers.users.slice(0, 5).map((user) => (
+                    <Link
+                      key={user.id}
+                      href={`/admin/users/${user.id}`}
+                      className="w-8 h-8 rounded-full bg-white/20 border-2 border-green-500 flex items-center justify-center overflow-hidden hover:scale-110 transition-transform"
+                      title={user.name}
+                    >
+                      {user.avatarUrl ? (
+                        <Image src={user.avatarUrl} alt={user.name} width={32} height={32} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-medium">{user.name.charAt(0)}</span>
+                      )}
+                    </Link>
+                  ))}
+                  {onlineUsers.users.length > 5 && (
+                    <div className="w-8 h-8 rounded-full bg-white/30 border-2 border-green-500 flex items-center justify-center text-xs font-medium">
+                      +{onlineUsers.users.length - 5}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <Link
+              href="/admin/analytics/user-behavior"
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-lg hover:bg-white/30 transition-colors text-sm"
+            >
+              <Eye className="w-4 h-4" />
+              View Details
+            </Link>
+          </div>
+        </div>
+
+        {/* Page Breakdown - Where users are right now */}
+        {onlineUsers && onlineUsers.pageBreakdown.length > 0 && (
+          <div className="relative z-10 mt-4 pt-4 border-t border-white/20">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              <span className="text-sm text-green-100 font-medium">Where Users Are Right Now</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {onlineUsers.pageBreakdown.slice(0, 5).map((item, idx) => (
+                <div key={idx} className="p-2 bg-white/10 rounded-lg">
+                  <div className="text-lg font-bold">{item.count}</div>
+                  <div className="text-xs text-green-200 truncate" title={item.page}>
+                    {item.page.replace('/[id]', '').replace(/^\//, '') || 'Home'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Growth Chart and Recent Signups */}

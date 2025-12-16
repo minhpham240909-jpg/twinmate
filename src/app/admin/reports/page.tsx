@@ -25,6 +25,7 @@ import {
   Search,
 } from 'lucide-react'
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
+import Link from 'next/link'
 
 type TabType = 'reports' | 'feedback'
 
@@ -657,7 +658,10 @@ export default function AdminReportsPage() {
                 {/* People Involved */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Reporter */}
-                  <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                  <Link
+                    href={`/admin/users/${report.reporter.id}`}
+                    className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors group"
+                  >
                     <User className="w-4 h-4 text-gray-500" />
                     <div className="flex items-center gap-2">
                       {report.reporter.avatarUrl ? (
@@ -677,14 +681,18 @@ export default function AdminReportsPage() {
                       )}
                       <div>
                         <p className="text-xs text-gray-400">Reported by</p>
-                        <p className="text-sm text-white">{report.reporter.name || report.reporter.email}</p>
+                        <p className="text-sm text-white group-hover:text-blue-400 transition-colors">{report.reporter.name || report.reporter.email}</p>
                       </div>
                     </div>
-                  </div>
+                    <Eye className="w-4 h-4 text-gray-500 group-hover:text-blue-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
 
                   {/* Reported User */}
                   {report.reportedUser && (
-                    <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                    <Link
+                      href={`/admin/users/${report.reportedUser.id}`}
+                      className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors group"
+                    >
                       <Flag className="w-4 h-4 text-red-400" />
                       <div className="flex items-center gap-2">
                         {report.reportedUser.avatarUrl ? (
@@ -704,10 +712,11 @@ export default function AdminReportsPage() {
                         )}
                         <div>
                           <p className="text-xs text-gray-400">Reported user</p>
-                          <p className="text-sm text-white">{report.reportedUser.name || report.reportedUser.email}</p>
+                          <p className="text-sm text-white group-hover:text-blue-400 transition-colors">{report.reportedUser.name || report.reportedUser.email}</p>
                         </div>
                       </div>
-                    </div>
+                      <Eye className="w-4 h-4 text-gray-500 group-hover:text-blue-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
                   )}
                 </div>
 
@@ -875,7 +884,10 @@ export default function AdminReportsPage() {
                   )}
 
                   {/* User Info */}
-                  <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                  <Link
+                    href={`/admin/users/${fb.user.id}`}
+                    className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors group"
+                  >
                     <User className="w-4 h-4 text-gray-500" />
                     <div className="flex items-center gap-2">
                       {fb.user.avatarUrl ? (
@@ -895,10 +907,11 @@ export default function AdminReportsPage() {
                       )}
                       <div>
                         <p className="text-xs text-gray-400">Submitted by</p>
-                        <p className="text-sm text-white">{fb.user.name || fb.user.email}</p>
+                        <p className="text-sm text-white group-hover:text-blue-400 transition-colors">{fb.user.name || fb.user.email}</p>
                       </div>
                     </div>
-                  </div>
+                    <Eye className="w-4 h-4 text-gray-500 group-hover:text-blue-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
 
                   {/* Admin Notes */}
                   {fb.adminNotes && (

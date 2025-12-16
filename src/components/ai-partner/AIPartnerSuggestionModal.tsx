@@ -59,13 +59,16 @@ export default function AIPartnerSuggestionModal({
   const [showQualitiesInput, setShowQualitiesInput] = useState(false)
   const [userQualities, setUserQualities] = useState('')
 
-  // Build display text from search criteria
+  // Build display text from search criteria - show ALL matched criteria
   const getSearchSummary = () => {
     const parts: string[] = []
+
     // Always include text search query as the first part
     if (searchQuery && searchQuery.trim()) {
       parts.push(searchQuery.trim())
     }
+
+    // Subjects
     if (searchCriteria.subjects?.length) {
       // Don't duplicate if searchQuery is same as a subject
       const subjects = searchCriteria.subjects.filter(s =>
@@ -75,17 +78,78 @@ export default function AIPartnerSuggestionModal({
         parts.push(subjects.join(', '))
       }
     }
+
+    // School
     if (searchCriteria.school) {
       parts.push(searchCriteria.school)
     }
+
+    // Location - city, state, or country
     if (searchCriteria.locationCity) {
       parts.push(searchCriteria.locationCity)
+    } else if (searchCriteria.locationState) {
+      parts.push(searchCriteria.locationState)
     } else if (searchCriteria.locationCountry) {
       parts.push(searchCriteria.locationCountry)
     }
+
+    // Skill Level
     if (searchCriteria.skillLevel) {
-      parts.push(searchCriteria.skillLevel.charAt(0) + searchCriteria.skillLevel.slice(1).toLowerCase())
+      parts.push(searchCriteria.skillLevel.charAt(0) + searchCriteria.skillLevel.slice(1).toLowerCase() + ' level')
     }
+
+    // Study Style
+    if (searchCriteria.studyStyle) {
+      parts.push(searchCriteria.studyStyle.charAt(0) + searchCriteria.studyStyle.slice(1).toLowerCase() + ' style')
+    }
+
+    // Interests
+    if (searchCriteria.interests?.length) {
+      const interestText = searchCriteria.interests.length > 2
+        ? searchCriteria.interests.slice(0, 2).join(', ') + ' +more'
+        : searchCriteria.interests.join(', ')
+      parts.push(interestText)
+    }
+
+    // Goals
+    if (searchCriteria.goals?.length) {
+      const goalText = searchCriteria.goals.length > 2
+        ? searchCriteria.goals.slice(0, 2).join(', ') + ' +more'
+        : searchCriteria.goals.join(', ')
+      parts.push(goalText)
+    }
+
+    // Availability
+    if (searchCriteria.availableDays?.length || searchCriteria.availableHours) {
+      let availText = ''
+      if (searchCriteria.availableDays?.length) {
+        availText = searchCriteria.availableDays.length > 2
+          ? searchCriteria.availableDays.slice(0, 2).join(', ') + '...'
+          : searchCriteria.availableDays.join(', ')
+      }
+      if (searchCriteria.availableHours) {
+        availText += availText ? ` (${searchCriteria.availableHours})` : searchCriteria.availableHours
+      }
+      if (availText) {
+        parts.push(availText)
+      }
+    }
+
+    // Role
+    if (searchCriteria.role?.length) {
+      parts.push(searchCriteria.role.join('/'))
+    }
+
+    // Age Range
+    if (searchCriteria.ageRange) {
+      parts.push(searchCriteria.ageRange)
+    }
+
+    // Languages
+    if (searchCriteria.languages) {
+      parts.push(searchCriteria.languages)
+    }
+
     return parts.length > 0 ? parts.join(' • ') : 'study partner'
   }
 

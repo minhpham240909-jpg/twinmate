@@ -54,13 +54,16 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { sessionId } = await params
     const body = await request.json().catch(() => ({}))
-    const { rating, feedback } = body
+    const { rating, feedback, focusTime } = body
 
     const result = await endSession({
       sessionId,
       userId: user.id,
       rating: rating ? parseInt(rating) : undefined,
       feedback,
+      // focusTime is the Pomodoro timer time - only counted when user clicks Start Timer
+      // If focusTime is 0 or undefined, it means user never started the timer
+      focusTime: focusTime ? parseInt(focusTime) : undefined,
     })
 
     return NextResponse.json({

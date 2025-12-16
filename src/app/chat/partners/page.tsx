@@ -3,7 +3,8 @@
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useRef, Suspense } from 'react'
-import { subscribeToDM } from '@/lib/supabase/realtime'
+import { subscribeToDM, subscribeToTypingDM, type TypingUser } from '@/lib/supabase/realtime'
+import TypingIndicator from '@/components/chat/TypingIndicator'
 import MessageVideoCall from '@/components/messages/MessageVideoCall'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { useTranslations } from 'next-intl'
@@ -81,6 +82,10 @@ function PartnersChatContent() {
   const currentCallType = useRef<'VIDEO' | 'AUDIO'>('VIDEO')
   const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
+  const sendTypingRef = useRef<((isTyping: boolean, user: TypingUser) => void) | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastTypingStateRef = useRef<boolean>(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -238,6 +243,57 @@ function PartnersChatContent() {
       if (cleanup) cleanup()
     }
   }, [selectedConversation, user])
+
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (!selectedConversation || !user || !profile) return
+
+    const { cleanup, sendTyping } = subscribeToTypingDM(
+      user.id,
+      selectedConversation.id,
+      (users) => setTypingUsers(users)
+    )
+
+    sendTypingRef.current = sendTyping
+
+    return () => {
+      cleanup()
+      sendTypingRef.current = null
+      setTypingUsers([])
+    }
+  }, [selectedConversation, user, profile])
+
+  // Handle typing broadcast
+  const handleTyping = () => {
+    if (!sendTypingRef.current || !user || !profile) return
+
+    // Send typing=true
+    if (!lastTypingStateRef.current) {
+      lastTypingStateRef.current = true
+      sendTypingRef.current(true, {
+        id: user.id,
+        name: profile.name || 'User',
+        avatarUrl: profile.avatarUrl
+      })
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    // Set timeout to send typing=false after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      if (sendTypingRef.current && lastTypingStateRef.current) {
+        lastTypingStateRef.current = false
+        sendTypingRef.current(false, {
+          id: user.id,
+          name: profile.name || 'User',
+          avatarUrl: profile.avatarUrl
+        })
+      }
+    }, 2000)
+  }
 
   // Auto-scroll
   useEffect(() => {
@@ -809,6 +865,13 @@ function PartnersChatContent() {
                     </div>
                   </div>
 
+                  {/* Typing Indicator */}
+                  {typingUsers.length > 0 && (
+                    <div className="flex-shrink-0 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900/50">
+                      <TypingIndicator typingUsers={typingUsers} />
+                    </div>
+                  )}
+
                   {/* Message Input */}
                   <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900">
                     {/* Character count indicator - shows when approaching limit */}
@@ -858,6 +921,10 @@ function PartnersChatContent() {
                           // Enforce max length on input
                           if (e.target.value.length <= 1000) {
                             setMessage(e.target.value)
+                            // Broadcast typing indicator
+                            if (e.target.value.length > 0) {
+                              handleTyping()
+                            }
                           }
                         }}
                         onKeyDown={(e) => {

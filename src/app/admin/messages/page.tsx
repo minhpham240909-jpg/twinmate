@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface Message {
   id: string
@@ -492,7 +493,10 @@ export default function AdminMessagesPage() {
             {/* Modal Content */}
             <div className="p-4 space-y-4">
               {/* Sender Info */}
-              <div className="flex items-center gap-4 p-3 bg-gray-700/50 rounded-lg">
+              <Link
+                href={`/admin/users/${selectedMessage.senderId}`}
+                className="flex items-center gap-4 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors group"
+              >
                 {selectedMessage.senderAvatar ? (
                   <Image
                     src={selectedMessage.senderAvatar}
@@ -508,12 +512,13 @@ export default function AdminMessagesPage() {
                     </span>
                   </div>
                 )}
-                <div>
-                  <p className="font-medium text-white">{selectedMessage.senderName || 'Unknown'}</p>
+                <div className="flex-1">
+                  <p className="font-medium text-white group-hover:text-blue-400 transition-colors">{selectedMessage.senderName || 'Unknown'}</p>
                   <p className="text-sm text-gray-400">{selectedMessage.senderEmail}</p>
                   <p className="text-xs text-gray-500">ID: {selectedMessage.senderId}</p>
                 </div>
-              </div>
+                <Eye className="w-5 h-5 text-gray-500 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
 
               {/* Message Content */}
               <div className="p-4 bg-gray-900 rounded-lg">

@@ -108,6 +108,10 @@ export default function AIPartnerSessionPage({
   const [lastProactiveAskIndex, setLastProactiveAskIndex] = useState(0)
   const [aiMessagesSinceLastAsk, setAiMessagesSinceLastAsk] = useState(0)
 
+  // Track Pomodoro focus time (only counts when timer is running in 'study' mode)
+  // This is the key metric for analytics - NOT total session duration
+  const [focusTime, setFocusTime] = useState(0)
+
   useEffect(() => {
     fetchSession()
   }, [sessionId])
@@ -573,7 +577,9 @@ export default function AIPartnerSessionPage({
       const res = await fetch(`/api/ai-partner/session/${sessionId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating, feedback }),
+        // Pass focusTime - only the time when Pomodoro timer was running in study mode
+        // If user never clicked Start Timer, focusTime will be 0
+        body: JSON.stringify({ rating, feedback, focusTime }),
       })
 
       const data = await res.json()
@@ -889,6 +895,7 @@ export default function AIPartnerSessionPage({
             onTimerComplete={(isBreak) => {
               console.log(isBreak ? 'Break complete!' : 'Study session complete!')
             }}
+            onFocusTimeUpdate={(time) => setFocusTime(time)}
           />
 
           {/* Study Goal */}

@@ -35,7 +35,10 @@ interface AIPartnerAnalytics {
     totalUniqueUsers: number
     activeSessions: number
     pausedSessions: number
-    averageSessionDuration: number
+    // Focus time is the Pomodoro timer time - only counted when user clicks Start Timer
+    averageFocusTime: number // Average focus time per session (in seconds)
+    totalFocusTime: number // Total focus time across all sessions (in seconds)
+    sessionsWithTimer: number // Number of sessions where timer was actually used
     averageMessagesPerSession: number
   }
   timePeriods: {
@@ -212,7 +215,15 @@ export default function AdminAIPartnerPage() {
     )
   }
 
-  const statCards = [
+  const statCards: Array<{
+    title: string
+    value: string | number
+    subtitle?: string
+    icon: typeof Sparkles
+    color: string
+    isText?: boolean
+    urgent?: boolean
+  }> = [
     {
       title: 'Total Sessions',
       value: data.overview.totalSessions,
@@ -239,8 +250,9 @@ export default function AdminAIPartnerPage() {
       urgent: data.overview.activeSessions > 0,
     },
     {
-      title: 'Avg Duration',
-      value: formatDuration(data.overview.averageSessionDuration),
+      title: 'Avg Focus Time',
+      value: data.overview.averageFocusTime > 0 ? formatDuration(data.overview.averageFocusTime) : 'N/A',
+      subtitle: `${data.overview.sessionsWithTimer} sessions used timer`,
       icon: Clock,
       color: 'indigo',
       isText: true,
@@ -361,8 +373,11 @@ export default function AdminAIPartnerPage() {
                 <div>
                   <p className="text-sm text-gray-400">{stat.title}</p>
                   <p className={`text-3xl font-bold mt-1 ${colors.text}`}>
-                    {stat.isText ? stat.value : stat.value.toLocaleString()}
+                    {stat.isText ? stat.value : typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
                   </p>
+                  {stat.subtitle && (
+                    <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
+                  )}
                 </div>
                 <div className={`p-3 rounded-lg ${colors.icon}`}>
                   <stat.icon className="w-6 h-6 text-white" />
@@ -374,7 +389,17 @@ export default function AdminAIPartnerPage() {
       </div>
 
       {/* Time Period Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-5 h-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Total Focus Time</h3>
+          </div>
+          <p className="text-3xl font-bold text-indigo-400">
+            {data.overview.totalFocusTime > 0 ? formatDuration(data.overview.totalFocusTime) : '0m'}
+          </p>
+          <p className="text-sm text-gray-400">tracked via Pomodoro timer</p>
+        </div>
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-5 h-5 text-green-400" />

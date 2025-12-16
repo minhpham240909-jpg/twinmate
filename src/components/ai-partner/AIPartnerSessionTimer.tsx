@@ -7,6 +7,7 @@ import { Play, Pause, RotateCcw, Coffee, Clock, Zap } from 'lucide-react'
 interface AIPartnerSessionTimerProps {
   sessionStartedAt: Date | string
   onTimerComplete?: (isBreak: boolean) => void
+  onFocusTimeUpdate?: (focusTime: number) => void // Callback to report focus time in seconds
 }
 
 type TimerState = 'idle' | 'study' | 'break' | 'paused'
@@ -14,6 +15,7 @@ type TimerState = 'idle' | 'study' | 'break' | 'paused'
 export default function AIPartnerSessionTimer({
   sessionStartedAt,
   onTimerComplete,
+  onFocusTimeUpdate,
 }: AIPartnerSessionTimerProps) {
   // Pomodoro settings (in seconds)
   const STUDY_DURATION = 25 * 60 // 25 minutes
@@ -56,9 +58,14 @@ export default function AIPartnerSessionTimer({
           }
         }
 
-        // Track study time
+        // Track study time (only when timer is in 'study' state, not break)
         if (timerState === 'study') {
-          setTotalStudyTime((t) => t + 1)
+          setTotalStudyTime((t) => {
+            const newTime = t + 1
+            // Report focus time to parent - this is the key metric for analytics
+            onFocusTimeUpdate?.(newTime)
+            return newTime
+          })
         }
 
         return prev - 1
@@ -66,7 +73,7 @@ export default function AIPartnerSessionTimer({
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [timerState, onTimerComplete, STUDY_DURATION, BREAK_DURATION])
+  }, [timerState, onTimerComplete, onFocusTimeUpdate, STUDY_DURATION, BREAK_DURATION])
 
   const startTimer = useCallback(() => {
     setTimerState('study')

@@ -448,16 +448,28 @@ export async function GET() {
       }),
     ])
 
-    // Max session duration to consider realistic (4 hours)
-    const MAX_SESSION_DURATION = 4 * 60 * 60 // 4 hours = 14400 seconds
+    // Max focus time to consider realistic (4 hours)
+    const MAX_FOCUS_TIME = 4 * 60 * 60 // 4 hours = 14400 seconds
 
-    // Calculate average session duration - only count completed sessions with realistic durations
-    const avgDuration = await prisma.aIPartnerSession.aggregate({
+    // Calculate average FOCUS TIME (Pomodoro timer time) - NOT total session duration
+    // focusTime is only counted when user explicitly clicks Start Timer during the session
+    // If user never starts the timer, focusTime is null (not counted in analytics)
+    const avgFocusTime = await prisma.aIPartnerSession.aggregate({
       where: {
-        totalDuration: { not: null, lte: MAX_SESSION_DURATION },
+        focusTime: { not: null, gt: 0, lte: MAX_FOCUS_TIME }, // Only sessions where timer was used
         status: 'COMPLETED',
       },
-      _avg: { totalDuration: true },
+      _avg: { focusTime: true },
+    })
+
+    // Also get total focus time across all sessions for overview
+    const totalFocusTime = await prisma.aIPartnerSession.aggregate({
+      where: {
+        focusTime: { not: null, gt: 0 },
+        status: 'COMPLETED',
+      },
+      _sum: { focusTime: true },
+      _count: true,
     })
 
     // Calculate token costs (approximate - GPT-4o-mini pricing)
@@ -536,7 +548,11 @@ export async function GET() {
           totalUniqueUsers,
           activeSessions,
           pausedSessions,
-          averageSessionDuration: Math.round(avgDuration._avg.totalDuration || 0),
+          // Focus time is the Pomodoro timer time - only counted when user clicks Start Timer
+          // This is the REAL study time, not just time the session was open
+          averageFocusTime: Math.round(avgFocusTime._avg.focusTime || 0), // Average focus time per session (in seconds)
+          totalFocusTime: totalFocusTime._sum.focusTime || 0, // Total focus time across all sessions (in seconds)
+          sessionsWithTimer: totalFocusTime._count || 0, // Number of sessions where timer was actually used
           averageMessagesPerSession: totalSessions > 0 ? Math.round(totalMessages / totalSessions) : 0,
         },
 

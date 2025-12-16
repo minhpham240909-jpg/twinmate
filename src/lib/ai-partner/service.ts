@@ -1640,12 +1640,13 @@ export async function endSession(params: {
   userId: string
   rating?: number
   feedback?: string
+  focusTime?: number // Pomodoro timer time in seconds (only when user clicked Start Timer)
 }): Promise<{
   summary: string
   duration: number
   memoriesExtracted: number
 }> {
-  const { sessionId, userId, rating, feedback } = params
+  const { sessionId, userId, rating, feedback, focusTime } = params
 
   const session = await prisma.aIPartnerSession.findUnique({
     where: { id: sessionId },
@@ -1746,12 +1747,15 @@ export async function endSession(params: {
   })
 
   // Update session - include extracted subject if we found one
+  // focusTime is the Pomodoro timer time - only counted when user clicked Start Timer
+  // If focusTime is 0 or undefined, it means user never started the timer (no study time tracked)
   await prisma.aIPartnerSession.update({
     where: { id: sessionId },
     data: {
       status: 'COMPLETED',
       endedAt,
-      totalDuration: duration,
+      totalDuration: duration, // Total session time (from start to end)
+      focusTime: focusTime ?? null, // Pomodoro focus time (null if timer never started)
       rating,
       feedback,
       // Save extracted subject if session didn't have one

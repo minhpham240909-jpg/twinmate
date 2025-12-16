@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   FileText,
   Filter,
@@ -247,7 +248,10 @@ export default function AdminAuditPage() {
                       </div>
 
                       {/* Admin Info */}
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Link
+                        href={`/admin/users/${log.admin.id}`}
+                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-blue-400 transition-colors group"
+                      >
                         {log.admin.avatarUrl ? (
                           <Image
                             src={log.admin.avatarUrl}
@@ -263,8 +267,8 @@ export default function AdminAuditPage() {
                             </span>
                           </div>
                         )}
-                        <span>by {log.admin.name || log.admin.email}</span>
-                      </div>
+                        <span className="group-hover:text-blue-400">by {log.admin.name || log.admin.email}</span>
+                      </Link>
 
                       {/* Details */}
                       {log.details && Object.keys(log.details).length > 0 && (

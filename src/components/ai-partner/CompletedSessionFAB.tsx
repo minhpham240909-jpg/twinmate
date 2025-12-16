@@ -163,8 +163,11 @@ export default function CompletedSessionFAB() {
     return mins
   }
 
-  // Don't render if no completed session or if on AI partner pages
-  if (!completedSession || pathname?.startsWith('/ai-partner')) return null
+  // Only show on dashboard page, not on other pages
+  const isDashboard = pathname === '/dashboard'
+
+  // Don't render if no completed session or not on dashboard
+  if (!completedSession || !isDashboard) return null
 
   return (
     <>

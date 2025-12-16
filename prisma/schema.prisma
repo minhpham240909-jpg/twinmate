@@ -2057,7 +2057,8 @@ model AIPartnerSession {
   // Timing
   startedAt   DateTime     @default(now())
   endedAt     DateTime?
-  totalDuration Int?       // Duration in seconds
+  totalDuration Int?       // Total session duration in seconds (from start to end)
+  focusTime     Int?       // Pomodoro focus time in seconds (only when timer was running)
 
   // Session stats
   messageCount  Int        @default(0)

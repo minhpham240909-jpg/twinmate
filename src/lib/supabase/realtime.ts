@@ -305,6 +305,169 @@ export function subscribeToNotifications(
 }
 
 /**
+ * Typing indicator types and functions
+ */
+export interface TypingUser {
+  id: string
+  name: string
+  avatarUrl?: string | null
+}
+
+export type TypingCallback = (typingUsers: TypingUser[]) => void
+
+/**
+ * Subscribe to typing indicators in a DM conversation
+ * Uses Supabase Broadcast for real-time ephemeral events
+ */
+export function subscribeToTypingDM(
+  myUserId: string,
+  partnerId: string,
+  onTypingChange: TypingCallback
+): { cleanup: () => void; sendTyping: (isTyping: boolean, user: TypingUser) => void } {
+  const supabase = createClient()
+  const channelName = `typing:dm:${[myUserId, partnerId].sort().join('-')}`
+
+  const typingUsers = new Map<string, { user: TypingUser; timeout: NodeJS.Timeout }>()
+
+  const updateTypingState = () => {
+    onTypingChange(Array.from(typingUsers.values()).map(v => v.user))
+  }
+
+  const channel = supabase.channel(channelName, {
+    config: { broadcast: { self: false } }
+  })
+
+  channel
+    .on('broadcast', { event: 'typing' }, (payload) => {
+      const { userId, isTyping, user } = payload.payload as { userId: string; isTyping: boolean; user: TypingUser }
+
+      // Ignore own typing events
+      if (userId === myUserId) return
+
+      if (isTyping) {
+        // Clear existing timeout for this user
+        const existing = typingUsers.get(userId)
+        if (existing) {
+          clearTimeout(existing.timeout)
+        }
+
+        // Set timeout to auto-remove after 3 seconds of no typing
+        const timeout = setTimeout(() => {
+          typingUsers.delete(userId)
+          updateTypingState()
+        }, 3000)
+
+        typingUsers.set(userId, { user, timeout })
+        updateTypingState()
+      } else {
+        // User stopped typing
+        const existing = typingUsers.get(userId)
+        if (existing) {
+          clearTimeout(existing.timeout)
+          typingUsers.delete(userId)
+          updateTypingState()
+        }
+      }
+    })
+    .subscribe()
+
+  // Function to broadcast typing state
+  const sendTyping = (isTyping: boolean, user: TypingUser) => {
+    channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: myUserId, isTyping, user }
+    })
+  }
+
+  // Cleanup function
+  const cleanup = () => {
+    // Clear all timeouts
+    typingUsers.forEach(({ timeout }) => clearTimeout(timeout))
+    typingUsers.clear()
+    supabase.removeChannel(channel)
+  }
+
+  return { cleanup, sendTyping }
+}
+
+/**
+ * Subscribe to typing indicators in a group conversation
+ * Uses Supabase Broadcast for real-time ephemeral events
+ */
+export function subscribeToTypingGroup(
+  myUserId: string,
+  groupId: string,
+  onTypingChange: TypingCallback
+): { cleanup: () => void; sendTyping: (isTyping: boolean, user: TypingUser) => void } {
+  const supabase = createClient()
+  const channelName = `typing:group:${groupId}`
+
+  const typingUsers = new Map<string, { user: TypingUser; timeout: NodeJS.Timeout }>()
+
+  const updateTypingState = () => {
+    onTypingChange(Array.from(typingUsers.values()).map(v => v.user))
+  }
+
+  const channel = supabase.channel(channelName, {
+    config: { broadcast: { self: false } }
+  })
+
+  channel
+    .on('broadcast', { event: 'typing' }, (payload) => {
+      const { userId, isTyping, user } = payload.payload as { userId: string; isTyping: boolean; user: TypingUser }
+
+      // Ignore own typing events
+      if (userId === myUserId) return
+
+      if (isTyping) {
+        // Clear existing timeout for this user
+        const existing = typingUsers.get(userId)
+        if (existing) {
+          clearTimeout(existing.timeout)
+        }
+
+        // Set timeout to auto-remove after 3 seconds of no typing
+        const timeout = setTimeout(() => {
+          typingUsers.delete(userId)
+          updateTypingState()
+        }, 3000)
+
+        typingUsers.set(userId, { user, timeout })
+        updateTypingState()
+      } else {
+        // User stopped typing
+        const existing = typingUsers.get(userId)
+        if (existing) {
+          clearTimeout(existing.timeout)
+          typingUsers.delete(userId)
+          updateTypingState()
+        }
+      }
+    })
+    .subscribe()
+
+  // Function to broadcast typing state
+  const sendTyping = (isTyping: boolean, user: TypingUser) => {
+    channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: myUserId, isTyping, user }
+    })
+  }
+
+  // Cleanup function
+  const cleanup = () => {
+    // Clear all timeouts
+    typingUsers.forEach(({ timeout }) => clearTimeout(timeout))
+    typingUsers.clear()
+    supabase.removeChannel(channel)
+  }
+
+  return { cleanup, sendTyping }
+}
+
+/**
  * Broadcast presence (online/offline status) to a channel
  */
 export function broadcastPresence(

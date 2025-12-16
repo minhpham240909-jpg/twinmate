@@ -150,8 +150,11 @@ export default function PausedSessionFAB() {
     }
   }
 
-  // Don't render if no paused session
-  if (!pausedSession) return null
+  // Only show on dashboard page, not on other pages
+  const isDashboard = pathname === '/dashboard'
+
+  // Don't render if no paused session or not on dashboard
+  if (!pausedSession || !isDashboard) return null
 
   return (
     <>
