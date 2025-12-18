@@ -45,9 +45,20 @@ export async function POST(request: NextRequest) {
       personaDescription: result.personaDescription,
     })
   } catch (error) {
-    console.error('[AI Partner] Session from search creation error:', error)
+    // Log the full error for debugging
+    console.error('[AI Partner] Session from search creation error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
+
+    // Return more detailed error message in development
+    const errorMessage = process.env.NODE_ENV === 'development' && error instanceof Error
+      ? error.message
+      : 'Failed to create AI session'
+
     return NextResponse.json(
-      { error: 'Failed to create AI session' },
+      { error: errorMessage },
       { status: 500 }
     )
   }

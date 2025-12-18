@@ -80,6 +80,13 @@ export function validateContentType(request: NextRequest): {
   if (method === 'DELETE' && !contentType) {
     return { valid: true }
   }
+
+  // POST requests with empty body (like starting a call) may not have content-type
+  // Check if the request has a body by looking at content-length
+  const contentLength = request.headers.get('content-length')
+  if (method === 'POST' && (!contentLength || contentLength === '0') && !contentType) {
+    return { valid: true }
+  }
   
   // Check if route expects form data
   if (isFormDataRoute(pathname)) {

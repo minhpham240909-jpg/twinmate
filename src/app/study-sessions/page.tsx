@@ -142,6 +142,7 @@ export default function StudySessionsPage() {
       setProcessingInvite(sessionId)
       const res = await fetch(`/api/study-sessions/invites/${sessionId}/accept`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()
@@ -168,6 +169,7 @@ export default function StudySessionsPage() {
       setProcessingInvite(sessionId)
       const res = await fetch(`/api/study-sessions/invites/${sessionId}/decline`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()

@@ -302,46 +302,101 @@ export async function POST(request: NextRequest) {
 
     // Text search across multiple fields using ilike for case-insensitive substring matching
     // SECURITY: All text inputs are already sanitized and escaped
+    // NOTE: For searchQuery with spaces, we need to use textSearch or filter in JS
+    // because Supabase .or() doesn't handle spaces well in the filter string
+
+    // Track if we're doing a searchQuery search (will filter in JS for better results)
+    let useJSFiltering = false
+    let jsSearchQuery = ''
+
     if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
         studyStyleCustomDescription || interestsCustomDescription ||
         aboutYourselfSearch || school || languages || availableHours) {
 
       const searchFilters: string[] = []
-      
+
       if (searchQuery) {
-        const escaped = escapeLikePattern(searchQuery)
-        searchFilters.push(`bio.ilike.%${escaped}%`)
-        searchFilters.push(`school.ilike.%${escaped}%`)
-        searchFilters.push(`languages.ilike.%${escaped}%`)
-        searchFilters.push(`aboutYourself.ilike.%${escaped}%`)
-      }
-      if (subjectCustomDescription) {
-        searchFilters.push(`subjectCustomDescription.ilike.%${escapeLikePattern(subjectCustomDescription)}%`)
-      }
-      if (skillLevelCustomDescription) {
-        searchFilters.push(`skillLevelCustomDescription.ilike.%${escapeLikePattern(skillLevelCustomDescription)}%`)
-      }
-      if (studyStyleCustomDescription) {
-        searchFilters.push(`studyStyleCustomDescription.ilike.%${escapeLikePattern(studyStyleCustomDescription)}%`)
-      }
-      if (interestsCustomDescription) {
-        searchFilters.push(`interestsCustomDescription.ilike.%${escapeLikePattern(interestsCustomDescription)}%`)
-      }
-      if (aboutYourselfSearch) {
-        searchFilters.push(`aboutYourself.ilike.%${escapeLikePattern(aboutYourselfSearch)}%`)
-      }
-      if (school) {
-        searchFilters.push(`school.ilike.%${escapeLikePattern(school)}%`)
-      }
-      if (languages) {
-        searchFilters.push(`languages.ilike.%${escapeLikePattern(languages)}%`)
-      }
-      if (availableHours) {
-        searchFilters.push(`availabilityCustomDescription.ilike.%${escapeLikePattern(availableHours)}%`)
+        // For queries with spaces or special characters, use JS filtering for accuracy
+        // This is more reliable than trying to escape for Supabase .or() syntax
+        if (searchQuery.includes(' ') || searchQuery.length > 50) {
+          useJSFiltering = true
+          jsSearchQuery = searchQuery.toLowerCase()
+        } else {
+          // Simple single-word search can use database filtering
+          const escaped = escapeLikePattern(searchQuery)
+
+          // === TEXT FIELDS (using ilike for partial match) ===
+          // Note: Supabase uses % for wildcards in ilike patterns
+          searchFilters.push(`user.name.ilike.%${escaped}%`)
+          searchFilters.push(`bio.ilike.%${escaped}%`)
+          searchFilters.push(`school.ilike.%${escaped}%`)
+          searchFilters.push(`languages.ilike.%${escaped}%`)
+          searchFilters.push(`aboutYourself.ilike.%${escaped}%`)
+          searchFilters.push(`timezone.ilike.%${escaped}%`)
+          searchFilters.push(`role.ilike.%${escaped}%`)
+          searchFilters.push(`location_city.ilike.%${escaped}%`)
+          searchFilters.push(`location_state.ilike.%${escaped}%`)
+          searchFilters.push(`location_country.ilike.%${escaped}%`)
+          searchFilters.push(`subjectCustomDescription.ilike.%${escaped}%`)
+          searchFilters.push(`skillLevelCustomDescription.ilike.%${escaped}%`)
+          searchFilters.push(`studyStyleCustomDescription.ilike.%${escaped}%`)
+          searchFilters.push(`interestsCustomDescription.ilike.%${escaped}%`)
+          searchFilters.push(`availabilityCustomDescription.ilike.%${escaped}%`)
+
+          // === ENUM FIELDS (exact match for skillLevel and studyStyle) ===
+          const skillLevelMatch = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'].find(
+            level => level.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          if (skillLevelMatch) {
+            searchFilters.push(`skillLevel.eq.${skillLevelMatch}`)
+          }
+
+          const studyStyleMatch = ['VISUAL', 'AUDITORY', 'KINESTHETIC', 'READING_WRITING', 'COLLABORATIVE', 'INDEPENDENT', 'SOLO', 'MIXED'].find(
+            style => style.toLowerCase().replace('_', ' ').includes(searchQuery.toLowerCase()) ||
+                     style.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          if (studyStyleMatch) {
+            searchFilters.push(`studyStyle.eq.${studyStyleMatch}`)
+          }
+        }
       }
 
-      // Apply OR logic for text search (match any field)
-      if (searchFilters.length > 0) {
+      // These specific field filters can still use database filtering
+      if (subjectCustomDescription) {
+        const escaped = escapeLikePattern(subjectCustomDescription)
+        searchFilters.push(`subjectCustomDescription.ilike.%${escaped}%`)
+      }
+      if (skillLevelCustomDescription) {
+        const escaped = escapeLikePattern(skillLevelCustomDescription)
+        searchFilters.push(`skillLevelCustomDescription.ilike.%${escaped}%`)
+      }
+      if (studyStyleCustomDescription) {
+        const escaped = escapeLikePattern(studyStyleCustomDescription)
+        searchFilters.push(`studyStyleCustomDescription.ilike.%${escaped}%`)
+      }
+      if (interestsCustomDescription) {
+        const escaped = escapeLikePattern(interestsCustomDescription)
+        searchFilters.push(`interestsCustomDescription.ilike.%${escaped}%`)
+      }
+      if (aboutYourselfSearch) {
+        const escaped = escapeLikePattern(aboutYourselfSearch)
+        searchFilters.push(`aboutYourself.ilike.%${escaped}%`)
+      }
+      if (school) {
+        const escaped = escapeLikePattern(school)
+        searchFilters.push(`school.ilike.%${escaped}%`)
+      }
+      if (languages) {
+        const escaped = escapeLikePattern(languages)
+        searchFilters.push(`languages.ilike.%${escaped}%`)
+      }
+      if (availableHours) {
+        const escaped = escapeLikePattern(availableHours)
+        searchFilters.push(`availabilityCustomDescription.ilike.%${escaped}%`)
+      }
+
+      // Apply OR logic for database-side text search (only if not using JS filtering)
+      if (searchFilters.length > 0 && !useJSFiltering) {
         query = query.or(searchFilters.join(','))
       }
     }
@@ -472,8 +527,69 @@ export async function POST(request: NextRequest) {
     const currentUserMissingFields = getMissingFields(currentUserProfileData)
     const currentUserProfileComplete = hasMinimumProfileData(currentUserProfileData)
 
-    // All filtering is now done at database level, so we just use the sanitized profiles
-    const filteredProfiles = sanitizedProfiles
+    // Apply JS-side filtering for complex search queries (with spaces)
+    // This provides more accurate matching for multi-word searches
+    let filteredProfiles = sanitizedProfiles
+
+    if (useJSFiltering && jsSearchQuery) {
+      const searchTermLower = jsSearchQuery.toLowerCase()
+
+      filteredProfiles = sanitizedProfiles.filter(profile => {
+        // Helper to check if a string field contains the search term
+        const matchesText = (field: string | null | undefined): boolean => {
+          return field ? field.toLowerCase().includes(searchTermLower) : false
+        }
+
+        // Helper to check if an array field contains the search term
+        const matchesArray = (arr: string[] | null | undefined): boolean => {
+          if (!arr || !Array.isArray(arr)) return false
+          return arr.some(item => item.toLowerCase().includes(searchTermLower))
+        }
+
+        // Search across ALL profile fields
+        // Note: profile.user is the joined User object from Supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userObj = profile.user as any
+        const userName = Array.isArray(userObj) ? userObj[0]?.name : userObj?.name
+
+        return (
+          // User fields
+          matchesText(userName) ||
+
+          // Profile text fields
+          matchesText(profile.bio) ||
+          matchesText(profile.school) ||
+          matchesText(profile.languages) ||
+          matchesText(profile.aboutYourself) ||
+          matchesText(profile.timezone) ||
+          matchesText(profile.role) ||
+
+          // Location fields
+          matchesText(profile.location_city) ||
+          matchesText(profile.location_state) ||
+          matchesText(profile.location_country) ||
+
+          // Custom description fields
+          matchesText(profile.subjectCustomDescription) ||
+          matchesText(profile.skillLevelCustomDescription) ||
+          matchesText(profile.studyStyleCustomDescription) ||
+          matchesText(profile.interestsCustomDescription) ||
+          matchesText(profile.availabilityCustomDescription) ||
+
+          // Enum fields (skill level and study style)
+          matchesText(profile.skillLevel) ||
+          matchesText(profile.studyStyle) ||
+
+          // Array fields
+          matchesArray(profile.subjects) ||
+          matchesArray(profile.interests) ||
+          matchesArray(profile.goals) ||
+          matchesArray(profile.availableDays) ||
+          matchesArray(profile.availableHours) ||
+          matchesArray(profile.aboutYourselfItems)
+        )
+      })
+    }
 
     // Calculate match scores using the enhanced algorithm
     const profilesWithScores = filteredProfiles.map(profile => {

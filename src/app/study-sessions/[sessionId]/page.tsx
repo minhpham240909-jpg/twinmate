@@ -209,6 +209,7 @@ export default function SessionRoomPage() {
       setIsLeaving(true)
       const res = await fetch(`/api/study-sessions/${sessionId}/leave`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()
@@ -263,6 +264,7 @@ export default function SessionRoomPage() {
     try {
       const res = await fetch(`/api/study-sessions/${sessionId}/end`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()

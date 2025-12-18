@@ -26,9 +26,9 @@ export default function ResetPasswordPage() {
       return
     }
 
-    // Password requirements: 12+ chars, uppercase, lowercase, number, special char
-    if (password.length < 12) {
-      toast.error('Password must be at least 12 characters')
+    // Password requirements: 8+ chars, uppercase, lowercase, number, special char
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters')
       return
     }
     if (!/[A-Z]/.test(password)) {
@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
                 className="w-full px-4 py-3 bg-slate-700/50 backdrop-blur-sm border border-slate-600/50 text-white placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
                 required
                 disabled={isLoading}
-                minLength={12}
+                minLength={8}
               />
               <button
                 type="button"
@@ -131,7 +131,7 @@ export default function ResetPasswordPage() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-slate-400 mt-1">12+ characters with uppercase, lowercase, number, and special character</p>
+            <p className="text-xs text-slate-400 mt-1">8+ characters with uppercase, lowercase, number, and special character</p>
           </div>
 
           <div>

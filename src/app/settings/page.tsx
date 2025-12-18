@@ -1083,6 +1083,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
     try {
       const response = await fetch('/api/settings/resend-verification', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await response.json()
@@ -3192,6 +3193,7 @@ function DeletedMessagesHistory() {
     try {
       const response = await fetch(`/api/messages/${messageId}/restore`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
       if (response.ok) {
         toast.success(t('messageRestored'))
@@ -3276,6 +3278,7 @@ function DeletedGroupsHistory() {
     try {
       const response = await fetch(`/api/groups/${groupId}/restore`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
       if (response.ok) {
         toast.success(t('groupRestored'))
@@ -3359,6 +3362,7 @@ function DeletedPostsHistory() {
     try {
       const response = await fetch(`/api/posts/${postId}/restore`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       if (response.ok) {

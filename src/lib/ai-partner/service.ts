@@ -545,6 +545,22 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
 }> {
   const { userId, searchCriteria, studyGoal } = params
 
+  // Validate inputs
+  if (!userId) {
+    throw new Error('User ID is required')
+  }
+  if (!searchCriteria) {
+    throw new Error('Search criteria is required')
+  }
+
+  console.log('[AI Partner] Creating session from search criteria:', {
+    userId,
+    hasSubjects: !!searchCriteria.subjects?.length,
+    hasSchool: !!searchCriteria.school,
+    hasLocation: !!searchCriteria.locationCity || !!searchCriteria.locationCountry,
+    criteriaKeys: Object.keys(searchCriteria),
+  })
+
   // Get user info AND full profile for personalization (single query for performance)
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -581,13 +597,41 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
   const learningProfile = user?.learningProfile
 
   // Get user memory for personalization
-  const userMemory = await getOrCreateUserMemory(userId)
+  console.log('[AI Partner] Getting user memory...')
+  let userMemory
+  try {
+    userMemory = await getOrCreateUserMemory(userId)
+    console.log('[AI Partner] User memory retrieved')
+  } catch (memoryError) {
+    console.error('[AI Partner] Failed to get user memory:', memoryError)
+    // Use default memory if failed
+    userMemory = {
+      preferredName: undefined,
+      currentSubjects: [],
+      masteredTopics: [],
+      strugglingTopics: [],
+      academicGoals: [],
+      pendingQuestions: [],
+      totalSessions: 0,
+      totalStudyMinutes: 0,
+      streakDays: 0,
+      lastTopicDiscussed: undefined,
+    }
+  }
 
   // Build subject string from criteria
   const subject = searchCriteria.subjects?.join(', ') || searchCriteria.subjectDescription || null
 
   // Build memory context with subject for enhanced personalization
-  const memoryContext = await buildMemoryContext(userId, subject || undefined)
+  console.log('[AI Partner] Building memory context...')
+  let memoryContext = ''
+  try {
+    memoryContext = await buildMemoryContext(userId, subject || undefined)
+    console.log('[AI Partner] Memory context built')
+  } catch (contextError) {
+    console.error('[AI Partner] Failed to build memory context:', contextError)
+    // Continue without memory context
+  }
 
   // Build a description of the persona for display
   const personaParts: string[] = []
@@ -605,19 +649,27 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     : 'Study Partner'
 
   // Create study session
-  const studySession = await prisma.studySession.create({
-    data: {
-      title: `AI Study Session: ${personaDescription}`,
-      type: 'AI_PARTNER',
-      status: 'ACTIVE',
-      createdBy: userId,
-      userId: userId,
-      subject: subject,
-      isAISession: true,
-      partnerType: 'AI',
-      startedAt: new Date(),
-    },
-  })
+  console.log('[AI Partner] Creating study session...')
+  let studySession
+  try {
+    studySession = await prisma.studySession.create({
+      data: {
+        title: `AI Study Session: ${personaDescription}`,
+        type: 'AI_PARTNER',
+        status: 'ACTIVE',
+        createdBy: userId,
+        userId: userId,
+        subject: subject,
+        isAISession: true,
+        partnerType: 'AI',
+        startedAt: new Date(),
+      },
+    })
+    console.log('[AI Partner] Study session created:', studySession.id)
+  } catch (dbError) {
+    console.error('[AI Partner] Failed to create study session:', dbError)
+    throw new Error(`Database error creating study session: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`)
+  }
 
   // Determine skill level enum
   let skillLevelEnum: SkillLevel | null = null
@@ -630,22 +682,30 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
 
   // Create AI session with Intelligence System v2.0 enabled
   // Save full searchCriteria for "Continue Previous Topic" feature
-  const aiSession = await prisma.aIPartnerSession.create({
-    data: {
-      userId,
-      studySessionId: studySession.id,
-      subject,
-      skillLevel: skillLevelEnum,
-      studyGoal: studyGoal || null,
-      searchCriteria: searchCriteria as object, // Save all search criteria (subjects, location, interests, etc.)
-      status: 'ACTIVE',
-      // Intelligence System v2.0
-      intelligenceVersion: INTELLIGENCE_VERSION,
-      adaptiveState: INITIAL_ADAPTIVE_STATE as unknown as Prisma.InputJsonValue,
-      totalTokensUsed: 0,
-      fallbackCallCount: 0,
-    },
-  })
+  console.log('[AI Partner] Creating AI session...')
+  let aiSession
+  try {
+    aiSession = await prisma.aIPartnerSession.create({
+      data: {
+        userId,
+        studySessionId: studySession.id,
+        subject,
+        skillLevel: skillLevelEnum,
+        studyGoal: studyGoal || null,
+        searchCriteria: searchCriteria as object, // Save all search criteria (subjects, location, interests, etc.)
+        status: 'ACTIVE',
+        // Intelligence System v2.0
+        intelligenceVersion: INTELLIGENCE_VERSION,
+        adaptiveState: INITIAL_ADAPTIVE_STATE as unknown as Prisma.InputJsonValue,
+        totalTokensUsed: 0,
+        fallbackCallCount: 0,
+      },
+    })
+    console.log('[AI Partner] AI session created:', aiSession.id)
+  } catch (dbError) {
+    console.error('[AI Partner] Failed to create AI session:', dbError)
+    throw new Error(`Database error creating AI session: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`)
+  }
 
   // Build dynamic persona prompt from search criteria with memory
   let systemPrompt = buildDynamicPersonaPrompt(searchCriteria, userMemory.preferredName || user?.name || undefined)
@@ -682,16 +742,24 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
   })
 
   // Generate welcome message with dynamic persona
-  const welcomeResult = await sendChatMessage(
-    [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: welcomeInstruction },
-    ],
-    {
-      temperature: 0.8, // Slightly higher for more natural variation
-      maxTokens: 300,
-    }
-  )
+  console.log('[AI Partner] Generating welcome message with OpenAI...')
+  let welcomeResult
+  try {
+    welcomeResult = await sendChatMessage(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: welcomeInstruction },
+      ],
+      {
+        temperature: 0.8, // Slightly higher for more natural variation
+        maxTokens: 300,
+      }
+    )
+    console.log('[AI Partner] Welcome message generated successfully')
+  } catch (openAIError) {
+    console.error('[AI Partner] OpenAI error generating welcome message:', openAIError)
+    throw new Error(`OpenAI error: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
+  }
 
   // Save the system prompt as first message (hidden from user)
   await prisma.aIPartnerMessage.create({

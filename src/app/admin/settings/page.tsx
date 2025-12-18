@@ -408,6 +408,7 @@ export default function AdminSettingsPage() {
               try {
                 const response = await fetch('/api/admin/cache/clear', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                 })
                 const result = await response.json()
                 if (result.success) {

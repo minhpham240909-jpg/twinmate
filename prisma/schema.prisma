@@ -374,6 +374,7 @@ model GroupInvite {
   @@unique([groupId, inviteeId])
   @@index([inviteeId, status])
   @@index([groupId])
+  @@index([inviterId]) // PERF: Find invites sent by a user
 }
 
 // ==========================================
@@ -588,6 +589,7 @@ model StudySession {
   @@index([status, isPublic, startedAt]) // For public session discovery
   @@index([status, type]) // For filtered session lists
   @@index([createdAt]) // For sorting by creation date
+  @@index([createdBy, status]) // PERF: Find user's sessions by status
 }
 
 model SessionParticipant {
@@ -609,6 +611,7 @@ model SessionParticipant {
   @@index([userId])
   @@index([sessionId])
   @@index([status])
+  @@index([sessionId, status]) // PERF: Find active participants in a session
 }
 
 model SessionGoal {
@@ -1253,6 +1256,7 @@ model UserPresence {
   @@index([status])
   @@index([lastSeenAt]) // For presence timeout/cleanup queries
   @@index([status, lastSeenAt]) // For finding stale online users
+  @@index([lastActivityAt]) // PERF: Cleanup stale presence records
   @@map("user_presence")
 }
 
@@ -1310,6 +1314,7 @@ model TypingIndicator {
 
   @@unique([userId, conversationId])
   @@index([conversationId, expiresAt])
+  @@index([userId]) // PERF: Clear typing indicators when user disconnects
   @@map("typing_indicators")
 }
 
@@ -1595,6 +1600,7 @@ model Report {
   @@index([status])
   @@index([type])
   @@index([createdAt])
+  @@index([handledById]) // PERF: Find reports handled by a specific admin
 }
 
 // User Warnings - Track warnings issued to users
@@ -2089,6 +2095,7 @@ model AIPartnerSession {
   @@index([status])
   @@index([startedAt])
   @@index([personaId])
+  @@index([userId, status]) // PERF: Find user's active/paused sessions
 }
 
 enum AISessionStatus {
@@ -2150,6 +2157,7 @@ model AIPartnerMessage {
   @@index([role])
   @@index([createdAt])
   @@index([wasFlagged])
+  @@index([sessionId, createdAt]) // PERF: Load messages in chronological order
 }
 
 enum AIMessageRole {

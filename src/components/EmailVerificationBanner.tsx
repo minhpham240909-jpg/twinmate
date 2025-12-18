@@ -45,6 +45,7 @@ export function EmailVerificationBanner() {
     try {
       const response = await fetch('/api/auth/verify-email', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await response.json()

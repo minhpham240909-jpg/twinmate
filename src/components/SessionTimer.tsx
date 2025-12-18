@@ -59,6 +59,7 @@ export default function SessionTimer({
     try {
       const res = await fetch(`/api/study-sessions/${sessionId}/start`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()
@@ -82,6 +83,7 @@ export default function SessionTimer({
     try {
       const res = await fetch(`/api/study-sessions/${sessionId}/pause`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()

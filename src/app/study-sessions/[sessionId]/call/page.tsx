@@ -63,7 +63,7 @@ export default function StudyCallPage() {
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
-  const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | 'flashcards' | 'notes' | 'whiteboard' | null>('timer')
+  const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | 'flashcards' | 'notes' | 'whiteboard' | 'participants' | null>('timer')
   const [showInviteModal, setShowInviteModal] = useState(false)
 
   const fetchSession = useCallback(async () => {
@@ -237,6 +237,10 @@ export default function StudyCallPage() {
 
   const isHost = session.createdBy.id === user.id
 
+  // Count connected users (video) vs total participants (database)
+  const connectedCount = remoteUsers.size + 1 // +1 for local user
+  const totalParticipants = session.participants.length
+
   return (
     <div className="h-screen bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
       {/* Top Bar */}
@@ -246,7 +250,9 @@ export default function StudyCallPage() {
           <Pulse>
             <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full font-medium">{t('live')}</span>
           </Pulse>
-          <span className="text-gray-600 dark:text-slate-400 text-sm">{remoteUsers.size + 1} {remoteUsers.size !== 0 ? t('participantsPlural') : t('participant')}</span>
+          <span className="text-gray-600 dark:text-slate-400 text-sm">
+            {totalParticipants} {totalParticipants === 1 ? t('participant') : t('participantsPlural')}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <Bounce>
@@ -300,15 +306,20 @@ export default function StudyCallPage() {
           {isConnected && (
             <FadeIn>
               <div className="h-full p-2 grid gap-2" style={{ gridTemplateColumns: remoteUsers.size === 0 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                {/* Local Video */}
+                {/* Local Video (current user) */}
                 <FadeIn delay={0.1}>
                   <VideoTile videoTrack={localTracks.videoTrack} hasVideo={localVideoEnabled} hasAudio={localAudioEnabled} name={`${profile.name} (${t('you')})`} />
                 </FadeIn>
 
-                {/* Remote Videos */}
+                {/* Remote users (actually connected via Agora) */}
                 {Array.from(remoteUsers.values()).map((remoteUser, index) => (
                   <FadeIn key={remoteUser.uid} delay={0.2 + index * 0.1}>
-                    <VideoTile videoTrack={remoteUser.videoTrack} hasVideo={remoteUser.hasVideo} hasAudio={remoteUser.hasAudio} name={`${t('user')} ${remoteUser.uid}`} />
+                    <VideoTile
+                      videoTrack={remoteUser.videoTrack}
+                      hasVideo={remoteUser.hasVideo}
+                      hasAudio={remoteUser.hasAudio}
+                      name={`User ${remoteUser.uid}`}
+                    />
                   </FadeIn>
                 ))}
               </div>
@@ -393,6 +404,9 @@ export default function StudyCallPage() {
               <button onClick={() => setActiveFeature('whiteboard')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'whiteboard' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
                 🎨 Whiteboard
               </button>
+              <button onClick={() => setActiveFeature('participants')} className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all hover:scale-105 ${activeFeature === 'participants' ? 'bg-gray-100 dark:bg-slate-800 text-blue-400 border-b-2 border-blue-500' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}>
+                👥 {t('participants')} ({connectedCount}/{totalParticipants})
+              </button>
               <button onClick={() => setActiveFeature(null)} className="px-4 py-3 text-gray-600 dark:text-slate-500 hover:text-gray-900 dark:hover:text-slate-300 hover:scale-110 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -427,6 +441,100 @@ export default function StudyCallPage() {
               {/* FIX: Always render whiteboard but hide with CSS to prevent Tldraw unmounting */}
               <div className="p-6" style={{ display: activeFeature === 'whiteboard' ? 'block' : 'none' }}>
                 <SessionWhiteboard sessionId={sessionId} />
+              </div>
+              {/* Participants Panel */}
+              <div className={`p-6 ${activeFeature === 'participants' ? 'block' : 'hidden'}`}>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {t('participants')}
+                    </h3>
+                    <span className="text-sm text-gray-500 dark:text-slate-400">
+                      {connectedCount} {t('connected')} / {totalParticipants} {t('total')}
+                    </span>
+                  </div>
+
+                  {/* Connected via Video indicator */}
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                    <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      {connectedCount} {connectedCount === 1 ? 'user' : 'users'} connected to video call
+                    </p>
+                  </div>
+
+                  {/* Database Participants List */}
+                  <div className="space-y-2">
+                    {session.participants.map((participant) => {
+                      const isCurrentUser = participant.userId === user.id
+                      const isConnectedToVideo = isCurrentUser || Array.from(remoteUsers.keys()).some(
+                        uid => String(uid).includes(participant.userId.substring(0, 8))
+                      )
+
+                      return (
+                        <div
+                          key={participant.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                            isConnectedToVideo
+                              ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                              : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {/* Avatar */}
+                          <div className="relative">
+                            {participant.avatarUrl ? (
+                              <img
+                                src={participant.avatarUrl}
+                                alt={participant.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                                {participant.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            {/* Connection status dot */}
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-800 ${
+                              isConnectedToVideo ? 'bg-green-500' : 'bg-gray-400'
+                            }`}></span>
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-white truncate">
+                              {participant.name}
+                              {isCurrentUser && <span className="text-blue-500 ml-1">({t('you')})</span>}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
+                              {participant.role === 'HOST' ? t('host') : t('participant')}
+                            </p>
+                          </div>
+
+                          {/* Status */}
+                          <div className="text-right">
+                            {isConnectedToVideo ? (
+                              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                                {t('connected')}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-500 dark:text-slate-400">
+                                {t('notConnected')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Remote Users from Agora (for debugging) */}
+                  {remoteUsers.size > 0 && (
+                    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">
+                        Video Stream UIDs: {Array.from(remoteUsers.keys()).join(', ')}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -466,6 +574,11 @@ export default function StudyCallPage() {
                   <Bounce delay={0.5}>
                     <button onClick={() => setActiveFeature('whiteboard')} className="w-12 h-12 bg-pink-600 text-white rounded-lg hover:bg-pink-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('whiteboard')}>
                       <span className="text-xl">🎨</span>
+                    </button>
+                  </Bounce>
+                  <Bounce delay={0.6}>
+                    <button onClick={() => setActiveFeature('participants')} className="w-12 h-12 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('participants')}>
+                      <span className="text-xl">👥</span>
                     </button>
                   </Bounce>
                 </div>

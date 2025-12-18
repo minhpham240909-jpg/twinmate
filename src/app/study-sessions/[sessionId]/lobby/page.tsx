@@ -497,6 +497,7 @@ export default function WaitingLobbyPage() {
       setStarting(true)
       const res = await fetch(`/api/study-sessions/${sessionId}/start-call`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
 
       const data = await res.json()

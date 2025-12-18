@@ -184,6 +184,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com', // Google profile pictures
       },
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc', // Test account avatar images
+      },
     ],
     formats: ['image/avif', 'image/webp'],
   },

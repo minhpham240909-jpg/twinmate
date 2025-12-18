@@ -1,8 +1,8 @@
 /**
  * Password Validation Utility
- * 
+ *
  * Enforces strong password policy:
- * - Minimum 12 characters
+ * - Minimum 8 characters
  * - At least one uppercase letter
  * - At least one lowercase letter
  * - At least one number
@@ -18,20 +18,20 @@ import { z } from 'zod'
  * - (?=.*[A-Z]) - at least one uppercase letter
  * - (?=.*\d) - at least one digit
  * - (?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]) - at least one special character
- * - .{12,} - at least 12 characters
+ * - .{8,} - at least 8 characters
  */
-const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]).{12,}$/
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]).{8,}$/
 
 /**
  * Password validation error messages
  */
 export const PASSWORD_ERRORS = {
-  TOO_SHORT: 'Password must be at least 12 characters long',
+  TOO_SHORT: 'Password must be at least 8 characters long',
   NO_UPPERCASE: 'Password must contain at least one uppercase letter',
   NO_LOWERCASE: 'Password must contain at least one lowercase letter',
   NO_NUMBER: 'Password must contain at least one number',
   NO_SPECIAL: 'Password must contain at least one special character (@$!%*?&#^()_+-=[]{};\':"|,.<>/)',
-  INVALID: 'Password must be at least 12 characters and include uppercase, lowercase, number, and special character',
+  INVALID: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
 } as const
 
 /**
@@ -44,7 +44,7 @@ export function validatePassword(password: string): string | null {
   }
 
   // Check minimum length
-  if (password.length < 12) {
+  if (password.length < 8) {
     return PASSWORD_ERRORS.TOO_SHORT
   }
 
@@ -115,8 +115,8 @@ export function getPasswordStrength(password: string): number {
   let score = 0
 
   // Length bonus
+  if (password.length >= 8) score++
   if (password.length >= 12) score++
-  if (password.length >= 16) score++
 
   // Character variety bonus
   if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++
@@ -139,5 +139,5 @@ export function getPasswordStrengthLabel(strength: number): string {
  * Generate password requirements message for UI
  */
 export function getPasswordRequirementsMessage(): string {
-  return 'Password must be at least 12 characters and include:\n• One uppercase letter (A-Z)\n• One lowercase letter (a-z)\n• One number (0-9)\n• One special character (@$!%*?&#^()_+-=[]{};\':"|,.<>/)'
+  return 'Password must be at least 8 characters and include:\n• One uppercase letter (A-Z)\n• One lowercase letter (a-z)\n• One number (0-9)\n• One special character (@$!%*?&#^()_+-=[]{};\':"|,.<>/)'
 }

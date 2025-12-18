@@ -105,13 +105,13 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ partners: Partner[]; groups: Group[] }>({ partners: [], groups: [] })
   const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false) // Only show results after explicit search
 
   // AI Partner suggestion modal state
   const [showAIPartnerModal, setShowAIPartnerModal] = useState(false)
 
   // Group IDs for real-time subscription
   const [groupIds, setGroupIds] = useState<string[]>([])
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Online partners state - initialize from cache
   const [onlinePartners, setOnlinePartners] = useState<Array<{
@@ -404,26 +404,21 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Debounced search
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
+  // Handle explicit search (Enter key or Search button click)
+  const handleSearch = useCallback(() => {
     if (searchQuery.trim().length >= 2) {
-      searchTimeoutRef.current = setTimeout(() => {
-        performSearch(searchQuery)
-      }, 300)
-    } else {
-      setSearchResults({ partners: [], groups: [] })
-    }
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
+      setHasSearched(true)
+      performSearch(searchQuery)
     }
   }, [searchQuery, performSearch])
+
+  // Reset hasSearched when search query is cleared
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setHasSearched(false)
+      setSearchResults({ partners: [], groups: [] })
+    }
+  }, [searchQuery])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -437,12 +432,6 @@ export default function DashboardPage() {
     }
     router.push('/profile/edit')
   }
-
-  const formatStudyHours = (hours: number): string => {
-    if (hours < 1) return `${Math.round(hours * 60)}m`
-    return `${Math.round(hours)}h`
-  }
-
   // Helper function to detect which fields match the search query for partners
   const getMatchingFields = (partner: Partner, query: string): string[] => {
     const searchLower = query.toLowerCase().trim()
@@ -912,6 +901,12 @@ export default function DashboardPage() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleSearch()
+                      }
+                    }}
                     placeholder={t('searchPlaceholder')}
                     className="flex-1 px-2 py-2 text-base border-0 focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 bg-transparent"
                   />
@@ -934,12 +929,24 @@ export default function DashboardPage() {
                       </svg>
                     </button>
                   )}
+
+                  {/* Search button */}
+                  {searchQuery.trim().length >= 2 && !isSearching && (
+                    <button
+                      onClick={handleSearch}
+                      className="flex-shrink-0 p-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-lg transition-all hover:scale-105"
+                    >
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* No Results Message */}
-            {searchQuery.trim().length >= 2 && !isSearching && searchResults.partners.length === 0 && searchResults.groups.length === 0 && (
+            {/* No Results Message - Only show after explicit search */}
+            {hasSearched && !isSearching && searchResults.partners.length === 0 && searchResults.groups.length === 0 && (
               <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="bg-white dark:bg-white/5 backdrop-blur-xl rounded-2xl shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 p-12 text-center">
                   {/* AI Partner Suggestion - Dynamic personalized message */}
@@ -980,8 +987,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Search Results */}
-            {(searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
+            {/* Search Results - Only show after explicit search */}
+            {hasSearched && (searchResults.partners.length > 0 || searchResults.groups.length > 0) && (
               <FadeIn delay={0.1} direction="up">
                 <div className="mt-6 grid lg:grid-cols-2 gap-6 relative z-10">
                   {/* Partners Results */}
