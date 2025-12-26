@@ -16,7 +16,9 @@ type WebSocketEvent =
   | 'typing'
   | 'notification'
   | 'session_update'
-  | 'call_signal';
+  | 'call_signal'
+  | 'subscribe'
+  | 'unsubscribe';
 
 type MessageHandler = (data: any) => void;
 

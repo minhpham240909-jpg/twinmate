@@ -168,7 +168,7 @@ export async function streamAllUsers(options: StreamOptions = {}) {
           name: true,
           createdAt: true,
           lastLoginAt: true,
-          isPremium: true,
+          role: true,
           deactivatedAt: true,
         },
       }),
@@ -244,7 +244,7 @@ export async function streamAnalytics(
  */
 export async function exportToJSON<T>(
   data: T[] | (() => Promise<T[]>),
-  filename: string = 'export.json'
+  _filename: string = 'export.json'
 ): Promise<string> {
   const records = typeof data === 'function' ? await data() : data
 
@@ -394,9 +394,9 @@ async function processConcurrent<T, R>(
  * Efficient count with caching for expensive queries
  */
 export async function cachedCount(
-  cacheKey: string,
+  _cacheKey: string,
   query: () => Promise<number>,
-  ttl: number = 300 // 5 minutes
+  _ttl: number = 300 // 5 minutes
 ): Promise<number> {
   // This would integrate with your existing cache
   // For now, just execute the query
@@ -412,8 +412,8 @@ export async function batchCounts(
 ): Promise<Record<string, number>> {
   const results: Record<string, number> = {}
 
-  // Execute all counts in parallel within a transaction
-  await prisma.$transaction(
+  // Execute all counts in parallel using Promise.all
+  await Promise.all(
     Object.entries(queries).map(async ([key, query]) => {
       results[key] = await query()
     })

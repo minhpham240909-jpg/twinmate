@@ -269,15 +269,15 @@ export async function queryWithRetry<T>(
  * Reduces connection overhead
  */
 export async function batchQueries<T extends Record<string, () => Promise<any>>>(
-  prisma: PrismaClient,
+  _prisma: PrismaClient,
   queries: T
 ): Promise<{ [K in keyof T]: Awaited<ReturnType<T[K]>> }> {
   const keys = Object.keys(queries) as Array<keyof T>
   const queryFns = Object.values(queries)
 
-  const results = await prisma.$transaction(
-    queryFns.map(fn => fn())
-  )
+  // Execute all queries in parallel using Promise.all
+  // This is efficient for independent read queries
+  const results = await Promise.all(queryFns.map(fn => fn()))
 
   // Map results back to keys
   const mapped = {} as { [K in keyof T]: Awaited<ReturnType<T[K]>> }
@@ -296,18 +296,16 @@ export async function batchQueries<T extends Record<string, () => Promise<any>>>
  * Get recommended pool size for current environment
  */
 export function getRecommendedPoolSize(): number {
-  const env = process.env.NODE_ENV
+  const env = process.env.NODE_ENV as string
 
-  switch (env) {
-    case 'production':
-      return 20 // Higher for production load
-    case 'staging':
-      return 10 // Medium for testing
-    case 'development':
-      return 5 // Lower for local development
-    default:
-      return 10
+  if (env === 'production') {
+    return 20 // Higher for production load
+  } else if (env === 'staging') {
+    return 10 // Medium for testing
+  } else if (env === 'development') {
+    return 5 // Lower for local development
   }
+  return 10
 }
 
 /**

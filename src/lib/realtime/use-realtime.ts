@@ -106,7 +106,7 @@ export function usePresence(userId: string, token: string) {
 export function useTypingIndicator(sessionId: string, userId: string, token: string) {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const wsRef = useRef(getWebSocketManager({ userId, token }));
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const ws = wsRef.current;

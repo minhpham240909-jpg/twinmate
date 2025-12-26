@@ -316,7 +316,7 @@ export async function getAdminDashboardStats() {
         prisma.studySession.count(),
         prisma.match.count(),
         prisma.report.count({ where: { status: 'PENDING' } }),
-        prisma.user.count({ where: { isPremium: true, deactivatedAt: null } }),
+        prisma.user.count({ where: { role: 'PREMIUM', deactivatedAt: null } }),
         prisma.user.count({ where: { deactivatedAt: { not: null } } }),
       ])
 
