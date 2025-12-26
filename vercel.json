@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/admin/refresh-views",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }
