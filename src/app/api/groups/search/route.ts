@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import {
+  buildSmartSearchConditions,
+  calculateRelevanceScore,
+  expandSearchTerms,
+} from '@/lib/matching/smart-search'
 
 const searchSchema = z.object({
   subject: z.string().optional(),
@@ -9,6 +14,7 @@ const searchSchema = z.object({
   skillLevel: z.string().optional(),
   skillLevelCustomDescription: z.string().optional(),
   description: z.string().optional(),
+  query: z.string().optional(), // General search query for smart matching
   page: z.number().optional().default(1),
   limit: z.number().optional().default(20),
 })
@@ -43,6 +49,7 @@ export async function POST(request: NextRequest) {
       skillLevel,
       skillLevelCustomDescription,
       description,
+      query,
       page,
       limit,
     } = validation.data
@@ -58,53 +65,52 @@ export async function POST(request: NextRequest) {
       ],
     }
 
-    // Filter by subject
-    if (subject && subject.trim() !== '') {
-      whereConditions.AND.push({
-        subject: {
-          contains: subject,
-          mode: 'insensitive',
-        },
-      })
-    }
+    // Combine all search terms for smart matching
+    const allSearchTerms: string[] = []
+    if (query) allSearchTerms.push(query)
+    if (subject) allSearchTerms.push(subject)
+    if (subjectCustomDescription) allSearchTerms.push(subjectCustomDescription)
+    if (skillLevelCustomDescription) allSearchTerms.push(skillLevelCustomDescription)
+    if (description) allSearchTerms.push(description)
 
-    // Filter by skill level
-    if (skillLevel && skillLevel !== '') {
-      whereConditions.AND.push({
-        skillLevel: skillLevel,
-      })
-    }
+    const combinedQuery = allSearchTerms.join(' ').trim()
 
-    // Search in custom descriptions and group description (improved fuzzy search)
-    if (subjectCustomDescription || skillLevelCustomDescription || description) {
-      const searchTerms: string[] = []
+    // Use smart search with synonym expansion for better matching
+    if (combinedQuery) {
+      // Get expanded terms (e.g., "math" expands to include "mathematics", "algebra", "calculus", etc.)
+      const expandedTerms = expandSearchTerms(
+        combinedQuery.toLowerCase().split(/\s+/).filter(t => t.length > 0)
+      )
 
-      if (subjectCustomDescription) searchTerms.push(subjectCustomDescription)
-      if (skillLevelCustomDescription) searchTerms.push(skillLevelCustomDescription)
-      if (description) searchTerms.push(description)
+      // Filter out common words and duplicates
+      const uniqueTerms = [...new Set(expandedTerms)].filter(term =>
+        term.length > 1 && !['the', 'a', 'an', 'and', 'or', 'is', 'in', 'to', 'for'].includes(term)
+      )
 
-      // Split all search terms into words for better partial matching
-      const keywords = searchTerms
-        .flatMap(term => term.toLowerCase().split(/\s+/))
-        .filter(word => word.length > 0) // Allow all words, even short ones
+      // Build search conditions for each term across all fields
+      if (uniqueTerms.length > 0) {
+        const searchConditions = uniqueTerms.map(term => ({
+          OR: [
+            { name: { contains: term, mode: 'insensitive' as const } },
+            { description: { contains: term, mode: 'insensitive' as const } },
+            { subjectCustomDescription: { contains: term, mode: 'insensitive' as const } },
+            { skillLevelCustomDescription: { contains: term, mode: 'insensitive' as const } },
+            { subject: { contains: term, mode: 'insensitive' as const } },
+            { skillLevel: { contains: term, mode: 'insensitive' as const } },
+          ],
+        }))
 
-      // Create OR conditions for each keyword searching in ALL group fields
-      const searchConditions = keywords.map(keyword => ({
-        OR: [
-          { name: { contains: keyword, mode: 'insensitive' as const } },
-          { description: { contains: keyword, mode: 'insensitive' as const } },
-          { subjectCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
-          { skillLevelCustomDescription: { contains: keyword, mode: 'insensitive' as const } },
-          { subject: { contains: keyword, mode: 'insensitive' as const } },
-          { skillLevel: { contains: keyword, mode: 'insensitive' as const } },
-        ],
-      }))
-
-      if (searchConditions.length > 0) {
         whereConditions.AND.push({
           OR: searchConditions,
         })
       }
+    }
+
+    // Filter by exact skill level if specified (in addition to text search)
+    if (skillLevel && skillLevel !== '') {
+      whereConditions.AND.push({
+        skillLevel: skillLevel,
+      })
     }
 
     // Calculate pagination
@@ -157,36 +163,23 @@ export async function POST(request: NextRequest) {
     // Create map for O(1) lookups
     const ownerMap = new Map(owners.map(o => [o.id, o.name]))
 
-    // Get all search keywords for ranking
-    const allSearchKeywords: string[] = []
-    if (subject) allSearchKeywords.push(...subject.toLowerCase().split(/\s+/))
-    if (subjectCustomDescription) allSearchKeywords.push(...subjectCustomDescription.toLowerCase().split(/\s+/))
-    if (skillLevelCustomDescription) allSearchKeywords.push(...skillLevelCustomDescription.toLowerCase().split(/\s+/))
-    if (description) allSearchKeywords.push(...description.toLowerCase().split(/\s+/))
-    const uniqueKeywords = [...new Set(allSearchKeywords)].filter(w => w.length > 0)
-
-    // Get owner information and calculate match scores for ranking
+    // Get owner information and calculate match scores using smart relevance algorithm
     const groupsWithDetails = groups.map((group) => {
       // Check if current user is a member
       const isMember = group.members.some(member => member.userId === user.id)
       const isOwner = group.ownerId === user.id
       const ownerName = ownerMap.get(group.ownerId) || 'Unknown'
 
-      // Calculate match score for ranking
+      // Calculate match score using smart relevance scoring (with synonym expansion)
       let matchScore = 0
-      if (uniqueKeywords.length > 0) {
-        const groupText = [
-          group.name,
-          group.description,
-          group.subject,
-          group.subjectCustomDescription,
-          group.skillLevelCustomDescription,
-          group.skillLevel,
-          ownerName,
-        ].filter(Boolean).join(' ').toLowerCase()
-
-        uniqueKeywords.forEach(keyword => {
-          if (groupText.includes(keyword)) matchScore++
+      if (combinedQuery) {
+        matchScore = calculateRelevanceScore(combinedQuery, {
+          name: group.name,
+          description: group.description,
+          subject: group.subject,
+          subjectCustomDescription: group.subjectCustomDescription,
+          skillLevel: group.skillLevel,
+          skillLevelCustomDescription: group.skillLevelCustomDescription,
         })
       }
 

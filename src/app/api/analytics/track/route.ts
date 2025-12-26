@@ -161,22 +161,72 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, queryId: result.id })
 
       case 'batch':
-        // Handle batch tracking for efficiency
-        const results = await Promise.all(
-          (data.events as Array<{ type: string; data: Record<string, unknown> }>).map(async (event) => {
-            switch (event.type) {
-              case 'page_visit':
-                return trackPageVisit(user.id, event.data as Parameters<typeof trackPageVisit>[1])
-              case 'feature_usage':
-                return trackFeatureUsage(user.id, event.data as Parameters<typeof trackFeatureUsage>[1])
-              case 'search_query':
-                return trackSearchQuery(user.id, event.data as Parameters<typeof trackSearchQuery>[1])
-              default:
-                return null
-            }
-          })
-        )
-        return NextResponse.json({ success: true, count: results.filter(Boolean).length })
+        // PERF: Handle batch tracking with createMany for efficiency (avoids N+1)
+        const events = data.events as Array<{ type: string; data: Record<string, unknown> }>
+
+        // Group events by type for batch insertion
+        const pageVisitEvents = events.filter(e => e.type === 'page_visit')
+        const featureUsageEvents = events.filter(e => e.type === 'feature_usage')
+        const searchQueryEvents = events.filter(e => e.type === 'search_query')
+
+        // Prepare batch data
+        const pageVisitData = pageVisitEvents.map(event => {
+          const d = event.data as Parameters<typeof trackPageVisit>[1]
+          return {
+            userId: user.id,
+            path: d.path,
+            pageName: d.pageName,
+            referrer: d.referrer,
+            sessionId: d.sessionId,
+            deviceId: d.deviceId,
+            query: d.query,
+            enteredAt: d.enteredAt ? new Date(d.enteredAt) : new Date(),
+            exitedAt: d.exitedAt ? new Date(d.exitedAt) : null,
+            duration: d.duration,
+          }
+        })
+
+        const featureUsageData = featureUsageEvents.map(event => {
+          const d = event.data as Parameters<typeof trackFeatureUsage>[1]
+          return {
+            userId: user.id,
+            feature: d.feature,
+            category: d.category,
+            action: d.action,
+            targetType: d.targetType,
+            targetId: d.targetId,
+            metadata: d.metadata as Prisma.InputJsonValue | undefined,
+          }
+        })
+
+        const searchQueryData = searchQueryEvents.map(event => {
+          const d = event.data as Parameters<typeof trackSearchQuery>[1]
+          return {
+            userId: user.id,
+            query: d.query,
+            searchType: d.searchType,
+            filters: d.filters as Prisma.InputJsonValue | undefined,
+            resultCount: d.resultCount,
+            clickedResults: d.clickedResults || [],
+            pagePath: d.pagePath,
+          }
+        })
+
+        // Execute batch inserts in a single transaction (1-3 queries instead of N)
+        const batchResults = await prisma.$transaction([
+          ...(pageVisitData.length > 0
+            ? [prisma.userPageVisit.createMany({ data: pageVisitData })]
+            : []),
+          ...(featureUsageData.length > 0
+            ? [prisma.userFeatureUsage.createMany({ data: featureUsageData })]
+            : []),
+          ...(searchQueryData.length > 0
+            ? [prisma.userSearchQuery.createMany({ data: searchQueryData })]
+            : []),
+        ])
+
+        const totalCount = batchResults.reduce((sum, r) => sum + (r?.count || 0), 0)
+        return NextResponse.json({ success: true, count: totalCount })
 
       default:
         return NextResponse.json(

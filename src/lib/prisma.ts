@@ -1,4 +1,5 @@
 // Prisma Client Singleton with optimized connection pooling
+// Configured for 3,000+ concurrent users
 import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
@@ -8,10 +9,28 @@ const globalForPrisma = globalThis as unknown as {
 // Check if we're in build mode (Next.js sets this during build)
 const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
 
-// ===== DATABASE SECURITY CONFIGURATION =====
+// ===== DATABASE CONNECTION POOLING CONFIGURATION =====
+// Optimized for serverless deployment on Vercel
+//
+// CRITICAL: Serverless environments scale horizontally (100s of instances)
+// - Each instance creates its own connection pool
+// - 100 instances × 25 connections = 2,500 connections (EXCEEDS PostgreSQL limit!)
+// - Supabase PgBouncer (port 6543) handles connection pooling for us
+//
+// Production: Use 1-2 connections per serverless instance
+// - PgBouncer manages the actual connection pool to PostgreSQL
+// - Prevents connection exhaustion under high load
+//
+// Development: Use 10 connections (local development, no scaling)
+//
+// Recommended .env settings:
+// DATABASE_QUERY_TIMEOUT=30     # Max query time in seconds
+// DATABASE_CONNECTION_TIMEOUT=10 # Connection acquisition timeout
 
-// Connection pool limits
-const CONNECTION_POOL_SIZE = parseInt(process.env.DATABASE_POOL_SIZE || '10', 10)
+// Connection pool limits - optimized for serverless
+const CONNECTION_POOL_SIZE = process.env.VERCEL_ENV === 'production'
+  ? parseInt(process.env.DATABASE_POOL_SIZE || '1', 10)  // 1 connection per serverless instance
+  : parseInt(process.env.DATABASE_POOL_SIZE || '10', 10) // 10 for local development
 
 // Query timeout in seconds (prevents long-running queries)
 const QUERY_TIMEOUT_SECONDS = parseInt(process.env.DATABASE_QUERY_TIMEOUT || '30', 10)

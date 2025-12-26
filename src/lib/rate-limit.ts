@@ -267,20 +267,33 @@ function rateLimitWithMemory(
 
 /**
  * Preset rate limit configurations
+ * Optimized for 3,000+ concurrent users
  */
 export const RateLimitPresets = {
-  /** 3 requests per minute - for signup/auth */
-  auth: { max: 3, windowMs: 60 * 1000, keyPrefix: 'auth' },
+  /** 5 requests per minute - for signup/auth (prevent brute force) */
+  auth: { max: 5, windowMs: 60 * 1000, keyPrefix: 'auth' },
 
-  /** 5 requests per minute - for sensitive operations */
-  strict: { max: 5, windowMs: 60 * 1000, keyPrefix: 'strict' },
+  /** 10 requests per minute - for sensitive operations (password reset, etc.) */
+  strict: { max: 10, windowMs: 60 * 1000, keyPrefix: 'strict' },
 
-  /** 20 requests per minute - for messaging/posting */
-  moderate: { max: 20, windowMs: 60 * 1000, keyPrefix: 'moderate' },
+  /** 60 requests per minute - for messaging/posting (1 msg/sec average) */
+  moderate: { max: 60, windowMs: 60 * 1000, keyPrefix: 'moderate' },
 
-  /** 100 requests per minute - for read operations */
-  lenient: { max: 100, windowMs: 60 * 1000, keyPrefix: 'lenient' },
+  /** 120 requests per minute - for messaging in active conversations */
+  messaging: { max: 120, windowMs: 60 * 1000, keyPrefix: 'messaging' },
 
-  /** 10 requests per hour - for expensive operations */
-  hourly: { max: 10, windowMs: 60 * 60 * 1000, keyPrefix: 'hourly' },
+  /** 200 requests per minute - for read operations (scrolling, loading) */
+  lenient: { max: 200, windowMs: 60 * 1000, keyPrefix: 'lenient' },
+
+  /** 500 requests per minute - for high-frequency reads (typing indicators, presence) */
+  realtime: { max: 500, windowMs: 60 * 1000, keyPrefix: 'realtime' },
+
+  /** 20 requests per hour - for expensive operations (AI calls, exports) */
+  hourly: { max: 20, windowMs: 60 * 60 * 1000, keyPrefix: 'hourly' },
+
+  /** 100 requests per hour - for AI chat (generous for study sessions) */
+  ai: { max: 100, windowMs: 60 * 60 * 1000, keyPrefix: 'ai' },
+
+  /** 10 requests per minute - for expensive searches (partner/group search processing 100+ records) */
+  expensiveSearch: { max: 10, windowMs: 60 * 1000, keyPrefix: 'search' },
 }

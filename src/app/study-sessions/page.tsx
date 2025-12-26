@@ -8,10 +8,6 @@ import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import GlowBorder from '@/components/ui/GlowBorder'
-import Pulse from '@/components/ui/Pulse'
-import Bounce from '@/components/ui/Bounce'
-import FadeIn from '@/components/ui/FadeIn'
 
 interface Session {
   id: string
@@ -227,10 +223,10 @@ export default function StudySessionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-600 dark:text-neutral-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -239,29 +235,27 @@ export default function StudySessionsPage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
+    <div className="min-h-screen bg-white dark:bg-neutral-950">
       {/* Header */}
-      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10">
+      <header className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/dashboard')}
-              className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-all"
+              className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 p-2 rounded-lg transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{t('title')}</h1>
           </div>
-          <Bounce delay={0.1}>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all font-medium"
-            >
-              {t('newSession')}
-            </button>
-          </Bounce>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors font-medium"
+          >
+            {t('newSession')}
+          </button>
         </div>
       </header>
 
@@ -270,30 +264,18 @@ export default function StudySessionsPage() {
         <div className="max-w-6xl mx-auto">
           {/* Pending Invites Section */}
           {pendingInvites.length > 0 && (
-            <Bounce delay={0.1}>
-              <GlowBorder
-                color="#3b82f6"
-               
-                animated={false}
-                
-                style={{ borderRadius: 12 }}
-                className="mb-6"
-              >
-                <div className="bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {t('pendingInvitations')}
-                    </h2>
-                    <Pulse>
-                      <span className="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
-                        {pendingInvites.length}
-                      </span>
-                    </Pulse>
-                  </div>
-                  <div className="space-y-3">
-                    {pendingInvites.map((invite, index) => (
-                      <FadeIn key={invite.sessionId} delay={index * 0.1} direction="up">
-                        <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-lg p-4 flex items-start justify-between gap-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-all shadow-lg dark:shadow-none">
+            <div className="bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                  {t('pendingInvitations')}
+                </h2>
+                <span className="px-2.5 py-1 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-bold rounded-full">
+                  {pendingInvites.length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {pendingInvites.map((invite) => (
+                  <div key={invite.sessionId} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 flex items-start justify-between gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <PartnerAvatar
@@ -303,116 +285,104 @@ export default function StudySessionsPage() {
                           showStatus={false}
                         />
                         <div>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
-                            <span className="font-semibold text-gray-900 dark:text-white">
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            <span className="font-semibold text-neutral-900 dark:text-white">
                               {invite.inviter?.name || 'Someone'}
                             </span>{' '}
                             {t('invitedYouTo')}
                           </p>
-                          <h3 className="font-semibold text-gray-900 dark:text-white">{invite.title}</h3>
+                          <h3 className="font-semibold text-neutral-900 dark:text-white">{invite.title}</h3>
                         </div>
                       </div>
                       {invite.description && (
-                        <p className="text-sm text-gray-700 dark:text-slate-300 mb-2 ml-13">{invite.description}</p>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2 ml-13">{invite.description}</p>
                       )}
                       <div className="flex items-center gap-2 ml-13">
-                        <span className="px-2 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-full">
+                        <span className="px-2 py-1 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs rounded-full">
                           {invite.type}
                         </span>
                         {invite.subject && (
-                          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs rounded-full">
                             {invite.subject}
                           </span>
                         )}
                       </div>
                     </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAcceptInvite(invite.sessionId)}
-                              disabled={processingInvite === invite.sessionId}
-                              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 font-medium"
-                            >
-                              {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
-                            </button>
-                            <button
-                              onClick={() => handleDeclineInvite(invite.sessionId)}
-                              disabled={processingInvite === invite.sessionId}
-                              className="px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 text-sm rounded-lg hover:scale-105 transition-all disabled:opacity-50 font-medium"
-                            >
-                              {processingInvite === invite.sessionId ? t('declining') : t('decline')}
-                            </button>
-                          </div>
-                        </div>
-                      </FadeIn>
-                    ))}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAcceptInvite(invite.sessionId)}
+                        disabled={processingInvite === invite.sessionId}
+                        className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
+                      </button>
+                      <button
+                        onClick={() => handleDeclineInvite(invite.sessionId)}
+                        disabled={processingInvite === invite.sessionId}
+                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 text-sm rounded-lg transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {processingInvite === invite.sessionId ? t('declining') : t('decline')}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </GlowBorder>
-            </Bounce>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Header for History */}
-          <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl mb-6 p-6 shadow-lg dark:shadow-none">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('sessionHistory')}</h2>
-            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{t('sessionHistoryDesc')}</p>
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl mb-6 p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('sessionHistory')}</h2>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">{t('sessionHistoryDesc')}</p>
           </div>
 
           {/* Sessions List */}
           <div className="grid md:grid-cols-2 gap-6">
             {filteredSessions.length === 0 ? (
-              <div className="col-span-2 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-12 text-center shadow-lg dark:shadow-none">
-                <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="col-span-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-12 text-center shadow-sm">
+                <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 text-neutral-500 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
                   {t('noHistoryYet')}
                 </h3>
-                <p className="text-gray-700 dark:text-slate-300 mb-6 max-w-md mx-auto">
+                <p className="text-neutral-600 dark:text-neutral-400 mb-6 max-w-md mx-auto">
                   {t('noHistoryDesc')}
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
+                  className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
                 >
                   {t('startSession')}
                 </button>
               </div>
             ) : (
-              filteredSessions.map((session, index) => (
-                <FadeIn key={session.id} delay={index * 0.1} direction="up">
-                  <GlowBorder
-                    color={session.status === 'COMPLETED' ? '#10b981' : '#6b7280'}
-                   
-                    animated={false}
-                    
-                    style={{ borderRadius: 12 }}
-                    className="h-full"
-                  >
-                    <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-6 hover:bg-gray-100 dark:hover:bg-white/10 transition h-full shadow-lg dark:shadow-none">
+              filteredSessions.map((session) => (
+                <div key={session.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors h-full shadow-sm">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{session.title}</h3>
+                      <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{session.title}</h3>
                       {session.description && (
-                        <p className="text-sm text-gray-700 dark:text-slate-300 mb-3">{session.description}</p>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">{session.description}</p>
                       )}
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-slate-400">
+                      <div className="flex items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400">
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                           </svg>
                           {session.participantCount} / {session.maxParticipants}
                         </span>
-                        <span className={`px-2 py-1 text-xs rounded-full border ${
-                          session.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                          session.status === 'SCHEDULED' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                          'bg-slate-700 text-slate-300 border-slate-600'
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          session.status === 'ACTIVE' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' :
+                          session.status === 'SCHEDULED' ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300' :
+                          'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400'
                         }`}>
                           {session.status}
                         </span>
                         {session.subject && (
-                          <span className="px-2 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs rounded-full">
                             {session.subject}
                           </span>
                         )}
@@ -423,21 +393,19 @@ export default function StudySessionsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setViewingSessionId(session.id)}
-                      className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 text-sm rounded-lg transition"
+                      className="flex-1 px-4 py-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 text-sm rounded-lg transition-colors"
                     >
                       {t('viewDetails')}
                     </button>
                     <button
                       onClick={() => handleDeleteSession(session.id)}
                       disabled={deletingSession === session.id}
-                      className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {deletingSession === session.id ? t('removing') : t('remove')}
                     </button>
                   </div>
-                    </div>
-                  </GlowBorder>
-                </FadeIn>
+                </div>
               ))
             )}
           </div>

@@ -1,15 +1,21 @@
 /**
- * Partner Matching Algorithm v2.0
+ * Partner Matching Algorithm v2.1
  *
  * Advanced weighted matching system for Clerva App.
  * Uses multiple components with configurable weights to calculate match percentages.
  *
  * Based on study partner matching best practices:
- * - Jaccard similarity for tag/array fields
+ * - Jaccard similarity with synonym expansion for subjects/interests
  * - Numeric closeness for skill levels
  * - Overlap scoring for availability
  * - Detailed breakdown for transparency
+ *
+ * v2.1 Changes:
+ * - Added smart matching with synonym expansion (e.g., "math" matches "calculus", "algebra")
+ * - Improved subject/interest matching to find related terms
  */
+
+import { expandSearchTerms } from './smart-search'
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -210,6 +216,65 @@ export function jaccard(a: string[], b: string[]): number {
 
   if (union.size === 0) return 0
   return intersection.size / union.size
+}
+
+/**
+ * Calculate smart Jaccard similarity with synonym expansion
+ * This expands terms like "math" to include "mathematics", "algebra", "calculus", etc.
+ * Then calculates overlap using the expanded term sets
+ *
+ * Returns a score 0-1 where:
+ * - Direct matches get full weight
+ * - Synonym matches get partial weight (0.7)
+ */
+export function smartJaccard(a: string[], b: string[]): { score: number; directMatches: string[]; synonymMatches: string[] } {
+  if (!a.length && !b.length) return { score: 0, directMatches: [], synonymMatches: [] }
+
+  const normalizedA = a.map(s => s.toLowerCase().trim())
+  const normalizedB = b.map(s => s.toLowerCase().trim())
+
+  // Find direct matches first
+  const setA = new Set(normalizedA)
+  const setB = new Set(normalizedB)
+  const directMatches = [...setA].filter(x => setB.has(x))
+
+  // Find synonym matches (matches via expansion, excluding direct matches)
+  const synonymMatches: string[] = []
+
+  for (const termA of normalizedA) {
+    if (directMatches.includes(termA)) continue // Skip direct matches
+
+    // Check if this term shares a synonym family with any term in B
+    for (const termB of normalizedB) {
+      if (directMatches.includes(termB)) continue
+
+      // Check if they share a common canonical term
+      const expandedTermA = new Set(expandSearchTerms([termA]))
+      const expandedTermB = new Set(expandSearchTerms([termB]))
+
+      // If their expansions overlap, they're related
+      const hasOverlap = [...expandedTermA].some(x => expandedTermB.has(x))
+      if (hasOverlap && !synonymMatches.includes(termA)) {
+        synonymMatches.push(termA)
+      }
+    }
+  }
+
+  // Calculate weighted score
+  // Direct matches: full weight (1.0 per match)
+  // Synonym matches: partial weight (0.7 per match)
+  const maxItems = Math.max(a.length, b.length)
+  if (maxItems === 0) return { score: 0, directMatches: [], synonymMatches: [] }
+
+  const directScore = directMatches.length * 1.0
+  const synonymScore = synonymMatches.length * 0.7
+  const totalScore = (directScore + synonymScore) / maxItems
+
+  return {
+    score: Math.min(totalScore, 1), // Cap at 1.0
+    directMatches,
+    synonymMatches,
+  }
 }
 
 /**
@@ -530,23 +595,32 @@ export function calculateMatchScore(
   // Calculate each component score
   const componentScores: Record<string, ComponentScore> = {}
 
-  // ===== SUBJECTS =====
+  // ===== SUBJECTS (with smart synonym matching) =====
   const currentSubjects = currentUserProfile.subjects || []
   const partnerSubjects = partnerProfile.subjects || []
   const bothHaveSubjects = hasArrayData(currentSubjects) && hasArrayData(partnerSubjects)
 
   if (bothHaveSubjects) {
-    const subjectScore = jaccard(currentSubjects, partnerSubjects)
-    const matchedSubjects = getIntersection(currentSubjects, partnerSubjects)
+    // Use smart Jaccard with synonym expansion for better matching
+    // e.g., "math" will match with "calculus", "algebra", "mathematics"
+    const smartResult = smartJaccard(currentSubjects, partnerSubjects)
+    const allMatches = [...smartResult.directMatches, ...smartResult.synonymMatches]
+
+    let details = 'No shared subjects'
+    if (smartResult.directMatches.length > 0 && smartResult.synonymMatches.length > 0) {
+      details = `${smartResult.directMatches.length} exact + ${smartResult.synonymMatches.length} related subject${allMatches.length > 1 ? 's' : ''}`
+    } else if (smartResult.directMatches.length > 0) {
+      details = `${smartResult.directMatches.length} shared subject${smartResult.directMatches.length > 1 ? 's' : ''}`
+    } else if (smartResult.synonymMatches.length > 0) {
+      details = `${smartResult.synonymMatches.length} related subject${smartResult.synonymMatches.length > 1 ? 's' : ''}`
+    }
 
     componentScores.subjects = {
-      score: subjectScore,
+      score: smartResult.score,
       weight: weights.subjects,
-      weightedScore: subjectScore * weights.subjects,
-      details: matchedSubjects.length > 0
-        ? `${matchedSubjects.length} shared subject${matchedSubjects.length > 1 ? 's' : ''}`
-        : 'No shared subjects',
-      matchItems: matchedSubjects,
+      weightedScore: smartResult.score * weights.subjects,
+      details,
+      matchItems: allMatches,
       bothHaveData: true,
     }
   } else {
@@ -560,23 +634,31 @@ export function calculateMatchScore(
     }
   }
 
-  // ===== INTERESTS =====
+  // ===== INTERESTS (with smart synonym matching) =====
   const currentInterests = currentUserProfile.interests || []
   const partnerInterests = partnerProfile.interests || []
   const bothHaveInterests = hasArrayData(currentInterests) && hasArrayData(partnerInterests)
 
   if (bothHaveInterests) {
-    const interestScore = jaccard(currentInterests, partnerInterests)
-    const matchedInterests = getIntersection(currentInterests, partnerInterests)
+    // Use smart Jaccard with synonym expansion for better matching
+    const smartInterestResult = smartJaccard(currentInterests, partnerInterests)
+    const allInterestMatches = [...smartInterestResult.directMatches, ...smartInterestResult.synonymMatches]
+
+    let interestDetails = 'No shared interests'
+    if (smartInterestResult.directMatches.length > 0 && smartInterestResult.synonymMatches.length > 0) {
+      interestDetails = `${smartInterestResult.directMatches.length} exact + ${smartInterestResult.synonymMatches.length} related interest${allInterestMatches.length > 1 ? 's' : ''}`
+    } else if (smartInterestResult.directMatches.length > 0) {
+      interestDetails = `${smartInterestResult.directMatches.length} shared interest${smartInterestResult.directMatches.length > 1 ? 's' : ''}`
+    } else if (smartInterestResult.synonymMatches.length > 0) {
+      interestDetails = `${smartInterestResult.synonymMatches.length} related interest${smartInterestResult.synonymMatches.length > 1 ? 's' : ''}`
+    }
 
     componentScores.interests = {
-      score: interestScore,
+      score: smartInterestResult.score,
       weight: weights.interests,
-      weightedScore: interestScore * weights.interests,
-      details: matchedInterests.length > 0
-        ? `${matchedInterests.length} shared interest${matchedInterests.length > 1 ? 's' : ''}`
-        : 'No shared interests',
-      matchItems: matchedInterests,
+      weightedScore: smartInterestResult.score * weights.interests,
+      details: interestDetails,
+      matchItems: allInterestMatches,
       bothHaveData: true,
     }
   } else {

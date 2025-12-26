@@ -1,92 +1,77 @@
 import SignUpForm from '@/components/auth/SignUpForm'
 import Link from 'next/link'
-import GlowBorder from '@/components/ui/GlowBorder'
-import FastPulse from '@/components/ui/FastPulse'
-import FastFadeIn from '@/components/ui/FastFadeIn'
-import FastBounce from '@/components/ui/FastBounce'
+import Image from 'next/image'
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen bg-slate-900 relative flex items-center justify-center p-4 overflow-hidden">
-      {/* Subtle gradient background overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-slate-900 to-purple-900/20" />
+    <div className="min-h-screen bg-white relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-purple-50/30" />
 
-      {/* Decorative gradient blobs */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-br from-purple-100/40 to-blue-100/40 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/3" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-purple-100/30 to-pink-100/30 rounded-full blur-3xl translate-y-1/3 translate-x-1/3" />
 
-      <div className="w-full max-w-6xl flex gap-8 items-center relative z-10">
-        {/* Left side - Branding */}
-        <div className="hidden lg:block flex-1">
-          <Link href="/" className="inline-block mb-8">
-            <h1 className="text-4xl font-bold text-blue-400 hover:text-blue-300 transition-colors">← Clerva</h1>
-          </Link>
-          <h2 className="text-4xl font-bold text-white mb-4">
-            Start your learning journey today
-          </h2>
-          <p className="text-lg text-slate-300 mb-8">
-            Join thousands of students finding study partners, collaborating in real-time, and achieving their goals together.
-          </p>
-          <FastFadeIn delay={0.2}>
-            <div className="space-y-4">
-              <FastBounce delay={0.1}>
-                <div className="flex items-start gap-3">
-                  <FastPulse>
-                    <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1 border border-blue-500/30">
-                      <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                    </div>
-                  </FastPulse>
-                  <div>
-                    <h3 className="font-semibold text-white">Smart Partner Matching</h3>
-                    <p className="text-slate-300">Find compatible study partners based on your interests and goals</p>
-                  </div>
-                </div>
-              </FastBounce>
-              <FastBounce delay={0.2}>
-                <div className="flex items-start gap-3">
-                  <FastPulse>
-                    <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1 border border-blue-500/30">
-                      <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                    </div>
-                  </FastPulse>
-                  <div>
-                    <h3 className="font-semibold text-white">Real-time Collaboration</h3>
-                    <p className="text-slate-300">Chat, video calls, and shared whiteboards for effective studying</p>
-                  </div>
-                </div>
-              </FastBounce>
-              <FastBounce delay={0.3}>
-                <div className="flex items-start gap-3">
-                  <FastPulse>
-                    <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1 border border-blue-500/30">
-                      <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                    </div>
-                  </FastPulse>
-                  <div>
-                    <h3 className="font-semibold text-white">Study Tools</h3>
-                    <p className="text-slate-300">Get personalized insights, quizzes, and study recommendations</p>
-                  </div>
-                </div>
-              </FastBounce>
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
+
+      <div className="w-full max-w-6xl mx-auto relative z-10">
+        <div className="flex gap-12 items-center justify-center lg:justify-between">
+          {/* Left side - Branding */}
+          <div className="hidden lg:flex flex-1 flex-col justify-center max-w-md">
+            <Link href="/" className="inline-flex items-center gap-2 mb-10 group">
+              <Image src="/logo.png" alt="Clerva" width={40} height={40} className="h-10 w-auto" />
+              <span className="text-slate-900 text-xl font-bold tracking-tight">
+                Clerva
+              </span>
+            </Link>
+
+            <h1 className="text-4xl font-bold text-slate-900 mb-4 leading-tight">
+              Start your learning journey today
+            </h1>
+            <p className="text-lg text-slate-600 mb-10">
+              Join thousands of students finding study partners, collaborating in real-time, and achieving their goals together.
+            </p>
+
+            {/* Features */}
+            <div className="space-y-5">
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Smart Partner Matching</h3>
+                <p className="text-slate-600 text-sm">Find compatible study partners based on your subjects, interests, and goals</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Real-time Collaboration</h3>
+                <p className="text-slate-600 text-sm">Video calls, shared whiteboards, and chat for effective studying</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Temporary AI Partner</h3>
+                <p className="text-slate-600 text-sm">Get personalized help, quizzes, and study recommendations while you wait for a real partner</p>
+              </div>
             </div>
-          </FastFadeIn>
-        </div>
 
-        {/* Right side - Form */}
-        <div className="flex-1 flex justify-center">
-          <FastFadeIn delay={0.2}>
-            <GlowBorder color="#8b5cf6" intensity="medium" animated={false} style={{ borderRadius: 12 }}>
-              <SignUpForm />
-            </GlowBorder>
-          </FastFadeIn>
+            {/* Back to landing page */}
+            <Link href="/" className="inline-flex items-center gap-2 mt-8 text-slate-600 hover:text-slate-900 transition-colors group">
+              <svg className="w-5 h-5 rotate-180 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+              <span className="text-sm font-medium">Back to home</span>
+            </Link>
+          </div>
+
+          {/* Right side - Form */}
+          <div className="w-full lg:w-auto lg:flex-1 flex justify-center lg:justify-end">
+            <SignUpForm />
+          </div>
         </div>
       </div>
+
+      {/* Mobile logo - only visible on mobile */}
+      <Link href="/" className="lg:hidden fixed top-6 left-6 z-20 inline-flex items-center gap-2">
+        <Image src="/logo.png" alt="Clerva" width={32} height={32} className="h-8 w-auto" />
+        <span className="text-slate-900 text-lg font-bold tracking-tight">Clerva</span>
+      </Link>
     </div>
   )
 }

@@ -114,27 +114,41 @@ export default function SignInForm() {
 
   return (
     <div className="w-full">
-      <div className="bg-white/5 backdrop-blur-xl p-8 rounded-xl border border-white/10">
-        <h2 className="text-2xl font-bold text-white mb-6">Welcome Back</h2>
+      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Welcome Back</h2>
+          <p className="text-slate-600 text-sm">Sign in to continue your learning journey</p>
+        </div>
 
         {registered && (
-          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-300 text-sm backdrop-blur-sm">
-            Account created successfully! Please sign in.
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <span>Account created successfully! Please sign in.</span>
           </div>
         )}
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm backdrop-blur-sm">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {!requires2FA ? (
             <>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-200 mb-1">
-                  Email
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+                  Email address
                 </label>
                 <input
                   id="email"
@@ -142,13 +156,13 @@ export default function SignInForm() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
                   placeholder="you@example.com"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-1">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                   Password
                 </label>
                 <input
@@ -157,23 +171,28 @@ export default function SignInForm() {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+                  placeholder="Enter your password"
                 />
               </div>
 
               <div className="flex items-center justify-end">
-                <Link href="/auth/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
                   Forgot password?
                 </Link>
               </div>
             </>
           ) : (
             <div>
-              <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-300 text-sm backdrop-blur-sm">
-                Two-factor authentication is enabled. Enter your 6-digit code from your authenticator app.
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <span>Two-factor authentication is enabled. Enter your 6-digit code from your authenticator app.</span>
               </div>
-              <label htmlFor="twoFactorCode" className="block text-sm font-medium text-slate-200 mb-1">
+              <label htmlFor="twoFactorCode" className="block text-sm font-medium text-slate-700 mb-2">
                 Authentication Code
               </label>
               <input
@@ -186,15 +205,18 @@ export default function SignInForm() {
                 autoFocus
                 value={twoFactorCode}
                 onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50 text-white placeholder-slate-400 transition-all text-center text-2xl tracking-widest"
+                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none text-center text-2xl tracking-[0.5em] font-mono"
                 placeholder="000000"
               />
               <button
                 type="button"
                 onClick={handleBackFrom2FA}
-                className="mt-3 text-sm text-slate-400 hover:text-white transition-colors"
+                className="mt-4 text-sm text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1"
               >
-                &larr; Back to sign in
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to sign in
               </button>
             </div>
           )}
@@ -202,25 +224,33 @@ export default function SignInForm() {
           <button
             type="submit"
             disabled={loading || (requires2FA && twoFactorCode.length !== 6)}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40"
+            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20"
           >
-            {loading ? 'Signing In...' : requires2FA ? 'Verify' : 'Sign In'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in...
+              </span>
+            ) : requires2FA ? 'Verify' : 'Sign In'}
           </button>
         </form>
 
-        <div className="mt-6">
+        <div className="mt-8">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10"></div>
+              <div className="w-full border-t border-slate-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-slate-900/80 text-slate-400">Or continue with</span>
+              <span className="px-4 bg-white text-slate-500">Or continue with</span>
             </div>
           </div>
 
           <button
             onClick={handleGoogleSignIn}
-            className="mt-4 w-full py-3 bg-white/5 border border-white/10 rounded-lg font-semibold text-white hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2"
+            className="mt-6 w-full py-3.5 bg-white border-2 border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -228,14 +258,14 @@ export default function SignInForm() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Google
+            Continue with Google
           </button>
         </div>
 
-        <p className="mt-6 text-center text-sm text-slate-300">
+        <p className="mt-8 text-center text-sm text-slate-600">
           Don&apos;t have an account?{' '}
-          <Link href="/auth/signup" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">
-            Sign Up
+          <Link href="/auth/signup" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
+            Sign up for free
           </Link>
         </p>
       </div>

@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/cleanup-presence",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/admin/refresh-views",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

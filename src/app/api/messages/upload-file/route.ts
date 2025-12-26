@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const filePath = `message-files/${conversationType}/${conversationId}/${fileName}`
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('user-uploads')
       .upload(filePath, buffer, {
         contentType: file.type,
@@ -99,13 +99,9 @@ export async function POST(request: NextRequest) {
       .from('user-uploads')
       .getPublicUrl(filePath)
 
-    // For images, optionally generate thumbnail
-    let thumbnailUrl: string | null = null
-    if (isImage) {
-      // Thumbnail generation would happen here
-      // For now, we'll use the same URL (Supabase can handle image transformations on-the-fly)
-      thumbnailUrl = `${urlData.publicUrl}?width=200&height=200`
-    }
+    // For images, use the same URL (thumbnail handled client-side or via CSS)
+    // Supabase free tier doesn't support image transformations
+    const thumbnailUrl: string | null = isImage ? urlData.publicUrl : null
 
     logger.info('Message file uploaded', {
       userId: user.id,

@@ -18,7 +18,7 @@ function calculatePasswordStrength(password: string): PasswordStrength {
   let score = 0
 
   if (!password) {
-    return { score: 0, label: '', color: 'text-slate-400', bgColor: 'bg-slate-600', feedback: [] }
+    return { score: 0, label: '', color: 'text-slate-400', bgColor: 'bg-slate-200', feedback: [] }
   }
 
   // Length checks
@@ -66,13 +66,13 @@ function calculatePasswordStrength(password: string): PasswordStrength {
 
   // Map score to strength level
   const normalizedScore = Math.min(4, Math.floor(score))
-  
+
   const strengthLevels: Record<number, Omit<PasswordStrength, 'score' | 'feedback'>> = {
-    0: { label: 'Very Weak', color: 'text-red-400', bgColor: 'bg-red-500' },
-    1: { label: 'Weak', color: 'text-orange-400', bgColor: 'bg-orange-500' },
-    2: { label: 'Fair', color: 'text-yellow-400', bgColor: 'bg-yellow-500' },
-    3: { label: 'Good', color: 'text-lime-400', bgColor: 'bg-lime-500' },
-    4: { label: 'Strong', color: 'text-green-400', bgColor: 'bg-green-500' },
+    0: { label: 'Very Weak', color: 'text-red-600', bgColor: 'bg-red-500' },
+    1: { label: 'Weak', color: 'text-orange-600', bgColor: 'bg-orange-500' },
+    2: { label: 'Fair', color: 'text-yellow-600', bgColor: 'bg-yellow-500' },
+    3: { label: 'Good', color: 'text-lime-600', bgColor: 'bg-lime-500' },
+    4: { label: 'Strong', color: 'text-green-600', bgColor: 'bg-green-500' },
   }
 
   return {
@@ -159,18 +159,27 @@ export default function SignUpForm() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white/5 backdrop-blur-xl p-8 rounded-xl border border-white/10">
-        <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
+      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Create your account</h2>
+          <p className="text-slate-600 text-sm">Start your learning journey today</p>
+        </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm backdrop-blur-sm">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-slate-200 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
               Full Name
             </label>
             <input
@@ -179,14 +188,14 @@ export default function SignUpForm() {
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 text-white placeholder-slate-400 transition-all"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
               placeholder="John Doe"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-200 mb-1">
-              Email
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              Email address
             </label>
             <input
               id="email"
@@ -194,13 +203,13 @@ export default function SignUpForm() {
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 text-white placeholder-slate-400 transition-all"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
               Password
             </label>
             <input
@@ -211,15 +220,15 @@ export default function SignUpForm() {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               onFocus={() => setShowPasswordStrength(true)}
               onBlur={() => setShowPasswordStrength(formData.password.length > 0)}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 text-white placeholder-slate-400 transition-all"
-              placeholder="••••••••"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+              placeholder="Create a strong password"
             />
-            
+
             {/* Password Strength Indicator */}
             {showPasswordStrength && formData.password && (
-              <div className="mt-2 space-y-2">
+              <div className="mt-3 space-y-2">
                 {/* Strength Bar */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <div className="flex-1 flex gap-1">
                     {[0, 1, 2, 3].map((index) => (
                       <div
@@ -227,7 +236,7 @@ export default function SignUpForm() {
                         className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
                           index < passwordStrength.score
                             ? passwordStrength.bgColor
-                            : 'bg-slate-600'
+                            : 'bg-slate-200'
                         }`}
                       />
                     ))}
@@ -236,13 +245,15 @@ export default function SignUpForm() {
                     {passwordStrength.label}
                   </span>
                 </div>
-                
+
                 {/* Feedback */}
                 {passwordStrength.feedback.length > 0 && (
-                  <ul className="text-xs text-slate-400 space-y-0.5">
+                  <ul className="text-xs text-slate-500 space-y-1">
                     {passwordStrength.feedback.map((tip, index) => (
-                      <li key={index} className="flex items-center gap-1.5">
-                        <span className="text-slate-500">•</span>
+                      <li key={index} className="flex items-center gap-2">
+                        <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
                         {tip}
                       </li>
                     ))}
@@ -253,7 +264,7 @@ export default function SignUpForm() {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-200 mb-1">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-2">
               Confirm Password
             </label>
             <input
@@ -262,33 +273,57 @@ export default function SignUpForm() {
               required
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 text-white placeholder-slate-400 transition-all"
-              placeholder="••••••••"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+              placeholder="Confirm your password"
             />
+            {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+              <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Passwords do not match
+              </p>
+            )}
+            {formData.confirmPassword && formData.password === formData.confirmPassword && (
+              <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Passwords match
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40"
+            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20"
           >
-            {loading ? 'Creating Account...' : 'Sign Up'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating account...
+              </span>
+            ) : 'Create Account'}
           </button>
         </form>
 
-        <div className="mt-6">
+        <div className="mt-8">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10"></div>
+              <div className="w-full border-t border-slate-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-slate-900/80 text-slate-400">Or continue with</span>
+              <span className="px-4 bg-white text-slate-500">Or continue with</span>
             </div>
           </div>
 
           <button
             onClick={handleGoogleSignIn}
-            className="mt-4 w-full py-3 bg-white/5 border border-white/10 rounded-lg font-semibold text-white hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2"
+            className="mt-6 w-full py-3.5 bg-white border-2 border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -296,14 +331,26 @@ export default function SignUpForm() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Google
+            Continue with Google
           </button>
         </div>
 
-        <p className="mt-6 text-center text-sm text-slate-300">
+        <p className="mt-8 text-center text-sm text-slate-600">
           Already have an account?{' '}
-          <Link href="/auth/signin" className="text-purple-400 font-semibold hover:text-purple-300 transition-colors">
-            Sign In
+          <Link href="/auth/signin" className="text-purple-600 font-semibold hover:text-purple-700 transition-colors">
+            Sign in
+          </Link>
+        </p>
+
+        {/* Terms */}
+        <p className="mt-6 text-center text-xs text-slate-500">
+          By creating an account, you agree to our{' '}
+          <Link href="/terms" className="text-slate-700 hover:text-slate-900 underline">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" className="text-slate-700 hover:text-slate-900 underline">
+            Privacy Policy
           </Link>
         </p>
       </div>

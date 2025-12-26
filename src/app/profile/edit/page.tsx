@@ -24,9 +24,7 @@ export default function ProfilePage() {
     subjects: [] as string[],
     interests: [] as string[],
     goals: [] as string[],
-    skillLevel: '',
     skillLevelDescription: '',
-    studyStyle: '',
     studyStyleDescription: '',
     availableDays: [] as string[],
     availableHours: '',
@@ -66,9 +64,7 @@ export default function ProfilePage() {
         subjects: profile.subjects || [],
         interests: profile.interests || [],
         goals: profile.goals || [],
-        skillLevel: profile.skillLevel || '',
         skillLevelDescription: profile.skillLevelCustomDescription || '',
-        studyStyle: profile.studyStyle || '',
         studyStyleDescription: profile.studyStyleCustomDescription || '',
         availableDays: profile.availableDays || [],
         availableHours: (Array.isArray(profile.availableHours) && profile.availableHours.length > 0) ? profile.availableHours[0] : '',
@@ -84,9 +80,9 @@ export default function ProfilePage() {
         locationLng: (profile as { location_lng?: number }).location_lng || null,
         locationVisibility: ((profile as { location_visibility?: string }).location_visibility || 'match-only') as 'private' | 'match-only' | 'public',
       }
-      
+
       setFormData(initialFormData)
-      
+
       if (typeof window !== 'undefined') {
         const bannerClicked = localStorage.getItem('profileCompletionBannerClicked') === 'true'
         if (bannerClicked) {
@@ -97,8 +93,8 @@ export default function ProfilePage() {
             subjects: initialFormData.subjects,
             interests: initialFormData.interests,
             goals: initialFormData.goals,
-            skillLevel: initialFormData.skillLevel,
-            studyStyle: initialFormData.studyStyle,
+            skillLevelDescription: initialFormData.skillLevelDescription,
+            studyStyleDescription: initialFormData.studyStyleDescription,
             school: initialFormData.school,
             languages: initialFormData.languages,
             availableDays: initialFormData.availableDays,
@@ -196,9 +192,7 @@ export default function ProfilePage() {
         subjects: formData.subjects,
         interests: formData.interests,
         goals: formData.goals,
-        skillLevel: formData.skillLevel || undefined,
         skillLevelCustomDescription: formData.skillLevelDescription || undefined,
-        studyStyle: formData.studyStyle || undefined,
         studyStyleCustomDescription: formData.studyStyleDescription || undefined,
         availableDays: formData.availableDays,
         availableHours: formData.availableHours || undefined,
@@ -272,23 +266,23 @@ export default function ProfilePage() {
               subjects: requestData.subjects || [],
               interests: requestData.interests || [],
               goals: requestData.goals || [],
-              skillLevel: requestData.skillLevel || '',
-              studyStyle: requestData.studyStyle || '',
+              skillLevelDescription: requestData.skillLevelCustomDescription || '',
+              studyStyleDescription: requestData.studyStyleCustomDescription || '',
               school: requestData.school || '',
               languages: requestData.languages || '',
               availableDays: requestData.availableDays || [],
               availableHours: requestData.availableHours || '',
             }
-            
-            const hasChanges = 
+
+            const hasChanges =
               snapshot.bio !== currentProfile.bio ||
               snapshot.age !== currentProfile.age ||
               snapshot.role !== currentProfile.role ||
               JSON.stringify(snapshot.subjects?.sort()) !== JSON.stringify(currentProfile.subjects?.sort()) ||
               JSON.stringify(snapshot.interests?.sort()) !== JSON.stringify(currentProfile.interests?.sort()) ||
               JSON.stringify(snapshot.goals?.sort()) !== JSON.stringify(currentProfile.goals?.sort()) ||
-              snapshot.skillLevel !== currentProfile.skillLevel ||
-              snapshot.studyStyle !== currentProfile.studyStyle ||
+              snapshot.skillLevelDescription !== currentProfile.skillLevelDescription ||
+              snapshot.studyStyleDescription !== currentProfile.studyStyleDescription ||
               snapshot.school !== currentProfile.school ||
               snapshot.languages !== currentProfile.languages ||
               JSON.stringify(snapshot.availableDays?.sort()) !== JSON.stringify(currentProfile.availableDays?.sort()) ||
@@ -649,22 +643,14 @@ export default function ProfilePage() {
               <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                 Skill Level
               </label>
-              <select
-                value={formData.skillLevel}
-                onChange={(e) => setFormData({ ...formData, skillLevel: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-3 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white"
-              >
-                <option value="">Select your skill level...</option>
-                <option value="BEGINNER">Beginner</option>
-                <option value="INTERMEDIATE">Intermediate</option>
-                <option value="ADVANCED">Advanced</option>
-                <option value="EXPERT">Expert</option>
-              </select>
-              <input
-                type="text"
+              <p className="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                Describe your skill level in the subjects you&apos;re learning
+              </p>
+              <textarea
                 value={formData.skillLevelDescription}
                 onChange={(e) => setFormData({ ...formData, skillLevelDescription: e.target.value })}
-                placeholder={t('describeSkillLevel')}
+                placeholder="e.g., Beginner in calculus, Intermediate Python programmer, Advanced in data structures..."
+                rows={2}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
               />
             </div>
@@ -674,22 +660,15 @@ export default function ProfilePage() {
               <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                 Preferred Study Style
               </label>
-              <select
-                value={formData.studyStyle}
-                onChange={(e) => setFormData({ ...formData, studyStyle: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-3 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white"
-              >
-                <option value="">Select a study style...</option>
-                <option value="COLLABORATIVE">Collaborative (Group Study)</option>
-                <option value="INDEPENDENT">Independent (Self-Study)</option>
-                <option value="MIXED">Mixed (Both)</option>
-              </select>
-              <input
-                type="text"
+              <p className="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                Describe how you prefer to study and learn
+              </p>
+              <textarea
                 value={formData.studyStyleDescription}
                 onChange={(e) => setFormData({ ...formData, studyStyleDescription: e.target.value })}
-                placeholder={t('describeStudyStyle')}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
+                placeholder="e.g., Prefer group discussions, Visual learner with diagrams, Hands-on practice, Quiet independent study..."
+                rows={2}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
               />
             </div>
 

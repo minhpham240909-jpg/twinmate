@@ -29,21 +29,19 @@ export async function PATCH(
       )
     }
 
-    // Check if post exists and user owns it
-    const existingPost = await prisma.post.findUnique({
-      where: { id: postId },
+    // SECURITY: Check ownership IN the database query to prevent IDOR
+    // This prevents revealing whether posts exist that the user doesn't own
+    const existingPost = await prisma.post.findFirst({
+      where: {
+        id: postId,
+        userId: user.id, // Check ownership in DB, not after fetching
+      },
       select: { userId: true, content: true, createdAt: true, updatedAt: true },
     })
 
+    // Return 404 for both "doesn't exist" and "not authorized" cases
     if (!existingPost) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
-    }
-
-    if (existingPost.userId !== user.id) {
-      return NextResponse.json(
-        { error: 'You can only edit your own posts' },
-        { status: 403 }
-      )
     }
 
     // Note: Edit history tracking requires schema migration to add:
@@ -105,21 +103,18 @@ export async function DELETE(
     const { searchParams } = new URL(req.url)
     const permanent = searchParams.get('permanent') === 'true'
 
-    // Check if post exists and user owns it
-    const existingPost = await prisma.post.findUnique({
-      where: { id: postId },
+    // SECURITY: Check ownership IN the database query to prevent IDOR
+    const existingPost = await prisma.post.findFirst({
+      where: {
+        id: postId,
+        userId: user.id, // Check ownership in DB
+      },
       select: { userId: true, isDeleted: true, imageUrls: true },
     })
 
+    // Return 404 for both "doesn't exist" and "not authorized" cases
     if (!existingPost) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
-    }
-
-    if (existingPost.userId !== user.id) {
-      return NextResponse.json(
-        { error: 'You can only delete your own posts' },
-        { status: 403 }
-      )
     }
 
     // Permanent delete - remove from database completely

@@ -42,10 +42,23 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const view = searchParams.get('view') || 'overview'
-    const period = searchParams.get('period') || '7d' // 7d, 30d, 90d
+    const periodParam = searchParams.get('period') || '7d'
     const userId = searchParams.get('userId')
 
-    // Calculate date range
+    // SECURITY: Strict validation of period parameter to prevent SQL injection
+    const validPeriods = ['7d', '30d', '90d'] as const
+    type ValidPeriod = typeof validPeriods[number]
+
+    if (!validPeriods.includes(periodParam as ValidPeriod)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid period parameter. Allowed values: 7d, 30d, 90d' },
+        { status: 400 }
+      )
+    }
+
+    const period = periodParam as ValidPeriod
+
+    // Calculate date range (safe now that period is validated)
     const periodDays = period === '7d' ? 7 : period === '30d' ? 30 : 90
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - periodDays)

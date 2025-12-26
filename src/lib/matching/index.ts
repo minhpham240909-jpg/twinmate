@@ -11,6 +11,7 @@ export {
 
   // Utility functions
   jaccard,
+  smartJaccard,
   getIntersection,
   skillLevelCloseness,
   studyStyleCompatibility,

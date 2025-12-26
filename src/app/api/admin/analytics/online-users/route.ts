@@ -3,13 +3,15 @@
  *
  * Optimized endpoint for tracking users currently online.
  * Uses UserPresence heartbeat system with 2-minute threshold.
- * Designed for frequent polling (every 10-30 seconds).
+ * Now integrated with WebSocket for real-time updates, with fallback polling.
+ * Rate limited to prevent abuse (analytics preset: 15 requests/minute).
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getOrSetCached } from '@/lib/cache'
+import { adminRateLimit, getRateLimitHeaders } from '@/lib/admin/rate-limit'
 
 // Short cache TTL for real-time data (10 seconds)
 const ONLINE_USERS_CACHE_TTL = 10
@@ -17,8 +19,12 @@ const ONLINE_USERS_CACHE_TTL = 10
 // Users are considered online if heartbeat within last 2 minutes
 const ONLINE_THRESHOLD_MS = 2 * 60 * 1000
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    // Apply rate limiting (analytics preset: 15 requests/minute)
+    const rateLimitResult = await adminRateLimit(req, 'analytics')
+    if (rateLimitResult) return rateLimitResult
+
     // Check if user is admin
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -119,10 +125,16 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: onlineData,
-    })
+    // Add rate limit headers to response
+    const headers = await getRateLimitHeaders(req, 'analytics')
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: onlineData,
+      },
+      { headers }
+    )
   } catch (error) {
     console.error('Error fetching online users:', error)
     return NextResponse.json(

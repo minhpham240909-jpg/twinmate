@@ -8,9 +8,6 @@ import MessageVideoCall from '@/components/messages/MessageVideoCall'
 import { useTranslations } from 'next-intl'
 import GroupSearchBar from '@/components/chat/GroupSearchBar'
 import GroupMembersModal from '@/components/chat/GroupMembersModal'
-import GlowBorder from '@/components/ui/GlowBorder'
-import FastPulse from '@/components/ui/FastPulse'
-import FastFadeIn from '@/components/ui/FastFadeIn'
 import { 
   createTypingChannel, 
   broadcastTyping, 
@@ -595,10 +592,10 @@ function GroupsChatContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
+          <div className="w-12 h-12 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-500 dark:text-neutral-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -607,20 +604,20 @@ function GroupsChatContent() {
   if (!user) return null
 
   return (
-    <div className="h-screen bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
+    <div className="h-screen bg-white dark:bg-neutral-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
+      <header className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 flex-shrink-0">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/chat')}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
             >
-              <svg className="w-6 h-6 text-gray-700 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg className="w-6 h-6 text-neutral-700 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">
               {tChat('groupChat')}
             </h1>
           </div>
@@ -630,9 +627,9 @@ function GroupsChatContent() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Group List Sidebar */}
-        <div className="w-80 bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-white/10 flex flex-col overflow-hidden">
+        <div className="w-80 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col overflow-hidden">
           {/* Search Bar */}
-          <div className="p-4 border-b border-gray-200 dark:border-white/10">
+          <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
             <GroupSearchBar onGroupSelect={handleSearchGroupSelect} />
           </div>
 
@@ -640,95 +637,59 @@ function GroupsChatContent() {
           <div className="flex-1 overflow-y-auto">
             {loadingConversations ? (
               <div className="p-8 text-center">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600 dark:text-slate-400">{tCommon('loading')}</p>
+                <div className="w-8 h-8 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">{tCommon('loading')}</p>
               </div>
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-600 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-neutral-500 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-slate-400">{t('noConversationsYet')}</p>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('noConversationsYet')}</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200 dark:divide-white/5">
-                {conversations.map((conv, index) => (
-                  <FastFadeIn key={conv.id} delay={index * 0.02}>
-                    {conv.unreadCount > 0 ? (
-                      <GlowBorder color="#9333ea" intensity="medium" animated={false}>
-                        <button
-                          onClick={() => {
-                            handleSelectConversation(conv)
-                            router.push(`/chat/groups?conversation=${conv.id}`)
-                          }}
-                          className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-slate-800 transition-all ${
-                            selectedConversation?.id === conv.id ? 'bg-blue-100 dark:bg-blue-500/10 border-l-4 border-blue-500' : ''
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                              {conv.avatarUrl ? (
-                                <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
-                              ) : (
-                                conv.name[0].toUpperCase()
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <h3 className="font-semibold text-gray-900 dark:text-white truncate">{conv.name}</h3>
-                                <span className="text-xs text-gray-600 dark:text-slate-400">{formatTime(conv.lastMessageTime)}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm text-gray-700 dark:text-slate-300 truncate">
-                                  {conv.lastMessage || `${conv.memberCount || 0} ${t('members')}`}
-                                </p>
-                                {conv.unreadCount > 0 && (
-                                  <FastPulse>
-                                    <span className="ml-2 px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs rounded-full font-bold">
-                                      {conv.unreadCount}
-                                    </span>
-                                  </FastPulse>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      </GlowBorder>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          handleSelectConversation(conv)
-                          router.push(`/chat/groups?conversation=${conv.id}`)
-                        }}
-                        className={`w-full p-4 text-left hover:bg-gray-100 dark:hover:bg-slate-800 transition-all ${
-                          selectedConversation?.id === conv.id ? 'bg-blue-100 dark:bg-blue-500/10 border-l-4 border-blue-500' : ''
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {conv.avatarUrl ? (
-                              <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
-                            ) : (
-                              conv.name[0].toUpperCase()
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <h3 className="font-semibold text-gray-900 dark:text-white truncate">{conv.name}</h3>
-                              <span className="text-xs text-gray-600 dark:text-slate-400">{formatTime(conv.lastMessageTime)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm text-gray-700 dark:text-slate-300 truncate">
-                                {conv.lastMessage || `${conv.memberCount || 0} ${t('members')}`}
-                              </p>
-                            </div>
-                          </div>
+              <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                {conversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => {
+                      handleSelectConversation(conv)
+                      router.push(`/chat/groups?conversation=${conv.id}`)
+                    }}
+                    className={`w-full p-4 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-neutral-100 dark:bg-neutral-800 border-l-2 border-neutral-900 dark:border-white'
+                        : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 bg-neutral-800 dark:bg-neutral-700 rounded-lg flex items-center justify-center text-white font-medium flex-shrink-0">
+                        {conv.avatarUrl ? (
+                          <img src={conv.avatarUrl} alt={conv.name} className="w-full h-full rounded-lg object-cover" />
+                        ) : (
+                          conv.name[0].toUpperCase()
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-medium text-neutral-900 dark:text-white truncate">{conv.name}</h3>
+                          <span className="text-xs text-neutral-500 dark:text-neutral-400">{formatTime(conv.lastMessageTime)}</span>
                         </div>
-                      </button>
-                    )}
-                  </FastFadeIn>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                            {conv.lastMessage || `${conv.memberCount || 0} ${t('members')}`}
+                          </p>
+                          {conv.unreadCount > 0 && (
+                            <span className="ml-2 px-2 py-0.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs rounded-full font-medium">
+                              {conv.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -736,13 +697,13 @@ function GroupsChatContent() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-950">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-neutral-950">
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between bg-gray-50 dark:bg-slate-900">
+              <div className="flex-shrink-0 p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-neutral-50 dark:bg-neutral-900">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 bg-neutral-800 dark:bg-neutral-700 rounded-lg flex items-center justify-center text-white font-medium">
                     {selectedConversation.avatarUrl ? (
                       <img src={selectedConversation.avatarUrl} alt={selectedConversation.name} className="w-full h-full rounded-lg object-cover" />
                     ) : (
@@ -750,37 +711,37 @@ function GroupsChatContent() {
                     )}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConversation.name}</h3>
-                    <p className="text-xs text-gray-600 dark:text-slate-400">{selectedConversation.memberCount || 0} {t('members')}</p>
+                    <h3 className="font-medium text-neutral-900 dark:text-white">{selectedConversation.name}</h3>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{selectedConversation.memberCount || 0} {t('members')}</p>
                   </div>
                 </div>
                 {!isInCall && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <button
                       onClick={() => setShowMembersModal(true)}
-                      className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:scale-110 rounded-lg transition-all"
+                      className="p-2.5 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
                       title={tChat('viewMembers')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
                     </button>
                     <button
                       onClick={() => startCall('AUDIO')}
-                      className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:scale-110 rounded-lg transition-all"
+                      className="p-2.5 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
                       title={t('audioCall')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                     </button>
                     <button
                       onClick={() => startCall('VIDEO')}
-                      className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:scale-110 rounded-lg transition-all"
+                      className="p-2.5 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
                       title={t('videoCall')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
                     </button>
                   </div>
@@ -808,34 +769,34 @@ function GroupsChatContent() {
                     <div ref={messagesContainerRef} className="h-full overflow-y-auto overflow-x-hidden p-4">
                       {loadingMessages ? (
                         <div className="flex items-center justify-center h-full">
-                          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-8 h-8 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       ) : messages.length === 0 ? (
                         <div className="flex items-center justify-center h-full">
                           <div className="text-center">
-                            <p className="text-gray-700 dark:text-slate-300">{t('noMessages')}</p>
-                            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{t('sendMessageToStart')}</p>
+                            <p className="text-neutral-600 dark:text-neutral-400">{t('noMessages')}</p>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-500 mt-1">{t('sendMessageToStart')}</p>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {/* Load More Button */}
                           {hasMoreMessages && (
                             <div className="flex justify-center pb-2">
                               <button
                                 onClick={loadMoreMessages}
                                 disabled={loadingMoreMessages}
-                                className="px-4 py-2 text-sm bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-white/10 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 text-sm bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                               >
                                 {loadingMoreMessages ? (
                                   <>
-                                    <div className="w-4 h-4 border-2 border-gray-600 dark:border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="w-4 h-4 border-2 border-neutral-600 dark:border-neutral-400 border-t-transparent rounded-full animate-spin"></div>
                                     {tCommon('loading')}
                                   </>
                                 ) : (
                                   <>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                                     </svg>
                                     {t('loadMore')}
                                   </>
@@ -848,19 +809,19 @@ function GroupsChatContent() {
 
                             if (msg.type === 'CALL') {
                               const callIcon = msg.callType === 'VIDEO' ? '📹' : '📞'
-                              const callStatusIcon = msg.callStatus === 'COMPLETED' ? '✅' :
-                                                    msg.callStatus === 'MISSED' ? '❌' :
-                                                    msg.callStatus === 'CANCELLED' ? '🚫' : '⏳'
+                              const callStatusIcon = msg.callStatus === 'COMPLETED' ? '✓' :
+                                                    msg.callStatus === 'MISSED' ? '✕' :
+                                                    msg.callStatus === 'CANCELLED' ? '—' : '...'
 
                               return (
                                 <div key={msg.id} className="flex justify-center">
-                                  <div className="bg-gray-100 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 rounded-lg px-4 py-3 text-center">
+                                  <div className="bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg px-4 py-3 text-center">
                                     <div className="flex items-center justify-center gap-2">
-                                      <span className="text-lg">{callIcon}</span>
-                                      <p className="text-sm text-gray-700 dark:text-slate-400 font-medium">{msg.content}</p>
-                                      <span className="text-lg">{callStatusIcon}</span>
+                                      <span className="text-base">{callIcon}</span>
+                                      <p className="text-sm text-neutral-700 dark:text-neutral-300 font-medium">{msg.content}</p>
+                                      <span className="text-sm text-neutral-500">{callStatusIcon}</span>
                                     </div>
-                                    <span className="text-xs text-gray-600 dark:text-slate-500 mt-1 block">
+                                    <span className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 block">
                                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   </div>
@@ -875,22 +836,22 @@ function GroupsChatContent() {
                               <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`flex gap-2 max-w-[70%] ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
                                   {!isOwnMessage && (
-                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                                    <div className="w-8 h-8 bg-neutral-700 dark:bg-neutral-600 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
                                       {msg.sender.name[0]}
                                     </div>
                                   )}
                                   <div>
                                     {!isOwnMessage && (
-                                      <p className="text-xs text-gray-600 dark:text-slate-400 mb-1 px-1">{msg.sender.name}</p>
+                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 px-1">{msg.sender.name}</p>
                                     )}
                                     <div className="relative">
                                       <div
                                         className={`rounded-2xl px-4 py-2 ${
                                           isDeleted
-                                            ? 'bg-gray-100 dark:bg-slate-800/50 text-gray-500 dark:text-slate-500 italic border border-gray-200 dark:border-white/10'
+                                            ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 italic border border-neutral-200 dark:border-neutral-700'
                                             : isOwnMessage
-                                            ? 'bg-blue-100 dark:bg-blue-900/30 text-gray-900 dark:text-white'
-                                            : 'bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-slate-300 border border-gray-200 dark:border-white/10'
+                                            ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700'
                                         } ${!isDeleted && canDelete ? 'cursor-pointer' : ''}`}
                                         onClick={() => {
                                           if (!isDeleted && canDelete) {
@@ -901,7 +862,7 @@ function GroupsChatContent() {
                                         <p className="text-sm whitespace-pre-wrap break-words">
                                           {isDeleted ? t('messageDeleted') : msg.content}
                                         </p>
-                                        <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-gray-600 dark:text-blue-200' : 'text-gray-600 dark:text-slate-500'}`}>
+                                        <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400'}`}>
                                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
 
@@ -934,10 +895,10 @@ function GroupsChatContent() {
                         <div className="absolute bottom-4 right-4 z-10">
                           <button
                             onClick={scrollToBottom}
-                            className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+                            className="w-10 h-10 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white dark:text-neutral-900 rounded-full shadow-lg flex items-center justify-center transition-colors"
                           >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                             </svg>
                           </button>
                         </div>
@@ -946,14 +907,14 @@ function GroupsChatContent() {
                   </div>
 
                   {/* Message Input */}
-                  <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900">
+                  <div className="flex-shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
                     {/* Typing indicator */}
                     {typingIndicatorText() && (
-                      <div className="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+                      <div className="mb-2 flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
                         <span className="flex gap-1">
-                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </span>
                         <span className="italic">{typingIndicatorText()}</span>
                       </div>
@@ -962,11 +923,11 @@ function GroupsChatContent() {
                     {message.length > 800 && (
                       <div className="mb-2 flex justify-end">
                         <span className={`text-xs font-medium ${
-                          message.length > 1000 
-                            ? 'text-red-500' 
-                            : message.length > 900 
-                              ? 'text-orange-500' 
-                              : 'text-gray-500 dark:text-slate-400'
+                          message.length > 1000
+                            ? 'text-red-500'
+                            : message.length > 900
+                              ? 'text-amber-500'
+                              : 'text-neutral-500 dark:text-neutral-400'
                         }`}>
                           {message.length}/1000
                         </span>
@@ -986,14 +947,14 @@ function GroupsChatContent() {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingFile}
-                        className="p-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition disabled:opacity-50"
+                        className="p-2.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors disabled:opacity-50"
                         title="Attach file or image"
                       >
                         {uploadingFile ? (
-                          <div className="w-5 h-5 border-2 border-gray-600 dark:border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-5 h-5 border-2 border-neutral-500 dark:border-neutral-400 border-t-transparent rounded-full animate-spin"></div>
                         ) : (
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                           </svg>
                         )}
                       </button>
@@ -1012,19 +973,19 @@ function GroupsChatContent() {
                         }}
                         maxLength={1000}
                         placeholder={t('typeMessageHint')}
-                        className={`flex-1 px-4 py-2 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                          message.length > 1000 
-                            ? 'border-red-500' 
-                            : 'border-gray-200 dark:border-white/10'
+                        className={`flex-1 px-4 py-2.5 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 border rounded-xl focus:ring-2 focus:ring-neutral-900 dark:focus:ring-white focus:border-transparent transition-all ${
+                          message.length > 1000
+                            ? 'border-red-500'
+                            : 'border-neutral-200 dark:border-neutral-700'
                         }`}
                       />
                       <button
                         onClick={handleSendMessage}
                         disabled={!message.trim() || message.length > 1000}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
                       </button>
                     </div>
@@ -1035,13 +996,13 @@ function GroupsChatContent() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-gray-600 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('selectConversation')}</h3>
-                <p className="text-gray-700 dark:text-slate-400">{tChat('selectGroupToStart')}</p>
+                <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-1">{t('selectConversation')}</h3>
+                <p className="text-neutral-500 dark:text-neutral-400">{tChat('selectGroupToStart')}</p>
               </div>
             </div>
           )}
@@ -1064,10 +1025,10 @@ function GroupsChatContent() {
 export default function GroupsChatPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-slate-400">Loading...</p>
+          <div className="w-12 h-12 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-500 dark:text-neutral-400">Loading...</p>
         </div>
       </div>
     }>

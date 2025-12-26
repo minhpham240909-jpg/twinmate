@@ -1,4 +1,6 @@
-// API Routes: Session Notes (GET, POST/PATCH for update)
+// API Routes: Private Session Notes (GET, POST/PATCH for update)
+// Each user has their own private notes - only visible to themselves
+// Notes can be shared to screen but not accessed by other users via API
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
@@ -12,7 +14,7 @@ const updateNoteSchema = z.object({
 })
 
 // GET /api/study-sessions/[sessionId]/notes
-// Get the shared note for this session
+// Get the current user's private note for this session
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ sessionId: string }> }
@@ -46,25 +48,33 @@ export async function GET(
       )
     }
 
-    // Get or create the session note
+    // Get the user's private note for this session
     let note = await prisma.sessionNote.findUnique({
-      where: { sessionId },
+      where: {
+        sessionId_userId: {
+          sessionId,
+          userId: user.id,
+        },
+      },
     })
 
-    // If no note exists, create an empty one
+    // If no note exists, create an empty one for this user
     if (!note) {
       note = await prisma.sessionNote.create({
         data: {
           sessionId,
-          title: 'Untitled Note',
+          userId: user.id,
+          title: 'My Notes',
           content: '',
-          lastEditedBy: user.id,
           version: 1,
         },
       })
     }
 
-    return NextResponse.json({ note })
+    return NextResponse.json({
+      note,
+      isPrivate: true, // Indicate to frontend that notes are private
+    })
   } catch (error) {
     console.error('[Notes GET] Error:', error)
     return NextResponse.json(
@@ -78,7 +88,7 @@ export async function GET(
 }
 
 // POST /api/study-sessions/[sessionId]/notes
-// Update the shared note (create if doesn't exist)
+// Update the current user's private note (create if doesn't exist)
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ sessionId: string }> }
@@ -132,29 +142,34 @@ export async function POST(
       )
     }
 
-    // Update or create note
+    // Update or create the user's private note
     const note = await prisma.sessionNote.upsert({
-      where: { sessionId },
+      where: {
+        sessionId_userId: {
+          sessionId,
+          userId: user.id,
+        },
+      },
       update: {
         ...updateData,
-        lastEditedBy: user.id,
         lastEditedAt: new Date(),
         version: { increment: 1 },
       },
       create: {
         sessionId,
-        title: updateData.title || 'Untitled Note',
+        userId: user.id,
+        title: updateData.title || 'My Notes',
         content: updateData.content || '',
-        lastEditedBy: user.id,
         version: 1,
       },
     })
 
-    console.log(`[Notes POST] Updated note for session ${sessionId} by user ${user.id}`)
+    console.log(`[Notes POST] Updated private note for session ${sessionId} by user ${user.id}`)
 
     return NextResponse.json({
       success: true,
       note,
+      isPrivate: true,
     })
   } catch (error) {
     console.error('[Notes POST] Error:', error)

@@ -56,8 +56,6 @@ export default function SearchPage() {
   const tCommon = useTranslations('common')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
-  const [selectedSkillLevel, setSelectedSkillLevel] = useState<string>('')
-  const [selectedStudyStyle, setSelectedStudyStyle] = useState<string>('')
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>([])
   const [availableHoursFilter, setAvailableHoursFilter] = useState('')
@@ -66,7 +64,6 @@ export default function SearchPage() {
   const [showStudyStyleDescription, setShowStudyStyleDescription] = useState(false)
   const [showInterestsDescription, setShowInterestsDescription] = useState(false)
   const [showAvailabilityDescription, setShowAvailabilityDescription] = useState(false)
-  const [subjectCustomDescription, setSubjectCustomDescription] = useState('')
   const [skillLevelCustomDescription, setSkillLevelCustomDescription] = useState('')
   const [studyStyleCustomDescription, setStudyStyleCustomDescription] = useState('')
   const [interestsCustomDescription, setInterestsCustomDescription] = useState('')
@@ -309,13 +306,13 @@ export default function SearchPage() {
     // Pre-fill skill level
     const skillLevel = searchParams.get('skillLevel')
     if (skillLevel) {
-      setSelectedSkillLevel(skillLevel)
+      setSkillLevelCustomDescription(skillLevel)
     }
 
     // Pre-fill study style
     const studyStyle = searchParams.get('studyStyle')
     if (studyStyle) {
-      setSelectedStudyStyle(studyStyle)
+      setStudyStyleCustomDescription(studyStyle)
     }
 
     // Pre-fill location
@@ -414,14 +411,11 @@ export default function SearchPage() {
     // Check if any filters are selected
     const hasFilters =
       selectedSubjects.length > 0 ||
-      selectedSkillLevel !== '' ||
-      selectedStudyStyle !== '' ||
+      skillLevelCustomDescription.trim() !== '' ||
+      studyStyleCustomDescription.trim() !== '' ||
       selectedInterests.length > 0 ||
       selectedAvailability.length > 0 ||
       availableHoursFilter.trim() !== '' ||
-      subjectCustomDescription.trim() !== '' ||
-      skillLevelCustomDescription.trim() !== '' ||
-      studyStyleCustomDescription.trim() !== '' ||
       interestsCustomDescription.trim() !== '' ||
       schoolFilter.trim() !== '' ||
       languagesFilter.trim() !== '' ||
@@ -446,14 +440,11 @@ export default function SearchPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subjects: selectedSubjects,
-          skillLevel: selectedSkillLevel,
-          studyStyle: selectedStudyStyle,
+          skillLevelCustomDescription,
+          studyStyleCustomDescription,
           interests: selectedInterests,
           availability: selectedAvailability,
           availableHours: availableHoursFilter,
-          subjectCustomDescription,
-          skillLevelCustomDescription,
-          studyStyleCustomDescription,
           interestsCustomDescription,
           school: schoolFilter,
           languages: languagesFilter,
@@ -485,8 +476,6 @@ export default function SearchPage() {
   }
 
   const subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'History', 'Literature', 'Languages']
-  const skillLevels = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
-  const studyStyles = ['COLLABORATIVE', 'INDEPENDENT', 'MIXED']
   const interests = ['Group Study', 'One-on-One', 'Video Calls', 'Text Chat', 'Problem Solving', 'Project-Based', 'Exam Prep', 'Research']
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
   const ageRanges = [
@@ -630,7 +619,7 @@ export default function SearchPage() {
                       Filter partners by the subjects they&apos;re studying. Select multiple subjects to find partners interested in similar topics.
                     </p>
                   )}
-                  <div className="space-y-2 mb-2">
+                  <div className="space-y-2">
                     {subjects.map((subject) => (
                       <label key={subject} className="flex items-center">
                         <input
@@ -643,13 +632,6 @@ export default function SearchPage() {
                       </label>
                     ))}
                   </div>
-                  <textarea
-                    value={subjectCustomDescription}
-                    onChange={(e) => setSubjectCustomDescription(e.target.value)}
-                    placeholder={t('subjectCustomDescPlaceholder')}
-                    rows={2}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
-                  />
                 </div>
 
                 {/* Skill Level */}
@@ -667,27 +649,15 @@ export default function SearchPage() {
                   </div>
                   {showSkillLevelDescription && (
                     <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
-                      Filter by the skill level of potential partners. Choose &quot;All Levels&quot; to see everyone, or select a specific level to find partners at a similar learning stage.
+                      Describe the skill level you&apos;re looking for in a study partner. For example: &quot;beginner in calculus&quot;, &quot;intermediate Python&quot;, or &quot;advanced physics student&quot;.
                     </p>
                   )}
-                  <select
-                    value={selectedSkillLevel}
-                    onChange={(e) => setSelectedSkillLevel(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-900 dark:text-white backdrop-blur-sm"
-                  >
-                    <option value="">All Levels</option>
-                    {skillLevels.map((level) => (
-                      <option key={level} value={level}>
-                        {level.charAt(0) + level.slice(1).toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
                   <textarea
                     value={skillLevelCustomDescription}
                     onChange={(e) => setSkillLevelCustomDescription(e.target.value)}
-                    placeholder={t('skillLevelCustomDescPlaceholder')}
+                    placeholder="e.g., Beginner in calculus, Intermediate Python programmer..."
                     rows={2}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
@@ -706,25 +676,15 @@ export default function SearchPage() {
                   </div>
                   {showStudyStyleDescription && (
                     <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-purple-500/10 rounded border border-purple-500/20">
-                      Find partners who prefer similar study approaches. Collaborative learners enjoy group sessions, independent learners prefer self-study, and mixed learners are flexible.
+                      Describe your preferred study approach. For example: &quot;group discussions&quot;, &quot;quiet independent study&quot;, &quot;hands-on practice&quot;, or &quot;visual learning with diagrams&quot;.
                     </p>
                   )}
-                  <select
-                    value={selectedStudyStyle}
-                    onChange={(e) => setSelectedStudyStyle(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-2 text-gray-900 dark:text-white backdrop-blur-sm"
-                  >
-                    <option value="">All Styles</option>
-                    <option value="COLLABORATIVE">Collaborative (Group Study)</option>
-                    <option value="INDEPENDENT">Independent (Self-Study)</option>
-                    <option value="MIXED">Mixed (Both)</option>
-                  </select>
                   <textarea
                     value={studyStyleCustomDescription}
                     onChange={(e) => setStudyStyleCustomDescription(e.target.value)}
-                    placeholder={t('studyStyleCustomDescPlaceholder')}
+                    placeholder="e.g., Prefer group discussions, Visual learner, Hands-on practice..."
                     rows={2}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
@@ -1221,16 +1181,10 @@ export default function SearchPage() {
                           ? `${searchQuery} isn't available right now`
                           : selectedSubjects.length > 0
                           ? `${selectedSubjects.slice(0, 2).join(', ')}${selectedSubjects.length > 2 ? ' & more' : ''} partners aren't available right now`
-                          : subjectCustomDescription.trim()
-                          ? `Partners for ${subjectCustomDescription.trim().slice(0, 30)}${subjectCustomDescription.trim().length > 30 ? '...' : ''} aren't available`
-                          : selectedSkillLevel
-                          ? `${selectedSkillLevel.charAt(0) + selectedSkillLevel.slice(1).toLowerCase()} level partners aren't available right now`
                           : skillLevelCustomDescription.trim()
-                          ? `Partners matching ${skillLevelCustomDescription.trim().slice(0, 30)}${skillLevelCustomDescription.trim().length > 30 ? '...' : ''} aren't available`
-                          : selectedStudyStyle
-                          ? `${selectedStudyStyle.charAt(0) + selectedStudyStyle.slice(1).toLowerCase()} study style partners aren't available`
+                          ? `Partners matching "${skillLevelCustomDescription.trim().slice(0, 30)}${skillLevelCustomDescription.trim().length > 30 ? '...' : ''}" aren't available`
                           : studyStyleCustomDescription.trim()
-                          ? `Partners with ${studyStyleCustomDescription.trim().slice(0, 30)}${studyStyleCustomDescription.trim().length > 30 ? '...' : ''} style aren't available`
+                          ? `Partners with "${studyStyleCustomDescription.trim().slice(0, 30)}${studyStyleCustomDescription.trim().length > 30 ? '...' : ''}" style aren't available`
                           : selectedInterests.length > 0
                           ? `Partners interested in ${selectedInterests.slice(0, 2).join(' & ')} aren't available`
                           : interestsCustomDescription.trim()
@@ -1257,14 +1211,8 @@ export default function SearchPage() {
                           ? `But I can be your study partner! I'll adapt to help you with what you're looking for.`
                           : selectedSubjects.length > 0
                           ? `But I can be your ${selectedSubjects[0]} study partner! Let's learn together.`
-                          : subjectCustomDescription.trim()
-                          ? `But I can help you with ${subjectCustomDescription.trim().slice(0, 50)}! Let's learn together.`
-                          : selectedSkillLevel
-                          ? `But I can adapt to your ${selectedSkillLevel.toLowerCase()} level! Let's study together.`
                           : skillLevelCustomDescription.trim()
                           ? `But I can match your skill needs! Let's study together.`
-                          : selectedStudyStyle
-                          ? `But I can match your ${selectedStudyStyle.toLowerCase()} study style! Let's learn together.`
                           : studyStyleCustomDescription.trim()
                           ? `But I can adapt to your study style! Let's learn together.`
                           : selectedInterests.length > 0
@@ -1289,8 +1237,8 @@ export default function SearchPage() {
                       </p>
 
                       {/* Show ALL active filter tags including custom descriptions */}
-                      {(selectedSubjects.length > 0 || subjectCustomDescription.trim() || selectedSkillLevel || skillLevelCustomDescription.trim() ||
-                        selectedStudyStyle || studyStyleCustomDescription.trim() || selectedInterests.length > 0 || interestsCustomDescription.trim() ||
+                      {(selectedSubjects.length > 0 || skillLevelCustomDescription.trim() ||
+                        studyStyleCustomDescription.trim() || selectedInterests.length > 0 || interestsCustomDescription.trim() ||
                         selectedGoals.length > 0 || selectedRoles.length > 0 || selectedAgeRange || selectedAvailability.length > 0 || availableHoursFilter.trim() ||
                         locationCity || locationState || locationCountry || schoolFilter || languagesFilter || searchQuery) && (
                         <div className="flex flex-wrap justify-center gap-2 mb-4">
@@ -1311,31 +1259,13 @@ export default function SearchPage() {
                               +{selectedSubjects.length - 3} more
                             </span>
                           )}
-                          {/* Subject Custom Description */}
-                          {subjectCustomDescription.trim() && (
-                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
-                              {subjectCustomDescription.trim().length > 25 ? subjectCustomDescription.trim().slice(0, 25) + '...' : subjectCustomDescription.trim()}
-                            </span>
-                          )}
                           {/* Skill Level */}
-                          {selectedSkillLevel && (
-                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full border border-purple-500/30">
-                              {selectedSkillLevel.charAt(0) + selectedSkillLevel.slice(1).toLowerCase()}
-                            </span>
-                          )}
-                          {/* Skill Level Custom Description */}
                           {skillLevelCustomDescription.trim() && (
                             <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full border border-purple-500/30">
                               {skillLevelCustomDescription.trim().length > 25 ? skillLevelCustomDescription.trim().slice(0, 25) + '...' : skillLevelCustomDescription.trim()}
                             </span>
                           )}
                           {/* Study Style */}
-                          {selectedStudyStyle && (
-                            <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
-                              {selectedStudyStyle.charAt(0) + selectedStudyStyle.slice(1).toLowerCase()}
-                            </span>
-                          )}
-                          {/* Study Style Custom Description */}
                           {studyStyleCustomDescription.trim() && (
                             <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
                               {studyStyleCustomDescription.trim().length > 25 ? studyStyleCustomDescription.trim().slice(0, 25) + '...' : studyStyleCustomDescription.trim()}
@@ -1448,14 +1378,11 @@ export default function SearchPage() {
         onClose={() => setShowAIPartnerModal(false)}
         searchCriteria={{
           subjects: selectedSubjects,
-          subjectDescription: subjectCustomDescription || undefined,
           school: schoolFilter || undefined,
           locationCity: locationCity || undefined,
           locationState: locationState || undefined,
           locationCountry: locationCountry || undefined,
-          skillLevel: selectedSkillLevel || undefined,
           skillLevelDescription: skillLevelCustomDescription || undefined,
-          studyStyle: selectedStudyStyle || undefined,
           studyStyleDescription: studyStyleCustomDescription || undefined,
           interests: selectedInterests,
           interestsDescription: interestsCustomDescription || undefined,

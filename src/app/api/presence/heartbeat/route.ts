@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { rateLimit } from '@/lib/rate-limit'
 
 // Request validation schema
 const HeartbeatSchema = z.object({
@@ -9,7 +10,33 @@ const HeartbeatSchema = z.object({
   userAgent: z.string().optional(),
 })
 
+// OPTIMIZATION: Per-user deduplication to prevent duplicate heartbeats
+// This prevents the same user from sending multiple heartbeats within 10 seconds
+const recentHeartbeats = new Map<string, number>()
+const DEDUP_WINDOW_MS = 10000 // 10 seconds
+
+// Cleanup old entries every minute
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [key, timestamp] of recentHeartbeats.entries()) {
+      if (now - timestamp > DEDUP_WINDOW_MS) {
+        recentHeartbeats.delete(key)
+      }
+    }
+  }, 60000)
+}
+
 export async function POST(request: NextRequest) {
+  // Rate limit: 10 heartbeats per minute per user (way more than needed with 45-90s intervals)
+  const rateLimitResult = await rateLimit(request, { max: 10, windowMs: 60000, keyPrefix: 'heartbeat' })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { success: true, message: 'Rate limited, skipping heartbeat' },
+      { status: 200, headers: rateLimitResult.headers } // Return 200 to prevent client retry storms
+    )
+  }
+
   try {
     // 1. Authenticate user
     const supabase = await createClient()
@@ -35,13 +62,31 @@ export async function POST(request: NextRequest) {
 
     const { deviceId, userAgent } = validation.data
 
+    // 2.5. OPTIMIZATION: Deduplicate rapid heartbeats from same user
+    const dedupKey = `${user.id}:${deviceId}`
+    const lastHeartbeat = recentHeartbeats.get(dedupKey)
+    const now = Date.now()
+
+    if (lastHeartbeat && now - lastHeartbeat < DEDUP_WINDOW_MS) {
+      // Skip duplicate heartbeat but return success
+      return NextResponse.json({
+        success: true,
+        message: 'Heartbeat deduplicated',
+        deviceSession: { id: 'cached', lastHeartbeatAt: new Date(lastHeartbeat).toISOString() },
+        presence: { status: 'online', lastSeenAt: new Date(lastHeartbeat).toISOString() },
+      })
+    }
+
+    // Record this heartbeat for deduplication
+    recentHeartbeats.set(dedupKey, now)
+
     // 3. Get client IP address
     const ipAddress = request.headers.get('x-forwarded-for') ||
                       request.headers.get('x-real-ip') ||
                       'unknown'
 
     // 4. Update or create device session
-    const now = new Date()
+    const nowDate = new Date()
     let deviceSession
     try {
       deviceSession = await prisma.deviceSession.upsert({
@@ -52,16 +97,16 @@ export async function POST(request: NextRequest) {
           },
         },
         update: {
-          lastHeartbeatAt: now,
+          lastHeartbeatAt: nowDate,
           isActive: true,
           userAgent: userAgent || null,
           ipAddress: ipAddress || null,
-          updatedAt: now,
+          updatedAt: nowDate,
         },
         create: {
           userId: user.id,
           deviceId,
-          lastHeartbeatAt: now,
+          lastHeartbeatAt: nowDate,
           isActive: true,
           userAgent: userAgent || null,
           ipAddress: ipAddress || null,
@@ -81,11 +126,11 @@ export async function POST(request: NextRequest) {
           deviceSession = await prisma.deviceSession.update({
             where: { id: deviceSession.id },
             data: {
-              lastHeartbeatAt: now,
+              lastHeartbeatAt: nowDate,
               isActive: true,
               userAgent: userAgent || null,
               ipAddress: ipAddress || null,
-              updatedAt: now,
+              updatedAt: nowDate,
             },
           })
         } else {
@@ -93,7 +138,7 @@ export async function POST(request: NextRequest) {
             data: {
               userId: user.id,
               deviceId,
-              lastHeartbeatAt: now,
+              lastHeartbeatAt: nowDate,
               isActive: true,
               userAgent: userAgent || null,
               ipAddress: ipAddress || null,
@@ -116,15 +161,15 @@ export async function POST(request: NextRequest) {
         },
         update: {
           status: 'online',
-          lastActivityAt: now,
-          lastSeenAt: now,
-          updatedAt: now,
+          lastActivityAt: nowDate,
+          lastSeenAt: nowDate,
+          updatedAt: nowDate,
         },
         create: {
           userId: user.id,
           status: 'online',
-          lastActivityAt: now,
-          lastSeenAt: now,
+          lastActivityAt: nowDate,
+          lastSeenAt: nowDate,
         },
       })
     } catch (error) {
@@ -139,9 +184,9 @@ export async function POST(request: NextRequest) {
             where: { userId: user.id },
             data: {
               status: 'online',
-              lastActivityAt: now,
-              lastSeenAt: now,
-              updatedAt: now,
+              lastActivityAt: nowDate,
+              lastSeenAt: nowDate,
+              updatedAt: nowDate,
             },
           })
         } else {
@@ -149,15 +194,15 @@ export async function POST(request: NextRequest) {
             data: {
               userId: user.id,
               status: 'online',
-              lastActivityAt: now,
-              lastSeenAt: now,
+              lastActivityAt: nowDate,
+              lastSeenAt: nowDate,
             },
           })
         }
       } catch (retryError) {
         console.error('[HEARTBEAT] Error creating/updating user presence:', retryError)
         // Don't throw - presence is optional, continue with response
-        userPresence = { status: 'online', lastSeenAt: now }
+        userPresence = { status: 'online', lastSeenAt: nowDate }
       }
     }
 
@@ -165,11 +210,11 @@ export async function POST(request: NextRequest) {
       success: true,
       deviceSession: {
         id: deviceSession?.id || 'unknown',
-        lastHeartbeatAt: deviceSession?.lastHeartbeatAt || now.toISOString(),
+        lastHeartbeatAt: deviceSession?.lastHeartbeatAt || nowDate.toISOString(),
       },
       presence: {
         status: userPresence?.status || 'online',
-        lastSeenAt: userPresence?.lastSeenAt || now.toISOString(),
+        lastSeenAt: userPresence?.lastSeenAt || nowDate.toISOString(),
       },
     })
   } catch (error) {

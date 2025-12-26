@@ -1,15 +1,25 @@
 'use client'
 
+/**
+ * SessionNotes Component
+ *
+ * Private note-taking for study sessions.
+ * - Each user has their own private notes
+ * - Notes are only visible to the owner
+ * - Users can share notes to screen for others to view
+ * - Auto-saves as user types
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { Lock, Share2, Eye, Save, Loader2, FileText } from 'lucide-react'
 
 interface SessionNote {
   id: string
   sessionId: string
+  userId: string
   title: string
   content: string | null
   contentUrl: string | null
-  lastEditedBy: string | null
   lastEditedAt: Date
   version: number
   createdAt: Date
@@ -18,9 +28,17 @@ interface SessionNote {
 
 interface SessionNotesProps {
   sessionId: string
+  onShareNotes?: (content: string, title: string) => void // Callback when user shares notes
+  onStopSharing?: () => void // Callback when user stops sharing notes
+  isSharing?: boolean // Whether notes are currently being shared to screen
 }
 
-export default function SessionNotes({ sessionId }: SessionNotesProps) {
+export default function SessionNotes({
+  sessionId,
+  onShareNotes,
+  onStopSharing,
+  isSharing = false
+}: SessionNotesProps) {
   const [note, setNote] = useState<SessionNote | null>(null)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -28,39 +46,14 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [conflictWarning, setConflictWarning] = useState(false)
+  const [showShareConfirm, setShowShareConfirm] = useState(false)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const lastVersionRef = useRef<number>(0)
-  const supabase = createClient()
 
   // Load note on mount
   useEffect(() => {
     loadNote()
-  }, [sessionId])
-
-  // Set up real-time sync
-  useEffect(() => {
-    const channel = supabase
-      .channel(`session-notes:${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'SessionNote',
-          filter: `sessionId=eq.${sessionId}`,
-        },
-        (payload) => {
-          console.log('[Notes] Real-time update received:', payload)
-          handleRealtimeUpdate(payload.new as SessionNote)
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
   }, [sessionId])
 
   const loadNote = async () => {
@@ -84,25 +77,6 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
     }
   }
 
-  const handleRealtimeUpdate = (updatedNote: SessionNote) => {
-    // Check if there's a version conflict
-    if (updatedNote.version > lastVersionRef.current) {
-      setNote(updatedNote)
-      lastVersionRef.current = updatedNote.version
-
-      // Show warning if user has unsaved changes
-      if (title !== updatedNote.title || content !== (updatedNote.content || '')) {
-        setConflictWarning(true)
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => setConflictWarning(false), 5000)
-      } else {
-        // Update local state with server data
-        setTitle(updatedNote.title || '')
-        setContent(updatedNote.content || '')
-      }
-    }
-  }
-
   const saveNote = useCallback(async (newTitle: string, newContent: string) => {
     try {
       setSaving(true)
@@ -123,7 +97,6 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
       setNote(data.note)
       lastVersionRef.current = data.note.version
       setLastSaved(new Date())
-      setConflictWarning(false)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -160,15 +133,21 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
     saveNote(title, content)
   }
 
-  const handleRefresh = () => {
-    loadNote()
-    setConflictWarning(false)
+  // Share notes to screen
+  const handleShareNotes = () => {
+    if (onShareNotes && content) {
+      onShareNotes(content, title)
+      setShowShareConfirm(false)
+    }
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading notes...</div>
+        <div className="flex items-center gap-3 text-slate-400">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading your notes...</span>
+        </div>
       </div>
     )
   }
@@ -177,46 +156,108 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-white">Shared Notes</h3>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-400" />
+            <h3 className="text-xl font-semibold text-white">My Notes</h3>
+          </div>
+          {/* Private indicator */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700/50 rounded-full">
+            <Lock className="w-3.5 h-3.5 text-green-400" />
+            <span className="text-xs text-green-400 font-medium">Private</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Save status */}
           {saving && (
             <span className="text-sm text-slate-400 flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <Loader2 className="w-4 h-4 animate-spin" />
               Saving...
             </span>
           )}
           {lastSaved && !saving && (
             <span className="text-sm text-slate-400">
-              Last saved: {new Date(lastSaved).toLocaleTimeString()}
+              Saved {new Date(lastSaved).toLocaleTimeString()}
             </span>
           )}
+
+          {/* Share button */}
+          {onShareNotes && (
+            isSharing ? (
+              <button
+                onClick={onStopSharing}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-green-600/80 hover:bg-red-600 text-white"
+              >
+                <Eye className="w-4 h-4" />
+                Stop Sharing
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowShareConfirm(true)}
+                disabled={!content}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-purple-600/80 hover:bg-purple-600 text-white disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                <Share2 className="w-4 h-4" />
+                Share to Screen
+              </button>
+            )
+          )}
+
+          {/* Manual save button */}
           <button
             onClick={handleManualSave}
             disabled={saving}
-            className="px-4 py-2 text-sm bg-blue-600/80 hover:bg-blue-600 disabled:bg-blue-600/30 text-white rounded-lg font-medium transition-colors backdrop-blur-sm"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600/80 hover:bg-blue-600 disabled:bg-blue-600/30 text-white rounded-lg font-medium transition-colors backdrop-blur-sm"
           >
-            Save Now
+            <Save className="w-4 h-4" />
+            Save
           </button>
         </div>
       </div>
 
-      {/* Conflict Warning */}
-      {conflictWarning && (
-        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center justify-between backdrop-blur-sm">
-          <div>
-            <p className="text-sm font-medium text-yellow-400">
-              This note was updated by another user
+      {/* Privacy notice */}
+      <div className="p-3 bg-slate-800/40 border border-slate-700/50 rounded-lg">
+        <p className="text-xs text-slate-400 flex items-center gap-2">
+          <Lock className="w-3.5 h-3.5 text-slate-500" />
+          Your notes are private and only visible to you. Use "Share to Screen" to show them to your study partners.
+        </p>
+      </div>
+
+      {/* Share confirmation modal */}
+      {showShareConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-full bg-purple-500/20">
+                <Share2 className="w-6 h-6 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Share Notes to Screen</h3>
+                <p className="text-sm text-slate-400">Your partners will see your notes</p>
+              </div>
+            </div>
+
+            <p className="text-slate-300 text-sm mb-6">
+              This will share your notes to the session screen. All participants will be able to see your notes content. You can stop sharing at any time.
             </p>
-            <p className="text-xs text-yellow-500/80">
-              Your changes may conflict with theirs. Click refresh to see the latest version.
-            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowShareConfirm(false)}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleShareNotes}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                Share Notes
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleRefresh}
-            className="px-3 py-1 text-sm bg-yellow-600/80 hover:bg-yellow-600 text-white rounded transition-colors backdrop-blur-sm"
-          >
-            Refresh
-          </button>
         </div>
       )}
 
@@ -227,9 +268,9 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
         </div>
       )}
 
-      {/* Note Info */}
-      {note && note.lastEditedBy && (
-        <div className="text-xs text-slate-400">
+      {/* Note version info */}
+      {note && (
+        <div className="text-xs text-slate-500">
           Last edited {new Date(note.lastEditedAt).toLocaleString()} • Version {note.version}
         </div>
       )}
@@ -255,7 +296,7 @@ export default function SessionNotes({ sessionId }: SessionNotesProps) {
           rows={20}
         />
         <div className="mt-2 text-xs text-slate-400">
-          💡 Tip: Changes are automatically saved as you type. Notes are shared with all session participants.
+          Changes are automatically saved as you type.
         </div>
       </div>
 

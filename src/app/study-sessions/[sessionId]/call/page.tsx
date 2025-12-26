@@ -12,6 +12,7 @@ import SessionTimer from '@/components/study-sessions/SessionTimer'
 import InviteModal from '@/components/study-sessions/InviteModal'
 import SessionFlashcards from '@/components/session/SessionFlashcards'
 import SessionNotes from '@/components/session/SessionNotes'
+import SharedNotesViewer from '@/components/session/SharedNotesViewer'
 import SessionWhiteboard from '@/components/session/SessionWhiteboard'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslations } from 'next-intl'
@@ -65,6 +66,30 @@ export default function StudyCallPage() {
   const [loadingSession, setLoadingSession] = useState(true)
   const [activeFeature, setActiveFeature] = useState<'timer' | 'chat' | 'goals' | 'flashcards' | 'notes' | 'whiteboard' | 'participants' | null>('timer')
   const [showInviteModal, setShowInviteModal] = useState(false)
+
+  // Shared notes state
+  const [sharedNotes, setSharedNotes] = useState<{
+    content: string
+    title: string
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  } | null>(null)
+  const [isSharingNotes, setIsSharingNotes] = useState(false)
+
+  // Shared flashcards state
+  const [sharedFlashcards, setSharedFlashcards] = useState<{
+    flashcards: Array<{ id: string; front: string; back: string; difficulty: number; userId: string }>
+    currentIndex: number
+    isFlipped: boolean
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  } | null>(null)
+  const [isSharingFlashcards, setIsSharingFlashcards] = useState(false)
+
+  // Shared whiteboard state
+  const [sharedWhiteboard, setSharedWhiteboard] = useState<{
+    imageData: string
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  } | null>(null)
+  const [isSharingWhiteboard, setIsSharingWhiteboard] = useState(false)
 
   const fetchSession = useCallback(async () => {
     if (!user || !sessionId) return
@@ -214,6 +239,170 @@ export default function StudyCallPage() {
       joinCall()
     }
   }, [session, isConnected, isConnecting, joinCall])
+
+  // Supabase Realtime: Listen for shared notes broadcasts
+  useEffect(() => {
+    if (!sessionId || !user) return
+
+    const channel = supabase
+      .channel(`shared-notes-${sessionId}`)
+      .on('broadcast', { event: 'share-notes' }, (payload) => {
+        // Don't show your own shared notes
+        if (payload.payload.sharedBy.id !== user.id) {
+          setSharedNotes(payload.payload)
+          toast.success(`${payload.payload.sharedBy.name} shared their notes`)
+        }
+      })
+      .on('broadcast', { event: 'stop-share-notes' }, (payload) => {
+        if (sharedNotes?.sharedBy.id === payload.payload.userId) {
+          setSharedNotes(null)
+        }
+      })
+      // Flashcards sharing events
+      .on('broadcast', { event: 'share-flashcards' }, (payload) => {
+        if (payload.payload.sharedBy.id !== user.id) {
+          setSharedFlashcards(payload.payload)
+          toast.success(`${payload.payload.sharedBy.name} shared their flashcards`)
+        }
+      })
+      .on('broadcast', { event: 'stop-share-flashcards' }, (payload) => {
+        if (sharedFlashcards?.sharedBy.id === payload.payload.userId) {
+          setSharedFlashcards(null)
+        }
+      })
+      // Whiteboard sharing events
+      .on('broadcast', { event: 'share-whiteboard' }, (payload) => {
+        if (payload.payload.sharedBy.id !== user.id) {
+          setSharedWhiteboard(payload.payload)
+          toast.success(`${payload.payload.sharedBy.name} shared their whiteboard`)
+        }
+      })
+      .on('broadcast', { event: 'stop-share-whiteboard' }, (payload) => {
+        if (sharedWhiteboard?.sharedBy.id === payload.payload.userId) {
+          setSharedWhiteboard(null)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [sessionId, user, supabase, sharedNotes?.sharedBy.id, sharedFlashcards?.sharedBy.id, sharedWhiteboard?.sharedBy.id])
+
+  // Handler: Share notes to all participants
+  const handleShareNotes = useCallback(async (content: string, title: string) => {
+    if (!user || !profile) return
+
+    const channel = supabase.channel(`shared-notes-${sessionId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'share-notes',
+      payload: {
+        content,
+        title,
+        sharedBy: {
+          id: user.id,
+          name: profile.name || 'Anonymous',
+          avatarUrl: profile.avatarUrl,
+        },
+      },
+    })
+
+    setIsSharingNotes(true)
+    toast.success('Notes shared with all participants')
+  }, [user, profile, sessionId, supabase])
+
+  // Handler: Stop sharing notes
+  const handleStopSharingNotes = useCallback(async () => {
+    if (!user) return
+
+    const channel = supabase.channel(`shared-notes-${sessionId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'stop-share-notes',
+      payload: { userId: user.id },
+    })
+
+    setIsSharingNotes(false)
+  }, [user, sessionId, supabase])
+
+  // Handler: Share flashcards to all participants
+  const handleShareFlashcards = useCallback(async (data: {
+    flashcards: Array<{ id: string; front: string; back: string; difficulty: number; userId: string }>
+    currentIndex: number
+    isFlipped: boolean
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  }) => {
+    if (!user || !profile) return
+
+    const channel = supabase.channel(`shared-notes-${sessionId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'share-flashcards',
+      payload: {
+        ...data,
+        sharedBy: {
+          id: user.id,
+          name: profile.name || 'Anonymous',
+          avatarUrl: profile.avatarUrl,
+        },
+      },
+    })
+
+    setIsSharingFlashcards(true)
+  }, [user, profile, sessionId, supabase])
+
+  // Handler: Stop sharing flashcards
+  const handleStopSharingFlashcards = useCallback(async () => {
+    if (!user) return
+
+    const channel = supabase.channel(`shared-notes-${sessionId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'stop-share-flashcards',
+      payload: { userId: user.id },
+    })
+
+    setIsSharingFlashcards(false)
+  }, [user, sessionId, supabase])
+
+  // Handler: Share whiteboard to all participants
+  const handleShareWhiteboard = useCallback(async (data: {
+    imageData: string
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  }) => {
+    if (!user || !profile) return
+
+    const channel = supabase.channel(`shared-notes-${sessionId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'share-whiteboard',
+      payload: {
+        ...data,
+        sharedBy: {
+          id: user.id,
+          name: profile.name || 'Anonymous',
+          avatarUrl: profile.avatarUrl,
+        },
+      },
+    })
+
+    setIsSharingWhiteboard(true)
+  }, [user, profile, sessionId, supabase])
+
+  // Handler: Stop sharing whiteboard
+  const handleStopSharingWhiteboard = useCallback(async () => {
+    if (!user) return
+
+    const channel = supabase.channel(`shared-notes-${sessionId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'stop-share-whiteboard',
+      payload: { userId: user.id },
+    })
+
+    setIsSharingWhiteboard(false)
+  }, [user, sessionId, supabase])
 
   const handleEndCall = async () => {
     if (!confirm(t('confirmLeaveCall'))) return
@@ -433,14 +622,44 @@ export default function StudyCallPage() {
                 <SessionChat sessionId={sessionId} isHost={isHost} onUnreadCountChange={() => {}} isVisible={activeFeature === 'chat'} />
               </div>
               <div className={`p-6 ${activeFeature === 'flashcards' ? 'block' : 'hidden'}`}>
-                <SessionFlashcards sessionId={sessionId} />
+                <SessionFlashcards
+                  sessionId={sessionId}
+                  currentUserId={user.id}
+                  onShareFlashcards={handleShareFlashcards}
+                  onStopSharing={handleStopSharingFlashcards}
+                  isSharing={isSharingFlashcards}
+                  sharedFlashcards={sharedFlashcards}
+                />
               </div>
               <div className={`p-6 ${activeFeature === 'notes' ? 'block' : 'hidden'}`}>
-                <SessionNotes sessionId={sessionId} />
+                <SessionNotes
+                  sessionId={sessionId}
+                  onShareNotes={handleShareNotes}
+                  onStopSharing={handleStopSharingNotes}
+                  isSharing={isSharingNotes}
+                />
+
+                {/* Display shared notes from other participants */}
+                {sharedNotes && (
+                  <div className="mt-6">
+                    <SharedNotesViewer
+                      title={sharedNotes.title}
+                      content={sharedNotes.content}
+                      sharedBy={sharedNotes.sharedBy}
+                      onClose={() => setSharedNotes(null)}
+                    />
+                  </div>
+                )}
               </div>
               {/* FIX: Always render whiteboard but hide with CSS to prevent Tldraw unmounting */}
               <div className="p-6" style={{ display: activeFeature === 'whiteboard' ? 'block' : 'none' }}>
-                <SessionWhiteboard sessionId={sessionId} />
+                <SessionWhiteboard
+                  sessionId={sessionId}
+                  onShareWhiteboard={handleShareWhiteboard}
+                  onStopSharing={handleStopSharingWhiteboard}
+                  isSharing={isSharingWhiteboard}
+                  sharedWhiteboard={sharedWhiteboard}
+                />
               </div>
               {/* Participants Panel */}
               <div className={`p-6 ${activeFeature === 'participants' ? 'block' : 'hidden'}`}>

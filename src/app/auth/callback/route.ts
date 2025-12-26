@@ -32,7 +32,10 @@ export async function GET(request: Request) {
             where: { id: data.user.id },
           })
 
-          const isGoogleOAuth = data.user.app_metadata?.provider === 'google'
+          const provider = data.user.app_metadata?.provider
+          const isGoogleOAuth = provider === 'google'
+          const isMicrosoftOAuth = provider === 'azure'
+          const isOAuthProvider = isGoogleOAuth || isMicrosoftOAuth
           const isEmailConfirmedBySupabase = data.user.email_confirmed_at !== null
 
           if (!dbUser) {
@@ -40,18 +43,30 @@ export async function GET(request: Request) {
             const email = data.user.email!
 
             // Email verification strategy:
-            // - Google OAuth: Trust Google's verification (emailVerified = true)
+            // - OAuth providers (Google, Microsoft): Trust provider's verification (emailVerified = true)
             // - Email/Password: Require email confirmation (emailVerified set by Supabase callback)
-            const emailVerified = isGoogleOAuth ? true : isEmailConfirmedBySupabase
+            const emailVerified = isOAuthProvider ? true : isEmailConfirmedBySupabase
+
+            // Get user name from OAuth metadata
+            // Microsoft uses 'full_name' or 'name', Google uses 'name'
+            const userName = data.user.user_metadata?.full_name
+              || data.user.user_metadata?.name
+              || email.split('@')[0]
+
+            // Get avatar URL - Microsoft uses 'picture' or 'avatar_url'
+            const avatarUrl = data.user.user_metadata?.avatar_url
+              || data.user.user_metadata?.picture
+              || null
 
             const result = await prisma.$transaction(async (tx) => {
               const newUser = await tx.user.create({
                 data: {
                   id: data.user.id,
                   email: email,
-                  name: data.user.user_metadata?.name || email.split('@')[0],
-                  avatarUrl: data.user.user_metadata?.avatar_url,
+                  name: userName,
+                  avatarUrl: avatarUrl,
                   googleId: isGoogleOAuth ? data.user.id : null,
+                  microsoftId: isMicrosoftOAuth ? data.user.id : null,
                   role: 'FREE',
                   emailVerified,
                 },
@@ -67,11 +82,12 @@ export async function GET(request: Request) {
             dbUser = result
             isNewUser = true
             redirectPath = '/dashboard'
-            console.log('[Auth Callback] Created new user:', email, 'via', isGoogleOAuth ? 'Google OAuth' : 'Email/Password')
+            const authMethod = isGoogleOAuth ? 'Google OAuth' : isMicrosoftOAuth ? 'Microsoft OAuth' : 'Email/Password'
+            console.log('[Auth Callback] Created new user:', email, 'via', authMethod)
           } else {
-            // Existing user - update emailVerified if confirmed by Supabase
+            // Existing user - update emailVerified if confirmed by Supabase or OAuth provider
             const wasUnverified = !dbUser.emailVerified
-            const nowVerified = isEmailConfirmedBySupabase || isGoogleOAuth
+            const nowVerified = isEmailConfirmedBySupabase || isOAuthProvider
 
             await prisma.user.update({
               where: { id: data.user.id },

@@ -17,7 +17,22 @@ export async function GET(
 
     const { sessionId } = await params
 
-    // Get session with participants, goals, and timer
+    // SECURITY: Check authorization BEFORE loading sensitive data
+    // First, verify user is a participant (lightweight query)
+    const participantCheck = await prisma.sessionParticipant.findFirst({
+      where: {
+        sessionId,
+        userId: user.id,
+        status: 'JOINED',
+      },
+    })
+
+    // Return 404 (not 403) to prevent session enumeration
+    if (!participantCheck) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
+
+    // NOW load the full session data (user is authorized)
     const session = await prisma.studySession.findUnique({
       where: { id: sessionId },
       include: {
@@ -56,14 +71,9 @@ export async function GET(
       },
     })
 
+    // Should not happen (participant exists but session doesn't)
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-
-    // Check if user is a participant
-    const isParticipant = session.participants.some(p => p.userId === user.id)
-    if (!isParticipant) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     // Format participants with online status

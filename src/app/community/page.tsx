@@ -8,9 +8,6 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
 import { motion } from 'framer-motion'
-import GlowBorderOptimized from '@/components/ui/GlowBorderOptimized'
-import PulseOptimized from '@/components/ui/PulseOptimized'
-import FadeInOptimized from '@/components/ui/FadeInOptimized'
 import ReportModal from '@/components/ReportModal'
 import { sanitizeText, sanitizeUrl } from '@/lib/sanitize'
 
@@ -575,10 +572,10 @@ export default function CommunityPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-700 dark:text-slate-300">{tCommon('loading')}</p>
+          <div className="w-16 h-16 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-600 dark:text-neutral-400">{tCommon('loading')}</p>
         </div>
       </div>
     )
@@ -593,21 +590,21 @@ export default function CommunityPage() {
     : posts
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-white dark:bg-neutral-950">
       {/* Header */}
-      <header className="bg-gray-50 dark:bg-slate-900/50 backdrop-blur-lg border-b border-gray-200 dark:border-slate-700/50 sticky top-0 z-40 shadow-sm">
+      <header className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800/50 rounded-xl transition-colors group"
+                className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-colors group"
               >
-                <svg className="w-6 h-6 text-gray-600 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-slate-200 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                <svg className="w-6 h-6 text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
                 {t('title')}
               </h1>
               {newPostsCount > 0 && (
@@ -615,10 +612,10 @@ export default function CommunityPage() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   onClick={fetchPosts}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all shadow-lg hover:shadow-xl"
+                  className="flex items-center gap-2 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                   <span className="font-medium">{newPostsCount} {t('newPostsNotification')}</span>
                 </motion.button>
@@ -633,15 +630,15 @@ export default function CommunityPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('searchPlaceholder')}
-                  className="w-full px-4 py-2.5 pl-11 border-2 border-gray-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all bg-white dark:bg-slate-800/50 backdrop-blur-sm text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500"
+                  className="w-full px-4 py-2.5 pl-11 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200 dark:focus:ring-neutral-700 transition-all bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400"
                 />
                 <svg
-                  className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500"
+                  className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400 dark:text-neutral-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
             </div>
@@ -654,21 +651,21 @@ export default function CommunityPage() {
           {/* Main Content - Left/Center */}
           <div className="lg:col-span-2 space-y-6">
             {/* Tabs */}
-            <div className="bg-white dark:bg-slate-900/50 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200 dark:border-slate-700/50 overflow-hidden">
-              <div className="flex border-b border-gray-200 dark:border-slate-700/50">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+              <div className="flex border-b border-neutral-200 dark:border-neutral-800">
                 <button
                   onClick={() => setActiveTab('recent')}
                   className={`flex-1 px-6 py-4 font-semibold transition relative ${
                     activeTab === 'recent'
-                      ? 'text-blue-400'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-blue-400'
+                      ? 'text-neutral-900 dark:text-white'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
                   {t('recent')}
                   {activeTab === 'recent' && (
                     <motion.div
                       layoutId="activeTabIndicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 dark:bg-white"
                     />
                   )}
                 </button>
@@ -948,13 +945,7 @@ export default function CommunityPage() {
                       d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                     />
                   </svg>
-                  {post._count.likes > 0 ? (
-                    <PulseOptimized onlyWhenVisible={true}>
-                      <span className="text-sm font-medium">{post._count.likes}</span>
-                    </PulseOptimized>
-                  ) : (
-                    <span className="text-sm font-medium">{post._count.likes}</span>
-                  )}
+                  <span className="text-sm font-medium">{post._count.likes}</span>
                 </button>
 
                 <button
@@ -969,13 +960,7 @@ export default function CommunityPage() {
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                     />
                   </svg>
-                  {post._count.comments > 0 ? (
-                    <PulseOptimized onlyWhenVisible={true}>
-                      <span className="text-sm font-medium">{post._count.comments}</span>
-                    </PulseOptimized>
-                  ) : (
-                    <span className="text-sm font-medium">{post._count.comments}</span>
-                  )}
+                  <span className="text-sm font-medium">{post._count.comments}</span>
                 </button>
               </div>
 
@@ -1026,24 +1011,9 @@ export default function CommunityPage() {
                 )
                 
                 return (
-                  <FadeInOptimized key={post.id} delay={Math.min(index * 0.02, 0.2)} direction="up">
-                    {/* Only use ElectricBorder on very high engagement (>30 interactions) or in popular tab with >20 interactions */}
-                    {(highEngagement && (post._count.likes + post._count.comments + post._count.reposts) > 30) || 
-                     (isPopular && (post._count.likes + post._count.comments + post._count.reposts) > 20) ? (
-                      <GlowBorderOptimized
-                        color={highEngagement ? "#ec4899" : "#8b5cf6"}
-                       
-                        animated={false}
-                        
-                        style={{ borderRadius: 16 }}
-                        onlyWhenVisible={true}
-                      >
-                        {postContent}
-                      </GlowBorderOptimized>
-                    ) : (
-                      postContent
-                    )}
-                  </FadeInOptimized>
+                  <div key={post.id}>
+                    {postContent}
+                  </div>
                 )
               })}
 

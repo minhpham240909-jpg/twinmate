@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuth } from '@/lib/auth/context'
 import { useNetwork } from '@/contexts/NetworkContext'
 
-// OPTIMIZATION: Adaptive heartbeat intervals
-// Active users get faster updates, idle users reduce database writes
-const HEARTBEAT_INTERVAL_ACTIVE = 30000 // 30 seconds when active
-const HEARTBEAT_INTERVAL_IDLE = 60000 // 60 seconds when idle
+// OPTIMIZATION: Adaptive heartbeat intervals for 3,000+ concurrent users
+// Reduced frequency to minimize server load while maintaining presence accuracy
+const HEARTBEAT_INTERVAL_ACTIVE = 45000 // 45 seconds when active (was 30s)
+const HEARTBEAT_INTERVAL_IDLE = 90000 // 90 seconds when idle (was 60s)
 const IDLE_THRESHOLD = 60000 // Consider idle after 1 minute of no activity
 const DEVICE_ID_KEY = 'clerva_device_id'
 const MAX_RETRY_ATTEMPTS = 3

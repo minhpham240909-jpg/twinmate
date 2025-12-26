@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { validateImageFile, FILE_SIZE_LIMITS } from '@/lib/file-validation'
 import { rateLimit } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
+
+// Maximum upload size constants
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024 // 5MB hard limit
+const MAX_UPLOAD_SIZE_MB = 5
 
 // Allowed buckets for security - only these buckets can be used
 const ALLOWED_BUCKETS = ['feedback-images', 'user-uploads'] as const
@@ -14,6 +19,21 @@ const BUCKET_PATHS: Record<AllowedBucket, string> = {
 }
 
 export async function POST(request: NextRequest) {
+  // Check Content-Length header FIRST before any processing
+  const contentLength = request.headers.get('content-length')
+  if (contentLength) {
+    const size = parseInt(contentLength, 10)
+    if (size > MAX_UPLOAD_SIZE_BYTES) {
+      logger.warn('General upload rejected - Content-Length exceeds limit', {
+        data: { contentLength: size, maxAllowed: MAX_UPLOAD_SIZE_BYTES }
+      })
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_UPLOAD_SIZE_MB}MB.` },
+        { status: 413 }
+      )
+    }
+  }
+
   // Rate limiting: 20 uploads per hour
   const rateLimitResult = await rateLimit(request, { max: 20, windowMs: 60 * 60 * 1000, keyPrefix: 'general-upload' })
   if (!rateLimitResult.success) {
@@ -44,6 +64,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
+      )
+    }
+
+    // Check file size BEFORE loading into memory
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      logger.warn('General upload rejected - File size exceeds limit', {
+        data: { fileSize: file.size, maxAllowed: MAX_UPLOAD_SIZE_BYTES }
+      })
+      return NextResponse.json(
+        { error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is ${MAX_UPLOAD_SIZE_MB}MB.` },
+        { status: 413 }
       )
     }
 
@@ -84,7 +115,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      logger.error('General upload error', uploadError)
       return NextResponse.json(
         { error: 'Upload failed. Please try again.' },
         { status: 500 }
@@ -102,7 +133,7 @@ export async function POST(request: NextRequest) {
       path: filePath,
     })
   } catch (error) {
-    console.error('Upload error:', error)
+    logger.error('General upload error', error as Error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -234,49 +234,55 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // Get current user's groups for finding shared groups
-    const userGroups = await prisma.groupMember.findMany({
-      where: {
-        userId: user.id,
-      },
-      select: {
-        groupId: true,
-        group: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    })
-    const userGroupIds = userGroups.map(g => g.groupId)
-
-    // Get all post authors' group memberships (batch query)
+    // PERFORMANCE: Run both group queries in parallel to eliminate N+1
     const postAuthorIds = Array.from(new Set(finalPosts.map((p: any) => p.userId))) as string[]
 
-    // Only fetch shared groups if user has groups and there are posts to check
-    const authorGroupMemberships = (postAuthorIds.length > 0 && userGroupIds.length > 0)
-      ? await prisma.groupMember.findMany({
-          where: {
-            userId: { in: postAuthorIds },
-            groupId: { in: userGroupIds },
-          },
-          select: {
-            userId: true,
-            groupId: true,
-            group: {
-              select: {
-                id: true,
-                name: true,
-              },
+    const [userGroups, authorGroupMemberships] = await Promise.all([
+      // Get current user's groups for finding shared groups
+      prisma.groupMember.findMany({
+        where: {
+          userId: user.id,
+        },
+        select: {
+          groupId: true,
+          group: {
+            select: {
+              id: true,
+              name: true,
             },
           },
-        })
+        },
+      }),
+      // Get all post authors' group memberships (batch query)
+      postAuthorIds.length > 0
+        ? prisma.groupMember.findMany({
+            where: {
+              userId: { in: postAuthorIds },
+            },
+            select: {
+              userId: true,
+              groupId: true,
+              group: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ])
+
+    const userGroupIds = userGroups.map(g => g.groupId)
+
+    // Filter to only shared groups (both user and author are members)
+    const sharedAuthorMemberships = userGroupIds.length > 0
+      ? authorGroupMemberships.filter(m => userGroupIds.includes(m.groupId))
       : []
 
-    // Create map of userId -> shared groups
+    // Create map of userId -> shared groups (using filtered memberships)
     const sharedGroupsMap = new Map<string, Array<{ id: string; name: string }>>()
-    authorGroupMemberships.forEach(membership => {
+    sharedAuthorMemberships.forEach(membership => {
       if (!sharedGroupsMap.has(membership.userId)) {
         sharedGroupsMap.set(membership.userId, [])
       }

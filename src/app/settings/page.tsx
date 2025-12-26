@@ -10,10 +10,6 @@ import { useTranslations } from 'next-intl'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
 import { motion, AnimatePresence } from 'framer-motion'
-import GlowBorder from '@/components/ui/GlowBorder'
-import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
-import Bounce from '@/components/ui/Bounce'
 import {
   User,
   Lock,
@@ -451,25 +447,25 @@ export default function SettingsPage() {
   const { effectiveTheme } = useTheme()
   
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-neutral-950 transition-colors duration-300">
       {/* Header */}
-      <header className="backdrop-blur-xl bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-200/50 dark:border-slate-800/50 sticky top-0 z-50 shadow-sm transition-colors duration-300">
+      <header className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-50 shadow-sm transition-colors duration-300">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <motion.button
                 onClick={() => router.push('/dashboard')}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="p-2 rounded-xl hover:bg-gray-100/50 dark:hover:bg-slate-800/50 transition-colors duration-200"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-300 transition-colors duration-300" />
+                <ArrowLeft className="w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-colors duration-300" />
               </motion.button>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
                   {t('title')}
                 </h1>
-                <p className="text-xs mt-0.5 text-gray-700 dark:text-slate-200 transition-colors duration-300">
+                <p className="text-xs mt-0.5 text-neutral-600 dark:text-neutral-400 transition-colors duration-300">
                   Manage your account settings and preferences
                 </p>
               </div>
@@ -496,29 +492,25 @@ export default function SettingsPage() {
                     <RotateCcw className="w-4 h-4" />
                     {tCommon('cancel')}
                   </motion.button>
-                  <Bounce>
-                    <Pulse>
-                      <motion.button
-                        onClick={handleSave}
-                        disabled={saving}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-gray-900 dark:text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium shadow-md"
-                      >
-                        {saving ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            {tCommon('loading')}
-                          </>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4" />
-                            {tCommon('save')}
-                          </>
-                        )}
-                      </motion.button>
-                    </Pulse>
-                  </Bounce>
+                  <motion.button
+                    onClick={handleSave}
+                    disabled={saving}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-6 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white dark:border-neutral-900 border-t-transparent rounded-full animate-spin"></div>
+                        {tCommon('loading')}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        {tCommon('save')}
+                      </>
+                    )}
+                  </motion.button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -530,9 +522,7 @@ export default function SettingsPage() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 max-w-7xl mx-auto">
           {/* Sidebar Navigation */}
           <aside className="w-full lg:w-72 flex-shrink-0">
-            <FadeIn delay={0.1}>
-              <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
-                <nav className="backdrop-blur-xl bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl shadow-lg p-3 sticky top-24 transition-colors duration-300">
+            <nav className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm p-3 sticky top-24 transition-colors duration-300">
               <div className="space-y-1">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
@@ -545,57 +535,53 @@ export default function SettingsPage() {
                       whileTap={{ scale: 0.98 }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 relative overflow-hidden group ${
                         isActive
-                          ? 'bg-gradient-to-r ' + tab.color + ' text-gray-900 dark:text-white shadow-lg shadow-blue-500/10 dark:shadow-blue-500/20'
-                          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100/50 dark:hover:bg-slate-800/50'
+                          ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                       }`}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="activeTab"
-                          className={`absolute inset-0 bg-gradient-to-r ${tab.color} opacity-100`}
+                          className="absolute inset-0 bg-neutral-900 dark:bg-white"
                           initial={false}
                           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                         />
                       )}
-                      <div className={`relative z-10 flex items-center gap-3 ${isActive ? 'text-gray-900 dark:text-white' : ''}`}>
+                      <div className={`relative z-10 flex items-center gap-3 ${isActive ? 'text-white dark:text-neutral-900' : ''}`}>
                         <div className={`p-2 rounded-lg ${
                           isActive
-                            ? 'bg-gray-200/50 dark:bg-white/20'
-                            : 'bg-gray-100/50 dark:bg-slate-800/50 group-hover:bg-gray-200/50 dark:group-hover:bg-slate-700/50'
+                            ? 'bg-white/20 dark:bg-neutral-900/20'
+                            : 'bg-neutral-100 dark:bg-neutral-800 group-hover:bg-neutral-200 dark:group-hover:bg-neutral-700'
                         }`}>
                           <Icon className={`w-5 h-5 ${
                             isActive
-                              ? 'text-gray-900 dark:text-white'
-                              : 'text-gray-500 dark:text-slate-400'
+                              ? 'text-white dark:text-neutral-900'
+                              : 'text-neutral-500 dark:text-neutral-400'
                           }`} />
                         </div>
                         <span className={`font-medium ${
                           isActive
-                            ? 'text-gray-900 dark:text-white'
-                            : 'text-gray-600 dark:text-slate-300'
+                            ? 'text-white dark:text-neutral-900'
+                            : 'text-neutral-600 dark:text-neutral-400'
                         }`}>{tab.label}</span>
                       </div>
                     </motion.button>
                   )
                 })}
               </div>
-                </nav>
-              </GlowBorder>
-            </FadeIn>
+            </nav>
           </aside>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
-            <FadeIn delay={0.2}>
-              <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.2 }}
-                  className="backdrop-blur-xl bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl shadow-lg p-6 sm:p-8 lg:p-10 transition-colors duration-300"
-                >
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm p-6 sm:p-8 lg:p-10 transition-colors duration-300"
+            >
               <AnimatePresence mode="wait">
                 {activeTab === 'account' && (
                   <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -659,9 +645,7 @@ export default function SettingsPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
-                </motion.div>
-              </GlowBorder>
-            </FadeIn>
+            </motion.div>
           </main>
         </div>
       </div>
@@ -675,29 +659,25 @@ export default function SettingsPage() {
             exit={{ opacity: 0, y: 100 }}
             className="fixed bottom-6 right-6 md:hidden z-50"
           >
-            <Bounce>
-              <Pulse>
-                <motion.button
-                  onClick={handleSave}
-                  disabled={saving}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-full shadow-2xl hover:shadow-blue-500/30 dark:shadow-blue-500/50 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 font-medium"
-                >
-                  {saving ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      {t('saving')}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      {t('save')}
-                    </>
-                  )}
-                </motion.button>
-              </Pulse>
-            </Bounce>
+            <motion.button
+              onClick={handleSave}
+              disabled={saving}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-6 py-4 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-full shadow-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium"
+            >
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white dark:border-neutral-900 border-t-transparent rounded-full animate-spin"></div>
+                  {t('saving')}
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  {t('save')}
+                </>
+              )}
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

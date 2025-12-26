@@ -1,9 +1,19 @@
 'use client'
 
+/**
+ * SessionWhiteboard Component
+ *
+ * Private whiteboard for study sessions.
+ * - Each user has their own private whiteboard canvas
+ * - Drawings are only visible to the owner
+ * - Users can share their whiteboard to screen for others to view
+ * - Supports various drawing tools: pen, eraser, shapes, text
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth/context'
 import toast from 'react-hot-toast'
+import { Lock, Share2, Eye, Palette, Download, Trash2, Undo2, Redo2 } from 'lucide-react'
 
 type Tool = 'pen' | 'eraser' | 'line' | 'circle' | 'rectangle' | 'text'
 
@@ -21,15 +31,34 @@ interface DrawAction {
   timestamp: number
 }
 
-interface SessionWhiteboardProps {
-  sessionId: string
+interface SharedWhiteboardData {
+  imageData: string
+  sharedBy: {
+    id: string
+    name: string
+    avatarUrl?: string | null
+  }
 }
 
-export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps) {
-  const { user } = useAuth()
+interface SessionWhiteboardProps {
+  sessionId: string
+  onShareWhiteboard?: (data: SharedWhiteboardData) => void
+  onStopSharing?: () => void
+  isSharing?: boolean
+  sharedWhiteboard?: SharedWhiteboardData | null
+}
+
+export default function SessionWhiteboard({
+  sessionId,
+  onShareWhiteboard,
+  onStopSharing,
+  isSharing = false,
+  sharedWhiteboard = null
+}: SessionWhiteboardProps) {
+  const { user, profile } = useAuth()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  
+
   // UI State
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#000000')
@@ -39,16 +68,15 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   const [textInput, setTextInput] = useState('')
   const [textPos, setTextPos] = useState({ x: 0, y: 0 })
   const [isDraggingInput, setIsDraggingInput] = useState(false)
+  const [showShareConfirm, setShowShareConfirm] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
 
-  // Refs for drawing state (mutable, no re-renders needed while drawing)
+  // Refs for drawing state
   const isDrawingRef = useRef(false)
   const currentActionRef = useRef<DrawAction | null>(null)
-  const actionsRef = useRef<DrawAction[]>([]) // Keep track of all actions
-  const [actions, setActions] = useState<DrawAction[]>([]) // Sync for re-renders if needed (e.g. undo/redo UI)
-  const [redoStack, setRedoStack] = useState<DrawAction[]>([]) // Redo stack
-
-  const supabase = createClient()
+  const actionsRef = useRef<DrawAction[]>([])
+  const [actions, setActions] = useState<DrawAction[]>([])
+  const [redoStack, setRedoStack] = useState<DrawAction[]>([])
 
   // Fix hydration
   useEffect(() => {
@@ -67,7 +95,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     const handleGlobalMove = (e: MouseEvent) => {
       if (!containerRef.current) return
       const containerRect = containerRef.current.getBoundingClientRect()
-      
+
       const newX = e.clientX - containerRect.left - dragOffset.current.x
       const newY = e.clientY - containerRect.top - dragOffset.current.y
 
@@ -80,7 +108,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
     window.addEventListener('mousemove', handleGlobalMove)
     window.addEventListener('mouseup', handleGlobalUp)
-    
+
     return () => {
       window.removeEventListener('mousemove', handleGlobalMove)
       window.removeEventListener('mouseup', handleGlobalUp)
@@ -99,8 +127,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
         if (action.points && action.points.length > 0) {
           ctx.beginPath()
           ctx.moveTo(action.points[0].x, action.points[0].y)
-          
-          // Use quadratic curves for smoother lines
+
           for (let i = 1; i < action.points.length - 1; i++) {
             const p1 = action.points[i]
             const p2 = action.points[i + 1]
@@ -108,13 +135,12 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
             const midY = (p1.y + p2.y) / 2
             ctx.quadraticCurveTo(p1.x, p1.y, midX, midY)
           }
-          
-          // Connect last point
+
           if (action.points.length > 1) {
             const last = action.points[action.points.length - 1]
             ctx.lineTo(last.x, last.y)
           }
-          
+
           ctx.stroke()
         }
         break
@@ -123,7 +149,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
         if (action.points && action.points.length > 0) {
           ctx.save()
           ctx.globalCompositeOperation = 'destination-out'
-          ctx.lineWidth = action.lineWidth * 5 // Eraser is bigger
+          ctx.lineWidth = action.lineWidth * 5
           ctx.beginPath()
           ctx.moveTo(action.points[0].x, action.points[0].y)
           for (let i = 1; i < action.points.length; i++) {
@@ -183,19 +209,22 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Draw history
     actionsRef.current.forEach(action => drawAction(ctx, action))
 
-    // Draw current action (preview)
     if (currentActionRef.current) {
       drawAction(ctx, currentActionRef.current)
     }
   }, [])
+
+  // Save actions to localStorage (private per user)
+  const saveToLocalStorage = useCallback((newActions: DrawAction[]) => {
+    const storageKey = `whiteboard-${sessionId}-${user?.id}`
+    localStorage.setItem(storageKey, JSON.stringify(newActions))
+  }, [sessionId, user?.id])
 
   // Initialize and Handle Resize
   useEffect(() => {
@@ -207,14 +236,11 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       if (!container || !canvas) return
 
       const rect = container.getBoundingClientRect()
-      
-      // Set actual canvas size to match display size for 1:1 mapping
-      // Use devicePixelRatio for sharpness on high-DPI screens
+
       const dpr = window.devicePixelRatio || 1
       canvas.width = rect.width * dpr
       canvas.height = rect.height * dpr
-      
-      // Scale context to match
+
       const ctx = canvas.getContext('2d')
       if (ctx) {
         ctx.scale(dpr, dpr)
@@ -222,7 +248,6 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
         ctx.lineJoin = 'round'
       }
 
-      // CSS size
       canvas.style.width = `${rect.width}px`
       canvas.style.height = `${rect.height}px`
 
@@ -231,8 +256,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
     resizeObserver.observe(containerRef.current)
 
-    // Initial setup
-    const saved = localStorage.getItem(`whiteboard-${sessionId}`)
+    // Load saved state (private to this user)
+    const storageKey = `whiteboard-${sessionId}-${user?.id}`
+    const saved = localStorage.getItem(storageKey)
     if (saved) {
       try {
         const savedActions = JSON.parse(saved)
@@ -244,65 +270,19 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     }
 
     return () => resizeObserver.disconnect()
-  }, [mounted, sessionId, redrawCanvas])
+  }, [mounted, sessionId, user?.id, redrawCanvas])
 
   // Trigger redraw when actions change
   useEffect(() => {
     redrawCanvas()
   }, [actions, redrawCanvas])
 
-  // Real-time Sync
-  useEffect(() => {
-    if (!mounted || !user) return
-
-    const channel = supabase
-      .channel(`whiteboard:${sessionId}`)
-      .on('broadcast', { event: 'draw' }, (payload) => {
-        if (payload.payload.userId !== user.id) {
-          setActions(prev => {
-            const updated = [...prev, payload.payload]
-            localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
-            return updated
-          })
-        }
-      })
-      .on('broadcast', { event: 'clear' }, () => {
-        setActions([])
-        setRedoStack([])
-        localStorage.removeItem(`whiteboard-${sessionId}`)
-        redrawCanvas()
-      })
-      .on('broadcast', { event: 'undo' }, (payload) => {
-        // If another user undid their last action, we should respect that if we support collaborative undo.
-        // But simpler: just reload state? No, that's heavy.
-        // For now, "Undo" is local-first but broadcasts a "delete" of the specific action ID if we tracked IDs.
-        // Since we don't have unique IDs on actions yet, let's rely on the fact that "undo" removes the LAST action of that user.
-        const userIdToUndo = payload.payload.userId
-        setActions(prev => {
-            // Find last action by this user
-            const index = prev.map(a => a.userId).lastIndexOf(userIdToUndo)
-            if (index !== -1) {
-                const newActions = [...prev]
-                newActions.splice(index, 1)
-                localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(newActions))
-                return newActions
-            }
-            return prev
-        })
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [mounted, sessionId, user, redrawCanvas, supabase])
-
   // Mouse Event Handlers
   const getMousePos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
     const rect = canvas.getBoundingClientRect()
-    
+
     let clientX, clientY
     if ('touches' in e) {
       clientX = e.touches[0].clientX
@@ -319,9 +299,9 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
   }
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault() // Prevent scrolling on touch
+    e.preventDefault()
     const pos = getMousePos(e)
-    
+
     if (tool === 'text') {
       setTextPos(pos)
       setShowTextInput(true)
@@ -329,12 +309,12 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     }
 
     isDrawingRef.current = true
-    
+
     const newAction: DrawAction = {
       tool,
       color,
       lineWidth,
-      points: [pos], // For pen/eraser
+      points: [pos],
       startX: pos.x,
       startY: pos.y,
       endX: pos.x,
@@ -342,7 +322,7 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
       userId: user?.id || 'anonymous',
       timestamp: Date.now()
     }
-    
+
     currentActionRef.current = newAction
     redrawCanvas()
   }
@@ -357,40 +337,28 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     if (tool === 'pen' || tool === 'eraser') {
       action.points?.push(pos)
     } else {
-      // Shapes
       action.endX = pos.x
       action.endY = pos.y
     }
 
-    // Use requestAnimationFrame for smoother drawing
     requestAnimationFrame(redrawCanvas)
   }
 
   const stopDrawing = () => {
     if (!isDrawingRef.current || !currentActionRef.current) return
-    
+
     isDrawingRef.current = false
-    
-    // Save action
+
     const finalAction = currentActionRef.current
     currentActionRef.current = null
-    
+
     setActions(prev => {
       const updated = [...prev, finalAction]
-      localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
+      saveToLocalStorage(updated)
       return updated
     })
-    
-    // Clear redo stack on new action
-    setRedoStack([])
 
-    // Broadcast
-    supabase.channel(`whiteboard:${sessionId}`).send({
-      type: 'broadcast',
-      event: 'draw',
-      payload: finalAction
-    })
-    
+    setRedoStack([])
     redrawCanvas()
   }
 
@@ -413,93 +381,62 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
 
     setActions(prev => {
       const updated = [...prev, newAction]
-      localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(updated))
+      saveToLocalStorage(updated)
       return updated
     })
-    
+
     setRedoStack([])
-
-    supabase.channel(`whiteboard:${sessionId}`).send({
-      type: 'broadcast',
-      event: 'draw',
-      payload: newAction
-    })
-
     setTextInput('')
     setShowTextInput(false)
   }
 
   const handleClear = () => {
-    if (!confirm('Clear whiteboard?')) return
+    if (!confirm('Clear your whiteboard? This cannot be undone.')) return
     setActions([])
     setRedoStack([])
-    localStorage.removeItem(`whiteboard-${sessionId}`)
-    
-    supabase.channel(`whiteboard:${sessionId}`).send({
-      type: 'broadcast',
-      event: 'clear',
-      payload: {}
-    })
+    const storageKey = `whiteboard-${sessionId}-${user?.id}`
+    localStorage.removeItem(storageKey)
   }
 
   const handleUndo = () => {
-      // Undo MY last action
-      const myActions = actions.filter(a => a.userId === (user?.id || 'anonymous'))
-      if (myActions.length === 0) return
+    const myActions = actions.filter(a => a.userId === (user?.id || 'anonymous'))
+    if (myActions.length === 0) return
 
-      const lastAction = myActions[myActions.length - 1]
-      
-      // Remove from actions
-      setActions(prev => {
-          const index = prev.lastIndexOf(lastAction)
-          if (index === -1) return prev
-          const newActions = [...prev]
-          newActions.splice(index, 1)
-          localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(newActions))
-          return newActions
-      })
+    const lastAction = myActions[myActions.length - 1]
 
-      // Add to redo stack
-      setRedoStack(prev => [...prev, lastAction])
+    setActions(prev => {
+      const index = prev.lastIndexOf(lastAction)
+      if (index === -1) return prev
+      const newActions = [...prev]
+      newActions.splice(index, 1)
+      saveToLocalStorage(newActions)
+      return newActions
+    })
 
-      // Broadcast undo
-      supabase.channel(`whiteboard:${sessionId}`).send({
-          type: 'broadcast',
-          event: 'undo',
-          payload: { userId: user?.id || 'anonymous' }
-      })
+    setRedoStack(prev => [...prev, lastAction])
   }
 
   const handleRedo = () => {
-      if (redoStack.length === 0) return
+    if (redoStack.length === 0) return
 
-      const actionToRedo = redoStack[redoStack.length - 1]
-      
-      // Remove from redo stack
-      setRedoStack(prev => prev.slice(0, -1))
+    const actionToRedo = redoStack[redoStack.length - 1]
 
-      // Add to actions
-      setActions(prev => {
-          const newActions = [...prev, actionToRedo]
-          localStorage.setItem(`whiteboard-${sessionId}`, JSON.stringify(newActions))
-          return newActions
-      })
+    setRedoStack(prev => prev.slice(0, -1))
 
-      // Broadcast as a new draw event (simplest way to sync redo)
-      supabase.channel(`whiteboard:${sessionId}`).send({
-          type: 'broadcast',
-          event: 'draw',
-          payload: actionToRedo
-      })
+    setActions(prev => {
+      const newActions = [...prev, actionToRedo]
+      saveToLocalStorage(newActions)
+      return newActions
+    })
   }
 
   const handleTextDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
     setIsDraggingInput(true)
-    
+
     const target = e.currentTarget as HTMLElement
     const rect = target.getBoundingClientRect()
-    
+
     dragOffset.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
@@ -516,10 +453,80 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
     toast.success('Downloaded!')
   }
 
+  // Share whiteboard to screen
+  const handleShareWhiteboard = () => {
+    if (onShareWhiteboard && canvasRef.current) {
+      const imageData = canvasRef.current.toDataURL('image/png')
+      onShareWhiteboard({
+        imageData,
+        sharedBy: {
+          id: user?.id || '',
+          name: profile?.name || 'Anonymous',
+          avatarUrl: profile?.avatarUrl
+        }
+      })
+      setShowShareConfirm(false)
+      toast.success('Whiteboard shared with all participants')
+    }
+  }
+
   if (!mounted) return null
+
+  // If viewing shared whiteboard from another user
+  if (sharedWhiteboard && sharedWhiteboard.sharedBy.id !== user?.id) {
+    return (
+      <SharedWhiteboardViewer data={sharedWhiteboard} />
+    )
+  }
 
   return (
     <div className="flex flex-col h-full gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Palette className="w-5 h-5 text-pink-400" />
+            <h3 className="text-lg font-semibold text-white">My Whiteboard</h3>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700/50 rounded-full">
+            <Lock className="w-3.5 h-3.5 text-green-400" />
+            <span className="text-xs text-green-400 font-medium">Private</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Share button */}
+          {onShareWhiteboard && (
+            isSharing ? (
+              <button
+                onClick={onStopSharing}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-green-600/80 hover:bg-red-600 text-white"
+              >
+                <Eye className="w-4 h-4" />
+                Stop Sharing
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowShareConfirm(true)}
+                disabled={actions.length === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-purple-600/80 hover:bg-purple-600 text-white disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                <Share2 className="w-4 h-4" />
+                Share to Screen
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Privacy notice */}
+      <div className="p-3 bg-slate-800/40 border border-slate-700/50 rounded-lg">
+        <p className="text-xs text-slate-400 flex items-center gap-2">
+          <Lock className="w-3.5 h-3.5 text-slate-500" />
+          Your whiteboard is private and only visible to you. Use "Share to Screen" to show it to your study partners.
+        </p>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-800/40 backdrop-blur-xl rounded-xl border border-slate-700/50 shadow-sm">
         <div className="flex items-center gap-2">
@@ -571,30 +578,32 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
           <button
             onClick={handleUndo}
             disabled={!actions.some(a => a.userId === (user?.id || 'anonymous'))}
-            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed backdrop-blur-sm"
+            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-1"
             title="Undo"
           >
-            ↩️
+            <Undo2 className="w-4 h-4" />
           </button>
           <button
             onClick={handleRedo}
             disabled={redoStack.length === 0}
-            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed backdrop-blur-sm"
+            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-1"
             title="Redo"
           >
-            ↪️
+            <Redo2 className="w-4 h-4" />
           </button>
           <div className="w-px h-8 bg-slate-700/50 mx-1" />
           <button
             onClick={handleClear}
-            className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg font-medium transition-colors backdrop-blur-sm"
+            className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg font-medium transition-colors backdrop-blur-sm flex items-center gap-2"
           >
+            <Trash2 className="w-4 h-4" />
             Clear
           </button>
           <button
             onClick={handleDownload}
-            className="px-4 py-2 bg-blue-600/80 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors backdrop-blur-sm"
+            className="px-4 py-2 bg-blue-600/80 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors backdrop-blur-sm flex items-center gap-2"
           >
+            <Download className="w-4 h-4" />
             Save Image
           </button>
         </div>
@@ -622,13 +631,12 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
             className="absolute bg-slate-800/90 backdrop-blur-xl p-3 rounded-lg shadow-xl border border-slate-700/50 z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-2"
             style={{ left: textPos.x, top: textPos.y }}
           >
-            {/* Drag Handle */}
             <div
-                onMouseDown={handleTextDragStart}
-                className="w-full h-4 bg-slate-900/50 rounded-t-md cursor-move flex justify-center items-center hover:bg-slate-900/70 transition-colors"
-                title="Drag to move"
+              onMouseDown={handleTextDragStart}
+              className="w-full h-4 bg-slate-900/50 rounded-t-md cursor-move flex justify-center items-center hover:bg-slate-900/70 transition-colors"
+              title="Drag to move"
             >
-                <div className="w-8 h-1 bg-slate-600 rounded-full" />
+              <div className="w-8 h-1 bg-slate-600 rounded-full" />
             </div>
 
             <div className="flex gap-2">
@@ -653,6 +661,84 @@ export default function SessionWhiteboard({ sessionId }: SessionWhiteboardProps)
             </div>
           </div>
         )}
+      </div>
+
+      {/* Share confirmation modal */}
+      {showShareConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-full bg-purple-500/20">
+                <Share2 className="w-6 h-6 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Share Whiteboard to Screen</h3>
+                <p className="text-sm text-slate-400">Your partners will see your drawing</p>
+              </div>
+            </div>
+
+            <p className="text-slate-300 text-sm mb-6">
+              This will share a snapshot of your whiteboard to the session screen. All participants will be able to see your drawing. You can stop sharing at any time.
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowShareConfirm(false)}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleShareWhiteboard}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                Share Whiteboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Shared Whiteboard Viewer Component
+function SharedWhiteboardViewer({ data }: { data: SharedWhiteboardData }) {
+  return (
+    <div className="bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-800/50">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-pink-500/20">
+            <Palette className="w-5 h-5 text-pink-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Shared Whiteboard</h3>
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <span>Shared by</span>
+              <span className="font-medium text-slate-300">{data.sharedBy.name}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Image */}
+      <div className="p-4">
+        <div className="bg-white rounded-lg overflow-hidden">
+          <img
+            src={data.imageData}
+            alt="Shared Whiteboard"
+            className="w-full h-auto"
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="p-3 border-t border-slate-700/50 bg-slate-800/30">
+        <p className="text-xs text-slate-500 text-center">
+          This is a shared view from {data.sharedBy.name}'s whiteboard. You cannot edit it.
+        </p>
       </div>
     </div>
   )

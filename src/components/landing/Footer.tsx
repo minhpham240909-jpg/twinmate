@@ -45,7 +45,7 @@ export default function Footer() {
               <Link href="/" className="flex items-center gap-2 mb-4">
                 <Image src="/logo.png" alt="Clerva" width={100} height={32} className="h-8 w-auto" />
                 <span className="text-slate-900 text-xl font-bold tracking-tight">
-                  Clerva<sup className="text-[10px] font-medium text-slate-500 ml-0.5">™</sup>
+                  Clerva
                 </span>
               </Link>
               <p className="text-slate-600 leading-relaxed max-w-sm">

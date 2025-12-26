@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+
+# Version control
+.git
+
+# Build outputs
+dist
+build
+.next
+out
+coverage
+
+# Environment files
+.env
+.env.*
+*.log
+*.lock
+
+# Assets (usually large)
+public/assets

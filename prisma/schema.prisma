@@ -58,7 +58,8 @@ model User {
   emailVerified Boolean  @default(false)
 
   // OAuth
-  googleId String? @unique
+  googleId    String? @unique
+  microsoftId String? @unique
 
   // Stripe
   stripeCustomerId     String?   @unique
@@ -99,6 +100,7 @@ model User {
   createdSessions       StudySession[]       @relation("SessionCreator")
   sessionParticipations SessionParticipant[]
   sessionMessages       SessionMessage[]
+  sessionNotes          SessionNote[]
   notifications         Notification[]
   posts                 Post[]
   postLikes             PostLike[]
@@ -1172,30 +1174,40 @@ model SessionWhiteboardVersion {
   @@index([createdAt])
 }
 
-// Shared Notes - Real-time collaborative note-taking
+// Private Notes - Each user has their own private notes per session
+// Notes are only visible to the owner unless shared to screen
 model SessionNote {
   id        String       @id @default(uuid())
-  sessionId String       @unique
+  sessionId String
   session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  // Owner - each user has their own private notes
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Metadata
-  title String @default("Untitled Note")
+  title String @default("My Notes")
 
   // Content (stored in DB if < 64KB, otherwise in Storage)
   content    String? @db.Text // Null if stored in Storage
   contentUrl String? // Supabase Storage URL for large content
 
-  // Real-time sync
-  lastEditedBy String? // User ID
+  // Privacy - notes are private by default
+  // Sharing is done via screen share, not database access
+
+  // Auto-save tracking
   lastEditedAt DateTime @default(now())
 
-  // Versioning
+  // Versioning for conflict resolution
   version Int @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Unique constraint: one note per user per session
+  @@unique([sessionId, userId])
   @@index([sessionId])
+  @@index([userId])
   @@index([lastEditedAt])
 }
 

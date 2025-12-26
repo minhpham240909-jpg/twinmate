@@ -15,7 +15,7 @@ export async function GET() {
       )
     }
 
-    // Get pending group invites for the user
+    // PERF: Get pending group invites with inviter info in a single query (avoids extra query)
     const invites = await prisma.groupInvite.findMany({
       where: {
         inviteeId: user.id,
@@ -27,6 +27,12 @@ export async function GET() {
             id: true,
             name: true
           }
+        },
+        inviter: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
       orderBy: {
@@ -34,25 +40,11 @@ export async function GET() {
       }
     })
 
-    // Get inviter names
-    const inviterIds = invites.map(inv => inv.inviterId)
-    const inviters = await prisma.user.findMany({
-      where: {
-        id: { in: inviterIds }
-      },
-      select: {
-        id: true,
-        name: true
-      }
-    })
-
-    const inviterMap = new Map(inviters.map(u => [u.id, u.name]))
-
     const formattedInvites = invites.map(invite => ({
       id: invite.id,
       groupId: invite.groupId,
       groupName: invite.group.name,
-      inviterName: inviterMap.get(invite.inviterId) || 'Unknown',
+      inviterName: invite.inviter?.name || 'Unknown',
       createdAt: invite.createdAt.toISOString()
     }))
 

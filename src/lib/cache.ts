@@ -183,28 +183,71 @@ export function invalidateByPattern(pattern: string): number {
 
 /**
  * Cache TTL constants (in seconds)
+ * Optimized for 3,000+ concurrent users
  */
 export const CACHE_TTL = {
-  USER_PROFILE: 5 * 60, // 5 minutes
-  GROUP: 2 * 60, // 2 minutes
-  TRENDING: 10 * 60, // 10 minutes
-  SEARCH: 5 * 60, // 5 minutes
+  // User data (critical for reducing DB load)
+  USER_PROFILE: 10 * 60, // 10 minutes (increased from 5)
+  USER_SESSION: 15 * 60, // 15 minutes
+  USER_PREFERENCES: 30 * 60, // 30 minutes
+
+  // Social features
+  GROUP: 5 * 60, // 5 minutes (increased from 2)
+  GROUP_MEMBERS: 5 * 60, // 5 minutes
+  CONNECTIONS: 5 * 60, // 5 minutes
+
+  // Content feeds (balance freshness vs performance)
+  TRENDING: 5 * 60, // 5 minutes (decreased for freshness)
   FEED: 2 * 60, // 2 minutes
+  POSTS_LIST: 2 * 60, // 2 minutes
+
+  // Search (expensive queries)
+  SEARCH_PARTNERS: 10 * 60, // 10 minutes (increased from 5)
+  SEARCH_GROUPS: 10 * 60, // 10 minutes (increased from 5)
+  SEARCH_COUNT: 30 * 60, // 30 minutes
+
+  // Study sessions
+  SESSION_LIST: 2 * 60, // 2 minutes
+  SESSION_DETAIL: 1 * 60, // 1 minute (needs to be fresh)
+  ACTIVE_SESSIONS: 1 * 60, // 1 minute
+
+  // Messaging
+  CONVERSATIONS_LIST: 1 * 60, // 1 minute
+  UNREAD_COUNT: 30, // 30 seconds
+
+  // Analytics & Stats
   STATISTICS: 15 * 60, // 15 minutes
+  ADMIN_STATS: 5 * 60, // 5 minutes
+  LEADERBOARD: 10 * 60, // 10 minutes
+
+  // Real-time features (very short TTL)
   ONLINE_USERS: 30, // 30 seconds
+  PRESENCE_STATUS: 30, // 30 seconds
+  TYPING_INDICATOR: 5, // 5 seconds
 } as const
 
 /**
  * Cache key prefixes for namespacing
+ * Using version prefix for easy cache invalidation across deployments
  */
+const CACHE_VERSION = 'v1'
+
 export const CACHE_PREFIX = {
-  USER: 'user',
-  GROUP: 'group',
-  TRENDING: 'trending',
-  SEARCH: 'search',
-  FEED: 'feed',
-  STATS: 'stats',
-  ONLINE: 'online',
+  USER: `${CACHE_VERSION}:user`,
+  USER_SESSION: `${CACHE_VERSION}:user-session`,
+  GROUP: `${CACHE_VERSION}:group`,
+  GROUP_MEMBERS: `${CACHE_VERSION}:group-members`,
+  TRENDING: `${CACHE_VERSION}:trending`,
+  SEARCH: `${CACHE_VERSION}:search`,
+  SEARCH_PARTNERS: `${CACHE_VERSION}:search-partners`,
+  SEARCH_GROUPS: `${CACHE_VERSION}:search-groups`,
+  FEED: `${CACHE_VERSION}:feed`,
+  POSTS: `${CACHE_VERSION}:posts`,
+  SESSIONS: `${CACHE_VERSION}:sessions`,
+  CONVERSATIONS: `${CACHE_VERSION}:conversations`,
+  STATS: `${CACHE_VERSION}:stats`,
+  ONLINE: `${CACHE_VERSION}:online`,
+  CONNECTIONS: `${CACHE_VERSION}:connections`,
 } as const
 
 /**
@@ -363,13 +406,146 @@ export function onlineUsersKey(): string {
   return `${CACHE_PREFIX.ONLINE}:users`
 }
 
+export function sessionListKey(userId: string, filters?: string): string {
+  return filters
+    ? `${CACHE_PREFIX.SESSIONS}:list:${userId}:${filters}`
+    : `${CACHE_PREFIX.SESSIONS}:list:${userId}`
+}
+
+export function sessionDetailKey(sessionId: string): string {
+  return `${CACHE_PREFIX.SESSIONS}:detail:${sessionId}`
+}
+
+export function conversationsListKey(userId: string, page: number = 1): string {
+  return `${CACHE_PREFIX.CONVERSATIONS}:list:${userId}:${page}`
+}
+
+export function unreadCountKey(userId: string): string {
+  return `${CACHE_PREFIX.CONVERSATIONS}:unread:${userId}`
+}
+
+export function connectionsKey(userId: string): string {
+  return `${CACHE_PREFIX.CONNECTIONS}:${userId}`
+}
+
+export function postsListKey(filters: string, page: number = 1): string {
+  return `${CACHE_PREFIX.POSTS}:list:${filters}:${page}`
+}
+
+/**
+ * Batch get multiple cache keys (for performance)
+ */
+export async function getMultipleCached<T>(keys: string[]): Promise<Map<string, T>> {
+  const results = new Map<string, T>()
+
+  if (keys.length === 0) return results
+
+  if (isRedisConfigured()) {
+    try {
+      const url = process.env.UPSTASH_REDIS_REST_URL!
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+      // Use Redis pipeline for batch get
+      const pipeline = keys.map(key => ['GET', key])
+      const response = await fetch(`${url}/pipeline`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pipeline),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        data.forEach((item: { result: string | null }, index: number) => {
+          if (item.result !== null) {
+            try {
+              results.set(keys[index], JSON.parse(item.result))
+            } catch {
+              // Skip invalid JSON
+            }
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Redis MGET error:', error)
+      // Fallback to memory cache
+      for (const key of keys) {
+        const value = cache.get<T>(key)
+        if (value !== null) {
+          results.set(key, value)
+        }
+      }
+    }
+  } else {
+    // Use memory cache
+    for (const key of keys) {
+      const value = cache.get<T>(key)
+      if (value !== null) {
+        results.set(key, value)
+      }
+    }
+  }
+
+  return results
+}
+
+/**
+ * Batch set multiple cache keys (for performance)
+ */
+export async function setMultipleCached<T>(entries: Array<{ key: string; data: T; ttl: number }>): Promise<void> {
+  if (entries.length === 0) return
+
+  if (isRedisConfigured()) {
+    try {
+      const url = process.env.UPSTASH_REDIS_REST_URL!
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+      // Use Redis pipeline for batch set
+      const pipeline = entries.map(({ key, data, ttl }) => [
+        'SETEX',
+        key,
+        ttl,
+        JSON.stringify(data),
+      ])
+
+      await fetch(`${url}/pipeline`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pipeline),
+      })
+    } catch (error) {
+      console.error('Redis MSET error:', error)
+      // Fallback to memory cache
+      for (const { key, data, ttl } of entries) {
+        cache.set(key, data, ttl)
+      }
+    }
+  } else {
+    // Use memory cache
+    for (const { key, data, ttl } of entries) {
+      cache.set(key, data, ttl)
+    }
+  }
+}
+
 /**
  * Invalidate all user-related caches
  */
 export async function invalidateUserCache(userId: string): Promise<void> {
   await Promise.all([
     invalidateCache(userProfileKey(userId)),
+    invalidateCache(`${CACHE_PREFIX.USER_SESSION}:${userId}`),
     invalidateCache(`${CACHE_PREFIX.FEED}:${userId}:*`),
+    invalidateCache(sessionListKey(userId)),
+    invalidateCache(`${CACHE_PREFIX.SESSIONS}:list:${userId}:*`),
+    invalidateCache(conversationsListKey(userId)),
+    invalidateCache(`${CACHE_PREFIX.CONVERSATIONS}:list:${userId}:*`),
+    invalidateCache(connectionsKey(userId)),
     invalidateCache(onlineUsersKey()),
   ])
 }
@@ -378,7 +554,11 @@ export async function invalidateUserCache(userId: string): Promise<void> {
  * Invalidate all group-related caches
  */
 export async function invalidateGroupCache(groupId: string): Promise<void> {
-  await invalidateCache(groupKey(groupId))
+  await Promise.all([
+    invalidateCache(groupKey(groupId)),
+    invalidateCache(`${CACHE_PREFIX.GROUP_MEMBERS}:${groupId}`),
+    invalidateCache(`${CACHE_PREFIX.SEARCH_GROUPS}:*`),
+  ])
 }
 
 /**
@@ -388,7 +568,36 @@ export async function invalidateFeedCaches(): Promise<void> {
   await Promise.all([
     invalidateCache(trendingKey()),
     invalidateCache(`${CACHE_PREFIX.FEED}:*`),
+    invalidateCache(`${CACHE_PREFIX.POSTS}:*`),
   ])
+}
+
+/**
+ * Invalidate search caches (after profile/group update)
+ */
+export async function invalidateSearchCaches(): Promise<void> {
+  await Promise.all([
+    invalidateCache(`${CACHE_PREFIX.SEARCH_PARTNERS}:*`),
+    invalidateCache(`${CACHE_PREFIX.SEARCH_GROUPS}:*`),
+    invalidateCache(`${CACHE_PREFIX.SEARCH}:*`),
+  ])
+}
+
+/**
+ * Invalidate session caches (after session update)
+ */
+export async function invalidateSessionCache(sessionId: string, userId?: string): Promise<void> {
+  const promises = [
+    invalidateCache(sessionDetailKey(sessionId)),
+    invalidateCache(`${CACHE_PREFIX.SESSIONS}:*`),
+  ]
+
+  if (userId) {
+    promises.push(invalidateCache(sessionListKey(userId)))
+    promises.push(invalidateCache(`${CACHE_PREFIX.SESSIONS}:list:${userId}:*`))
+  }
+
+  await Promise.all(promises)
 }
 
 // ============================================================================

@@ -62,9 +62,14 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams
     const dueOnly = searchParams.get('due') === 'true'
 
-    // Build where clause - fetch ALL cards for this session
+    // Check if user wants only their own cards (private mode)
+    const ownOnly = searchParams.get('own') === 'true'
+
+    // Build where clause
     const where: any = {
       sessionId,
+      // If ownOnly, filter to current user's cards only (private by default)
+      ...(ownOnly && { userId: user.id }),
     }
 
     // If dueOnly, filter for cards that are due for review
