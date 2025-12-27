@@ -612,7 +612,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('studyWithPartner')}
             {pendingInvitesCount > 0 && (
-              <span className="ml-auto bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
                 {pendingInvitesCount}
               </span>
             )}
@@ -627,7 +627,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('chat')}
             {unreadMessagesCount > 0 && (
-              <span className="ml-auto bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
                 {unreadMessagesCount}
               </span>
             )}
@@ -642,7 +642,7 @@ export default function DashboardPage() {
             </svg>
             {t('connectionRequests')}
             {connectionRequestsCount > 0 && (
-              <span className="ml-auto bg-gradient-to-r from-blue-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
                 {connectionRequestsCount}
               </span>
             )}
@@ -667,7 +667,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('studyGroups')}
             {groupInvitesCount > 0 && (
-              <span className="ml-auto bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
                 {groupInvitesCount}
               </span>
             )}

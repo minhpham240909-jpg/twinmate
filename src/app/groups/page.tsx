@@ -603,14 +603,6 @@ export default function GroupsPage() {
       <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
           </div>
           <div className="flex gap-2">
@@ -637,12 +629,6 @@ export default function GroupsPage() {
                 {t('createGroup')}
               </button>
             </Bounce>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition border border-gray-200 dark:border-white/10"
-            >
-              {tCommon('backToDashboard')}
-            </button>
           </div>
         </div>
       </header>

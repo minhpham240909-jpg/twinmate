@@ -524,14 +524,6 @@ export default function SearchPage() {
       <header className="bg-gray-50 dark:bg-slate-800/50 backdrop-blur-xl shadow-lg border-b border-gray-200 dark:border-slate-700/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -543,12 +535,6 @@ export default function SearchPage() {
               {showFilters ? t('hideFilters') : t('showFilters')}
             </button>
           </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg transition backdrop-blur-sm"
-          >
-            {tCommon('backToDashboard')}
-          </button>
         </div>
       </header>
 
