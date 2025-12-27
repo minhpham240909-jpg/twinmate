@@ -1,20 +1,51 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+
+// Sanitize environment variables
+const sanitizeEnvVar = (value: string | undefined): string => {
+  if (!value) return ''
+  return value.replace(/[\r\n\s]+/g, '').trim()
+}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const cookieStore = await cookies()
 
   // Note: Supabase handles OAuth CSRF protection internally with its own state parameter
   // We don't need custom state validation - Supabase validates it during code exchange
 
   if (code) {
     try {
-      const supabase = await createClient()
+      const url = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL) || 'https://placeholder.supabase.co'
+      const key = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'placeholder'
 
-      // Exchange the code for a session
-      // Supabase SSR handles session cookies automatically via the setAll callback
+      // Track cookies that need to be set on the redirect response
+      const cookiesToSetOnResponse: Array<{ name: string; value: string; options: any }> = []
+
+      const supabase = createServerClient(url, key, {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            // Store cookies to set on the redirect response
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookiesToSetOnResponse.push({ name, value, options })
+              // Also set on cookieStore for immediate use
+              try {
+                cookieStore.set(name, value, options)
+              } catch {
+                // Ignore errors in server components
+              }
+            })
+          },
+        },
+      })
+
+      // Exchange the code for a session - this triggers setAll with session cookies
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (error) {
@@ -25,7 +56,6 @@ export async function GET(request: Request) {
       if (data.user && data.session) {
         // Sync user to database
         let redirectPath = '/dashboard'
-        let isNewUser = false
 
         try {
           let dbUser = await prisma.user.findUnique({
@@ -41,19 +71,10 @@ export async function GET(request: Request) {
           if (!dbUser) {
             // Create user and profile in transaction
             const email = data.user.email!
-
-            // Email verification strategy:
-            // - OAuth providers (Google, Microsoft): Trust provider's verification (emailVerified = true)
-            // - Email/Password: Require email confirmation (emailVerified set by Supabase callback)
             const emailVerified = isOAuthProvider ? true : isEmailConfirmedBySupabase
-
-            // Get user name from OAuth metadata
-            // Microsoft uses 'full_name' or 'name', Google uses 'name'
             const userName = data.user.user_metadata?.full_name
               || data.user.user_metadata?.name
               || email.split('@')[0]
-
-            // Get avatar URL - Microsoft uses 'picture' or 'avatar_url'
             const avatarUrl = data.user.user_metadata?.avatar_url
               || data.user.user_metadata?.picture
               || null
@@ -80,26 +101,17 @@ export async function GET(request: Request) {
             })
 
             dbUser = result
-            isNewUser = true
             redirectPath = '/dashboard'
-            const authMethod = isGoogleOAuth ? 'Google OAuth' : isMicrosoftOAuth ? 'Microsoft OAuth' : 'Email/Password'
-            console.log('[Auth Callback] Created new user:', email, 'via', authMethod)
+            console.log('[Auth Callback] Created new user:', email)
           } else {
-            // Existing user - update emailVerified if confirmed by Supabase or OAuth provider
-            const wasUnverified = !dbUser.emailVerified
-            const nowVerified = isEmailConfirmedBySupabase || isOAuthProvider
-
+            // Existing user - update lastLoginAt
             await prisma.user.update({
               where: { id: data.user.id },
               data: {
-                emailVerified: nowVerified,
+                emailVerified: isEmailConfirmedBySupabase || isOAuthProvider,
                 lastLoginAt: new Date(),
               },
             })
-
-            if (wasUnverified && nowVerified) {
-              console.log('[Auth Callback] Email confirmed for user:', data.user.email)
-            }
 
             // Check if user is admin and redirect accordingly
             redirectPath = dbUser.isAdmin ? '/admin' : '/dashboard'
@@ -109,9 +121,22 @@ export async function GET(request: Request) {
           // Continue anyway - user can be synced later
         }
 
-        // Direct server-side redirect for fastest navigation
-        // The session cookies are already set by Supabase SSR
-        return NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
+        // Create redirect response and attach all cookies
+        const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
+
+        // CRITICAL: Set all session cookies on the redirect response
+        // This ensures the browser receives the auth cookies with the redirect
+        cookiesToSetOnResponse.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, {
+            ...options,
+            // Ensure cookies work across the domain
+            path: '/',
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+          })
+        })
+
+        return response
       }
 
       // If no session, redirect to signin
