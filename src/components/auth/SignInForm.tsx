@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignInForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const registered = searchParams.get('registered')
   const supabase = createClient()
 
@@ -94,8 +95,8 @@ export default function SignInForm() {
 
       const redirectUrl = userCheckData.isAdmin ? '/admin' : '/dashboard'
 
-      // Force a full page navigation to ensure everything reloads
-      window.location.href = redirectUrl
+      // Fast client-side navigation
+      router.push(redirectUrl)
     } catch (err) {
       setError('Network error. Please try again.')
       setLoading(false)
