@@ -232,61 +232,64 @@ export async function getAdminDashboardStats() {
   return getOrSetCached(cacheKey, CACHE_TTL.DASHBOARD_STATS, async () => {
     try {
       // PERF: Try to get stats from materialized view first (single query, <10ms)
-      const viewResult = await prisma.$queryRaw<Array<{
-        total_users: bigint
-        new_users_today: bigint
-        new_users_this_week: bigint
-        new_users_this_month: bigint
-        active_users_today: bigint
-        premium_users: bigint
-        deactivated_users: bigint
-        total_groups: bigint
-        total_messages: bigint
-        total_study_sessions: bigint
-        total_matches: bigint
-        pending_reports: bigint
-        under_review_reports: bigint
-        resolved_reports: bigint
-        online_users: bigint
-        active_devices: bigint
-        total_ai_sessions: bigint
-        active_ai_sessions: bigint
-        ai_sessions_today: bigint
-        cache_age_seconds: number
-      }>>`
-        SELECT * FROM get_admin_dashboard_stats()
-      `
+      try {
+        const viewResult = await prisma.$queryRaw<Array<{
+          total_users: bigint
+          new_users_today: bigint
+          new_users_this_week: bigint
+          new_users_this_month: bigint
+          active_users_today: bigint
+          premium_users: bigint
+          deactivated_users: bigint
+          total_groups: bigint
+          total_messages: bigint
+          total_study_sessions: bigint
+          total_matches: bigint
+          pending_reports: bigint
+          under_review_reports: bigint
+          resolved_reports: bigint
+          online_users: bigint
+          active_devices: bigint
+          total_ai_sessions: bigint
+          active_ai_sessions: bigint
+          ai_sessions_today: bigint
+          cache_age_seconds: number
+        }>>`
+          SELECT * FROM get_admin_dashboard_stats()
+        `
 
-      // If materialized view exists and is fresh (< 60 seconds old), use it
-      if (viewResult.length > 0 && viewResult[0].cache_age_seconds < 60) {
-        const stats = viewResult[0]
-        return {
-          users: {
-            total: Number(stats.total_users),
-            newToday: Number(stats.new_users_today),
-            newThisWeek: Number(stats.new_users_this_week),
-            newThisMonth: Number(stats.new_users_this_month),
-            activeToday: Number(stats.active_users_today),
-            premium: Number(stats.premium_users),
-            deactivated: Number(stats.deactivated_users),
-          },
-          content: {
-            groups: Number(stats.total_groups),
-            messages: Number(stats.total_messages),
-            studySessions: Number(stats.total_study_sessions),
-            matches: Number(stats.total_matches),
-          },
-          moderation: {
-            pendingReports: Number(stats.pending_reports),
-          },
-          _source: 'materialized_view',
-          _cacheAge: stats.cache_age_seconds,
+        // If materialized view exists and is fresh (< 60 seconds old), use it
+        if (viewResult.length > 0 && viewResult[0].cache_age_seconds < 60) {
+          const stats = viewResult[0]
+          return {
+            users: {
+              total: Number(stats.total_users),
+              newToday: Number(stats.new_users_today),
+              newThisWeek: Number(stats.new_users_this_week),
+              newThisMonth: Number(stats.new_users_this_month),
+              activeToday: Number(stats.active_users_today),
+              premium: Number(stats.premium_users),
+              deactivated: Number(stats.deactivated_users),
+            },
+            content: {
+              groups: Number(stats.total_groups),
+              messages: Number(stats.total_messages),
+              studySessions: Number(stats.total_study_sessions),
+              matches: Number(stats.total_matches),
+            },
+            moderation: {
+              pendingReports: Number(stats.pending_reports),
+            },
+            _source: 'materialized_view',
+            _cacheAge: stats.cache_age_seconds,
+          }
         }
+      } catch {
+        // Materialized view function doesn't exist - use fallback queries
+        console.log('[Admin] Materialized view not available, using direct queries')
       }
 
       // FALLBACK: Use direct queries if materialized view is stale or missing
-      console.warn('[Admin] Materialized view stale, using fallback queries')
-
       const now = new Date()
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -357,21 +360,28 @@ export async function getUserGrowthData(days: number = 30) {
 
   return getOrSetCached(cacheKey, CACHE_TTL.GROWTH_DATA, async () => {
     try {
-      // PERF: For 30 days, use pre-computed materialized view
+      // PERF: For 30 days, try pre-computed materialized view first
       if (days === 30) {
-        const result = await prisma.$queryRaw<Array<{ date: Date; new_users: bigint }>>`
-          SELECT date, new_users
-          FROM admin_user_growth_30d
-          ORDER BY date ASC
-        `
+        try {
+          const result = await prisma.$queryRaw<Array<{ date: Date; new_users: bigint }>>`
+            SELECT date, new_users
+            FROM admin_user_growth_30d
+            ORDER BY date ASC
+          `
 
-        return result.map(row => ({
-          date: row.date.toISOString().split('T')[0],
-          users: Number(row.new_users),
-        }))
+          if (result.length > 0) {
+            return result.map(row => ({
+              date: row.date.toISOString().split('T')[0],
+              users: Number(row.new_users),
+            }))
+          }
+        } catch {
+          // Materialized view doesn't exist - use fallback query
+          console.log('[Admin] Growth materialized view not available, using direct query')
+        }
       }
 
-      // FALLBACK: For custom day ranges, use dynamic query
+      // FALLBACK: Use dynamic query for any day range
       const startDate = new Date()
       startDate.setDate(startDate.getDate() - days)
 
