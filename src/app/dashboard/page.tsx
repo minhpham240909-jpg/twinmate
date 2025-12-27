@@ -595,7 +595,7 @@ export default function DashboardPage() {
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <button
-            className="w-full flex items-center gap-3 px-4 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl transition text-left font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl transition text-left font-medium shadow-md"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -612,7 +612,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('studyWithPartner')}
             {pendingInvitesCount > 0 && (
-              <span className="ml-auto bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {pendingInvitesCount}
               </span>
             )}
@@ -627,7 +627,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('chat')}
             {unreadMessagesCount > 0 && (
-              <span className="ml-auto bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {unreadMessagesCount}
               </span>
             )}
@@ -642,7 +642,7 @@ export default function DashboardPage() {
             </svg>
             {t('connectionRequests')}
             {connectionRequestsCount > 0 && (
-              <span className="ml-auto bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-gradient-to-r from-blue-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {connectionRequestsCount}
               </span>
             )}
@@ -667,7 +667,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('studyGroups')}
             {groupInvitesCount > 0 && (
-              <span className="ml-auto bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs px-2 py-1 rounded-full font-bold">
+              <span className="ml-auto bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                 {groupInvitesCount}
               </span>
             )}
@@ -682,7 +682,7 @@ export default function DashboardPage() {
             </svg>
             {tNav('community')}
             {newCommunityPostsCount > 0 && (
-              <span className="ml-auto w-2 h-2 bg-neutral-900 dark:bg-white rounded-full"></span>
+              <span className="ml-auto w-2 h-2 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"></span>
             )}
           </button>
         </nav>
@@ -704,7 +704,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => router.push('/profile')}
-              className="w-full py-2 px-4 bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white rounded-lg font-medium hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+              className="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-all shadow-sm"
             >
               {t('viewProfile')}
             </button>
@@ -729,7 +729,7 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-5 h-5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 w-5 h-5 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -748,8 +748,8 @@ export default function DashboardPage() {
               >
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-6">
-                    <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <svg className="w-8 h-8 text-neutral-700 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                       </svg>
                     </div>
@@ -759,7 +759,7 @@ export default function DashboardPage() {
                     <p className="text-5xl font-black mb-3">{partnersCount}</p>
                     <p className="text-neutral-500 dark:text-neutral-400 text-base leading-relaxed mb-6">Connect with study partners and collaborate on your learning journey</p>
                   </div>
-                  <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400">
+                  <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400">
                     <span className="text-sm font-medium">View all partners</span>
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -773,8 +773,8 @@ export default function DashboardPage() {
             <div className="lg:col-span-1">
               <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm p-6 h-full flex flex-col">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-neutral-900 dark:bg-white rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white dark:text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -785,7 +785,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   {!loadingOnlinePartners && onlinePartners.length > 0 && (
-                    <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-semibold rounded-full">
+                    <span className="px-2.5 py-1 bg-gradient-to-r from-pink-100 to-purple-100 dark:from-pink-900/30 dark:to-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-semibold rounded-full">
                       {onlinePartners.length}
                     </span>
                   )}
@@ -901,9 +901,9 @@ export default function DashboardPage() {
                   {searchQuery.trim().length >= 2 && !isSearching && (
                     <button
                       onClick={handleSearch}
-                      className="flex-shrink-0 p-2 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 rounded-lg transition-colors"
+                      className="flex-shrink-0 p-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-lg transition-all"
                     >
-                      <svg className="w-5 h-5 text-white dark:text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </button>
@@ -917,9 +917,9 @@ export default function DashboardPage() {
               <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 p-12 text-center">
                   {/* AI Partner Suggestion - Dynamic personalized message */}
-                  <div className="p-6 bg-neutral-100 dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700 max-w-lg mx-auto">
-                    <div className="w-16 h-16 bg-neutral-900 dark:bg-white rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-white dark:text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-purple-700/50 max-w-lg mx-auto">
+                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
@@ -942,7 +942,7 @@ export default function DashboardPage() {
 
                     <button
                       onClick={() => setShowAIPartnerModal(true)}
-                      className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors flex items-center gap-2 mx-auto"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg flex items-center gap-2 mx-auto"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -961,13 +961,13 @@ export default function DashboardPage() {
                 {searchResults.partners.length > 0 && (
                   <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white dark:text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
                       </div>
                       <h3 className="font-bold text-neutral-900 dark:text-white text-lg">{t('partners')}</h3>
-                      <span className="px-2.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-semibold rounded-full">{searchResults.partners.length}</span>
+                      <span className="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-full">{searchResults.partners.length}</span>
                     </div>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {searchResults.partners.slice(0, 5).map((partner) => {
@@ -1018,13 +1018,13 @@ export default function DashboardPage() {
                 {searchResults.groups.length > 0 && (
                   <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white dark:text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                       </div>
                       <h3 className="font-bold text-neutral-900 dark:text-white text-lg">{t('groups')}</h3>
-                      <span className="px-2.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-semibold rounded-full">{searchResults.groups.length}</span>
+                      <span className="px-2.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-semibold rounded-full">{searchResults.groups.length}</span>
                     </div>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {searchResults.groups.slice(0, 5).map((group) => {
@@ -1072,10 +1072,10 @@ export default function DashboardPage() {
 
           {/* Complete Profile Banner */}
           {showCompleteProfileBanner && (
-            <div className="bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-2xl p-6">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-purple-700/50 rounded-2xl p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-neutral-900 dark:bg-white rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white dark:text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
@@ -1085,7 +1085,7 @@ export default function DashboardPage() {
                 </div>
                 <button
                   onClick={handleCompleteProfile}
-                  className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors whitespace-nowrap"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg whitespace-nowrap"
                 >
                   {t('completeProfile')}
                 </button>

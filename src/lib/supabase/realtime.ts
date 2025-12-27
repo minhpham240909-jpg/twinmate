@@ -469,11 +469,12 @@ export function subscribeToTypingGroup(
 
 /**
  * Broadcast presence (online/offline status) to a channel
+ * Returns a cleanup function to properly unsubscribe
  */
 export function broadcastPresence(
   channelName: string,
   userData: { userId: string; name: string; status: string }
-) {
+): () => void {
   const supabase = createClient()
 
   const channel = supabase.channel(channelName, {
@@ -490,7 +491,10 @@ export function broadcastPresence(
     }
   })
 
-  return channel
+  // PERF: Return cleanup function to prevent subscription leaks
+  return () => {
+    supabase.removeChannel(channel)
+  }
 }
 
 /**

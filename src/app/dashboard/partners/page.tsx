@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
-import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
@@ -91,35 +90,35 @@ export default function PartnersPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
+    <div className="min-h-screen bg-white dark:bg-neutral-950">
       {/* Header */}
-      <header className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-white/10 sticky top-0 z-10">
+      <header className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-xl transition"
+                className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition"
               >
-                <svg className="w-6 h-6 text-gray-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-neutral-600 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('title')}</h1>
+                <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t('title')}</h1>
               </div>
             </div>
             <div className="flex items-center gap-3">
               {partners.length > 0 && (
                 <Pulse>
-                  <span className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-xl font-semibold border border-blue-500/30">
+                  <span className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-600 dark:text-blue-400 rounded-xl font-semibold border border-blue-200 dark:border-blue-700/50">
                     {partners.length} {partners.length === 1 ? t('partner') : t('partners')}
                   </span>
                 </Pulse>
@@ -127,7 +126,7 @@ export default function PartnersPage() {
               <Bounce>
                 <button
                   onClick={() => router.push('/search')}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all shadow-lg"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 hover:shadow-lg transition-all shadow-md"
                 >
                   {t('findPartners')}
                 </button>
@@ -141,39 +140,36 @@ export default function PartnersPage() {
       <main className="max-w-7xl mx-auto px-8 py-10">
         {partners.length === 0 ? (
           <Bounce>
-            <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 24 }}>
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center shadow-xl">
-                <Bounce delay={0.1}>
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
-                    <Pulse>
-                      <svg className="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    </Pulse>
-                  </div>
-                </Bounce>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{t('noPartnersYet')}</h2>
-                <p className="text-gray-600 dark:text-slate-300 mb-8 max-w-md mx-auto">
-                  {t('noPartnersDesc')}
-                </p>
-                <Bounce delay={0.2}>
-                  <button
-                    onClick={() => router.push('/search')}
-                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all shadow-lg"
-                  >
-                    {t('findStudyPartners')}
-                  </button>
-                </Bounce>
-              </div>
-            </GlowBorder>
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-12 text-center shadow-sm">
+              <Bounce delay={0.1}>
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-200 dark:border-blue-700/50">
+                  <Pulse>
+                    <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </Pulse>
+                </div>
+              </Bounce>
+              <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-3">{t('noPartnersYet')}</h2>
+              <p className="text-neutral-600 dark:text-neutral-400 mb-8 max-w-md mx-auto">
+                {t('noPartnersDesc')}
+              </p>
+              <Bounce delay={0.2}>
+                <button
+                  onClick={() => router.push('/search')}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 hover:shadow-lg transition-all shadow-md"
+                >
+                  {t('findStudyPartners')}
+                </button>
+              </Bounce>
+            </div>
           </Bounce>
         ) : (
           <FadeIn delay={0.1}>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {partners.map((partner, index) => (
                 <FadeIn key={partner.id} delay={index * 0.05}>
-                  <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 16 }}>
-                    <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border border-white/10">
+                  <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-neutral-200 dark:border-neutral-800">
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-4">
                   <Bounce delay={index * 0.1}>
@@ -189,35 +185,29 @@ export default function PartnersPage() {
                     </Pulse>
                   </Bounce>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{partner.name}</h3>
+                    <h3 className="text-lg font-bold text-neutral-900 dark:text-white">{partner.name}</h3>
                   </div>
                 </div>
 
                 {/* Bio */}
                 {partner.profile?.bio && (
-                  <p className="text-sm text-gray-700 dark:text-slate-300 mb-4 line-clamp-2">{partner.profile.bio}</p>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4 line-clamp-2">{partner.profile.bio}</p>
                 )}
 
                 {/* Subjects */}
                 {partner.profile && partner.profile.subjects.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-2">{t('subjects')}</p>
+                    <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-2">{t('subjects')}</p>
                     <div className="flex flex-wrap gap-2">
                       {partner.profile.subjects.slice(0, 3).map((subject: string, idx: number) => (
-                        <Bounce key={idx} delay={index * 0.1 + idx * 0.05}>
-                          <Pulse>
-                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-medium hover:scale-105 transition-all cursor-default">
-                              {subject}
-                            </span>
-                          </Pulse>
-                        </Bounce>
+                        <span key={idx} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium">
+                          {subject}
+                        </span>
                       ))}
                       {partner.profile.subjects.length > 3 && (
-                        <Bounce delay={index * 0.1 + 0.15}>
-                          <span className="px-3 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium">
-                            +{partner.profile.subjects.length - 3} {t('more')}
-                          </span>
-                        </Bounce>
+                        <span className="px-3 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-lg text-xs font-medium">
+                          +{partner.profile.subjects.length - 3} {t('more')}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -226,61 +216,48 @@ export default function PartnersPage() {
                 {/* Interests */}
                 {partner.profile && partner.profile.interests.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-2">{t('interests')}</p>
+                    <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-2">{t('interests')}</p>
                     <div className="flex flex-wrap gap-2">
                       {partner.profile.interests.slice(0, 3).map((interest: string, idx: number) => (
-                        <Bounce key={idx} delay={index * 0.1 + idx * 0.05}>
-                          <Pulse>
-                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-medium hover:scale-105 transition-all cursor-default">
-                              {interest}
-                            </span>
-                          </Pulse>
-                        </Bounce>
+                        <span key={idx} className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-medium">
+                          {interest}
+                        </span>
                       ))}
                       {partner.profile.interests.length > 3 && (
-                        <Bounce delay={index * 0.1 + 0.15}>
-                          <span className="px-3 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium">
-                            +{partner.profile.interests.length - 3} {t('more')}
-                          </span>
-                        </Bounce>
+                        <span className="px-3 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-lg text-xs font-medium">
+                          +{partner.profile.interests.length - 3} {t('more')}
+                        </span>
                       )}
                     </div>
                   </div>
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-6 pt-4 border-t border-white/10">
-                  <Bounce delay={index * 0.1 + 0.3}>
-                    <button
-                      onClick={() => router.push(`/profile/${partner.id}`)}
-                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg hover:scale-105 transition-all text-sm shadow-md"
-                    >
-                      {t('viewProfile')}
-                    </button>
-                  </Bounce>
-                  <Bounce delay={index * 0.1 + 0.4}>
-                    <button
-                      onClick={() => router.push(`/chat/partners?conversation=${partner.id}`)}
-                      className="px-4 py-2 bg-gray-200 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-700 hover:scale-105 transition-all text-sm border border-gray-300 dark:border-white/10"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
-                    </button>
-                  </Bounce>
-                  <Bounce delay={index * 0.1 + 0.5}>
-                    <button
-                      onClick={() => handleRemovePartner(partner.matchId)}
-                      className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg font-medium hover:bg-red-500/20 hover:scale-105 transition-all text-sm"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </Bounce>
+                <div className="flex gap-2 mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <button
+                    onClick={() => router.push(`/profile/${partner.id}`)}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-all text-sm"
+                  >
+                    {t('viewProfile')}
+                  </button>
+                  <button
+                    onClick={() => router.push(`/chat/partners?conversation=${partner.id}`)}
+                    className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-lg font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all text-sm"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleRemovePartner(partner.matchId)}
+                    className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-lg font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-all text-sm"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
                     </div>
-                  </GlowBorder>
                 </FadeIn>
               ))}
             </div>

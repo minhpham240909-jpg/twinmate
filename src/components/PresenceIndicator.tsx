@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface PresenceIndicatorProps {
@@ -14,9 +14,11 @@ interface PresenceState {
 
 export default function PresenceIndicator({ sessionId }: PresenceIndicatorProps) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
-  const supabase = createClient()
+  // PERF: Memoize supabase client to prevent subscription recreation on re-renders
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    let isMounted = true
     const channel = supabase.channel(`session-${sessionId}-presence`, {
       config: {
         presence: {
@@ -27,6 +29,7 @@ export default function PresenceIndicator({ sessionId }: PresenceIndicatorProps)
 
     channel
       .on('presence', { event: 'sync' }, () => {
+        if (!isMounted) return
         const state = channel.presenceState()
         const userIds = new Set<string>()
 
@@ -42,10 +45,11 @@ export default function PresenceIndicator({ sessionId }: PresenceIndicatorProps)
         setOnlineUsers(userIds)
       })
       .subscribe(async (status) => {
+        if (!isMounted) return
         if (status === 'SUBSCRIBED') {
           // Track current user's presence
           const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
+          if (user && isMounted) {
             await channel.track({
               user_id: user.id,
               online_at: new Date().toISOString(),
@@ -55,6 +59,7 @@ export default function PresenceIndicator({ sessionId }: PresenceIndicatorProps)
       })
 
     return () => {
+      isMounted = false
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase])

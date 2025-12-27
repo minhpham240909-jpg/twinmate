@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { subscribeToNotifications } from '@/lib/supabase/realtime'
 import { useAuth } from '@/lib/auth/context'
@@ -282,23 +282,26 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
     return date.toLocaleDateString()
   }
 
-  const handleSelectAll = () => {
+  // PERF: Memoize handlers to prevent unnecessary re-renders of notification items
+  const handleSelectAll = useCallback(() => {
     if (selectedNotifications.size === notifications.length) {
       setSelectedNotifications(new Set())
     } else {
       setSelectedNotifications(new Set(notifications.map(n => n.id)))
     }
-  }
+  }, [selectedNotifications.size, notifications])
 
-  const handleSelectNotification = (notificationId: string) => {
-    const newSelected = new Set(selectedNotifications)
-    if (newSelected.has(notificationId)) {
-      newSelected.delete(notificationId)
-    } else {
-      newSelected.add(notificationId)
-    }
-    setSelectedNotifications(newSelected)
-  }
+  const handleSelectNotification = useCallback((notificationId: string) => {
+    setSelectedNotifications(prev => {
+      const newSelected = new Set(prev)
+      if (newSelected.has(notificationId)) {
+        newSelected.delete(notificationId)
+      } else {
+        newSelected.add(notificationId)
+      }
+      return newSelected
+    })
+  }, [])
 
   const handleDeleteSelected = async () => {
     if (selectedNotifications.size === 0) return

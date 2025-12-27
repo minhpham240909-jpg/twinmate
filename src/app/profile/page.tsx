@@ -276,21 +276,21 @@ export default function MyProfilePage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
+    <div className="min-h-screen bg-white dark:bg-neutral-950">
       {/* Header Navigation */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-neutral-200 dark:border-neutral-800">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
           <button
             onClick={() => router.push('/dashboard')}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors -ml-2"
+            className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors -ml-2"
           >
-            <svg className="w-5 h-5 text-gray-900 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-neutral-900 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div className="ml-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{profile?.name || user.email}</h1>
-            <p className="text-sm text-gray-600 dark:text-slate-400">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
+            <h1 className="text-xl font-bold text-neutral-900 dark:text-white">{profile?.name || user.email}</h1>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
           </div>
         </div>
       </header>
@@ -329,11 +329,11 @@ export default function MyProfilePage() {
 
           {/* Cover Photo Menu */}
           {showCoverPhotoMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 overflow-hidden z-[9999]">
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden z-[9999]">
               {coverPhotoUrl && (
                 <button
                   onClick={handleSeeCoverPhoto}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-3 text-left text-sm text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -344,7 +344,7 @@ export default function MyProfilePage() {
               )}
               <button
                 onClick={handleUploadCoverPhoto}
-                className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-3 text-left text-sm text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -405,10 +405,10 @@ export default function MyProfilePage() {
 
             {/* Avatar Menu */}
             {showAvatarMenu && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-none border border-gray-200 dark:border-white/10 overflow-hidden z-[9999]">
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden z-[9999]">
                 <button
                   onClick={handleUploadAvatar}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-3 text-left text-sm text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -420,7 +420,7 @@ export default function MyProfilePage() {
                     router.push('/profile/edit')
                     setShowAvatarMenu(false)
                   }}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-3 text-left text-sm text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -434,14 +434,14 @@ export default function MyProfilePage() {
 
         {/* User Info */}
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{profile?.name || user.email || 'User'}</h1>
-          <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">@{user.email?.split('@')[0]}</p>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">{profile?.name || user.email || 'User'}</h1>
+          <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-3">@{user.email?.split('@')[0]}</p>
 
           {profile?.bio && (
-            <p className="text-gray-700 dark:text-slate-300 mb-3 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+            <p className="text-neutral-700 dark:text-neutral-300 mb-3 whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-slate-400 mb-3">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400 mb-3">
             {(profile as any)?.school && (
               <div className="flex items-center gap-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

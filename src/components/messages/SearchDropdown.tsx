@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MagnifyingGlassIcon, UserIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 import { useTranslations } from 'next-intl'
 
@@ -108,17 +108,18 @@ export default function SearchDropdown({
     }
   }, [searchQuery])
 
-  const handleConversationClick = (conversationId: string) => {
+  // PERF: Memoize handlers to prevent re-renders of child items
+  const handleConversationClick = useCallback((conversationId: string) => {
     onConversationSelect(conversationId)
     setShowDropdown(false)
     setSearchQuery('')
-  }
+  }, [onConversationSelect])
 
-  const handleMessageClick = (conversationId: string, messageId: string) => {
+  const handleMessageClick = useCallback((conversationId: string, messageId: string) => {
     onMessageSelect(conversationId, messageId)
     setShowDropdown(false)
     setSearchQuery('')
-  }
+  }, [onMessageSelect])
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp)

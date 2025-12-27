@@ -209,7 +209,8 @@ export async function GET(request: Request) {
 
     if (groupIds.length > 0) {
       messageQueries.push(
-        // Last messages for groups
+        // Last messages for groups - PERF: Use distinct to get only one per group
+        // This limits the scan to at most one message per group instead of all messages
         prisma.message.findMany({
           where: { groupId: { in: groupIds } },
           select: {
@@ -223,7 +224,8 @@ export async function GET(request: Request) {
             groupId: true
           },
           orderBy: { createdAt: 'desc' },
-          distinct: ['groupId']
+          distinct: ['groupId'],
+          take: groupIds.length // PERF: Limit to number of groups (one per group max)
         }).then(results => ({ type: 'group', results })),
         // Unread counts for groups
         prisma.message.groupBy({

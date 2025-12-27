@@ -105,11 +105,11 @@ export default function AdminDashboard() {
     adminId: 'admin-dashboard', // Dashboard-level admin ID
     onNewReport: (report) => {
       // Show notification for new reports
-      console.log('[Admin] New report received:', report.id)
+      console.log('[Admin] New report received:', report)
     },
     onNewUser: (user) => {
       // Add new user to recent signups list
-      console.log('[Admin] New user signup:', user.email)
+      console.log('[Admin] New user signup:', user)
       fetchRecentSignups()
     },
     onAISessionChange: (session) => {

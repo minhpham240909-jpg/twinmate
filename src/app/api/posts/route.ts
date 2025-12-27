@@ -51,23 +51,27 @@ export async function GET(req: NextRequest) {
     // Get feed algorithm preference (default: RECOMMENDED)
     const feedAlgorithm = settings?.feedAlgorithm || 'RECOMMENDED'
 
-    // Get user's partner IDs (accepted matches)
-    const partnerMatches = await prisma.match.findMany({
+    // PERF: Get ALL user connections in one query (avoid duplicate match query later)
+    // This query includes both ACCEPTED (for partner posts) and PENDING (for connection status)
+    const userConnections = await prisma.match.findMany({
       where: {
         OR: [
-          { senderId: user.id, status: 'ACCEPTED' },
-          { receiverId: user.id, status: 'ACCEPTED' },
+          { senderId: user.id },
+          { receiverId: user.id },
         ],
       },
       select: {
+        id: true,
         senderId: true,
         receiverId: true,
+        status: true,
       },
     })
 
-    const partnerIds = partnerMatches.map(match =>
-      match.senderId === user.id ? match.receiverId : match.senderId
-    )
+    // Extract partner IDs from accepted matches only (for post visibility)
+    const partnerIds = userConnections
+      .filter(match => match.status === 'ACCEPTED')
+      .map(match => match.senderId === user.id ? match.receiverId : match.senderId)
 
     // H11 FIX: Build query with stable cursor for consistent pagination
     // Using createdAt + id combination prevents duplicates/missing posts when new posts are created
@@ -207,22 +211,7 @@ export async function GET(req: NextRequest) {
       finalPosts = posts.slice(0, limit)
     }
 
-    // Get all connections for the current user
-    const userConnections = await prisma.match.findMany({
-      where: {
-        OR: [
-          { senderId: user.id },
-          { receiverId: user.id },
-        ],
-      },
-      select: {
-        id: true,
-        senderId: true,
-        receiverId: true,
-        status: true,
-      },
-    })
-
+    // PERF: Reuse userConnections from above (already fetched) - no duplicate query needed
     // Create a map of userId -> connectionStatus
     const connectionStatusMap = new Map<string, 'none' | 'pending' | 'connected'>()
     userConnections.forEach(connection => {
