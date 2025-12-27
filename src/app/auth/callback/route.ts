@@ -109,55 +109,9 @@ export async function GET(request: Request) {
           // Continue anyway - user can be synced later
         }
 
-        // Use client-side redirect to ensure cookies are fully set before navigation
-        // This prevents the redirect loop issue with OAuth
-        const html = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta http-equiv="refresh" content="0;url=${redirectPath}">
-              <title>Redirecting...</title>
-              <style>
-                body {
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  min-height: 100vh;
-                  margin: 0;
-                  background: #0f172a;
-                  color: white;
-                  font-family: system-ui, -apple-system, sans-serif;
-                }
-                .loader {
-                  width: 48px;
-                  height: 48px;
-                  border: 4px solid #3b82f6;
-                  border-top-color: transparent;
-                  border-radius: 50%;
-                  animation: spin 1s linear infinite;
-                }
-                @keyframes spin {
-                  to { transform: rotate(360deg); }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="loader"></div>
-              <script>
-                // Client-side redirect as backup
-                window.location.href = '${redirectPath}';
-              </script>
-            </body>
-          </html>
-        `
-
-        return new NextResponse(html, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/html',
-          },
-        })
+        // Direct server-side redirect for fastest navigation
+        // The session cookies are already set by Supabase SSR
+        return NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
       }
 
       // If no session, redirect to signin
