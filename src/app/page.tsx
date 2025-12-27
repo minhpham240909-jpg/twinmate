@@ -234,11 +234,12 @@ export default function HomePage() {
             >
               <div className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xl">
                 <Image
-                  src="/screenshots/find-partner.png"
+                  src="/screenshots/find-partner.png?v=2"
                   alt="Find Study Partners"
                   width={800}
                   height={600}
                   className="w-full h-auto"
+                  unoptimized
                 />
               </div>
             </motion.div>
@@ -342,11 +343,12 @@ export default function HomePage() {
               </div>
               <div className="mt-4 relative z-10">
                 <Image
-                  src="/screenshots/video-call.png"
+                  src="/screenshots/video-call.png?v=2"
                   alt="Video call feature"
                   width={800}
                   height={450}
                   className="rounded-lg border border-slate-700 shadow-xl"
+                  unoptimized
                 />
               </div>
             </motion.div>
