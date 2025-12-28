@@ -26,8 +26,12 @@ const VALID_FORM_CONTENT_TYPES = [
 // Routes that accept form data (file uploads)
 const FORM_DATA_ROUTES = [
   '/api/upload/',
-  '/api/groups/', // For group avatar uploads
   '/api/messages/upload-file',
+]
+
+// Routes that accept EITHER form data OR JSON (flexible routes)
+const FLEXIBLE_ROUTES = [
+  '/api/groups/', // Group routes can be JSON (create) or form-data (avatar upload)
 ]
 
 // Routes exempt from content-type validation
@@ -41,10 +45,17 @@ const EXEMPT_ROUTES = [
 ]
 
 /**
- * Check if a route accepts form data
+ * Check if a route accepts form data only
  */
 export function isFormDataRoute(pathname: string): boolean {
   return FORM_DATA_ROUTES.some(route => pathname.includes(route))
+}
+
+/**
+ * Check if a route accepts either form data or JSON
+ */
+export function isFlexibleRoute(pathname: string): boolean {
+  return FLEXIBLE_ROUTES.some(route => pathname.includes(route))
 }
 
 /**
@@ -88,38 +99,64 @@ export function validateContentType(request: NextRequest): {
     return { valid: true }
   }
   
-  // Check if route expects form data
+  // Check if route expects form data only
   if (isFormDataRoute(pathname)) {
     if (!contentType) {
       return { valid: false, error: 'Content-Type header is required' }
     }
-    
+
     // Check if content type starts with any valid form type
     const hasValidFormType = VALID_FORM_CONTENT_TYPES.some(
       type => contentType.toLowerCase().startsWith(type)
     )
-    
+
     if (!hasValidFormType) {
       return {
         valid: false,
         error: 'Invalid Content-Type for file upload. Expected multipart/form-data',
       }
     }
-    
+
     return { valid: true }
   }
-  
+
+  // Check if route accepts either form data or JSON (flexible routes)
+  if (isFlexibleRoute(pathname)) {
+    if (!contentType) {
+      return { valid: false, error: 'Content-Type header is required' }
+    }
+
+    const normalizedContentType = contentType.toLowerCase().trim()
+
+    // Accept either JSON or form data
+    const hasValidFormType = VALID_FORM_CONTENT_TYPES.some(
+      type => normalizedContentType.startsWith(type)
+    )
+    const isValidJson = VALID_JSON_CONTENT_TYPES.some(
+      type => normalizedContentType.startsWith(type.toLowerCase())
+    )
+
+    if (!hasValidFormType && !isValidJson) {
+      return {
+        valid: false,
+        error: 'Invalid Content-Type. Expected application/json or multipart/form-data',
+      }
+    }
+
+    return { valid: true }
+  }
+
   // For JSON API routes
   if (!contentType) {
     return { valid: false, error: 'Content-Type header is required' }
   }
-  
+
   // Check if content type is valid JSON
   const normalizedContentType = contentType.toLowerCase().trim()
   const isValidJson = VALID_JSON_CONTENT_TYPES.some(
     type => normalizedContentType.startsWith(type.toLowerCase())
   )
-  
+
   if (!isValidJson) {
     logger.warn('Invalid Content-Type header', {
       pathname,
@@ -131,7 +168,7 @@ export function validateContentType(request: NextRequest): {
       error: 'Invalid Content-Type. Expected application/json',
     }
   }
-  
+
   return { valid: true }
 }
 
