@@ -135,7 +135,10 @@ export default function GroupsPage() {
   // Fetch user's groups
   const fetchMyGroups = async () => {
     try {
-      const response = await fetch('/api/groups/my-groups')
+      // Use cache: 'no-store' to always get fresh data after creating/modifying groups
+      const response = await fetch('/api/groups/my-groups', {
+        cache: 'no-store',
+      })
       if (response.ok) {
         const data = await response.json()
         const groups = data.groups || []

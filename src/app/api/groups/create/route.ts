@@ -77,37 +77,44 @@ export async function POST(request: NextRequest) {
       invitedUsernames,
     } = validation.data
 
-    // Create group and add creator as member in a single transaction
+    // Create group and add creator as member
     let group
     try {
-      group = await prisma.$transaction(async (tx) => {
-        const newGroup = await tx.group.create({
-          data: {
-            name,
-            subject,
-            subjectCustomDescription: subjectCustomDescription || null,
-            description: description || null,
-            skillLevel: skillLevel || null,
-            skillLevelCustomDescription: skillLevelCustomDescription || null,
-            maxMembers,
-            ownerId: user.id,
-            privacy: 'PUBLIC',
-          },
-        })
+      // Create the group first
+      group = await prisma.group.create({
+        data: {
+          name,
+          subject,
+          subjectCustomDescription: subjectCustomDescription || null,
+          description: description || null,
+          skillLevel: skillLevel || null,
+          skillLevelCustomDescription: skillLevelCustomDescription || null,
+          maxMembers,
+          ownerId: user.id,
+          privacy: 'PUBLIC',
+        },
+      })
 
-        // Add creator as first member (owner)
-        await tx.groupMember.create({
-          data: {
-            groupId: newGroup.id,
-            userId: user.id,
-            role: 'OWNER',
-          },
-        })
-
-        return newGroup
+      // Add creator as first member (owner)
+      await prisma.groupMember.create({
+        data: {
+          groupId: group.id,
+          userId: user.id,
+          role: 'OWNER',
+        },
       })
     } catch (dbError) {
-      console.error('[groups/create] Database transaction error:', dbError)
+      console.error('[groups/create] Database error:', dbError)
+
+      // If group was created but member wasn't, try to clean up
+      if (group?.id) {
+        try {
+          await prisma.group.delete({ where: { id: group.id } })
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
       return NextResponse.json(
         { error: 'Failed to create group', details: dbError instanceof Error ? dbError.message : 'Unknown database error' },
         { status: 503 }
