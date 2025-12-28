@@ -790,7 +790,8 @@
     "linkCopiedToClipboard": "¡Enlace copiado al portapapeles!",
     "failedToEditPost": "Error al editar publicación. Por favor, inténtalo de nuevo.",
     "confirmDeletePost": "¿Estás seguro de que quieres eliminar esta publicación?",
-    "failedToDeletePostRetry": "Error al eliminar publicación. Por favor, inténtalo de nuevo."
+    "failedToDeletePostRetry": "Error al eliminar publicación. Por favor, inténtalo de nuevo.",
+    "reportUser": "Reportar Usuario"
   },
   "messages": {
     "title": "Mensajes",

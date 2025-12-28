@@ -9,6 +9,7 @@ export async function POST() {
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
+      console.error('[sync-user] Auth error:', error?.message || 'No user')
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
@@ -16,9 +17,18 @@ export async function POST() {
     }
 
     // Check if user exists in database
-    let dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    })
+    let dbUser
+    try {
+      dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+      })
+    } catch (dbError) {
+      console.error('[sync-user] Database connection error:', dbError)
+      return NextResponse.json(
+        { error: 'Database connection failed', details: dbError instanceof Error ? dbError.message : 'Unknown error' },
+        { status: 503 }
+      )
+    }
 
     // Create user if doesn't exist
     if (!dbUser) {
@@ -76,9 +86,11 @@ export async function POST() {
 
     return NextResponse.json({ success: true, user: dbUser })
   } catch (error) {
-    console.error('Sync user error:', error)
+    console.error('[sync-user] Unexpected error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorName = error instanceof Error ? error.name : 'UnknownError'
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage, type: errorName },
       { status: 500 }
     )
   }
