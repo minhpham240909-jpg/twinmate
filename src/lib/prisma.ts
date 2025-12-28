@@ -46,26 +46,35 @@ const getDatabaseUrl = () => {
     // Return a dummy URL during build to prevent connection attempts
     return 'postgresql://dummy:dummy@localhost:5432/dummy'
   }
-  
+
   const baseUrl = process.env.DATABASE_URL
   if (!baseUrl) {
+    console.error('[Prisma] DATABASE_URL is not set!')
     return 'postgresql://dummy:dummy@localhost:5432/dummy'
   }
-  
+
+  // Log connection info for debugging (without password)
+  try {
+    const debugUrl = new URL(baseUrl)
+    console.log('[Prisma] Connecting to:', debugUrl.host, 'port:', debugUrl.port)
+  } catch {
+    console.log('[Prisma] Using DATABASE_URL (could not parse for logging)')
+  }
+
   // Parse and enhance the connection string with security parameters
   try {
     const url = new URL(baseUrl)
-    
+
     // Add connection pool parameters
     url.searchParams.set('connection_limit', CONNECTION_POOL_SIZE.toString())
     url.searchParams.set('pool_timeout', CONNECTION_TIMEOUT_SECONDS.toString())
-    
+
     // Add statement timeout (query timeout)
     url.searchParams.set('statement_timeout', (QUERY_TIMEOUT_SECONDS * 1000).toString())
-    
+
     // Add connection timeout
     url.searchParams.set('connect_timeout', CONNECTION_TIMEOUT_SECONDS.toString())
-    
+
     return url.toString()
   } catch {
     // If URL parsing fails, return base URL

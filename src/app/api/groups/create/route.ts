@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.error('[groups/create] Auth error:', authError?.message || 'No user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -40,7 +41,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is banned or deactivated
-    const accessCheck = await enforceUserAccess(user.id)
+    let accessCheck
+    try {
+      accessCheck = await enforceUserAccess(user.id)
+    } catch (accessError) {
+      console.error('[groups/create] Access check error:', accessError)
+      return NextResponse.json(
+        { error: 'Database connection failed during access check', details: accessError instanceof Error ? accessError.message : 'Unknown error' },
+        { status: 503 }
+      )
+    }
     if (!accessCheck.allowed) {
       return NextResponse.json(accessCheck.errorResponse, { status: 403 })
     }
@@ -68,32 +78,41 @@ export async function POST(request: NextRequest) {
     } = validation.data
 
     // Create group and add creator as member in a single transaction
-    const group = await prisma.$transaction(async (tx) => {
-      const newGroup = await tx.group.create({
-        data: {
-          name,
-          subject,
-          subjectCustomDescription: subjectCustomDescription || null,
-          description: description || null,
-          skillLevel: skillLevel || null,
-          skillLevelCustomDescription: skillLevelCustomDescription || null,
-          maxMembers,
-          ownerId: user.id,
-          privacy: 'PUBLIC',
-        },
-      })
+    let group
+    try {
+      group = await prisma.$transaction(async (tx) => {
+        const newGroup = await tx.group.create({
+          data: {
+            name,
+            subject,
+            subjectCustomDescription: subjectCustomDescription || null,
+            description: description || null,
+            skillLevel: skillLevel || null,
+            skillLevelCustomDescription: skillLevelCustomDescription || null,
+            maxMembers,
+            ownerId: user.id,
+            privacy: 'PUBLIC',
+          },
+        })
 
-      // Add creator as first member (owner)
-      await tx.groupMember.create({
-        data: {
-          groupId: newGroup.id,
-          userId: user.id,
-          role: 'OWNER',
-        },
-      })
+        // Add creator as first member (owner)
+        await tx.groupMember.create({
+          data: {
+            groupId: newGroup.id,
+            userId: user.id,
+            role: 'OWNER',
+          },
+        })
 
-      return newGroup
-    })
+        return newGroup
+      })
+    } catch (dbError) {
+      console.error('[groups/create] Database transaction error:', dbError)
+      return NextResponse.json(
+        { error: 'Failed to create group', details: dbError instanceof Error ? dbError.message : 'Unknown database error' },
+        { status: 503 }
+      )
+    }
 
     // Send invites to specified users
     if (invitedUsernames.length > 0) {
