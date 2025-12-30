@@ -116,6 +116,22 @@ export const ADMIN_RATE_LIMITS = {
     keyPrefix: 'admin:rl:ai',
     message: 'AI monitoring rate limit exceeded.',
   },
+
+  // User management (list, search, details)
+  users: {
+    windowMs: 60000,        // 1 minute
+    maxRequests: 60,        // 60 requests per minute
+    keyPrefix: 'admin:rl:users',
+    message: 'User management rate limit exceeded. Please slow down.',
+  },
+
+  // Message browsing (can be expensive with large datasets)
+  messages: {
+    windowMs: 60000,        // 1 minute
+    maxRequests: 30,        // 30 requests per minute
+    keyPrefix: 'admin:rl:messages',
+    message: 'Message browsing rate limit exceeded. Please slow down.',
+  },
 } as const
 
 // =====================================================

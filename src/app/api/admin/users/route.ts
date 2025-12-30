@@ -5,9 +5,14 @@ import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
 import { handlePrivilegeChange } from '@/lib/security/session-rotation'
 import logger from '@/lib/logger'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET - List users with search, filter, and pagination
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit admin user list requests
+  const rateLimitResult = await adminRateLimit(request, 'users')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

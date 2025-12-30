@@ -17,8 +17,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { AISessionStatus, Prisma } from '@prisma/client'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit admin AI sessions list requests
+  const rateLimitResult = await adminRateLimit(request, 'analytics')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     // Check if user is admin
     const supabase = await createClient()

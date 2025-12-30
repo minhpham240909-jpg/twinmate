@@ -2,9 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET - Fetch messages with filters
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit admin message list requests
+  const rateLimitResult = await adminRateLimit(request, 'messages')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     // Verify admin access
     const supabase = await createClient()
