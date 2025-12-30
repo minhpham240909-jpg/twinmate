@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 type MatchWithRelations = {
   id: string
@@ -24,6 +25,19 @@ type MatchWithRelations = {
 }
 
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit connections list fetches (prevents scraping)
+  const rateLimitResult = await rateLimit(request, {
+    ...RateLimitPresets.lenient, // 100 requests per minute
+    keyPrefix: 'connections-list',
+  })
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

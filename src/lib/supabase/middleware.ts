@@ -53,7 +53,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Define route categories
-  const publicRoutes = ['/auth/confirm-email', '/auth/reset-password', '/auth/error', '/auth/callback']
+  const publicRoutes = ['/auth/confirm-email', '/auth/reset-password', '/auth/error', '/auth/callback', '/privacy', '/terms', '/help']
   const authRoutes = ['/auth/signin', '/auth/signup', '/auth/forgot-password']
   const publicApiRoutes = ['/api/auth/', '/api/cron/', '/api/webhooks/', '/api/health', '/api/stripe/webhook']
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))

@@ -2,11 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  // SCALABILITY: Rate limit session join requests (prevents abuse)
+  const rateLimitResult = await rateLimit(request, {
+    ...RateLimitPresets.moderate, // 30 requests per minute
+    keyPrefix: 'session-join',
+  })
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many join requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Authenticate user
     const supabase = await createClient()
@@ -143,12 +157,6 @@ export async function POST(
         })
       }
       throw txError // Re-throw other errors
-    })
-
-    // Get user info for notification
-    const joiningUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { name: true },
     })
 
     // Notify host and other participants

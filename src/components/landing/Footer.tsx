@@ -126,6 +126,16 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Legal Links */}
+        <div className="flex flex-wrap justify-center gap-6 mb-8">
+          <Link
+            href="/privacy"
+            className="text-slate-500 hover:text-slate-700 transition-colors duration-200 text-sm"
+          >
+            Privacy Policy
+          </Link>
+        </div>
+
         {/* Divider */}
         <div className="border-t border-slate-200 mb-8" />
 

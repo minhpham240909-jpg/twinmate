@@ -1,10 +1,13 @@
 /**
  * AI Partner - OpenAI Integration
  * Handles all OpenAI API calls for the AI study partner feature
+ *
+ * SCALABILITY: Enhanced with request queuing to support 1000-3000 concurrent users
  */
 
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+import { enqueueRequest, QueuePriority, createDedupeKey } from './queue'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -654,6 +657,49 @@ export async function sendChatMessage(
     
     throw new Error('Failed to get AI response. Please try again.')
   }
+}
+
+/**
+ * SCALABILITY: Queued version of sendChatMessage for high-concurrency scenarios
+ * Uses the request queue to prevent rate limit exhaustion with 1000-3000 users
+ *
+ * @param messages - Chat messages to send
+ * @param options - Chat options including queue priority and userId for deduplication
+ */
+export async function sendChatMessageQueued(
+  messages: AIMessage[],
+  options: {
+    temperature?: number
+    maxTokens?: number
+    model?: string
+    manageContext?: boolean
+    // Queue options
+    priority?: QueuePriority
+    userId?: string
+    enableDeduplication?: boolean
+  } = {}
+): Promise<ChatCompletionResult> {
+  const {
+    priority = QueuePriority.NORMAL,
+    userId,
+    enableDeduplication = true,
+    ...chatOptions
+  } = options
+
+  // Create deduplication key if enabled
+  const dedupeKey = enableDeduplication && userId
+    ? createDedupeKey(userId, 'chat', messages[messages.length - 1]?.content || '')
+    : undefined
+
+  // Enqueue the request
+  return enqueueRequest(
+    () => sendChatMessage(messages, chatOptions),
+    {
+      priority,
+      userId,
+      dedupeKey,
+    }
+  )
 }
 
 // =============================================================================
@@ -2604,5 +2650,153 @@ RESPOND IN JSON FORMAT:
   } catch (error) {
     console.error('[AI Partner] Image suggestion check error:', error)
     return { shouldSuggest: false }
+  }
+}
+
+/**
+ * Generate mixed quiz questions (multiple choice and open-ended)
+ * Used for interactive quiz sessions
+ */
+export async function generateMixedQuizFromChat(params: {
+  conversationSummary: string
+  subject?: string
+  skillLevel?: string
+  count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
+  questionType?: 'multiple_choice' | 'open_ended' | 'both'
+  excludeQuestions?: string[] // Questions to exclude for "Try Again" feature
+}): Promise<Array<{
+  question: string
+  type: 'multiple_choice' | 'open_ended'
+  options?: string[]
+  correctAnswer?: number
+  correctAnswerText?: string
+  explanation: string
+}>> {
+  const {
+    conversationSummary,
+    subject,
+    skillLevel,
+    count = 5,
+    difficulty = 'medium',
+    questionType = 'both',
+    excludeQuestions = [],
+  } = params
+
+  // Build skill level guidance
+  const skillLevelGuidance = skillLevel
+    ? {
+        BEGINNER:
+          'The student is at a BEGINNER level. Focus on fundamental concepts discussed, basic definitions, and introductory material. Use simple, clear language.',
+        INTERMEDIATE:
+          'The student is at an INTERMEDIATE level. Include questions that test application of discussed concepts and require connecting multiple ideas.',
+        ADVANCED:
+          'The student is at an ADVANCED level. Create challenging questions that test deep understanding of discussed topics and require analysis.',
+        EXPERT:
+          'The student is at an EXPERT level. Generate sophisticated questions testing nuanced understanding and critical thinking about the discussed material.',
+      }[skillLevel]
+    : ''
+
+  // Determine question type distribution
+  let typeInstruction = ''
+  if (questionType === 'multiple_choice') {
+    typeInstruction = 'Generate ONLY multiple choice questions.'
+  } else if (questionType === 'open_ended') {
+    typeInstruction = 'Generate ONLY open-ended questions that require written answers.'
+  } else {
+    typeInstruction = `Generate a MIX of question types - approximately half multiple choice and half open-ended.`
+  }
+
+  // Build exclusion instruction if there are questions to exclude
+  const exclusionInstruction = excludeQuestions.length > 0
+    ? `\nIMPORTANT - DO NOT REPEAT THESE QUESTIONS (generate NEW different questions on similar concepts):
+${excludeQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')}\n`
+    : ''
+
+  const systemPrompt = `You are a quiz generator that creates questions based on study conversation context.
+
+${skillLevelGuidance}
+
+${typeInstruction}
+${exclusionInstruction}
+RULES:
+- Create questions about topics that were actually discussed in the conversation
+- For multiple choice: provide 4 options (A, B, C, D), only one correct answer
+- For open-ended: provide a clear question and the expected answer text
+- Include a brief explanation for each correct answer
+- Match the difficulty level requested
+- Focus on testing understanding of key concepts from the discussion
+- Tailor question complexity to the student's skill level if specified
+- Generate NEW questions that are DIFFERENT from any previously asked questions
+- Questions should test similar concepts but be worded differently and ask about different aspects
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{
+  "questions": [
+    {
+      "question": "The question text",
+      "type": "multiple_choice",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0,
+      "explanation": "Why this is correct"
+    },
+    {
+      "question": "An open-ended question?",
+      "type": "open_ended",
+      "correctAnswerText": "The expected answer or key points",
+      "explanation": "Explanation of the answer"
+    }
+  ]
+}
+
+Notes:
+- For multiple_choice: include "options" array and "correctAnswer" (index 0-3)
+- For open_ended: include "correctAnswerText" (the expected answer)`
+
+  const userPrompt = `Generate ${count} ${difficulty} difficulty quiz questions${
+    skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''
+  } based on this study conversation${subject ? ` about ${subject}` : ''}:
+
+${conversationSummary}
+
+Create questions that test understanding of the concepts discussed, appropriate for the student's level.`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' },
+    })
+
+    const content = completion.choices[0]?.message?.content || '{}'
+    const result = JSON.parse(content)
+
+    // Validate and normalize the response
+    const questions = result.questions || []
+    return questions.map(
+      (q: {
+        question: string
+        type?: string
+        options?: string[]
+        correctAnswer?: number
+        correctAnswerText?: string
+        explanation: string
+      }) => ({
+        question: q.question,
+        type: q.type === 'open_ended' ? 'open_ended' : 'multiple_choice',
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        correctAnswerText: q.correctAnswerText,
+        explanation: q.explanation || 'No explanation provided.',
+      })
+    )
+  } catch (error) {
+    console.error('[AI Partner] Mixed quiz generation error:', error)
+    throw new Error('Failed to generate quiz from conversation')
   }
 }

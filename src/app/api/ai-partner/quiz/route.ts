@@ -2,11 +2,13 @@
  * AI Partner Quiz API
  * POST /api/ai-partner/quiz - Generate quiz question(s)
  * Supports both topic-based and conversation-based quiz generation
+ * Also supports interactive quiz mode with mixed question types
+ * Supports regeneration with excluded questions for "Try Again" feature
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { generateQuiz, generateQuizFromConversation } from '@/lib/ai-partner'
+import { generateQuiz, generateQuizFromConversation, generateInteractiveQuiz } from '@/lib/ai-partner'
 
 // POST: Generate quiz question(s)
 export async function POST(request: NextRequest) {
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { sessionId, topic, difficulty, fromConversation, count } = body
+    const { sessionId, topic, difficulty, fromConversation, count, questionType, interactive, excludeQuestions } = body
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
@@ -31,8 +33,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid difficulty' }, { status: 400 })
     }
 
+    // Validate question type if provided
+    const validQuestionTypes = ['multiple_choice', 'open_ended', 'both']
+    if (questionType && !validQuestionTypes.includes(questionType)) {
+      return NextResponse.json({ error: 'Invalid question type' }, { status: 400 })
+    }
+
     // Limit quiz count
     const quizCount = Math.min(Math.max(count || 5, 1), 10)
+
+    // Interactive mode: Generate mixed quiz for interactive quiz sessions
+    if (interactive) {
+      const result = await generateInteractiveQuiz({
+        sessionId,
+        userId: user.id,
+        count: quizCount,
+        difficulty: difficulty || 'medium',
+        questionType: questionType || 'both',
+        excludeQuestions: excludeQuestions || [], // Pass excluded questions for regeneration
+      })
+
+      return NextResponse.json({
+        success: true,
+        questions: result.questions,
+        messageId: result.messageId,
+        source: 'interactive',
+      })
+    }
 
     // Generate from conversation context if requested
     if (fromConversation) {

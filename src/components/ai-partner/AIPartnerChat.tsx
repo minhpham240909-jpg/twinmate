@@ -17,6 +17,8 @@ import {
   Upload,
   ZoomIn,
 } from 'lucide-react'
+import QuizModal from './QuizModal'
+import FlashcardModal, { FlashcardConfig, FlashcardSource } from './FlashcardModal'
 
 interface Message {
   id: string
@@ -31,14 +33,20 @@ interface Message {
   imageType?: string | null
 }
 
+export interface QuizConfig {
+  count: number
+  questionType: 'multiple_choice' | 'open_ended' | 'both'
+  difficulty: 'easy' | 'medium' | 'hard'
+}
+
 interface AIPartnerChatProps {
   sessionId: string
   messages: Message[]
   onSendMessage: (content: string) => Promise<void>
   onSendMessageWithImage: (content: string, imageBase64: string, imageMimeType: string) => Promise<void>
   onGenerateImage?: (prompt: string, style?: string) => Promise<void>
-  onGenerateQuiz: () => Promise<void>
-  onGenerateFlashcards: (topic: string) => Promise<void>
+  onGenerateQuiz: (config: QuizConfig) => Promise<void>
+  onGenerateFlashcards: (config: FlashcardConfig) => Promise<void>
   isLoading?: boolean
   subject?: string | null
 }
@@ -60,9 +68,11 @@ export default function AIPartnerChat({
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [showFlashcardModal, setShowFlashcardModal] = useState(false)
-  const [flashcardTopic, setFlashcardTopic] = useState('')
+  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false)
   const [selectedImage, setSelectedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null)
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null)
+  const [showQuizModal, setShowQuizModal] = useState(false)
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -130,11 +140,28 @@ export default function AIPartnerChat({
     }
   }
 
-  const handleFlashcardGeneration = async () => {
-    if (!flashcardTopic.trim()) return
-    setShowFlashcardModal(false)
-    await onGenerateFlashcards(flashcardTopic.trim())
-    setFlashcardTopic('')
+  const handleFlashcardGeneration = async (config: FlashcardConfig) => {
+    setIsGeneratingFlashcards(true)
+    try {
+      await onGenerateFlashcards(config)
+      setShowFlashcardModal(false)
+    } catch (error) {
+      console.error('Failed to generate flashcards:', error)
+    } finally {
+      setIsGeneratingFlashcards(false)
+    }
+  }
+
+  const handleQuizGeneration = async (config: QuizConfig) => {
+    setIsGeneratingQuiz(true)
+    try {
+      await onGenerateQuiz(config)
+      setShowQuizModal(false)
+    } catch (error) {
+      console.error('Failed to generate quiz:', error)
+    } finally {
+      setIsGeneratingQuiz(false)
+    }
   }
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,8 +320,8 @@ export default function AIPartnerChat({
       {/* Quick Actions */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700/50 bg-slate-800/50 overflow-x-auto">
         <button
-          onClick={onGenerateQuiz}
-          disabled={isLoading || isSending}
+          onClick={() => setShowQuizModal(true)}
+          disabled={isLoading || isSending || isGeneratingQuiz}
           className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-300 rounded-lg hover:bg-purple-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
         >
           <Brain className="w-4 h-4" />
@@ -447,70 +474,23 @@ export default function AIPartnerChat({
         </p>
       </div>
 
-      {/* Flashcard Topic Modal */}
-      <AnimatePresence>
-        {showFlashcardModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowFlashcardModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-700"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-green-400" />
-                  {t('chat.flashcardsGeneration')}
-                </h3>
-                <button
-                  onClick={() => setShowFlashcardModal(false)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+      {/* Flashcard Modal */}
+      <FlashcardModal
+        isOpen={showFlashcardModal}
+        onClose={() => setShowFlashcardModal(false)}
+        onGenerate={handleFlashcardGeneration}
+        isGenerating={isGeneratingFlashcards}
+        hasConversation={messages.filter(m => m.role === 'USER').length >= 2}
+        subject={subject}
+      />
 
-              <p className="text-slate-400 text-sm mb-4">
-                {t('chat.enterTopic')}
-              </p>
-
-              <input
-                type="text"
-                value={flashcardTopic}
-                onChange={(e) => setFlashcardTopic(e.target.value)}
-                placeholder={t('chat.topicPlaceholder')}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-green-500 mb-4"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleFlashcardGeneration()
-                }}
-              />
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowFlashcardModal(false)}
-                  className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
-                >
-                  {t('cancel')}
-                </button>
-                <button
-                  onClick={handleFlashcardGeneration}
-                  disabled={!flashcardTopic.trim()}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-500 transition-colors disabled:opacity-50"
-                >
-                  {t('chat.createFlashcards')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Quiz Modal */}
+      <QuizModal
+        isOpen={showQuizModal}
+        onClose={() => setShowQuizModal(false)}
+        onGenerate={handleQuizGeneration}
+        isGenerating={isGeneratingQuiz}
+      />
 
       {/* Enlarged Image Modal */}
       <AnimatePresence>

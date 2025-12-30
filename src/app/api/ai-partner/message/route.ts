@@ -1,41 +1,39 @@
 /**
  * AI Partner Message API
  * POST /api/ai-partner/message - Send message to AI partner
+ *
+ * SCALABILITY: Uses Redis-based rate limiting for 1000-3000 concurrent users
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendMessage } from '@/lib/ai-partner'
+import { rateLimit } from '@/lib/rate-limit'
 
-// Simple per-user rate limit to protect OpenAI/DB (30 requests per minute)
-const RATE_LIMIT_WINDOW_MS = 60_000
-const RATE_LIMIT_MAX = 30
-const rateLimitMap = new Map<string, number[]>()
-
-function isRateLimited(userId: string): boolean {
-  const now = Date.now()
-  const timestamps = rateLimitMap.get(userId) || []
-  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
-  recent.push(now)
-  rateLimitMap.set(userId, recent)
-  return recent.length > RATE_LIMIT_MAX
+// AI Partner rate limit: 30 messages per minute per user
+const AI_PARTNER_RATE_LIMIT = {
+  max: 30,
+  windowMs: 60000,
+  keyPrefix: 'ai-partner-message',
 }
 
 // POST: Send message to AI partner
 export async function POST(request: NextRequest) {
   try {
+    // SCALABILITY: Apply Redis-based rate limiting (works across serverless instances)
+    const rateLimitResult = await rateLimit(request, AI_PARTNER_RATE_LIMIT)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    if (isRateLimited(user.id)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please slow down.' },
-        { status: 429 }
-      )
     }
 
     const body = await request.json()

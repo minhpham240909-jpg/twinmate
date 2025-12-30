@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const searchSchema = z.object({
   query: z.string().min(1).max(100), // H15 FIX: Limit query length
@@ -63,6 +64,19 @@ function isValidSearchTerm(term: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit search requests (prevents user enumeration/scraping)
+  const rateLimitResult = await rateLimit(request, {
+    ...RateLimitPresets.moderate, // 30 requests per minute
+    keyPrefix: 'user-search',
+  })
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many search requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

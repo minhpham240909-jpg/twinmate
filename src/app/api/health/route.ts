@@ -3,14 +3,19 @@
  * Used for monitoring, uptime checks, and deployment verification
  *
  * GET /api/health
+ * GET /api/health?deep=true - Deep health check with queue status
  *
  * Returns 200 OK if all systems operational
  * Returns 503 Service Unavailable if any critical service is down
+ *
+ * SCALABILITY: Enhanced for 1000-3000 concurrent user monitoring
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { getHealthStatus } from '@/lib/monitoring/database-health'
+import { getQueueStatus } from '@/lib/ai-partner/queue'
 
 export const dynamic = 'force-dynamic' // Always run fresh, don't cache
 
@@ -22,10 +27,19 @@ interface HealthCheck {
     supabase: ServiceStatus
     auth: ServiceStatus
     redis: ServiceStatus
+    openaiQueue?: QueueServiceStatus
   }
   config: {
     databasePoolSize: number
     queryTimeout: number
+  }
+  metrics?: {
+    queryMetrics: {
+      totalQueries: number
+      slowQueries: number
+      averageQueryTimeMs: number
+      queriesPerMinute: number
+    }
   }
   uptime: number
   version: string
@@ -37,8 +51,18 @@ interface ServiceStatus {
   error?: string
 }
 
-export async function GET() {
-  const startTime = Date.now()
+interface QueueServiceStatus {
+  status: 'up' | 'down'
+  healthy: boolean
+  activeRequests: number
+  queuedRequests: number
+  circuitState: string
+  requestsPerMinute: number
+  averageWaitMs: number
+}
+
+export async function GET(request: NextRequest) {
+  const isDeep = request.nextUrl.searchParams.get('deep') === 'true'
   const health: HealthCheck = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -153,6 +177,40 @@ export async function GET() {
     }
     // Redis being down is degraded, not unhealthy (app can use in-memory fallback)
     health.status = health.status === 'unhealthy' ? 'unhealthy' : 'degraded'
+  }
+
+  // Deep health check: Include OpenAI queue status and query metrics
+  if (isDeep) {
+    try {
+      // Get OpenAI queue status
+      const queueStatus = getQueueStatus()
+      health.services.openaiQueue = {
+        status: queueStatus.healthy ? 'up' : 'down',
+        healthy: queueStatus.healthy,
+        activeRequests: queueStatus.activeRequests,
+        queuedRequests: queueStatus.queuedRequests,
+        circuitState: queueStatus.circuitState,
+        requestsPerMinute: queueStatus.requestsPerMinute,
+        averageWaitMs: queueStatus.averageWaitMs,
+      }
+
+      if (!queueStatus.healthy) {
+        health.status = health.status === 'unhealthy' ? 'unhealthy' : 'degraded'
+      }
+
+      // Get database query metrics
+      const dbHealthStatus = await getHealthStatus()
+      health.metrics = {
+        queryMetrics: {
+          totalQueries: dbHealthStatus.queries.totalQueries,
+          slowQueries: dbHealthStatus.queries.slowQueries,
+          averageQueryTimeMs: Math.round(dbHealthStatus.queries.averageQueryTimeMs),
+          queriesPerMinute: dbHealthStatus.queries.queriesPerMinute,
+        },
+      }
+    } catch (error) {
+      console.error('[Health] Deep check error:', error)
+    }
   }
 
   // Return appropriate status code

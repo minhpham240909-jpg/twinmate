@@ -15,6 +15,7 @@ import {
   generateFlashcards,
   generateFlashcardsFromChat,
   generateQuizFromChat,
+  generateMixedQuizFromChat,
   analyzeWhiteboardImage,
   generateSessionSummary,
   extractSubjectFromConversation,
@@ -1627,6 +1628,118 @@ export async function generateQuizFromConversation(params: {
 
   return {
     questions,
+    messageId: msg.id,
+  }
+}
+
+/**
+ * Generate interactive quiz with mixed question types (multiple choice and open-ended)
+ * Returns questions without answers for interactive quiz sessions
+ */
+export async function generateInteractiveQuiz(params: {
+  sessionId: string
+  userId: string
+  count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
+  questionType?: 'multiple_choice' | 'open_ended' | 'both'
+  excludeQuestions?: string[] // Questions to exclude for "Try Again" feature
+}): Promise<{
+  questions: Array<{
+    id: string
+    question: string
+    type: 'multiple_choice' | 'open_ended'
+    options?: string[]
+    correctAnswer?: number
+    correctAnswerText?: string
+    explanation: string
+  }>
+  messageId: string
+}> {
+  const {
+    sessionId,
+    userId,
+    count = 5,
+    difficulty = 'medium',
+    questionType = 'both',
+    excludeQuestions = [],
+  } = params
+
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      messages: {
+        where: { role: { in: ['USER', 'ASSISTANT'] } },
+        orderBy: { createdAt: 'asc' },
+        take: 30, // Last 30 messages for context
+      },
+    },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  if (session.messages.length < 2) {
+    throw new Error('Not enough conversation to generate quiz. Chat more first!')
+  }
+
+  // Build conversation summary for quiz generation
+  const conversationSummary = session.messages
+    .map((m) => `${m.role === 'USER' ? 'Student' : 'Tutor'}: ${m.content}`)
+    .join('\n')
+
+  // Generate mixed quiz from conversation using OpenAI
+  const questions = await generateMixedQuizFromChat({
+    conversationSummary,
+    subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
+    count,
+    difficulty,
+    questionType,
+    excludeQuestions, // Pass excluded questions for "Try Again" feature
+  })
+
+  // Add unique IDs to each question
+  const questionsWithIds = questions.map((q, index) => ({
+    ...q,
+    id: `quiz-${sessionId}-${Date.now()}-${index}`,
+  }))
+
+  // Format quiz content for message (without answers for logging)
+  const quizContent = questionsWithIds
+    .map(
+      (q, i) =>
+        `${i + 1}. [${q.type === 'multiple_choice' ? 'MC' : 'Open'}] ${q.question}${
+          q.type === 'multiple_choice' && q.options
+            ? `\n   A) ${q.options[0]}\n   B) ${q.options[1]}\n   C) ${q.options[2]}\n   D) ${q.options[3]}`
+            : ''
+        }`
+    )
+    .join('\n\n')
+
+  // Save as message (stores full quiz data including answers for record)
+  const msg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: `I've created a ${difficulty} quiz with ${questionsWithIds.length} questions based on our conversation. Good luck!\n\n${quizContent}`,
+      messageType: 'QUIZ',
+      quizData: questionsWithIds as unknown as Prisma.InputJsonValue,
+    },
+  })
+
+  // Update quiz count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      quizCount: { increment: questionsWithIds.length },
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return {
+    questions: questionsWithIds,
     messageId: msg.id,
   }
 }

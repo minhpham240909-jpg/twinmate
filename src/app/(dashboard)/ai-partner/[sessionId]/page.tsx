@@ -24,6 +24,9 @@ import {
 import AIPartnerSessionTimer from '@/components/ai-partner/AIPartnerSessionTimer'
 import EndSessionModal from '@/components/ai-partner/EndSessionModal'
 import PartnerAvailableNotification from '@/components/ai-partner/PartnerAvailableNotification'
+import InteractiveQuiz, { QuizQuestion, WrongAnswerDetail } from '@/components/ai-partner/InteractiveQuiz'
+import type { QuizConfig } from '@/components/ai-partner/AIPartnerChat'
+import type { FlashcardConfig } from '@/components/ai-partner/FlashcardModal'
 
 // PERFORMANCE: Dynamic imports for heavy AI Partner components
 // This reduces initial bundle size by ~100-200KB per component
@@ -111,6 +114,14 @@ export default function AIPartnerSessionPage({
   // Track Pomodoro focus time (only counts when timer is running in 'study' mode)
   // This is the key metric for analytics - NOT total session duration
   const [focusTime, setFocusTime] = useState(0)
+
+  // Interactive quiz state
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
+  const [showInteractiveQuiz, setShowInteractiveQuiz] = useState(false)
+  const [quizConfig, setQuizConfig] = useState<QuizConfig | null>(null)
+  const [excludedQuestions, setExcludedQuestions] = useState<string[]>([])
+  const [pendingWrongAnswers, setPendingWrongAnswers] = useState<WrongAnswerDetail[]>([])
+  const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false)
 
   useEffect(() => {
     fetchSession()
@@ -368,33 +379,35 @@ export default function AIPartnerSessionPage({
     }
   }
 
-  const handleGenerateQuiz = async () => {
+  const handleGenerateQuiz = async (config: QuizConfig) => {
     setIsSending(true)
+    // Store config for Try Again
+    setQuizConfig(config)
+    // Reset excluded questions for new quiz
+    setExcludedQuestions([])
+    setPendingWrongAnswers([])
+
     try {
       const res = await fetch('/api/ai-partner/quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          difficulty: 'medium',
+          difficulty: config.difficulty,
+          count: config.count,
+          questionType: config.questionType,
+          interactive: true, // Use interactive mode
         }),
       })
 
       const data = await res.json()
 
-      if (data.success) {
-        // Add quiz as a message
-        const quizMessage: Message = {
-          id: data.quiz.messageId,
-          role: 'ASSISTANT',
-          content: `🎯 **Quiz Question**\n\n${data.quiz.question}\n\nA) ${data.quiz.options[0]}\nB) ${data.quiz.options[1]}\nC) ${data.quiz.options[2]}\nD) ${data.quiz.options[3]}\n\n_Answer: ${['A', 'B', 'C', 'D'][data.quiz.correctAnswer]}_\n\n**Explanation:** ${data.quiz.explanation}`,
-          messageType: 'QUIZ',
-          wasFlagged: false,
-          createdAt: new Date(),
-        }
-        setMessages((prev) => [...prev, quizMessage])
+      if (data.success && data.questions && data.questions.length > 0) {
+        // Set quiz questions and show interactive quiz
+        setQuizQuestions(data.questions)
+        setShowInteractiveQuiz(true)
       } else {
-        setError(data.error || 'Failed to generate quiz')
+        setError(data.error || 'Failed to generate quiz. Make sure you have some conversation first!')
       }
     } catch (err) {
       console.error('Failed to generate quiz:', err)
@@ -404,7 +417,87 @@ export default function AIPartnerSessionPage({
     }
   }
 
-  const handleGenerateFlashcards = async (topic: string) => {
+  const handleQuizComplete = (
+    _results: Array<{ questionIndex: number; isCorrect: boolean; userAnswer: string | number; correctAnswer: string | number }>,
+    _score: number,
+    wrongAnswers: WrongAnswerDetail[]
+  ) => {
+    // Store wrong answers to post when Done is clicked
+    setPendingWrongAnswers(wrongAnswers)
+
+    // Add current questions to excluded list for Try Again
+    const currentQuestionTexts = quizQuestions.map(q => q.question)
+    setExcludedQuestions(prev => [...prev, ...currentQuestionTexts])
+  }
+
+  const handleTryAgain = async () => {
+    if (!quizConfig) return
+
+    setIsRegeneratingQuiz(true)
+    try {
+      const res = await fetch('/api/ai-partner/quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          difficulty: quizConfig.difficulty,
+          count: quizConfig.count,
+          questionType: quizConfig.questionType,
+          interactive: true,
+          excludeQuestions: excludedQuestions, // Send excluded questions for new generation
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success && data.questions && data.questions.length > 0) {
+        // Reset pending wrong answers for new attempt
+        setPendingWrongAnswers([])
+        // Set new quiz questions (this will reset the quiz component)
+        setQuizQuestions(data.questions)
+      } else {
+        setError(data.error || 'Failed to generate new quiz questions.')
+      }
+    } catch (err) {
+      console.error('Failed to regenerate quiz:', err)
+      setError('Failed to generate new quiz. Please try again.')
+    } finally {
+      setIsRegeneratingQuiz(false)
+    }
+  }
+
+  const handleCloseQuiz = () => {
+    // Post wrong answers to chat if there are any
+    if (pendingWrongAnswers.length > 0) {
+      const wrongAnswersContent = pendingWrongAnswers
+        .map((wa, i) =>
+          `**${i + 1}. ${wa.question}**\n` +
+          `   ❌ Your answer: ${wa.userAnswer}\n` +
+          `   ✅ Correct answer: ${wa.correctAnswer}\n` +
+          `   💡 ${wa.explanation}`
+        )
+        .join('\n\n')
+
+      const wrongAnswersMessage: Message = {
+        id: `quiz-wrong-${Date.now()}`,
+        role: 'ASSISTANT',
+        content: `📝 **Review Your Mistakes**\n\nHere are the questions you got wrong. Review them to strengthen your understanding:\n\n${wrongAnswersContent}`,
+        messageType: 'QUIZ_REVIEW',
+        wasFlagged: false,
+        createdAt: new Date(),
+      }
+      setMessages((prev) => [...prev, wrongAnswersMessage])
+    }
+
+    // Reset quiz state
+    setShowInteractiveQuiz(false)
+    setQuizQuestions([])
+    setPendingWrongAnswers([])
+    setQuizConfig(null)
+    setExcludedQuestions([])
+  }
+
+  const handleGenerateFlashcards = async (config: FlashcardConfig) => {
     setIsSending(true)
     try {
       const res = await fetch('/api/ai-partner/flashcards', {
@@ -412,8 +505,9 @@ export default function AIPartnerSessionPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          topic,
-          count: 5,
+          topic: config.source === 'topic' ? config.topic : undefined,
+          count: config.count,
+          fromConversation: config.source === 'chat',
         }),
       })
 
@@ -428,10 +522,14 @@ export default function AIPartnerSessionPage({
           )
           .join('\n\n')
 
+        const sourceLabel = config.source === 'chat'
+          ? 'from our conversation'
+          : config.topic || session?.subject || 'your topic'
+
         const flashcardMessage: Message = {
           id: data.messageId,
           role: 'ASSISTANT',
-          content: `📚 **Flashcards: ${topic}**\n\n${flashcardContent}\n\n_These flashcards have been saved to your session._`,
+          content: `📚 **${data.flashcards.length} Flashcards** (${sourceLabel})\n\n${flashcardContent}\n\n_These flashcards have been saved to your session. Switch to the Flashcards tab to study them!_`,
           messageType: 'FLASHCARD',
           wasFlagged: false,
           createdAt: new Date(),
@@ -999,6 +1097,19 @@ export default function AIPartnerSessionPage({
         <PartnerAvailableNotification
           sessionId={session.id}
           checkInterval={60000}
+        />
+      )}
+
+      {/* Interactive Quiz Modal */}
+      {showInteractiveQuiz && quizQuestions.length > 0 && (
+        <InteractiveQuiz
+          key={quizQuestions[0]?.id} // Force re-mount when questions change for Try Again
+          questions={quizQuestions}
+          onClose={handleCloseQuiz}
+          onComplete={handleQuizComplete}
+          onTryAgain={handleTryAgain}
+          isRegenerating={isRegeneratingQuiz}
+          subject={session.subject || undefined}
         />
       )}
     </div>
