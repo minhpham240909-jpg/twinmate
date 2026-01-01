@@ -1,9 +1,19 @@
 // API Route: Clear Server-Side Cache
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { invalidateUserCache, invalidateCache, CACHE_PREFIX } from '@/lib/cache'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit cache clear (strict - expensive operation)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify authentication
     const supabase = await createClient()

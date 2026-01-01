@@ -1,13 +1,46 @@
 /**
  * AI Partner Whiteboard API
- * POST /api/ai-partner/whiteboard - Analyze whiteboard image
+ * POST /api/ai-partner/whiteboard - Analyze whiteboard image or get drawing suggestions
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { analyzeWhiteboard } from '@/lib/ai-partner'
+import { analyzeWhiteboard, getWhiteboardSuggestions } from '@/lib/ai-partner'
 
-// POST: Analyze whiteboard image
+// Simple in-memory rate limiter for scalability (1000-3000 DAU)
+// In production, use Redis for distributed rate limiting
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 20 // 20 requests per minute per user
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const userLimit = rateLimitMap.get(userId)
+
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
+    return true
+  }
+
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false
+  }
+
+  userLimit.count++
+  return true
+}
+
+// Clean up stale rate limit entries every 5 minutes to prevent memory leaks
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (now > value.resetTime) {
+      rateLimitMap.delete(key)
+    }
+  }
+}, 5 * 60 * 1000)
+
+// POST: Analyze whiteboard image or get drawing suggestions
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -17,15 +50,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Rate limiting check
+    if (!checkRateLimit(user.id)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment before trying again.' },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
-    const { sessionId, imageBase64, userQuestion } = body
+    const { sessionId, imageBase64, userQuestion, mode } = body
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
     }
 
+    // Mode: 'analyze' (default) or 'suggest' (for empty canvas suggestions)
+    const requestMode = mode || 'analyze'
+
+    if (requestMode === 'suggest') {
+      // Get drawing suggestions without requiring an image
+      const result = await getWhiteboardSuggestions({
+        sessionId,
+        userId: user.id,
+        userQuestion,
+      })
+
+      return NextResponse.json({
+        success: true,
+        mode: 'suggest',
+        suggestions: result.suggestions,
+        drawingIdeas: result.drawingIdeas,
+        visualizationTips: result.visualizationTips,
+        messageId: result.messageId,
+      })
+    }
+
+    // Default: analyze mode - requires image
     if (!imageBase64) {
-      return NextResponse.json({ error: 'Image data required' }, { status: 400 })
+      return NextResponse.json({ error: 'Image data required for analysis' }, { status: 400 })
     }
 
     // Validate base64 image data (should be reasonably sized)
@@ -43,13 +106,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      mode: 'analyze',
       analysis: result.analysis,
       suggestions: result.suggestions,
       relatedConcepts: result.relatedConcepts,
       messageId: result.messageId,
     })
   } catch (error) {
-    console.error('[AI Partner] Analyze whiteboard error:', error)
+    console.error('[AI Partner] Whiteboard API error:', error)
 
     if (error instanceof Error) {
       if (error.message === 'Session not found or unauthorized') {
@@ -58,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to analyze whiteboard' },
+      { error: 'Failed to process whiteboard request' },
       { status: 500 }
     )
   }

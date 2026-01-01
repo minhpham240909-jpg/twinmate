@@ -1,5 +1,5 @@
 /**
- * Partner Matching Algorithm v2.1
+ * Partner Matching Algorithm v2.2
  *
  * Advanced weighted matching system for Clerva App.
  * Uses multiple components with configurable weights to calculate match percentages.
@@ -13,9 +13,14 @@
  * v2.1 Changes:
  * - Added smart matching with synonym expansion (e.g., "math" matches "calculus", "algebra")
  * - Improved subject/interest matching to find related terms
+ *
+ * v2.2 Changes:
+ * - Added compound string splitting for better matching
+ * - "Mathematics and Computer Science" now matches with separate "Mathematics" and "Computer Science"
  */
 
 import { expandSearchTerms } from './smart-search'
+import { processItemsWithSplitting } from '@/lib/utils/text-splitter'
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -226,6 +231,9 @@ export function jaccard(a: string[], b: string[]): number {
  * Returns a score 0-1 where:
  * - Direct matches get full weight
  * - Synonym matches get partial weight (0.7)
+ *
+ * FIX v2.3: Now correctly returns ONLY terms that exist in BOTH profiles
+ * Previously it would incorrectly show user's terms even if partner didn't have them
  */
 export function smartJaccard(a: string[], b: string[]): { score: number; directMatches: string[]; synonymMatches: string[] } {
   if (!a.length && !b.length) return { score: 0, directMatches: [], synonymMatches: [] }
@@ -233,29 +241,48 @@ export function smartJaccard(a: string[], b: string[]): { score: number; directM
   const normalizedA = a.map(s => s.toLowerCase().trim())
   const normalizedB = b.map(s => s.toLowerCase().trim())
 
-  // Find direct matches first
+  // Find direct matches first (exact same term in both arrays)
   const setA = new Set(normalizedA)
   const setB = new Set(normalizedB)
   const directMatches = [...setA].filter(x => setB.has(x))
 
+  // Track which terms have been matched to avoid duplicates
+  const matchedTermsA = new Set(directMatches)
+  const matchedTermsB = new Set(directMatches)
+
   // Find synonym matches (matches via expansion, excluding direct matches)
+  // FIX: Only add terms that BOTH users have (via synonym relationship)
   const synonymMatches: string[] = []
+  let synonymMatchCount = 0 // Count pairs, not individual terms
 
   for (const termA of normalizedA) {
-    if (directMatches.includes(termA)) continue // Skip direct matches
+    if (matchedTermsA.has(termA)) continue // Skip already matched terms
 
-    // Check if this term shares a synonym family with any term in B
+    // Expand termA to find its synonym family
+    const expandedTermA = new Set(expandSearchTerms([termA]))
+
     for (const termB of normalizedB) {
-      if (directMatches.includes(termB)) continue
+      if (matchedTermsB.has(termB)) continue // Skip already matched terms
 
-      // Check if they share a common canonical term
-      const expandedTermA = new Set(expandSearchTerms([termA]))
+      // Expand termB to find its synonym family
       const expandedTermB = new Set(expandSearchTerms([termB]))
 
-      // If their expansions overlap, they're related
+      // Check if they share a common canonical term (are in same synonym family)
       const hasOverlap = [...expandedTermA].some(x => expandedTermB.has(x))
-      if (hasOverlap && !synonymMatches.includes(termA)) {
-        synonymMatches.push(termA)
+
+      if (hasOverlap) {
+        // FIX: Add BOTH terms to show what actually matched
+        // Use the partner's term (termB) since that's what we're matching against
+        // This ensures we only show terms the partner actually has
+        if (!synonymMatches.includes(termB)) {
+          synonymMatches.push(termB)
+        }
+
+        // Mark both as matched to avoid double counting
+        matchedTermsA.add(termA)
+        matchedTermsB.add(termB)
+        synonymMatchCount++
+        break // Move to next termA, this one is matched
       }
     }
   }
@@ -267,13 +294,13 @@ export function smartJaccard(a: string[], b: string[]): { score: number; directM
   if (maxItems === 0) return { score: 0, directMatches: [], synonymMatches: [] }
 
   const directScore = directMatches.length * 1.0
-  const synonymScore = synonymMatches.length * 0.7
+  const synonymScore = synonymMatchCount * 0.7
   const totalScore = (directScore + synonymScore) / maxItems
 
   return {
     score: Math.min(totalScore, 1), // Cap at 1.0
     directMatches,
-    synonymMatches,
+    synonymMatches, // Now contains partner's actual terms, not user's terms
   }
 }
 
@@ -596,8 +623,9 @@ export function calculateMatchScore(
   const componentScores: Record<string, ComponentScore> = {}
 
   // ===== SUBJECTS (with smart synonym matching) =====
-  const currentSubjects = currentUserProfile.subjects || []
-  const partnerSubjects = partnerProfile.subjects || []
+  // v2.2: Process compound strings like "Mathematics and Computer Science" → ["Mathematics", "Computer Science"]
+  const currentSubjects = processItemsWithSplitting(currentUserProfile.subjects || [])
+  const partnerSubjects = processItemsWithSplitting(partnerProfile.subjects || [])
   const bothHaveSubjects = hasArrayData(currentSubjects) && hasArrayData(partnerSubjects)
 
   if (bothHaveSubjects) {
@@ -635,8 +663,9 @@ export function calculateMatchScore(
   }
 
   // ===== INTERESTS (with smart synonym matching) =====
-  const currentInterests = currentUserProfile.interests || []
-  const partnerInterests = partnerProfile.interests || []
+  // v2.2: Process compound strings for interests as well
+  const currentInterests = processItemsWithSplitting(currentUserProfile.interests || [])
+  const partnerInterests = processItemsWithSplitting(partnerProfile.interests || [])
   const bothHaveInterests = hasArrayData(currentInterests) && hasArrayData(partnerInterests)
 
   if (bothHaveInterests) {
@@ -673,8 +702,9 @@ export function calculateMatchScore(
   }
 
   // ===== GOALS =====
-  const currentGoals = currentUserProfile.goals || []
-  const partnerGoals = partnerProfile.goals || []
+  // v2.2: Process compound strings for goals as well
+  const currentGoals = processItemsWithSplitting(currentUserProfile.goals || [])
+  const partnerGoals = processItemsWithSplitting(partnerProfile.goals || [])
   const bothHaveGoals = hasArrayData(currentGoals) && hasArrayData(partnerGoals)
 
   if (bothHaveGoals) {

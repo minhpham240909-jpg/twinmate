@@ -17,6 +17,7 @@ import {
   Save,
   MessageSquare,
   Send,
+  FileText,
 } from 'lucide-react'
 
 interface Flashcard {
@@ -32,6 +33,12 @@ interface AIPartnerFlashcardsProps {
   subject?: string | null
   onAskAI?: (question: string) => Promise<void>
 }
+
+type GenerationSource = 'topic' | 'chat'
+type DifficultyLevel = 'easy' | 'medium' | 'hard'
+
+const PRESET_COUNTS = [5, 10, 15, 20]
+const MAX_FLASHCARDS = 20
 
 // AI Explain Modal Component
 function AIExplainModal({
@@ -50,7 +57,6 @@ function AIExplainModal({
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Reset state when modal opens with new card
   useEffect(() => {
     if (isOpen && card) {
       setQuestion('')
@@ -58,7 +64,6 @@ function AIExplainModal({
     }
   }, [isOpen, card?.id])
 
-  // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -72,7 +77,6 @@ function AIExplainModal({
     setIsLoading(true)
 
     try {
-      // Build context about the flashcard
       const contextPrompt = `I'm studying a flashcard. The question is: "${card.front}" and the answer is: "${card.back}".
 
 My question about this: ${userQuestion}`
@@ -121,7 +125,6 @@ My question about this: ${userQuestion}`
           className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col border border-slate-700 shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-slate-700">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-400" />
@@ -135,14 +138,12 @@ My question about this: ${userQuestion}`
             </button>
           </div>
 
-          {/* Flashcard Context */}
           <div className="p-4 bg-slate-900/50 border-b border-slate-700">
             <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Flashcard</div>
             <div className="text-sm text-white font-medium mb-1">{card.front}</div>
             <div className="text-sm text-slate-300">Answer: {card.back}</div>
           </div>
 
-          {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[200px]">
             {messages.length === 0 ? (
               <div className="text-center text-slate-400 py-8">
@@ -181,7 +182,6 @@ My question about this: ${userQuestion}`
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
           <div className="p-4 border-t border-slate-700">
             <div className="flex gap-2">
               <input
@@ -224,7 +224,6 @@ export default function AIPartnerFlashcards({
   // Study State
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
-  const [userAnswer, setUserAnswer] = useState('')
 
   // Management State
   const [viewMode, setViewMode] = useState<'study' | 'manage' | 'results'>('manage')
@@ -238,10 +237,21 @@ export default function AIPartnerFlashcards({
   const [showExplainModal, setShowExplainModal] = useState(false)
   const [explainCard, setExplainCard] = useState<Flashcard | null>(null)
 
-  // Generation Count
+  // Generation Config State
   const [generateCount, setGenerateCount] = useState(5)
   const [topicInput, setTopicInput] = useState('')
-  const MAX_FLASHCARDS = 20
+  const [generationSource, setGenerationSource] = useState<GenerationSource>('topic')
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium')
+  const [isCustomCount, setIsCustomCount] = useState(false)
+  const [customCountInput, setCustomCountInput] = useState('')
+
+  // Store last generation config for restart
+  const [lastGenerationConfig, setLastGenerationConfig] = useState<{
+    source: GenerationSource
+    topic: string
+    count: number
+    difficulty: DifficultyLevel
+  } | null>(null)
 
   // Load flashcards from localStorage on mount
   useEffect(() => {
@@ -266,23 +276,36 @@ export default function AIPartnerFlashcards({
     }
   }, [flashcards, sessionId])
 
-  // Watch for new cards while in results mode
-  const prevFlashcardsLengthRef = useRef(flashcards.length)
-  useEffect(() => {
-    if (viewMode === 'results' && flashcards.length > prevFlashcardsLengthRef.current) {
-      setViewMode('study')
-      setCurrentIndex(0)
-      setCorrectCount(0)
-      toast('New cards added! Restarting deck.', { icon: '🔄' })
-    }
-    prevFlashcardsLengthRef.current = flashcards.length
-  }, [flashcards.length, viewMode])
+  // Handle preset count click
+  const handlePresetClick = (count: number) => {
+    setGenerateCount(count)
+    setIsCustomCount(false)
+    setCustomCountInput('')
+  }
 
-  // Generate flashcards using AI (topic-based)
-  const handleGenerateFlashcards = async () => {
-    const topic = topicInput.trim() || subject
-    if (!topic) {
-      toast.error('Please enter a topic or set a session subject')
+  // Handle custom count change
+  const handleCustomCountChange = (value: string) => {
+    setCustomCountInput(value)
+    const parsed = parseInt(value)
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= MAX_FLASHCARDS) {
+      setGenerateCount(parsed)
+      setIsCustomCount(true)
+    }
+  }
+
+  // Generate flashcards using AI
+  const handleGenerateFlashcards = async (isRestart = false) => {
+    const config = isRestart && lastGenerationConfig
+      ? lastGenerationConfig
+      : {
+          source: generationSource,
+          topic: topicInput.trim() || subject || '',
+          count: generateCount,
+          difficulty,
+        }
+
+    if (config.source === 'topic' && !config.topic) {
+      toast.error('Please enter a topic')
       return
     }
 
@@ -293,8 +316,10 @@ export default function AIPartnerFlashcards({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          topic,
-          count: generateCount,
+          topic: config.source === 'topic' ? config.topic : undefined,
+          count: config.count,
+          fromConversation: config.source === 'chat',
+          difficulty: config.difficulty,
         }),
       })
 
@@ -307,12 +332,24 @@ export default function AIPartnerFlashcards({
           back: f.back,
           difficulty: 0,
         }))
-        setFlashcards((prev) => [...prev, ...newCards])
-        toast.success(`Generated ${newCards.length} flashcards!`)
-        setTopicInput('')
-        if (viewMode === 'manage') {
-          setViewMode('study')
+
+        if (isRestart) {
+          // Replace all cards for restart
+          setFlashcards(newCards)
+          setCurrentIndex(0)
+          setCorrectCount(0)
+          setIsFlipped(false)
+          toast.success(`Generated ${newCards.length} new flashcards!`)
+        } else {
+          // Add to existing cards
+          setFlashcards((prev) => [...prev, ...newCards])
+          toast.success(`Generated ${newCards.length} flashcards!`)
         }
+
+        // Save config for restart
+        setLastGenerationConfig(config)
+        setTopicInput('')
+        setViewMode('study')
       } else {
         toast.error(data.error || 'Failed to generate flashcards')
       }
@@ -346,12 +383,8 @@ export default function AIPartnerFlashcards({
     toast.success('Card updated')
   }
 
-  const handleSubmitAnswer = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!userAnswer.trim()) {
-      toast.error('Please enter an answer first')
-      return
-    }
+  // Flip card to reveal answer
+  const handleFlipCard = () => {
     setIsFlipped(true)
   }
 
@@ -361,7 +394,6 @@ export default function AIPartnerFlashcards({
     }
 
     setIsFlipped(false)
-    setUserAnswer('')
 
     if (currentIndex < flashcards.length - 1) {
       setCurrentIndex((prev) => prev + 1)
@@ -371,12 +403,17 @@ export default function AIPartnerFlashcards({
     }
   }
 
-  const handleRestartDeck = () => {
-    setCurrentIndex(0)
-    setCorrectCount(0)
-    setViewMode('study')
-    setIsFlipped(false)
-    setUserAnswer('')
+  const handleRestartDeck = async () => {
+    // Generate new flashcards with same config
+    if (lastGenerationConfig) {
+      await handleGenerateFlashcards(true)
+    } else {
+      // Fallback: just restart with same cards
+      setCurrentIndex(0)
+      setCorrectCount(0)
+      setViewMode('study')
+      setIsFlipped(false)
+    }
   }
 
   const handleOpenExplainModal = (card: Flashcard) => {
@@ -392,7 +429,7 @@ export default function AIPartnerFlashcards({
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold text-white">Flashcards</h2>
-              <p className="text-slate-400 text-sm">Generate flashcards from a topic to study</p>
+              <p className="text-slate-400 text-sm">Generate flashcards to study</p>
             </div>
             {flashcards.length > 0 && (
               <button
@@ -405,57 +442,162 @@ export default function AIPartnerFlashcards({
             )}
           </div>
 
-          {/* AI Generation Controls */}
+          {/* Generation Source Selection */}
           <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50 space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-300 whitespace-nowrap">Generate</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">Generate From</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setGenerationSource('topic')}
+                  disabled={isGenerating}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    generationSource === 'topic'
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
+                  } disabled:opacity-50`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <FileText className={`w-6 h-6 ${generationSource === 'topic' ? 'text-purple-400' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-medium ${generationSource === 'topic' ? 'text-purple-300' : 'text-slate-300'}`}>
+                      From Topic
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2 text-center">Enter a specific topic</p>
+                </button>
+
+                <button
+                  onClick={() => setGenerationSource('chat')}
+                  disabled={isGenerating}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    generationSource === 'chat'
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
+                  } disabled:opacity-50`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <MessageSquare className={`w-6 h-6 ${generationSource === 'chat' ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-medium ${generationSource === 'chat' ? 'text-blue-300' : 'text-slate-300'}`}>
+                      From Chat
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2 text-center">Based on your conversation</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Topic Input (only for topic source) */}
+            {generationSource === 'topic' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Topic</label>
+                <input
+                  type="text"
+                  value={topicInput}
+                  onChange={(e) => setTopicInput(e.target.value)}
+                  placeholder={subject || 'Enter a topic (e.g., Photosynthesis, World War II)'}
+                  disabled={isGenerating}
+                  className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGenerateFlashcards()
+                  }}
+                />
+                {subject && !topicInput && (
+                  <p className="text-xs text-slate-500 mt-2">Will use session subject: {subject}</p>
+                )}
+              </div>
+            )}
+
+            {generationSource === 'chat' && (
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                <p className="text-sm text-blue-300">
+                  <Sparkles className="w-4 h-4 inline mr-1" />
+                  AI will analyze your conversation and create flashcards based on the topics you discussed.
+                </p>
+              </div>
+            )}
+
+            {/* Difficulty Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">Difficulty</label>
+              <div className="flex gap-2">
+                {(['easy', 'medium', 'hard'] as DifficultyLevel[]).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => setDifficulty(level)}
+                    disabled={isGenerating}
+                    className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+                      difficulty === level
+                        ? level === 'easy'
+                          ? 'bg-green-600 text-white'
+                          : level === 'medium'
+                          ? 'bg-yellow-600 text-white'
+                          : 'bg-red-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } disabled:opacity-50`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Count Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">Number of Flashcards</label>
+              <div className="flex gap-2 mb-3">
+                {PRESET_COUNTS.map((count) => (
+                  <button
+                    key={count}
+                    onClick={() => handlePresetClick(count)}
+                    disabled={isGenerating}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      generateCount === count && !isCustomCount
+                        ? 'bg-green-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } disabled:opacity-50`}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-400">Custom:</span>
                 <input
                   type="number"
                   min={1}
                   max={MAX_FLASHCARDS}
-                  value={generateCount}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 1
-                    setGenerateCount(Math.min(Math.max(val, 1), MAX_FLASHCARDS))
-                  }}
-                  className="w-16 px-2 py-1.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white text-center text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
+                  value={customCountInput}
+                  onChange={(e) => handleCustomCountChange(e.target.value)}
+                  onFocus={() => setIsCustomCount(true)}
+                  placeholder="1-20"
+                  disabled={isGenerating}
+                  className={`w-24 px-3 py-2 bg-slate-900 border rounded-lg text-white text-center text-sm focus:outline-none disabled:opacity-50 ${
+                    isCustomCount ? 'border-green-500' : 'border-slate-700 focus:border-green-500'
+                  }`}
                 />
-                <span className="text-sm text-slate-400">cards</span>
+                {isCustomCount && (
+                  <span className="text-sm text-green-400">{generateCount} cards</span>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={topicInput}
-                onChange={(e) => setTopicInput(e.target.value)}
-                placeholder={subject || 'Enter a topic (e.g., Photosynthesis, World War II)'}
-                disabled={isGenerating}
-                className="flex-1 px-4 py-2.5 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleGenerateFlashcards()
-                }}
-              />
-              <button
-                onClick={handleGenerateFlashcards}
-                disabled={isGenerating}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                Generate
-              </button>
-            </div>
-
-            {subject && !topicInput && (
-              <p className="text-xs text-slate-500">
-                Will generate flashcards about: {subject}
-              </p>
-            )}
+            {/* Generate Button */}
+            <button
+              onClick={() => handleGenerateFlashcards(false)}
+              disabled={isGenerating || (generationSource === 'topic' && !topicInput.trim() && !subject)}
+              className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Generate Flashcards
+                </>
+              )}
+            </button>
           </div>
         </div>
 
@@ -468,7 +610,7 @@ export default function AIPartnerFlashcards({
             <div className="text-center py-12 bg-slate-800/20 rounded-xl border-2 border-dashed border-slate-700/50">
               <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400">No flashcards yet</p>
-              <p className="text-slate-500 text-sm">Generate flashcards from a topic above</p>
+              <p className="text-slate-500 text-sm">Generate flashcards above to start studying</p>
             </div>
           ) : (
             <div className="grid gap-3">
@@ -557,7 +699,6 @@ export default function AIPartnerFlashcards({
           )}
         </div>
 
-        {/* AI Explain Modal */}
         <AIExplainModal
           isOpen={showExplainModal}
           onClose={() => setShowExplainModal(false)}
@@ -605,10 +746,20 @@ export default function AIPartnerFlashcards({
         <div className="flex gap-4">
           <button
             onClick={handleRestartDeck}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 transition-colors"
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 transition-colors disabled:opacity-50"
           >
-            <RotateCcw className="w-5 h-5" />
-            Restart Deck
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <RotateCcw className="w-5 h-5" />
+                Restart Deck
+              </>
+            )}
           </button>
           <button
             onClick={() => setViewMode('manage')}
@@ -617,6 +768,12 @@ export default function AIPartnerFlashcards({
             Manage Cards
           </button>
         </div>
+
+        {lastGenerationConfig && (
+          <p className="text-xs text-slate-500 mt-4">
+            Restart will generate {lastGenerationConfig.count} new {lastGenerationConfig.difficulty} flashcards
+          </p>
+        )}
       </div>
     )
   }
@@ -628,7 +785,7 @@ export default function AIPartnerFlashcards({
         <BookOpen className="w-16 h-16 text-slate-600 mb-4" />
         <h3 className="text-xl font-semibold text-white mb-2">No Flashcards Yet</h3>
         <p className="text-slate-400 max-w-md mb-6">
-          Generate flashcards from a topic to start studying!
+          Generate flashcards from a topic or your conversation to start studying!
         </p>
         <button
           onClick={() => setViewMode('manage')}
@@ -676,10 +833,11 @@ export default function AIPartnerFlashcards({
           transition={{ duration: 0.4 }}
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* FRONT */}
+          {/* FRONT - Always shows question first */}
           <div
-            className="absolute inset-0 bg-slate-800/40 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col"
+            className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col cursor-pointer"
             style={{ backfaceVisibility: 'hidden' }}
+            onClick={!isFlipped ? handleFlipCard : undefined}
           >
             <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
               <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">
@@ -689,35 +847,24 @@ export default function AIPartnerFlashcards({
                 {currentCard.front}
               </div>
 
-              <form onSubmit={handleSubmitAnswer} className="w-full max-w-md mt-6">
-                <input
-                  type="text"
-                  value={userAnswer}
-                  onChange={(e) => setUserAnswer(e.target.value)}
-                  placeholder="Type your answer here..."
-                  className="w-full px-6 py-4 bg-slate-900/50 border-2 border-slate-700/50 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all text-lg text-center"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!userAnswer.trim()}
-                  className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all disabled:opacity-50"
-                >
-                  Check Answer
-                </button>
-              </form>
+              <button
+                onClick={handleFlipCard}
+                className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all"
+              >
+                Show Answer
+              </button>
             </div>
           </div>
 
-          {/* BACK */}
+          {/* BACK - Shows answer */}
           <div
-            className="absolute inset-0 bg-slate-900 rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col text-white"
+            className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col text-white"
             style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
           >
             <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
               <div className="space-y-2">
-                <h3 className="text-blue-300 text-sm font-semibold uppercase tracking-wider">
-                  Correct Answer
+                <h3 className="text-green-300 text-sm font-semibold uppercase tracking-wider">
+                  Answer
                 </h3>
                 <div className="text-2xl md:text-3xl font-bold leading-relaxed max-w-xl">
                   {currentCard.back}
@@ -728,9 +875,9 @@ export default function AIPartnerFlashcards({
 
               <div className="space-y-2">
                 <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">
-                  Your Answer
+                  Question Was
                 </h3>
-                <div className="text-xl text-slate-200">{userAnswer}</div>
+                <div className="text-lg text-slate-300">{currentCard.front}</div>
               </div>
 
               {/* AI Explain button */}
@@ -770,7 +917,6 @@ export default function AIPartnerFlashcards({
             if (currentIndex > 0) {
               setCurrentIndex((prev) => prev - 1)
               setIsFlipped(false)
-              setUserAnswer('')
             }
           }}
           disabled={currentIndex === 0}
@@ -783,7 +929,6 @@ export default function AIPartnerFlashcards({
             if (currentIndex < flashcards.length - 1) {
               setCurrentIndex((prev) => prev + 1)
               setIsFlipped(false)
-              setUserAnswer('')
             }
           }}
           disabled={currentIndex === flashcards.length - 1}
@@ -796,7 +941,7 @@ export default function AIPartnerFlashcards({
       {/* Instructions */}
       {!isFlipped && (
         <p className="text-center text-slate-500 text-sm mt-6">
-          Type your answer and press Enter to reveal the solution
+          Click the card or button to reveal the answer
         </p>
       )}
 

@@ -2694,24 +2694,69 @@ function StudyActivityHistory() {
   const [sessions, setSessions] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ id: string; type: 'study' | 'ai' } | null>(null)
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/history/study-activity')
+      if (response.ok) {
+        const data = await response.json()
+        setSessions(data.sessions || [])
+        setStatistics(data.statistics || {})
+      }
+    } catch (error) {
+      console.error('Error fetching study activity:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/history/study-activity')
-        if (response.ok) {
-          const data = await response.json()
-          setSessions(data.sessions || [])
-          setStatistics(data.statistics || {})
-        }
-      } catch (error) {
-        console.error('Error fetching study activity:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchData()
   }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null)
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [openMenuId])
+
+  const handleDelete = async (sessionId: string, sessionType: 'study' | 'ai') => {
+    setDeletingId(sessionId)
+    try {
+      const response = await fetch('/api/history/study-activity/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, sessionType }),
+      })
+
+      if (response.ok) {
+        // Remove from local state immediately for better UX
+        setSessions(prev => prev.filter(s => s.id !== sessionId))
+        // Update statistics
+        if (statistics) {
+          setStatistics({
+            ...statistics,
+            totalSessions: Math.max(0, statistics.totalSessions - 1),
+          })
+        }
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete session')
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error)
+      alert('Failed to delete session')
+    } finally {
+      setDeletingId(null)
+      setShowDeleteConfirm(null)
+    }
+  }
 
   if (loading) {
     return <div className="text-center py-8">{t('loading')}</div>
@@ -2740,23 +2785,112 @@ function StudyActivityHistory() {
           <p className="text-gray-500 text-center py-8">{t('noStudySessionsFound')}</p>
         ) : (
           sessions.map((session) => (
-            <div key={session.id} className="border border-gray-200 rounded-lg p-4">
+            <div key={session.id} className="border border-gray-200 rounded-lg p-4 relative">
               <div className="flex justify-between items-start mb-2">
-                <h4 className="font-semibold">{session.title}</h4>
-                <span className="text-sm text-gray-500">
-                  {new Date(session.endedAt).toLocaleDateString()}
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Session type indicator */}
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    session.sessionType === 'ai' || session.isAISession
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {session.sessionType === 'ai' || session.isAISession ? 'AI' : 'Partner'}
+                  </span>
+                  <h4 className="font-semibold">{session.title}</h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">
+                    {session.endedAt ? new Date(session.endedAt).toLocaleDateString() : '-'}
+                  </span>
+                  {/* Three-dot menu */}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuId(openMenuId === session.id ? null : session.id)
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded-full transition"
+                      disabled={deletingId === session.id}
+                    >
+                      {deletingId === session.id ? (
+                        <svg className="w-5 h-5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      )}
+                    </button>
+                    {/* Dropdown menu */}
+                    {openMenuId === session.id && (
+                      <div className="absolute right-0 top-8 z-10 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px]">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setOpenMenuId(null)
+                            setShowDeleteConfirm({
+                              id: session.id,
+                              type: session.sessionType || (session.isAISession ? 'ai' : 'study')
+                            })
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          {t('delete') || 'Delete'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="text-sm text-gray-600 mb-2">
-                {session.durationMinutes} {t('minutes')} • {session.type}
+                {session.durationMinutes ? `${session.durationMinutes} ${t('minutes')}` : '-'} • {session.type}
               </div>
               {session.subject && (
                 <div className="text-sm text-gray-500">{t('subject')}: {session.subject}</div>
+              )}
+              {/* AI session extra info */}
+              {(session.sessionType === 'ai' || session.isAISession) && session.messageCount && (
+                <div className="text-sm text-gray-500 mt-1">
+                  {session.messageCount} messages
+                  {session.rating && ` • ${session.rating}/5 rating`}
+                </div>
               )}
             </div>
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">{t('confirmDelete') || 'Confirm Delete'}</h3>
+            <p className="text-gray-600 mb-4">
+              {t('deleteSessionWarning') || 'Are you sure you want to delete this session? This action cannot be undone.'}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                {t('cancel') || 'Cancel'}
+              </button>
+              <button
+                onClick={() => handleDelete(showDeleteConfirm.id, showDeleteConfirm.type)}
+                disabled={deletingId === showDeleteConfirm.id}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+              >
+                {deletingId === showDeleteConfirm.id ? (t('deleting') || 'Deleting...') : (t('delete') || 'Delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

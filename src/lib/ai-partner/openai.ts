@@ -561,7 +561,14 @@ YOUR CAPABILITIES:
 - Provide practice problems and check answers
 - Summarize topics and key points
 - Analyze uploaded images (homework, textbooks, diagrams)
-- Generate educational diagrams and visualizations when helpful
+- Generate REAL educational images, diagrams, and visualizations using DALL-E AI
+
+IMAGE GENERATION - IMPORTANT:
+You CAN generate actual images, diagrams, illustrations, and visuals. When a student asks for any visual content:
+- DO NOT say "I cannot generate images" - you CAN and WILL generate them
+- DO NOT just describe the image in text - the system creates a real image automatically
+- When asked, respond positively (e.g., "I'll create that for you!" or "Here's a diagram of...")
+- Good topics for visuals: scientific processes, anatomy, circuits, graphs, timelines, flowcharts
 
 STUDY CONTEXT:
 ${subject ? `- Subject: ${subject}` : '- Subject: General study support'}
@@ -1210,8 +1217,31 @@ export async function generateFlashcards(params: {
   topic: string
   skillLevel?: string
   count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
 }): Promise<Array<{ front: string; back: string }>> {
-  const { subject, topic, skillLevel, count = 5 } = params
+  const { subject, topic, skillLevel, count = 5, difficulty = 'medium' } = params
+
+  // Build difficulty guidance for flashcard complexity
+  const difficultyGuidance = {
+    'easy': `DIFFICULTY: EASY
+- Use simple, clear language with basic vocabulary
+- Focus on fundamental definitions and core facts
+- Questions should be straightforward with single-concept answers
+- Avoid complex relationships or multi-step reasoning
+- Keep answers short and easy to memorize`,
+    'medium': `DIFFICULTY: MEDIUM
+- Use standard academic language appropriate for the topic
+- Include both foundational concepts and some deeper understanding
+- Questions can test relationships between ideas
+- Answers should be comprehensive but not overwhelming
+- Balance between recall and understanding`,
+    'hard': `DIFFICULTY: HARD
+- Use precise technical language and domain-specific terminology
+- Focus on nuanced concepts, exceptions, and edge cases
+- Questions should require analytical thinking and synthesis
+- Include complex relationships and multi-concept connections
+- Answers may require deeper explanation and critical thinking`
+  }[difficulty]
 
   // Build skill level guidance for flashcard complexity
   const skillLevelGuidance = skillLevel ? {
@@ -1242,6 +1272,8 @@ export async function generateFlashcards(params: {
 
   const systemPrompt = `You are a flashcard generator for students. Create effective flashcards for studying.
 
+${difficultyGuidance}
+
 ${skillLevelGuidance}
 
 ${subjectGuidance}
@@ -1253,6 +1285,7 @@ RULES:
 - Focus on key concepts that are worth memorizing
 - Use active recall techniques (questions, not just terms)
 - Make each flashcard self-contained and testable
+- Adjust complexity based on the difficulty level specified
 
 RESPOND IN THIS EXACT JSON FORMAT:
 {
@@ -1262,7 +1295,7 @@ RESPOND IN THIS EXACT JSON FORMAT:
   ]
 }`
 
-  const userPrompt = `Generate ${count} high-quality flashcards for studying ${subject} - specifically about "${topic}"${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''}.`
+  const userPrompt = `Generate ${count} high-quality ${difficulty} difficulty flashcards for studying ${subject} - specifically about "${topic}"${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''}.`
 
   try {
     // Scale max_tokens based on count (approx 80 tokens per flashcard)
@@ -1298,8 +1331,28 @@ export async function generateFlashcardsFromChat(params: {
   subject?: string
   skillLevel?: string
   count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
 }): Promise<Array<{ front: string; back: string }>> {
-  const { conversationSummary, subject, skillLevel, count = 5 } = params
+  const { conversationSummary, subject, skillLevel, count = 5, difficulty = 'medium' } = params
+
+  // Build difficulty guidance for flashcard complexity
+  const difficultyGuidance = {
+    'easy': `DIFFICULTY: EASY
+- Extract only the most basic concepts from the conversation
+- Use simple, clear language with basic vocabulary
+- Focus on fundamental definitions and straightforward facts
+- Keep answers short and easy to memorize`,
+    'medium': `DIFFICULTY: MEDIUM
+- Extract both basic and moderately complex concepts from the discussion
+- Use standard academic language
+- Include relationships between ideas when discussed
+- Balance between recall and understanding`,
+    'hard': `DIFFICULTY: HARD
+- Extract nuanced and complex concepts from the conversation
+- Use precise technical language and domain-specific terminology
+- Focus on deeper implications and complex relationships discussed
+- Include analytical questions that require synthesis`
+  }[difficulty]
 
   // Build skill level guidance
   const skillLevelGuidance = skillLevel ? {
@@ -1326,6 +1379,8 @@ export async function generateFlashcardsFromChat(params: {
 
   const systemPrompt = `You are a flashcard generator that creates study cards based on conversation context.
 
+${difficultyGuidance}
+
 ${skillLevelGuidance}
 
 ${subjectGuidance}
@@ -1338,6 +1393,7 @@ RULES:
 - Make cards that reinforce what the student was learning about
 - Keep content concise but comprehensive enough to be useful
 - Use active recall techniques (questions, not just terms)
+- Adjust complexity based on the difficulty level specified
 
 RESPOND IN THIS EXACT JSON FORMAT:
 {
@@ -1347,11 +1403,11 @@ RESPOND IN THIS EXACT JSON FORMAT:
   ]
 }`
 
-  const userPrompt = `Generate ${count} high-quality flashcards${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''} based on this study conversation${subject ? ` about ${subject}` : ''}:
+  const userPrompt = `Generate ${count} high-quality ${difficulty} difficulty flashcards${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''} based on this study conversation${subject ? ` about ${subject}` : ''}:
 
 ${conversationSummary}
 
-Create flashcards that capture the key concepts and facts that were discussed or explained in this conversation, appropriate for the student's level.`
+Create flashcards that capture the key concepts and facts that were discussed or explained in this conversation, appropriate for the student's level and the specified difficulty.`
 
   try {
     // Scale max_tokens based on count (approx 80 tokens per flashcard)
@@ -1496,6 +1552,107 @@ RESPOND IN THIS EXACT JSON FORMAT:
   } catch (error) {
     console.error('[AI Partner] Whiteboard analysis error:', error)
     throw new Error('Failed to analyze whiteboard')
+  }
+}
+
+/**
+ * Generate whiteboard drawing suggestions and ideas
+ * For when users want help before they start drawing (empty canvas)
+ * Optimized for 1000-3000 DAU with efficient prompting
+ */
+export async function generateWhiteboardSuggestions(params: {
+  subject?: string
+  skillLevel?: string
+  userQuestion?: string
+}): Promise<{
+  suggestions: string[]
+  drawingIdeas: { title: string; description: string; steps: string[] }[]
+  visualizationTips: string[]
+}> {
+  const { subject, skillLevel, userQuestion } = params
+
+  // Build context-aware system prompt
+  const subjectContext = subject
+    ? `The student is studying **${subject}**${skillLevel ? ` at a ${skillLevel.toLowerCase()} level` : ''}.`
+    : 'The student is looking for general study visualization ideas.'
+
+  const skillGuidance = skillLevel
+    ? `Tailor suggestions for a ${skillLevel.toLowerCase()} level student.`
+    : 'Provide suggestions appropriate for any level.'
+
+  const systemPrompt = `You are an expert study coach helping a student decide what to draw on their whiteboard to enhance their learning.
+
+${subjectContext}
+${skillGuidance}
+
+Your role:
+1. **Suggest Drawing Ideas**: Recommend diagrams, charts, mind maps, or visual representations that will help them understand and remember concepts better.
+2. **Provide Step-by-Step Guidance**: For each drawing idea, explain what to draw and how to organize it.
+3. **Visualization Tips**: Share tips on effective visual learning techniques.
+
+${userQuestion ? `The student specifically asked: "${userQuestion}"` : 'The student is starting with a blank canvas and wants drawing ideas.'}
+
+Be creative, practical, and educational. Focus on ${subject || 'general study techniques'}.
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{
+  "suggestions": [
+    "Quick actionable suggestion 1",
+    "Quick actionable suggestion 2",
+    "Quick actionable suggestion 3"
+  ],
+  "drawingIdeas": [
+    {
+      "title": "Name of the diagram/visualization",
+      "description": "What this visualization helps with and why it's effective",
+      "steps": ["Step 1: Start by...", "Step 2: Then add...", "Step 3: Connect..."]
+    }
+  ],
+  "visualizationTips": [
+    "Tip for effective visual learning",
+    "Another helpful tip"
+  ]
+}`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: DEFAULT_MODEL, // Using faster model for suggestions
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: userQuestion
+            ? `I need help with: ${userQuestion}`
+            : `Give me ideas for what to draw on my whiteboard to help me study${subject ? ` ${subject}` : ''}.`,
+        },
+      ],
+      temperature: 0.8, // Higher creativity for suggestions
+      max_tokens: 1000,
+      response_format: { type: 'json_object' },
+    })
+
+    const content = completion.choices[0]?.message?.content || '{}'
+    const result = JSON.parse(content)
+
+    return {
+      suggestions: Array.isArray(result.suggestions) ? result.suggestions.filter(Boolean).slice(0, 5) : [],
+      drawingIdeas: Array.isArray(result.drawingIdeas)
+        ? result.drawingIdeas
+            .filter((idea: { title?: string; description?: string }) => idea && idea.title && idea.description)
+            .slice(0, 3)
+            .map((idea: { title: string; description: string; steps?: string[] }) => ({
+              title: idea.title,
+              description: idea.description,
+              steps: Array.isArray(idea.steps) ? idea.steps.slice(0, 5) : [],
+            }))
+        : [],
+      visualizationTips: Array.isArray(result.visualizationTips)
+        ? result.visualizationTips.filter(Boolean).slice(0, 3)
+        : [],
+    }
+  } catch (error) {
+    console.error('[AI Partner] Whiteboard suggestions error:', error)
+    throw new Error('Failed to generate whiteboard suggestions')
   }
 }
 

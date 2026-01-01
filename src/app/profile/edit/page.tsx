@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { LocationForm } from '@/components/profile/LocationForm'
-import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
-import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
+import { splitCompoundText, containsCompoundSeparator } from '@/lib/utils/text-splitter'
 
 export default function ProfilePage() {
   const { user, profile, loading, refreshUser } = useAuth()
@@ -161,14 +160,37 @@ export default function ProfilePage() {
     const value = customInputs[field].trim()
     if (!value) return
 
-    if (field === 'subject' && !formData.subjects.includes(value)) {
-      setFormData({ ...formData, subjects: [...formData.subjects, value] })
-    } else if (field === 'interest' && !formData.interests.includes(value)) {
-      setFormData({ ...formData, interests: [...formData.interests, value] })
-    } else if (field === 'goal' && !formData.goals.includes(value)) {
-      setFormData({ ...formData, goals: [...formData.goals, value] })
-    } else if (field === 'aboutYourselfItem' && !formData.aboutYourselfItems.includes(value)) {
-      setFormData({ ...formData, aboutYourselfItems: [...formData.aboutYourselfItems, value] })
+    // Smart split: "Mathematics and Computer Science" → ["Mathematics", "Computer Science"]
+    const splitValues = splitCompoundText(value)
+    if (splitValues.length === 0) return
+
+    // Helper to add items without duplicates (case-insensitive check)
+    const addWithoutDuplicates = (existing: string[], newItems: string[]): string[] => {
+      const existingLower = new Set(existing.map(s => s.toLowerCase()))
+      const toAdd = newItems.filter(item => !existingLower.has(item.toLowerCase()))
+      return [...existing, ...toAdd]
+    }
+
+    if (field === 'subject') {
+      const updated = addWithoutDuplicates(formData.subjects, splitValues)
+      if (updated.length !== formData.subjects.length) {
+        setFormData({ ...formData, subjects: updated })
+      }
+    } else if (field === 'interest') {
+      const updated = addWithoutDuplicates(formData.interests, splitValues)
+      if (updated.length !== formData.interests.length) {
+        setFormData({ ...formData, interests: updated })
+      }
+    } else if (field === 'goal') {
+      const updated = addWithoutDuplicates(formData.goals, splitValues)
+      if (updated.length !== formData.goals.length) {
+        setFormData({ ...formData, goals: updated })
+      }
+    } else if (field === 'aboutYourselfItem') {
+      const updated = addWithoutDuplicates(formData.aboutYourselfItems, splitValues)
+      if (updated.length !== formData.aboutYourselfItems.length) {
+        setFormData({ ...formData, aboutYourselfItems: updated })
+      }
     }
 
     setCustomInputs({ ...customInputs, [field]: '' })
@@ -479,6 +501,14 @@ export default function ProfilePage() {
                   Add
                 </button>
               </div>
+              {/* Smart split preview */}
+              {containsCompoundSeparator(customInputs.subject) && (
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">
+                  Will be added as: {splitCompoundText(customInputs.subject).map((s, i) => (
+                    <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
+                  ))}
+                </p>
+              )}
             </div>
 
             {/* Interests */}
@@ -531,6 +561,14 @@ export default function ProfilePage() {
                   Add
                 </button>
               </div>
+              {/* Smart split preview */}
+              {containsCompoundSeparator(customInputs.interest) && (
+                <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">
+                  Will be added as: {splitCompoundText(customInputs.interest).map((s, i) => (
+                    <span key={i} className="inline-block bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
+                  ))}
+                </p>
+              )}
             </div>
 
             {/* Goals */}
@@ -583,6 +621,14 @@ export default function ProfilePage() {
                   Add
                 </button>
               </div>
+              {/* Smart split preview */}
+              {containsCompoundSeparator(customInputs.goal) && (
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">
+                  Will be added as: {splitCompoundText(customInputs.goal).map((s, i) => (
+                    <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
+                  ))}
+                </p>
+              )}
             </div>
           </div>
 

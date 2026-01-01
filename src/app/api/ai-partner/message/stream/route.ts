@@ -46,6 +46,7 @@ const AI_PARTNER_STREAM_RATE_LIMIT = {
 
 /**
  * Detect if user is asking for image generation
+ * Uses smart pattern matching instead of exact phrases for better detection
  */
 function detectImageGenerationRequest(content: string): {
   isImageRequest: boolean
@@ -54,204 +55,169 @@ function detectImageGenerationRequest(content: string): {
 } {
   const lowerContent = content.toLowerCase()
 
-  // Keywords that indicate image generation request
-  const imageKeywords = [
-    // Direct requests - generate
-    'generate an image',
-    'generate image',
-    'generate the image',
-    'generate images',
-    'generate the images',
-    'generate a picture',
-    'generate picture',
-    'generate the picture',
-    'generate pictures',
-    'generate the pictures',
-    // Direct requests - create
-    'create an image',
-    'create image',
-    'create the image',
-    'create images',
-    'create the images',
-    'create a picture',
-    'create picture',
-    'create the picture',
-    'create pictures',
-    // Direct requests - make
-    'make an image',
-    'make image',
-    'make the image',
-    'make images',
-    'make the images',
-    'make a picture',
-    'make picture',
-    'make the picture',
-    'make pictures',
-    // Draw
-    'draw',
-    // Show me
-    'show me a picture',
-    'show me an image',
-    'show me the image',
-    'show me the picture',
-    'show me pictures',
-    'show me images',
-    // Visualize / illustrate
-    'visualize',
-    'illustrate',
-    'illustration of',
-    'illustration for',
-    // Diagrams
-    'create a diagram',
-    'create diagram',
-    'create the diagram',
-    'make a diagram',
-    'make diagram',
-    'generate a diagram',
-    'generate diagram',
-    'draw a diagram',
-    'draw diagram',
-    // Illustrations
-    'create an illustration',
-    'create illustration',
-    'make an illustration',
-    'generate an illustration',
-    // Visuals
-    'generate a visual',
-    'create a visual',
-    'make a visual',
-    // Question forms - can you
-    'can you draw',
-    'can you create an image',
-    'can you create image',
-    'can you create the image',
-    'can you create images',
-    'can you create pictures',
-    'can you generate an image',
-    'can you generate image',
-    'can you generate the image',
-    'can you generate images',
-    'can you generate the images',
-    'can you generate pictures',
-    'can you generate the pictures',
-    'can you make an image',
-    'can you make image',
-    'can you make the image',
-    'can you make images',
-    'can you make pictures',
-    'can you illustrate',
-    // Question forms - could you
-    'could you draw',
-    'could you create an image',
-    'could you generate an image',
-    'could you generate the image',
-    'could you generate images',
-    'could you generate pictures',
-    'could you make an image',
-    'could you make images',
-    'could you illustrate',
-    // Please forms
-    'please draw',
-    'please create an image',
-    'please create images',
-    'please generate an image',
-    'please generate the image',
-    'please generate images',
-    'please generate pictures',
-    'please make an image',
-    'please make images',
-    'please illustrate',
-    // Want/need forms
-    'i want an image',
-    'i want image',
-    'i want the image',
-    'i want images',
-    'i want pictures',
-    'i need an image',
-    'i need image',
-    'i need images',
-    'i need pictures',
-    'i want a picture',
-    'i need a picture',
-    // Show/give forms
-    'show me visually',
-    'give me an image',
-    'give me a picture',
-    'give me images',
-    'give me pictures',
-    // Charts and diagrams
-    'create a chart',
-    'make a chart',
-    'generate a chart',
-    'create a flowchart',
-    'make a flowchart',
-    'create an infographic',
-    'make an infographic',
-    'create a mindmap',
-    'make a mindmap',
-    'create a logo',
-    'make a logo',
-    'design a logo',
-    'create a poster',
-    'make a poster',
-    'design a poster',
+  // ==========================================================================
+  // SMART PATTERN-BASED DETECTION
+  // ==========================================================================
+
+  // Action verbs that indicate creation/generation
+  const actionVerbs = [
+    'generate', 'create', 'make', 'draw', 'design', 'build', 'produce',
+    'render', 'illustrate', 'visualize', 'sketch', 'paint', 'show', 'give'
   ]
 
-  const isImageRequest = imageKeywords.some(keyword => lowerContent.includes(keyword))
+  // Visual content types (what the user wants created)
+  const visualTypes = [
+    'image', 'images', 'picture', 'pictures', 'photo', 'photos',
+    'diagram', 'diagrams', 'illustration', 'illustrations',
+    'chart', 'charts', 'graph', 'graphs',
+    'flowchart', 'flowcharts', 'flow chart', 'flow charts',
+    'infographic', 'infographics',
+    'mindmap', 'mindmaps', 'mind map', 'mind maps',
+    'timeline', 'timelines', 'time line', 'time lines',
+    'concept map', 'concept maps', 'conceptmap', 'conceptmaps',
+    'visual', 'visuals', 'visualization', 'visualizations',
+    'logo', 'logos', 'icon', 'icons',
+    'poster', 'posters', 'banner', 'banners',
+    'sketch', 'sketches', 'drawing', 'drawings',
+    'graphic', 'graphics', 'artwork', 'art',
+    'figure', 'figures', 'representation', 'depiction'
+  ]
+
+  let isImageRequest = false
+
+  // Method 1: Check for action verb + visual type combination
+  // e.g., "generate a diagram", "create an illustration", "make me an image"
+  for (const verb of actionVerbs) {
+    if (lowerContent.includes(verb)) {
+      for (const visualType of visualTypes) {
+        if (lowerContent.includes(visualType)) {
+          isImageRequest = true
+          break
+        }
+      }
+      if (isImageRequest) break
+    }
+  }
+
+  // Method 2: Check for request patterns with visual types
+  // e.g., "can you show me a diagram", "i want an image of"
+  if (!isImageRequest) {
+    const requestPatterns = [
+      'can you', 'could you', 'would you', 'will you',
+      'please', 'i want', 'i need', 'i would like',
+      'help me', 'show me', 'give me', 'get me',
+      'let me see', "i'd like", 'id like'
+    ]
+
+    for (const pattern of requestPatterns) {
+      if (lowerContent.includes(pattern)) {
+        for (const visualType of visualTypes) {
+          if (lowerContent.includes(visualType)) {
+            isImageRequest = true
+            break
+          }
+        }
+        if (isImageRequest) break
+      }
+    }
+  }
+
+  // Method 3: Check for direct visual requests without action verbs
+  // e.g., "a diagram of photosynthesis", "picture of a cell"
+  if (!isImageRequest) {
+    const directPatterns = [
+      /\b(a|an|the)\s+(image|picture|diagram|illustration|chart|graph|flowchart|infographic|visual|sketch|drawing)\s+(of|for|about|showing)/i,
+      /\b(image|picture|diagram|illustration|chart|graph|flowchart|infographic|visual|sketch|drawing)\s+(of|for|about|showing)/i,
+    ]
+    for (const pattern of directPatterns) {
+      if (pattern.test(lowerContent)) {
+        isImageRequest = true
+        break
+      }
+    }
+  }
+
+  // Method 4: Check for "what does X look like" patterns
+  if (!isImageRequest) {
+    const lookLikePatterns = [
+      /what\s+(does|do)\s+.+\s+look\s+like/i,
+      /show\s+(me\s+)?(what|how)\s+.+\s+(looks?|appears?)/i,
+      /visualize\s+(this|that|it|the)/i,
+    ]
+    for (const pattern of lookLikePatterns) {
+      if (pattern.test(lowerContent)) {
+        isImageRequest = true
+        break
+      }
+    }
+  }
 
   if (!isImageRequest) {
     return { isImageRequest: false }
   }
 
-  // Determine style based on keywords
+  // ==========================================================================
+  // DETERMINE STYLE BASED ON CONTENT
+  // ==========================================================================
   let style: ImageGenerationStyle = 'illustration' // default
 
   if (lowerContent.includes('diagram')) {
     style = 'diagram'
-  } else if (lowerContent.includes('chart') && !lowerContent.includes('flowchart')) {
-    style = 'chart'
-  } else if (lowerContent.includes('flowchart')) {
+  } else if (lowerContent.includes('flowchart') || lowerContent.includes('flow chart')) {
     style = 'flowchart'
+  } else if (lowerContent.includes('chart') || lowerContent.includes('graph')) {
+    style = 'chart'
   } else if (lowerContent.includes('infographic')) {
     style = 'infographic'
   } else if (lowerContent.includes('mindmap') || lowerContent.includes('mind map')) {
     style = 'mindmap'
-  } else if (lowerContent.includes('timeline')) {
+  } else if (lowerContent.includes('timeline') || lowerContent.includes('time line')) {
     style = 'timeline'
   } else if (lowerContent.includes('concept map')) {
     style = 'concept-map'
   } else if (lowerContent.includes('logo')) {
     style = 'logo'
-  } else if (lowerContent.includes('poster')) {
+  } else if (lowerContent.includes('poster') || lowerContent.includes('banner')) {
     style = 'poster'
   } else if (lowerContent.includes('icon')) {
     style = 'icon'
-  } else if (lowerContent.includes('cartoon')) {
+  } else if (lowerContent.includes('cartoon') || lowerContent.includes('anime')) {
     style = 'cartoon'
-  } else if (lowerContent.includes('sketch')) {
+  } else if (lowerContent.includes('sketch') || lowerContent.includes('drawing')) {
     style = 'sketch'
-  } else if (lowerContent.includes('technical') || lowerContent.includes('blueprint')) {
+  } else if (lowerContent.includes('technical') || lowerContent.includes('blueprint') || lowerContent.includes('schematic')) {
     style = 'technical'
-  } else if (lowerContent.includes('realistic') || lowerContent.includes('photo')) {
+  } else if (lowerContent.includes('realistic') || lowerContent.includes('photo') || lowerContent.includes('real')) {
     style = 'picture'
   }
 
-  // Extract the prompt - remove the image generation keywords to get the actual subject
+  // ==========================================================================
+  // EXTRACT PROMPT - Get the actual subject matter
+  // ==========================================================================
   let prompt = content
-  for (const keyword of imageKeywords) {
-    const regex = new RegExp(keyword, 'gi')
-    prompt = prompt.replace(regex, '')
+
+  // Remove common request phrases to extract the core subject
+  const phrasesToRemove = [
+    /^(can you|could you|would you|will you|please|help me|i want|i need|i would like|i'd like)\s*/i,
+    /\b(generate|create|make|draw|design|build|produce|render|illustrate|visualize|sketch|paint|show|give)\s+(me\s+)?(a|an|the)?\s*/gi,
+    /\b(image|picture|photo|diagram|illustration|chart|graph|flowchart|infographic|visual|visualization|logo|icon|poster|banner|sketch|drawing|graphic|artwork|art|figure)\s+(of|for|about|showing|depicting)?\s*/gi,
+    /\bof\s+$/i,
+    /\bfor\s+$/i,
+  ]
+
+  for (const pattern of phrasesToRemove) {
+    prompt = prompt.replace(pattern, '')
   }
-  // Clean up common filler words
+
+  // Clean up
   prompt = prompt
-    .replace(/^(of|about|for|showing|depicting|with|that shows|that depicts)\s+/i, '')
-    .replace(/\s+(of|about|for|showing|depicting|with)\s*$/i, '')
-    .replace(/^\s*[,.:;]\s*/, '')
-    .replace(/\s*[,.:;]\s*$/, '')
+    .replace(/^\s*[,.:;!?]\s*/, '')
+    .replace(/\s*[,.:;!?]\s*$/, '')
+    .replace(/\s+/g, ' ')
     .trim()
 
-  // If prompt is too short, use the original content
-  if (prompt.length < 5) {
+  // If prompt is too short after cleaning, use original content
+  if (prompt.length < 3) {
     prompt = content
   }
 

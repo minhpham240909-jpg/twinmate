@@ -17,6 +17,12 @@ import {
   Sparkles,
   Loader2,
   MessageSquare,
+  X,
+  Lightbulb,
+  BookOpen,
+  ChevronUp,
+  PenTool,
+  ListChecks,
 } from 'lucide-react'
 
 type Tool = 'pen' | 'eraser' | 'line' | 'circle' | 'rectangle' | 'text'
@@ -34,6 +40,20 @@ interface DrawAction {
   timestamp: number
 }
 
+interface AIAnalysisResult {
+  analysis: string
+  suggestions: string[]
+  relatedConcepts: string[]
+  timestamp: number
+}
+
+interface AISuggestionResult {
+  suggestions: string[]
+  drawingIdeas: { title: string; description: string; steps: string[] }[]
+  visualizationTips: string[]
+  timestamp: number
+}
+
 interface AIPartnerWhiteboardProps {
   sessionId: string
   subject?: string | null
@@ -41,7 +61,7 @@ interface AIPartnerWhiteboardProps {
   onAIResponse?: (response: string) => void
 }
 
-export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, onAIResponse }: AIPartnerWhiteboardProps) {
+export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: AIPartnerWhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -60,6 +80,12 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showQuestionInput, setShowQuestionInput] = useState(false)
   const [aiQuestion, setAiQuestion] = useState('')
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null)
+  const [aiSuggestion, setAiSuggestion] = useState<AISuggestionResult | null>(null)
+  const [showAnalysisPanel, setShowAnalysisPanel] = useState(false)
+  const [showSuggestionPanel, setShowSuggestionPanel] = useState(false)
+  const [analysisHistory, setAnalysisHistory] = useState<AIAnalysisResult[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
   // Drawing state refs
   const isDrawingRef = useRef(false)
@@ -83,6 +109,20 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
   useEffect(() => {
     actionsRef.current = actions
   }, [actions])
+
+  // Load analysis history from localStorage
+  useEffect(() => {
+    if (!mounted) return
+    const savedHistory = localStorage.getItem(`ai-whiteboard-history-${sessionId}`)
+    if (savedHistory) {
+      try {
+        const parsed = JSON.parse(savedHistory)
+        setAnalysisHistory(parsed)
+      } catch (e) {
+        console.error('Failed to load analysis history', e)
+      }
+    }
+  }, [mounted, sessionId])
 
   // Global mouse listener for dragging text input
   useEffect(() => {
@@ -438,53 +478,111 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
     toast.success('Downloaded!')
   }
 
-  // Ask AI to analyze the whiteboard
+  // Ask AI to analyze the whiteboard OR get suggestions (for empty canvas)
   const handleAskAI = async (question?: string) => {
     const canvas = canvasRef.current
     if (!canvas) return
-
-    if (actions.length === 0) {
-      toast.error('Draw something first!')
-      return
-    }
 
     setIsAnalyzing(true)
     setShowQuestionInput(false)
 
     try {
-      // Get canvas as base64 (remove the data:image/png;base64, prefix)
-      const dataUrl = canvas.toDataURL('image/png')
-      const base64 = dataUrl.split(',')[1]
+      // Determine mode: 'suggest' for empty canvas, 'analyze' for drawings
+      const isEmptyCanvas = actions.length === 0
+      const mode = isEmptyCanvas ? 'suggest' : 'analyze'
+
+      // Build request body based on mode
+      const requestBody: {
+        sessionId: string
+        mode: string
+        userQuestion?: string
+        imageBase64?: string
+      } = {
+        sessionId,
+        mode,
+        userQuestion: question || undefined,
+      }
+
+      // Only include image for analysis mode
+      if (!isEmptyCanvas) {
+        const dataUrl = canvas.toDataURL('image/png')
+        requestBody.imageBase64 = dataUrl.split(',')[1]
+      }
 
       const res = await fetch('/api/ai-partner/whiteboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          imageBase64: base64,
-          userQuestion: question || undefined,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await res.json()
 
-      if (data.success) {
-        toast.success('AI analyzed your whiteboard!')
+      if (!res.ok) {
+        toast.error(data.error || 'Request failed')
+        return
+      }
 
-        // If callback provided, send the analysis to the chat
-        if (onAIResponse) {
-          onAIResponse(data.analysis)
+      if (data.success) {
+        if (data.mode === 'suggest') {
+          // Handle suggestion response (empty canvas)
+          const newSuggestion: AISuggestionResult = {
+            suggestions: data.suggestions || [],
+            drawingIdeas: data.drawingIdeas || [],
+            visualizationTips: data.visualizationTips || [],
+            timestamp: Date.now(),
+          }
+
+          setAiSuggestion(newSuggestion)
+          setShowSuggestionPanel(true)
+          setShowAnalysisPanel(false)
+
+          toast.success('AI has suggestions for you!')
+        } else {
+          // Handle analysis response (has drawing)
+          const newAnalysis: AIAnalysisResult = {
+            analysis: data.analysis,
+            suggestions: data.suggestions || [],
+            relatedConcepts: data.relatedConcepts || [],
+            timestamp: Date.now(),
+          }
+
+          setAiAnalysis(newAnalysis)
+          setShowAnalysisPanel(true)
+          setShowSuggestionPanel(false)
+
+          // Add to history (keep last 10)
+          setAnalysisHistory((prev) => {
+            const updated = [newAnalysis, ...prev].slice(0, 10)
+            localStorage.setItem(`ai-whiteboard-history-${sessionId}`, JSON.stringify(updated))
+            return updated
+          })
+
+          toast.success('AI analyzed your whiteboard!')
         }
       } else {
-        toast.error(data.error || 'Failed to analyze whiteboard')
+        toast.error(data.error || 'Failed to process request')
       }
     } catch (error) {
-      console.error('Failed to analyze whiteboard:', error)
-      toast.error('Failed to analyze whiteboard')
+      console.error('Failed to process whiteboard request:', error)
+      toast.error('Failed to connect to AI')
     } finally {
       setIsAnalyzing(false)
       setAiQuestion('')
     }
+  }
+
+  // Clear analysis history
+  const handleClearHistory = () => {
+    if (!confirm('Clear all analysis history?')) return
+    setAnalysisHistory([])
+    localStorage.removeItem(`ai-whiteboard-history-${sessionId}`)
+    toast.success('History cleared')
+  }
+
+  // Format timestamp
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
   if (!mounted) return null
@@ -608,20 +706,32 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
 
           <div className="w-px h-8 bg-slate-700/50 mx-1" />
 
-          {/* AI Analysis Button */}
+          {/* AI Analysis/Suggestion Button */}
           <button
             onClick={() => setShowQuestionInput(!showQuestionInput)}
-            disabled={isAnalyzing || actions.length === 0}
+            disabled={isAnalyzing}
             className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-500 hover:to-pink-500 transition-all disabled:opacity-50"
-            title="Ask AI to analyze your whiteboard"
+            title={actions.length === 0 ? "Get AI suggestions for what to draw" : "Ask AI to analyze your whiteboard"}
           >
             {isAnalyzing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            Ask AI
+            {actions.length === 0 ? 'Get Ideas' : 'Ask AI'}
           </button>
+
+          {/* History Button */}
+          {analysisHistory.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-1 px-2 py-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors"
+              title="View analysis history"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="text-xs">{analysisHistory.length}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -638,7 +748,15 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
                 if (e.key === 'Enter') handleAskAI(aiQuestion)
                 if (e.key === 'Escape') setShowQuestionInput(false)
               }}
-              placeholder={subject ? `Ask about your ${subject} diagram... (optional)` : "Ask a specific question about your drawing... (optional)"}
+              placeholder={
+                actions.length === 0
+                  ? subject
+                    ? `What should I draw to learn ${subject}? (optional)`
+                    : "What concept would you like help visualizing? (optional)"
+                  : subject
+                    ? `Ask about your ${subject} diagram... (optional)`
+                    : "Ask a specific question about your drawing... (optional)"
+              }
               className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500/50 outline-none"
               autoFocus
             />
@@ -648,7 +766,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
             disabled={isAnalyzing}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50"
           >
-            {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+            {isAnalyzing ? 'Processing...' : actions.length === 0 ? 'Get Ideas' : 'Analyze'}
           </button>
           <button
             onClick={() => setShowQuestionInput(false)}
@@ -659,66 +777,287 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, on
         </div>
       )}
 
-      {/* Canvas Container */}
-      <div
-        ref={containerRef}
-        className="flex-1 relative bg-slate-800 rounded-xl border border-slate-700/50 shadow-inner overflow-hidden min-h-[400px]"
-      >
-        <canvas
-          ref={canvasRef}
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-          className="absolute top-0 left-0 touch-none cursor-crosshair"
-        />
+      {/* Main Content Area - Canvas + AI Response Side by Side */}
+      <div className="flex-1 flex gap-4 min-h-0">
+        {/* Canvas Container */}
+        <div
+          ref={containerRef}
+          className={`relative bg-slate-800 rounded-xl border border-slate-700/50 shadow-inner overflow-hidden min-h-[400px] transition-all ${
+            showAnalysisPanel || showSuggestionPanel ? 'flex-1' : 'w-full'
+          }`}
+        >
+          <canvas
+            ref={canvasRef}
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            className="absolute top-0 left-0 touch-none cursor-crosshair"
+          />
 
-        {showTextInput && (
-          <div
-            className="absolute bg-slate-800/90 backdrop-blur-xl p-3 rounded-lg shadow-xl border border-slate-700/50 z-50 flex flex-col gap-2"
-            style={{ left: textPos.x, top: textPos.y }}
-          >
-            {/* Drag Handle */}
+          {showTextInput && (
             <div
-              onMouseDown={handleTextDragStart}
-              className="w-full h-4 bg-slate-900/50 rounded-t-md cursor-move flex justify-center items-center hover:bg-slate-900/70 transition-colors"
-              title="Drag to move"
+              className="absolute bg-slate-800/90 backdrop-blur-xl p-3 rounded-lg shadow-xl border border-slate-700/50 z-50 flex flex-col gap-2"
+              style={{ left: textPos.x, top: textPos.y }}
             >
-              <div className="w-8 h-1 bg-slate-600 rounded-full" />
+              {/* Drag Handle */}
+              <div
+                onMouseDown={handleTextDragStart}
+                className="w-full h-4 bg-slate-900/50 rounded-t-md cursor-move flex justify-center items-center hover:bg-slate-900/70 transition-colors"
+                title="Drag to move"
+              >
+                <div className="w-8 h-1 bg-slate-600 rounded-full" />
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddText()
+                    if (e.key === 'Escape') setShowTextInput(false)
+                  }}
+                  placeholder="Type something..."
+                  className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 outline-none min-w-[200px]"
+                  autoFocus
+                />
+                <button
+                  onClick={handleAddText}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* AI Analysis Panel */}
+        {showAnalysisPanel && aiAnalysis && (
+          <div className="w-96 flex-shrink-0 bg-slate-800/60 backdrop-blur-xl rounded-xl border border-slate-700/50 overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-purple-600/20 to-pink-600/20">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                <h3 className="font-semibold text-white">AI Analysis</h3>
+              </div>
+              <button
+                onClick={() => setShowAnalysisPanel(false)}
+                className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddText()
-                  if (e.key === 'Escape') setShowTextInput(false)
-                }}
-                placeholder="Type something..."
-                className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 outline-none min-w-[200px]"
-                autoFocus
-              />
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Analysis */}
+              <div>
+                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                  {aiAnalysis.analysis}
+                </p>
+              </div>
+
+              {/* Suggestions */}
+              {aiAnalysis.suggestions.length > 0 && (
+                <div className="pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="w-4 h-4 text-yellow-400" />
+                    <h4 className="font-medium text-white text-sm">Suggestions</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {aiAnalysis.suggestions.map((suggestion, index) => (
+                      <li key={index} className="flex gap-2 text-sm text-slate-400">
+                        <span className="text-purple-400">•</span>
+                        <span>{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Related Concepts */}
+              {aiAnalysis.relatedConcepts.length > 0 && (
+                <div className="pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookOpen className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white text-sm">Related Concepts</h4>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {aiAnalysis.relatedConcepts.map((concept, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-slate-700/50 text-slate-300 text-xs rounded-full"
+                      >
+                        {concept}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with timestamp */}
+            <div className="p-3 border-t border-slate-700/50 bg-slate-900/30">
+              <p className="text-xs text-slate-500 text-center">
+                Analyzed at {formatTime(aiAnalysis.timestamp)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* AI Suggestion Panel (for empty canvas) */}
+        {showSuggestionPanel && aiSuggestion && (
+          <div className="w-96 flex-shrink-0 bg-slate-800/60 backdrop-blur-xl rounded-xl border border-slate-700/50 overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-yellow-400" />
+                <h3 className="font-semibold text-white">Drawing Ideas</h3>
+              </div>
               <button
-                onClick={handleAddText}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-medium"
+                onClick={() => setShowSuggestionPanel(false)}
+                className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors"
               >
-                Add
+                <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Quick Suggestions */}
+              {aiSuggestion.suggestions.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <h4 className="font-medium text-white text-sm">Quick Ideas</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {aiSuggestion.suggestions.map((suggestion, index) => (
+                      <li key={index} className="flex gap-2 text-sm text-slate-300">
+                        <span className="text-purple-400">•</span>
+                        <span>{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Drawing Ideas with Steps */}
+              {aiSuggestion.drawingIdeas.length > 0 && (
+                <div className="pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <PenTool className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white text-sm">Step-by-Step Ideas</h4>
+                  </div>
+                  <div className="space-y-4">
+                    {aiSuggestion.drawingIdeas.map((idea, index) => (
+                      <div key={index} className="bg-slate-900/40 rounded-lg p-3">
+                        <h5 className="font-medium text-white text-sm mb-1">{idea.title}</h5>
+                        <p className="text-xs text-slate-400 mb-2">{idea.description}</p>
+                        {idea.steps.length > 0 && (
+                          <div className="space-y-1">
+                            {idea.steps.map((step, stepIndex) => (
+                              <div key={stepIndex} className="flex gap-2 text-xs text-slate-300">
+                                <span className="text-blue-400 font-medium">{stepIndex + 1}.</span>
+                                <span>{step}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Visualization Tips */}
+              {aiSuggestion.visualizationTips.length > 0 && (
+                <div className="pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ListChecks className="w-4 h-4 text-green-400" />
+                    <h4 className="font-medium text-white text-sm">Pro Tips</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {aiSuggestion.visualizationTips.map((tip, index) => (
+                      <li key={index} className="flex gap-2 text-sm text-slate-400">
+                        <span className="text-green-400">✓</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with timestamp */}
+            <div className="p-3 border-t border-slate-700/50 bg-slate-900/30">
+              <p className="text-xs text-slate-500 text-center">
+                Generated at {formatTime(aiSuggestion.timestamp)}
+              </p>
             </div>
           </div>
         )}
       </div>
 
+      {/* Analysis History Dropdown */}
+      {showHistory && analysisHistory.length > 0 && (
+        <div className="bg-slate-800/60 backdrop-blur-xl rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-medium text-white">Analysis History</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearHistory}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-1 text-slate-400 hover:text-white transition-colors"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {analysisHistory.map((item, index) => (
+              <button
+                key={item.timestamp}
+                onClick={() => {
+                  setAiAnalysis(item)
+                  setShowAnalysisPanel(true)
+                  setShowHistory(false)
+                }}
+                className="w-full p-3 text-left hover:bg-slate-700/30 transition-colors border-b border-slate-700/30 last:border-0"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-slate-500">{formatTime(item.timestamp)}</span>
+                  <span className="text-xs text-slate-600">#{analysisHistory.length - index}</span>
+                </div>
+                <p className="text-sm text-slate-300 line-clamp-2">
+                  {item.analysis.slice(0, 100)}...
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Instructions */}
       <p className="text-center text-slate-500 text-sm">
-        {subject
-          ? `Draw ${subject} diagrams, formulas, or notes. AI will analyze with ${skillLevel ? skillLevel.toLowerCase() + '-level' : 'subject-specific'} feedback.`
-          : 'Use the whiteboard to draw diagrams, take notes, or visualize concepts'}
+        {actions.length === 0
+          ? `Click "Get Ideas" for AI suggestions on what to draw${subject ? ` for ${subject}` : ''}, or start drawing!`
+          : subject
+            ? `Draw ${subject} diagrams, formulas, or notes. AI will analyze with ${skillLevel ? skillLevel.toLowerCase() + '-level' : 'subject-specific'} feedback.`
+            : 'Use the whiteboard to draw diagrams, take notes, or visualize concepts. Click "Ask AI" for feedback.'}
       </p>
     </div>
   )

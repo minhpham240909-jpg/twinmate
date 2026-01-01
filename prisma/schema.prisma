@@ -578,6 +578,13 @@ model StudySession {
   aiMessages   AIPartnerMessage[] // AI partner chat messages
   aiSession    AIPartnerSession?  // AI partner session details
 
+  // Soft delete (user deletes - hidden from user but visible to admin)
+  deletedByUserId  String?
+  deletedByUserAt  DateTime?
+  // Hard delete (admin deletes - permanently removed)
+  deletedByAdminId String?
+  deletedByAdminAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -587,6 +594,8 @@ model StudySession {
   @@index([type])
   @@index([startedAt])
   @@index([agoraChannel])
+  @@index([deletedByUserAt])
+  @@index([deletedByAdminAt])
   @@index([isAISession])
   @@index([partnerType])
   // PERFORMANCE: Composite indexes for common filter combinations
@@ -741,6 +750,8 @@ enum NotificationType {
   NEW_MESSAGE
   GROUP_INVITE
   GROUP_REMOVED
+  GROUP_OWNERSHIP_RECEIVED  // User became group owner
+  GROUP_OWNERSHIP_CHANGED   // Group ownership was transferred
   STUDY_REMINDER
   BADGE_EARNED
   STREAK_REMINDER
@@ -2100,6 +2111,13 @@ model AIPartnerSession {
   totalTokensUsed     Int        @default(0) // Token budget tracking
   fallbackCallCount   Int        @default(0) // AI fallback calls used
 
+  // Soft delete (user deletes - hidden from user but visible to admin)
+  deletedByUserId  String?
+  deletedByUserAt  DateTime?
+  // Hard delete (admin deletes - permanently removed)
+  deletedByAdminId String?
+  deletedByAdminAt DateTime?
+
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -2111,6 +2129,8 @@ model AIPartnerSession {
   @@index([startedAt])
   @@index([personaId])
   @@index([userId, status]) // PERF: Find user's active/paused sessions
+  @@index([deletedByUserAt])
+  @@index([deletedByAdminAt])
 }
 
 enum AISessionStatus {

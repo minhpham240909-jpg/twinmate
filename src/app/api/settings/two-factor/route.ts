@@ -6,6 +6,7 @@ import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const twoFactorSchema = z.object({
   action: z.enum(['enable', 'disable', 'verify']),
@@ -58,6 +59,15 @@ function generateBackupCodes(count = 8): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit 2FA operations (auth preset - sensitive security operation)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.auth)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -274,6 +284,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit 2FA status check (lenient - read operation)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

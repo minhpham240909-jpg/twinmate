@@ -49,3 +49,14 @@ PRODUCTION_OPTIMIZATION_GUIDE.md
 *_COMPLETION_STATUS.md
 *_SUMMARY.md
 *_ROADMAP.md
+*_GUIDE.md
+*_COMPLETE.md
+*_IMPLEMENTATION.md
+*_CHECKLIST.md
+*_TESTING*.md
+*_PLAN.md
+QUICK_START.md
+REAL_USER_TESTING.md
+
+# SQL migration scripts (run manually, not needed in deployment)
+*.sql

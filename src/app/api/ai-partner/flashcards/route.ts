@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { sessionId, topic, count, fromConversation } = body
+    const { sessionId, topic, count, fromConversation, difficulty } = body
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
@@ -28,12 +28,17 @@ export async function POST(request: NextRequest) {
     // Limit flashcard count (max 20)
     const flashcardCount = Math.min(Math.max(count || 5, 1), 20)
 
+    // Validate difficulty level
+    const validDifficulties = ['easy', 'medium', 'hard'] as const
+    const flashcardDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'medium'
+
     // Generate from conversation context if requested
     if (fromConversation) {
       const result = await generateFlashcardsFromConversation({
         sessionId,
         userId: user.id,
         count: flashcardCount,
+        difficulty: flashcardDifficulty,
       })
 
       return NextResponse.json({
@@ -54,6 +59,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       topic: topic.trim(),
       count: flashcardCount,
+      difficulty: flashcardDifficulty,
     })
 
     return NextResponse.json({

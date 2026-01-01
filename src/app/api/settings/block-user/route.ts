@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const blockUserSchema = z.object({
   blockedUserId: z.string().uuid(),
@@ -9,6 +10,15 @@ const blockUserSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit block user (moderate - prevent mass blocking)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify authentication
     const supabase = await createClient()
@@ -84,6 +94,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // SCALABILITY: Rate limit unblock user (moderate)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify authentication
     const supabase = await createClient()
@@ -136,6 +155,15 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit get blocked users (lenient - read operation)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify authentication
     const supabase = await createClient()

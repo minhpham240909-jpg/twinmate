@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   Loader2,
   Sparkles,
-  BookOpen,
   Brain,
   X,
   ImageIcon,
@@ -18,7 +17,6 @@ import {
   ZoomIn,
 } from 'lucide-react'
 import QuizModal from './QuizModal'
-import FlashcardModal, { FlashcardConfig, FlashcardSource } from './FlashcardModal'
 
 interface Message {
   id: string
@@ -46,7 +44,6 @@ interface AIPartnerChatProps {
   onSendMessageWithImage: (content: string, imageBase64: string, imageMimeType: string) => Promise<void>
   onGenerateImage?: (prompt: string, style?: string) => Promise<void>
   onGenerateQuiz: (config: QuizConfig) => Promise<void>
-  onGenerateFlashcards: (config: FlashcardConfig) => Promise<void>
   isLoading?: boolean
   subject?: string | null
 }
@@ -59,16 +56,12 @@ export default function AIPartnerChat({
   onSendMessageWithImage,
   onGenerateImage,
   onGenerateQuiz,
-  onGenerateFlashcards,
   isLoading = false,
   subject,
 }: AIPartnerChatProps) {
   const t = useTranslations('aiPartner')
-  const tCommon = useTranslations('common')
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const [showFlashcardModal, setShowFlashcardModal] = useState(false)
-  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false)
   const [selectedImage, setSelectedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null)
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null)
   const [showQuizModal, setShowQuizModal] = useState(false)
@@ -137,18 +130,6 @@ export default function AIPartnerChat({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
-    }
-  }
-
-  const handleFlashcardGeneration = async (config: FlashcardConfig) => {
-    setIsGeneratingFlashcards(true)
-    try {
-      await onGenerateFlashcards(config)
-      setShowFlashcardModal(false)
-    } catch (error) {
-      console.error('Failed to generate flashcards:', error)
-    } finally {
-      setIsGeneratingFlashcards(false)
     }
   }
 
@@ -327,14 +308,6 @@ export default function AIPartnerChat({
           <Brain className="w-4 h-4" />
           {t('chat.generateQuiz')}
         </button>
-        <button
-          onClick={() => setShowFlashcardModal(true)}
-          disabled={isLoading || isSending}
-          className="flex items-center gap-2 px-3 py-1.5 bg-green-600/20 text-green-300 rounded-lg hover:bg-green-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
-        >
-          <BookOpen className="w-4 h-4" />
-          {tCommon('flashcards')}
-        </button>
         <div className="flex-1" />
         {subject && (
           <span className="text-xs text-slate-400 bg-slate-700/50 px-2 py-1 rounded whitespace-nowrap">
@@ -473,16 +446,6 @@ export default function AIPartnerChat({
           {t('conversationsModerated')}
         </p>
       </div>
-
-      {/* Flashcard Modal */}
-      <FlashcardModal
-        isOpen={showFlashcardModal}
-        onClose={() => setShowFlashcardModal(false)}
-        onGenerate={handleFlashcardGeneration}
-        isGenerating={isGeneratingFlashcards}
-        hasConversation={messages.filter(m => m.role === 'USER').length >= 2}
-        subject={subject}
-      />
 
       {/* Quiz Modal */}
       <QuizModal

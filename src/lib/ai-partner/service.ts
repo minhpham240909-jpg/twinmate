@@ -17,6 +17,7 @@ import {
   generateQuizFromChat,
   generateMixedQuizFromChat,
   analyzeWhiteboardImage,
+  generateWhiteboardSuggestions,
   generateSessionSummary,
   extractSubjectFromConversation,
   checkContentSafety,
@@ -1399,11 +1400,12 @@ export async function generateFlashcardsForSession(params: {
   userId: string
   topic: string
   count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
 }): Promise<{
   flashcards: Array<{ front: string; back: string }>
   messageId: string
 }> {
-  const { sessionId, userId, topic, count = 5 } = params
+  const { sessionId, userId, topic, count = 5, difficulty = 'medium' } = params
 
   const session = await prisma.aIPartnerSession.findUnique({
     where: { id: sessionId },
@@ -1413,12 +1415,13 @@ export async function generateFlashcardsForSession(params: {
     throw new Error('Session not found or unauthorized')
   }
 
-  // Generate flashcards with skill level context
+  // Generate flashcards with skill level context and difficulty
   const flashcards = await generateFlashcards({
     subject: session.subject || 'General',
     topic,
     skillLevel: session.skillLevel || undefined,
     count,
+    difficulty,
   })
 
   // Save as message
@@ -1469,11 +1472,12 @@ export async function generateFlashcardsFromConversation(params: {
   sessionId: string
   userId: string
   count?: number
+  difficulty?: 'easy' | 'medium' | 'hard'
 }): Promise<{
   flashcards: Array<{ front: string; back: string }>
   messageId: string
 }> {
-  const { sessionId, userId, count = 5 } = params
+  const { sessionId, userId, count = 5, difficulty = 'medium' } = params
 
   const session = await prisma.aIPartnerSession.findUnique({
     where: { id: sessionId },
@@ -1499,12 +1503,13 @@ export async function generateFlashcardsFromConversation(params: {
     .map((m) => `${m.role === 'USER' ? 'Student' : 'Tutor'}: ${m.content}`)
     .join('\n')
 
-  // Generate flashcards from conversation using OpenAI with skill level context
+  // Generate flashcards from conversation using OpenAI with skill level context and difficulty
   const flashcards = await generateFlashcardsFromChat({
     conversationSummary,
     subject: session.subject || undefined,
     skillLevel: session.skillLevel || undefined,
     count,
+    difficulty,
   })
 
   // Save as message
@@ -1786,6 +1791,93 @@ export async function analyzeWhiteboard(params: {
 
   if (result.relatedConcepts.length > 0) {
     responseContent += `\n\n**Related Concepts to Explore:**\n${result.relatedConcepts.map(c => `� ${c}`).join('\n')}`
+  }
+
+  // Save as message
+  const msg = await prisma.aIPartnerMessage.create({
+    data: {
+      sessionId,
+      studySessionId: session.studySessionId,
+      role: 'ASSISTANT',
+      content: responseContent,
+      messageType: 'WHITEBOARD',
+    },
+  })
+
+  // Update message count
+  await prisma.aIPartnerSession.update({
+    where: { id: sessionId },
+    data: {
+      messageCount: { increment: 1 },
+    },
+  })
+
+  return {
+    ...result,
+    messageId: msg.id,
+  }
+}
+
+/**
+ * Get whiteboard drawing suggestions and ideas (for empty canvas)
+ * This allows users to ask AI for help before they start drawing
+ */
+export async function getWhiteboardSuggestions(params: {
+  sessionId: string
+  userId: string
+  userQuestion?: string
+}): Promise<{
+  suggestions: string[]
+  drawingIdeas: { title: string; description: string; steps: string[] }[]
+  visualizationTips: string[]
+  messageId: string
+}> {
+  const { sessionId, userId, userQuestion } = params
+
+  // Single optimized query - no N+1 issues
+  const session = await prisma.aIPartnerSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true,
+      userId: true,
+      subject: true,
+      skillLevel: true,
+      studySessionId: true,
+    },
+  })
+
+  if (!session || session.userId !== userId) {
+    throw new Error('Session not found or unauthorized')
+  }
+
+  // Generate suggestions using OpenAI
+  const result = await generateWhiteboardSuggestions({
+    subject: session.subject || undefined,
+    skillLevel: session.skillLevel || undefined,
+    userQuestion,
+  })
+
+  // Format response content for message history
+  let responseContent = `**Drawing Ideas & Suggestions**\n\n`
+
+  if (userQuestion) {
+    responseContent += `*Your question: "${userQuestion}"*\n\n`
+  }
+
+  responseContent += `**Quick Suggestions:**\n${result.suggestions.map(s => `• ${s}`).join('\n')}`
+
+  if (result.drawingIdeas.length > 0) {
+    responseContent += `\n\n**Drawing Ideas:**\n`
+    result.drawingIdeas.forEach((idea, i) => {
+      responseContent += `\n${i + 1}. **${idea.title}**\n   ${idea.description}\n`
+      if (idea.steps.length > 0) {
+        responseContent += `   Steps: ${idea.steps.join(' → ')}\n`
+      }
+    })
+  }
+
+  if (result.visualizationTips.length > 0) {
+    responseContent += `\n\n**Visualization Tips:**\n${result.visualizationTips.map(t => `• ${t}`).join('\n')}`
   }
 
   // Save as message

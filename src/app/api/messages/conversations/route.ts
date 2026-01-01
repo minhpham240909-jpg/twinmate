@@ -65,9 +65,13 @@ export async function GET(request: Request) {
         }
       }),
       // Get all groups with member count in one query
+      // FIX: Filter out deleted groups so they don't appear in chat
       prisma.groupMember.findMany({
         where: {
-          userId: userId
+          userId: userId,
+          group: {
+            isDeleted: false, // Only show non-deleted groups
+          },
         },
         include: {
           group: {
@@ -75,6 +79,7 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               avatarUrl: true,
+              isDeleted: true, // Include for safety check
               _count: {
                 select: { members: true }
               }

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // Validation schema for settings update
 const updateSettingsSchema = z.object({
@@ -103,6 +104,15 @@ const updateSettingsSchema = z.object({
 }).strip() // Strip unknown fields instead of rejecting them
 
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit settings updates (moderate - prevent spam saves)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify authentication with Supabase
     const supabase = await createClient()

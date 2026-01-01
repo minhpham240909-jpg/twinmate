@@ -4,12 +4,22 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { withCsrfProtection } from '@/lib/csrf'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const deleteAccountSchema = z.object({
   confirmation: z.literal('DELETE'),
 })
 
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit delete account (auth preset - prevents abuse)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.auth)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   return withCsrfProtection(request, async () => {
     try {
       // Verify authentication

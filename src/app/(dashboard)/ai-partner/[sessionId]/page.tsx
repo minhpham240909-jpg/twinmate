@@ -26,7 +26,6 @@ import EndSessionModal from '@/components/ai-partner/EndSessionModal'
 import PartnerAvailableNotification from '@/components/ai-partner/PartnerAvailableNotification'
 import InteractiveQuiz, { QuizQuestion, WrongAnswerDetail } from '@/components/ai-partner/InteractiveQuiz'
 import type { QuizConfig } from '@/components/ai-partner/AIPartnerChat'
-import type { FlashcardConfig } from '@/components/ai-partner/FlashcardModal'
 
 // PERFORMANCE: Dynamic imports for heavy AI Partner components
 // This reduces initial bundle size by ~100-200KB per component
@@ -497,55 +496,6 @@ export default function AIPartnerSessionPage({
     setExcludedQuestions([])
   }
 
-  const handleGenerateFlashcards = async (config: FlashcardConfig) => {
-    setIsSending(true)
-    try {
-      const res = await fetch('/api/ai-partner/flashcards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          topic: config.source === 'topic' ? config.topic : undefined,
-          count: config.count,
-          fromConversation: config.source === 'chat',
-        }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        // Add flashcards as a message
-        const flashcardContent = data.flashcards
-          .map(
-            (f: { front: string; back: string }, i: number) =>
-              `**${i + 1}. ${f.front}**\n   _${f.back}_`
-          )
-          .join('\n\n')
-
-        const sourceLabel = config.source === 'chat'
-          ? 'from our conversation'
-          : config.topic || session?.subject || 'your topic'
-
-        const flashcardMessage: Message = {
-          id: data.messageId,
-          role: 'ASSISTANT',
-          content: `📚 **${data.flashcards.length} Flashcards** (${sourceLabel})\n\n${flashcardContent}\n\n_These flashcards have been saved to your session. Switch to the Flashcards tab to study them!_`,
-          messageType: 'FLASHCARD',
-          wasFlagged: false,
-          createdAt: new Date(),
-        }
-        setMessages((prev) => [...prev, flashcardMessage])
-      } else {
-        setError(data.error || 'Failed to generate flashcards')
-      }
-    } catch (err) {
-      console.error('Failed to generate flashcards:', err)
-      setError('Failed to generate flashcards. Please try again.')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
   const handleSendMessageWithImage = async (content: string, imageBase64: string, imageMimeType: string) => {
     setIsSending(true)
     setError(null)
@@ -956,7 +906,6 @@ export default function AIPartnerSessionPage({
                 onSendMessageWithImage={handleSendMessageWithImage}
                 onGenerateImage={handleGenerateImage}
                 onGenerateQuiz={handleGenerateQuiz}
-                onGenerateFlashcards={handleGenerateFlashcards}
                 isLoading={isSending}
                 subject={session.subject}
               />
