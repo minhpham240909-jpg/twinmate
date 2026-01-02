@@ -35,15 +35,10 @@ export default function MyProfilePage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
 
-  // Cover photo states
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null)
-  const [isUploadingCover, setIsUploadingCover] = useState(false)
+  // Avatar states
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
-  const [showCoverPhotoMenu, setShowCoverPhotoMenu] = useState(false)
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
   const avatarMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,19 +49,12 @@ export default function MyProfilePage() {
 
     if (user) {
       fetchUserPosts()
-      // Load cover photo from user profile
-      if ((user as any).coverPhotoUrl) {
-        setCoverPhotoUrl((user as any).coverPhotoUrl)
-      }
     }
   }, [user, authLoading])
 
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowCoverPhotoMenu(false)
-      }
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
         setShowAvatarMenu(false)
       }
@@ -90,22 +78,6 @@ export default function MyProfilePage() {
     }
   }
 
-  const handleCoverPhotoClick = () => {
-    setShowCoverPhotoMenu(!showCoverPhotoMenu)
-  }
-
-  const handleSeeCoverPhoto = () => {
-    if (coverPhotoUrl) {
-      window.open(coverPhotoUrl, '_blank')
-    }
-    setShowCoverPhotoMenu(false)
-  }
-
-  const handleUploadCoverPhoto = () => {
-    fileInputRef.current?.click()
-    setShowCoverPhotoMenu(false)
-  }
-
   const handleAvatarClick = () => {
     setShowAvatarMenu(!showAvatarMenu)
   }
@@ -113,47 +85,6 @@ export default function MyProfilePage() {
   const handleUploadAvatar = () => {
     avatarInputRef.current?.click()
     setShowAvatarMenu(false)
-  }
-
-  const handleCoverPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file')
-      return
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB')
-      return
-    }
-
-    setIsUploadingCover(true)
-
-    try {
-      const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
-      formDataUpload.append('userId', user?.id || '')
-
-      const response = await fetch('/api/upload/cover-photo', {
-        method: 'POST',
-        body: formDataUpload,
-      })
-
-      if (!response.ok) {
-        throw new Error('Upload failed')
-      }
-
-      const data = await response.json()
-      setCoverPhotoUrl(data.url)
-      window.location.reload()
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert('Failed to upload cover photo')
-    } finally {
-      setIsUploadingCover(false)
-    }
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,79 +226,9 @@ export default function MyProfilePage() {
         </div>
       </header>
 
-      {/* Banner with Cover Photo */}
+      {/* Banner */}
       <div className="relative h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-        {coverPhotoUrl ? (
-          <img
-            src={coverPhotoUrl}
-            alt="Cover photo"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          /* Message when no cover photo */
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center text-white">
-              <svg className="w-12 h-12 mx-auto mb-2 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-sm font-medium">Add a cover photo to personalize your profile</p>
-            </div>
-          </div>
-        )}
         <div className="absolute inset-0 bg-black/5"></div>
-
-        {/* Cover Photo Menu Button */}
-        <div className="absolute bottom-4 right-4" ref={menuRef}>
-          <button
-            onClick={handleCoverPhotoClick}
-            className="p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
-
-          {/* Cover Photo Menu */}
-          {showCoverPhotoMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden z-[9999]">
-              {coverPhotoUrl && (
-                <button
-                  onClick={handleSeeCoverPhoto}
-                  className="w-full px-4 py-3 text-left text-sm text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  See cover photo
-                </button>
-              )}
-              <button
-                onClick={handleUploadCoverPhoto}
-                className="w-full px-4 py-3 text-left text-sm text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                Upload cover photo
-              </button>
-            </div>
-          )}
-        </div>
-
-        {isUploadingCover && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleCoverPhotoUpload}
-          className="hidden"
-        />
       </div>
 
       {/* Profile Header */}

@@ -263,3 +263,58 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+// DELETE - Permanently delete reports
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    // Verify admin status
+    const adminUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true },
+    })
+
+    if (!adminUser?.isAdmin) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { reportId } = body
+
+    if (!reportId) {
+      return NextResponse.json({ error: 'Report ID required' }, { status: 400 })
+    }
+
+    // Get IP and user agent for audit log
+    const ipAddress = request.headers.get('x-forwarded-for') ||
+                      request.headers.get('x-real-ip') ||
+                      'unknown'
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+
+    // Delete the report
+    await prisma.report.delete({
+      where: { id: reportId },
+    })
+
+    await logAdminAction({
+      adminId: user.id,
+      action: 'report_deleted',
+      targetType: 'report',
+      targetId: reportId,
+      details: {},
+      ipAddress,
+      userAgent,
+    })
+
+    return NextResponse.json({ success: true, message: 'Report deleted permanently' })
+  } catch (error) {
+    console.error('[Admin Reports Delete] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

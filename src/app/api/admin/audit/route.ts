@@ -3,6 +3,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+// Helper to verify admin
+async function verifyAdmin(supabase: any) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const adminUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { isAdmin: true, id: true },
+  })
+
+  return adminUser?.isAdmin ? { ...user, dbId: adminUser.id } : null
+}
+
 // GET - List audit logs
 export async function GET(request: NextRequest) {
   try {
@@ -98,6 +111,48 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Admin Audit] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// DELETE - Delete audit logs (selected or all)
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const admin = await verifyAdmin(supabase)
+
+    if (!admin) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { ids, deleteAll } = body
+
+    if (deleteAll) {
+      // Delete all audit logs
+      const result = await prisma.adminAuditLog.deleteMany({})
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${result.count} audit logs`,
+        deletedCount: result.count,
+      })
+    }
+
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      // Delete selected audit logs
+      const result = await prisma.adminAuditLog.deleteMany({
+        where: { id: { in: ids } },
+      })
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${result.count} audit logs`,
+        deletedCount: result.count,
+      })
+    }
+
+    return NextResponse.json({ error: 'No logs specified for deletion' }, { status: 400 })
+  } catch (error) {
+    console.error('[Admin Audit Delete] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

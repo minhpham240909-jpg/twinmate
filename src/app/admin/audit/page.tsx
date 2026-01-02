@@ -8,7 +8,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import {
   FileText,
-  Filter,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -21,6 +20,10 @@ import {
   Eye,
   Globe,
   Activity,
+  Trash2,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react'
 
 interface AuditLog {
@@ -65,6 +68,11 @@ export default function AdminAuditPage() {
   const [selectedAction, setSelectedAction] = useState('')
   const [page, setPage] = useState(1)
 
+  // Selection state for delete
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
+
   // Fetch logs
   const fetchLogs = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true)
@@ -98,6 +106,72 @@ export default function AdminAuditPage() {
   useEffect(() => {
     fetchLogs()
   }, [fetchLogs])
+
+  // Toggle selection
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  // Select all on current page
+  const toggleSelectAll = () => {
+    if (selectedIds.size === logs.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(logs.map(l => l.id)))
+    }
+  }
+
+  // Delete selected logs
+  const deleteSelected = async () => {
+    if (selectedIds.size === 0) return
+    setIsDeleting(true)
+
+    try {
+      const response = await fetch('/api/admin/audit', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+
+      if ((await response.json()).success) {
+        setSelectedIds(new Set())
+        fetchLogs(true)
+      }
+    } catch (error) {
+      console.error('Error deleting logs:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Delete all logs
+  const deleteAll = async () => {
+    setIsDeleting(true)
+
+    try {
+      const response = await fetch('/api/admin/audit', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteAll: true }),
+      })
+
+      if ((await response.json()).success) {
+        setSelectedIds(new Set())
+        setShowDeleteAllModal(false)
+        fetchLogs(true)
+      }
+    } catch (error) {
+      console.error('Error deleting all logs:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   // Format date
   const formatDate = (dateString: string): string => {
@@ -163,21 +237,57 @@ export default function AdminAuditPage() {
           <h1 className="text-2xl font-bold text-white">Audit Log</h1>
           <p className="text-gray-400 mt-1">
             {pagination?.total || 0} total admin actions recorded
+            {selectedIds.size > 0 && (
+              <span className="ml-2 text-blue-400">({selectedIds.size} selected)</span>
+            )}
           </p>
         </div>
-        <button
-          onClick={() => fetchLogs(true)}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={deleteSelected}
+              disabled={isDeleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Selected ({selectedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => setShowDeleteAllModal(true)}
+            disabled={isDeleting || logs.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-lg text-red-400 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete All
+          </button>
+          <button
+            onClick={() => fetchLogs(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Select All Checkbox */}
+          <button
+            onClick={toggleSelectAll}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+          >
+            {selectedIds.size === logs.length && logs.length > 0 ? (
+              <CheckSquare className="w-4 h-4 text-blue-400" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+            Select All
+          </button>
+
           <select
             value={selectedAdmin}
             onChange={(e) => { setSelectedAdmin(e.target.value); setPage(1) }}
@@ -228,8 +338,20 @@ export default function AdminAuditPage() {
               const ActionIcon = actionStyle.icon
 
               return (
-                <div key={log.id} className="p-4 hover:bg-gray-700/30 transition-colors">
+                <div key={log.id} className={`p-4 hover:bg-gray-700/30 transition-colors ${selectedIds.has(log.id) ? 'bg-blue-500/10' : ''}`}>
                   <div className="flex items-start gap-4">
+                    {/* Selection Checkbox */}
+                    <button
+                      onClick={() => toggleSelect(log.id)}
+                      className="mt-1 p-1 hover:bg-gray-600 rounded transition-colors"
+                    >
+                      {selectedIds.has(log.id) ? (
+                        <CheckSquare className="w-5 h-5 text-blue-400" />
+                      ) : (
+                        <Square className="w-5 h-5 text-gray-500" />
+                      )}
+                    </button>
+
                     {/* Action Icon */}
                     <div className={`p-2 rounded-lg ${actionStyle.bg}`}>
                       <ActionIcon className={`w-5 h-5 ${actionStyle.color}`} />
@@ -335,6 +457,57 @@ export default function AdminAuditPage() {
           </div>
         )}
       </div>
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-400" />
+                Delete All Audit Logs
+              </h2>
+              <button
+                onClick={() => setShowDeleteAllModal(false)}
+                className="p-2 rounded-lg hover:bg-gray-700 text-gray-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to delete <strong className="text-red-400">all {pagination?.total || 0} audit logs</strong>?
+              This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteAllModal(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteAll}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete All
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

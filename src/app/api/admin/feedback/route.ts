@@ -252,3 +252,58 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+// DELETE - Permanently delete feedback
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    // Verify admin status
+    const adminUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true },
+    })
+
+    if (!adminUser?.isAdmin) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { feedbackId } = body
+
+    if (!feedbackId) {
+      return NextResponse.json({ error: 'Feedback ID required' }, { status: 400 })
+    }
+
+    // Get IP and user agent for audit log
+    const ipAddress = request.headers.get('x-forwarded-for') ||
+                      request.headers.get('x-real-ip') ||
+                      'unknown'
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+
+    // Delete the feedback
+    await prisma.feedback.delete({
+      where: { id: feedbackId },
+    })
+
+    await logAdminAction({
+      adminId: user.id,
+      action: 'feedback_deleted',
+      targetType: 'feedback',
+      targetId: feedbackId,
+      details: {},
+      ipAddress,
+      userAgent,
+    })
+
+    return NextResponse.json({ success: true, message: 'Feedback deleted permanently' })
+  } catch (error) {
+    console.error('[Admin Feedback Delete] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

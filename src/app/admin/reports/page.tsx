@@ -23,6 +23,7 @@ import {
   Star,
   Archive,
   Search,
+  Trash2,
 } from 'lucide-react'
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
 import Link from 'next/link'
@@ -310,6 +311,44 @@ export default function AdminReportsPage() {
       alert('An error occurred')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // Delete report permanently
+  const deleteReport = async (reportId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this report? This cannot be undone.')) return
+
+    try {
+      const response = await fetch('/api/admin/reports', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId }),
+      })
+
+      if ((await response.json()).success) {
+        fetchReports(true)
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error)
+    }
+  }
+
+  // Delete feedback permanently
+  const deleteFeedback = async (feedbackId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this feedback? This cannot be undone.')) return
+
+    try {
+      const response = await fetch('/api/admin/feedback', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedbackId }),
+      })
+
+      if ((await response.json()).success) {
+        fetchFeedback(true)
+      }
+    } catch (error) {
+      console.error('Error deleting feedback:', error)
     }
   }
 
@@ -646,6 +685,16 @@ export default function AdminReportsPage() {
                       </button>
                     </div>
                   )}
+
+                  {/* Delete Button - Always visible */}
+                  <button
+                    onClick={() => deleteReport(report.id)}
+                    className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 border border-red-600/50 rounded-lg text-red-400 text-sm transition-colors flex items-center gap-1"
+                    title="Delete permanently"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
                 </div>
 
                 {/* Description */}
@@ -852,6 +901,16 @@ export default function AdminReportsPage() {
                         </button>
                       </div>
                     )}
+
+                    {/* Delete Button - Always visible */}
+                    <button
+                      onClick={() => deleteFeedback(fb.id)}
+                      className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 border border-red-600/50 rounded-lg text-red-400 text-sm transition-colors flex items-center gap-1"
+                      title="Delete permanently"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
+                    </button>
                   </div>
 
                   {/* Message */}
