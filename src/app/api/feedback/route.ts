@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit } from '@/lib/rate-limit'
 
 // POST /api/feedback - Submit feedback
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 feedback submissions per hour (uses Redis in production)
+  const rateLimitResult = await rateLimit(request, {
+    max: 5,
+    windowMs: 60 * 60 * 1000,
+    keyPrefix: 'feedback-submit'
+  })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { success: false, error: 'Too many feedback submissions. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const {

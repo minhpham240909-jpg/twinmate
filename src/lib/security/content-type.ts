@@ -25,7 +25,7 @@ const VALID_FORM_CONTENT_TYPES = [
 
 // Routes that accept form data (file uploads)
 const FORM_DATA_ROUTES = [
-  '/api/upload/',
+  '/api/upload',
   '/api/messages/upload-file',
 ]
 
