@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/warmup",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/cleanup-analytics",
