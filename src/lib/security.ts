@@ -166,10 +166,13 @@ export function validateAndSanitizeObject<T extends Record<string, any>>(
 /**
  * Rate limit key generator - prevents user enumeration
  * Generates a consistent but obfuscated key for rate limiting
+ * SECURITY: Uses SHA256 hash instead of base64 to prevent reverse engineering
  */
 export function generateRateLimitKey(identifier: string, prefix: string): string {
-  // Use a simple hash to prevent direct user enumeration
-  const hash = Buffer.from(identifier).toString('base64')
+  // SECURITY: Use SHA256 hash instead of base64 to prevent user enumeration
+  // Base64 is reversible, making it easy to extract user identifiers
+  const crypto = require('crypto')
+  const hash = crypto.createHash('sha256').update(identifier).digest('hex')
   return `${prefix}:${hash}`
 }
 
@@ -206,11 +209,30 @@ export function isStrongPassword(password: string): { valid: boolean; errors: st
 }
 
 /**
- * Sanitize filename to prevent directory traversal
+ * Sanitize filename to prevent directory traversal and injection attacks
+ * SECURITY: Enhanced sanitization to prevent path traversal and control characters
  */
 export function sanitizeFilename(filename: string): string {
-  return filename
+  if (!filename || typeof filename !== 'string') {
+    return 'file'
+  }
+  
+  // Remove null bytes and control characters
+  let sanitized = filename
+    .replace(/\0/g, '') // Remove null bytes
+    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
     .replace(/[^a-zA-Z0-9._-]/g, '') // Only allow alphanumeric, dots, underscores, hyphens
+    .replace(/^\.+/, '') // Remove leading dots
     .replace(/\.\.+/g, '.') // Remove multiple dots (path traversal attempt)
+    .replace(/\.$/, '') // Remove trailing dots
     .substring(0, 255) // Limit length
+  
+  // Ensure filename is not empty and doesn't start with reserved names (Windows)
+  const reservedNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+  const nameWithoutExt = sanitized.split('.')[0].toUpperCase()
+  if (reservedNames.includes(nameWithoutExt) || sanitized.length === 0) {
+    sanitized = `file_${Date.now()}`
+  }
+  
+  return sanitized
 }

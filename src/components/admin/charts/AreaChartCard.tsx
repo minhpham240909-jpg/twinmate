@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import {
   AreaChart,
   Area,
@@ -28,7 +29,7 @@ interface AreaChartCardProps {
   valueFormatter?: (value: number) => string
 }
 
-export default function AreaChartCard({
+function AreaChartCard({
   title,
   subtitle,
   data,
@@ -39,6 +40,30 @@ export default function AreaChartCard({
   showHeader = true,
   valueFormatter = (v) => v.toLocaleString(),
 }: AreaChartCardProps) {
+  // Error state: Handle empty or invalid data
+  if (!data || data.length === 0) {
+    if (!showHeader) {
+      return (
+        <div className="flex items-center justify-center" style={{ height }}>
+          <p className="text-gray-400">No data available</p>
+        </div>
+      )
+    }
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white">{title}</h3>
+            {subtitle && <p className="text-sm text-gray-400">{subtitle}</p>}
+          </div>
+        </div>
+        <div className="flex items-center justify-center" style={{ height }}>
+          <p className="text-gray-400">No data available</p>
+        </div>
+      </div>
+    )
+  }
+
   const total = data.reduce((sum, d) => sum + d.value, 0)
 
   // If embedded (no header), don't wrap in card container
@@ -155,3 +180,6 @@ export default function AreaChartCard({
     </div>
   )
 }
+
+// PERF: Memoize component to prevent unnecessary re-renders
+export default React.memo(AreaChartCard)

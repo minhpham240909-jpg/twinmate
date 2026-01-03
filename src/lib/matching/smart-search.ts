@@ -26,6 +26,8 @@ export const SUBJECT_SYNONYMS: Record<string, string[]> = {
     'discrete math', 'number theory', 'mathematical', 'quantitative',
     'pre-calculus', 'precalc', 'calc', 'stats', 'trig', 'geo', 'alg',
     'differential equations', 'multivariable', 'ap calc', 'ap statistics',
+    // Common abbreviations
+    'mat', 'mtth', 'mathematic', 'algebr', 'geom', 'calcu',
   ],
 
   // Physics
@@ -165,6 +167,45 @@ export const SUBJECT_SYNONYMS: Record<string, string[]> = {
     'ap exam', 'ib exam', 'standardized test', 'college admission',
     'exam prep', 'test preparation', 'study skills',
   ],
+
+  // Advanced Placement (AP) Courses
+  'advanced placement': [
+    'ap', 'a.p.', 'a.p', 'ap course', 'ap class', 'ap courses',
+    'college board', 'ap exam', 'ap test', 'advanced',
+  ],
+
+  // International Baccalaureate (IB)
+  'international baccalaureate': [
+    'ib', 'i.b.', 'i.b', 'ib course', 'ib diploma', 'ib program',
+    'ib hl', 'ib sl', 'higher level', 'standard level',
+  ],
+
+  // Data Science
+  'data science': [
+    'ds', 'data', 'data analytics', 'analytics', 'big data',
+    'data analysis', 'data engineering', 'data mining',
+    'pandas', 'numpy', 'jupyter', 'r programming', 'tableau',
+    'power bi', 'excel', 'spreadsheet', 'visualization',
+  ],
+
+  // Information Technology
+  'information technology': [
+    'it', 'i.t.', 'tech', 'technology', 'computer', 'computers',
+    'hardware', 'software', 'network', 'networking', 'infrastructure',
+  ],
+
+  // Accounting & Finance
+  accounting: [
+    'acc', 'acct', 'bookkeeping', 'cpa', 'audit', 'auditing',
+    'tax', 'taxation', 'financial accounting', 'managerial accounting',
+    'cost accounting', 'forensic accounting',
+  ],
+
+  // Statistics
+  statistics: [
+    'stat', 'stats', 'statistical', 'probability', 'prob',
+    'regression', 'hypothesis', 'anova', 'spss', 'stata', 'r stats',
+  ],
 }
 
 // ============================================================================
@@ -224,17 +265,139 @@ export const STUDY_STYLE_SYNONYMS: Record<string, string[]> = {
 }
 
 // ============================================================================
+// COMMON ABBREVIATIONS QUICK LOOKUP
+// Direct mapping for fast abbreviation resolution
+// ============================================================================
+
+export const ABBREVIATION_MAP: Record<string, string> = {
+  // Subjects
+  'cs': 'computer science',
+  'compsci': 'computer science',
+  'csc': 'computer science',
+  'swe': 'software engineering',
+  'ee': 'electrical engineering',
+  'ece': 'electrical engineering',
+  'me': 'mechanical engineering',
+  'ce': 'civil engineering',
+  'che': 'chemical engineering',
+  'bio': 'biology',
+  'chem': 'chemistry',
+  'phys': 'physics',
+  'math': 'mathematics',
+  'calc': 'calculus',
+  'stats': 'statistics',
+  'econ': 'economics',
+  'psych': 'psychology',
+  'soc': 'sociology',
+  'poli': 'political science',
+  'polisci': 'political science',
+  'anthro': 'anthropology',
+  'eng': 'english',
+  'lit': 'literature',
+  'hist': 'history',
+  'geo': 'geography',
+  'phil': 'philosophy',
+  'ling': 'linguistics',
+
+  // AP Courses
+  'ap': 'advanced placement',
+  'apush': 'ap us history',
+  'apes': 'ap environmental science',
+  'apcs': 'ap computer science',
+  'apcsa': 'ap computer science a',
+  'apcsp': 'ap computer science principles',
+  'apgov': 'ap government',
+  'aplit': 'ap literature',
+  'aplang': 'ap language',
+  'apcalc': 'ap calculus',
+  'apbio': 'ap biology',
+  'apchem': 'ap chemistry',
+  'apphys': 'ap physics',
+  'apeuro': 'ap european history',
+  'apworld': 'ap world history',
+
+  // IB
+  'ib': 'international baccalaureate',
+  'ibdp': 'ib diploma programme',
+  'ibhl': 'ib higher level',
+  'ibsl': 'ib standard level',
+
+  // Test Prep
+  'sat': 'sat exam',
+  'act': 'act exam',
+  'gre': 'graduate record examination',
+  'gmat': 'graduate management admission test',
+  'lsat': 'law school admission test',
+  'mcat': 'medical college admission test',
+
+  // Technology
+  'it': 'information technology',
+  'ml': 'machine learning',
+  'ai': 'artificial intelligence',
+  'ds': 'data science',
+  'db': 'database',
+  'sql': 'structured query language',
+  'js': 'javascript',
+  'ts': 'typescript',
+  'py': 'python',
+  'cpp': 'c++',
+  'ui': 'user interface',
+  'ux': 'user experience',
+  'api': 'application programming interface',
+  'dsa': 'data structures and algorithms',
+  'oop': 'object oriented programming',
+  'fp': 'functional programming',
+  'devops': 'development operations',
+  'qa': 'quality assurance',
+
+  // Business
+  'mba': 'master of business administration',
+  'hr': 'human resources',
+  'pr': 'public relations',
+  'roi': 'return on investment',
+  'cpa': 'certified public accountant',
+  'cfa': 'chartered financial analyst',
+  'acc': 'accounting',
+  'acct': 'accounting',
+  'fin': 'finance',
+  'mkt': 'marketing',
+  'mgmt': 'management',
+
+  // Languages
+  'esl': 'english as second language',
+  'esp': 'spanish',
+  'fra': 'french',
+  'deu': 'german',
+  'jpn': 'japanese',
+  'kor': 'korean',
+  'chn': 'chinese',
+  'ara': 'arabic',
+  'por': 'portuguese',
+  'rus': 'russian',
+  'ita': 'italian',
+}
+
+// ============================================================================
 // CORE MATCHING FUNCTIONS
 // ============================================================================
 
 /**
  * Expand a search term into related terms using synonym mappings
+ * Handles: abbreviations, synonyms, case variations, partial matches
  */
 export function expandSearchTerm(term: string): string[] {
   const normalizedTerm = term.toLowerCase().trim()
   const expanded: Set<string> = new Set([normalizedTerm])
 
-  // Check all synonym categories
+  // Step 1: Check abbreviation map first (fast O(1) lookup)
+  const abbreviationExpansion = ABBREVIATION_MAP[normalizedTerm]
+  if (abbreviationExpansion) {
+    expanded.add(abbreviationExpansion)
+    // Also expand the full form
+    abbreviationExpansion.split(' ').forEach(word => expanded.add(word))
+  }
+
+  // Step 2: Check all synonym categories
   const allSynonyms = {
     ...SUBJECT_SYNONYMS,
     ...SKILL_LEVEL_SYNONYMS,
@@ -257,6 +420,14 @@ export function expandSearchTerm(term: string): string[] {
       expanded.add(keyLower)
       valuesLower.forEach(v => expanded.add(v))
     }
+  }
+
+  // Step 3: Handle common variations (remove/add common suffixes)
+  if (normalizedTerm.endsWith('s') && normalizedTerm.length > 2) {
+    expanded.add(normalizedTerm.slice(0, -1)) // Remove 's' plural
+  }
+  if (!normalizedTerm.endsWith('s') && normalizedTerm.length > 2) {
+    expanded.add(normalizedTerm + 's') // Add 's' plural
   }
 
   return Array.from(expanded)

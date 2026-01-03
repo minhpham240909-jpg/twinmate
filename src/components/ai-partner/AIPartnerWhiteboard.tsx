@@ -41,6 +41,7 @@ interface DrawAction {
 }
 
 interface AIAnalysisResult {
+  id?: string // Database ID for deletion
   analysis: string
   suggestions: string[]
   relatedConcepts: string[]
@@ -48,6 +49,7 @@ interface AIAnalysisResult {
 }
 
 interface AISuggestionResult {
+  id?: string // Database ID for deletion
   suggestions: string[]
   drawingIdeas: { title: string; description: string; steps: string[] }[]
   visualizationTips: string[]
@@ -110,18 +112,72 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
     actionsRef.current = actions
   }, [actions])
 
-  // Load analysis history from localStorage
+  // Load AI responses from database on mount (persists across navigation)
   useEffect(() => {
     if (!mounted) return
-    const savedHistory = localStorage.getItem(`ai-whiteboard-history-${sessionId}`)
-    if (savedHistory) {
+
+    const loadAIResponses = async () => {
       try {
-        const parsed = JSON.parse(savedHistory)
-        setAnalysisHistory(parsed)
-      } catch (e) {
-        console.error('Failed to load analysis history', e)
+        const res = await fetch(`/api/ai-partner/whiteboard/responses?sessionId=${sessionId}`)
+        if (!res.ok) return
+
+        const data = await res.json()
+        if (!data.success || !data.responses?.length) return
+
+        // Process responses and set state
+        const analyses: AIAnalysisResult[] = []
+        let latestAnalysis: AIAnalysisResult | null = null
+        let latestSuggestion: AISuggestionResult | null = null
+
+        // Responses are ordered by createdAt DESC, so first is most recent
+        for (const response of data.responses) {
+          if (response.type === 'analysis') {
+            const analysisData: AIAnalysisResult = {
+              id: response.id,
+              analysis: response.data.analysis || '',
+              suggestions: response.data.suggestions || [],
+              relatedConcepts: response.data.relatedConcepts || [],
+              timestamp: response.timestamp,
+            }
+            analyses.push(analysisData)
+
+            // Set the most recent analysis as active
+            if (!latestAnalysis) {
+              latestAnalysis = analysisData
+            }
+          } else if (response.type === 'suggestion') {
+            // Set the most recent suggestion as active
+            if (!latestSuggestion) {
+              latestSuggestion = {
+                id: response.id,
+                suggestions: response.data.suggestions || [],
+                drawingIdeas: response.data.drawingIdeas || [],
+                visualizationTips: response.data.visualizationTips || [],
+                timestamp: response.timestamp,
+              }
+            }
+          }
+        }
+
+        // Set state - show the most recent response
+        if (analyses.length > 0) {
+          setAnalysisHistory(analyses)
+        }
+
+        // Show the most recent panel (analysis takes priority if both exist)
+        if (latestAnalysis) {
+          setAiAnalysis(latestAnalysis)
+          setShowAnalysisPanel(true)
+        } else if (latestSuggestion) {
+          setAiSuggestion(latestSuggestion)
+          setShowSuggestionPanel(true)
+        }
+      } catch (error) {
+        console.error('Failed to load AI responses:', error)
       }
     }
+
+    loadAIResponses()
   }, [mounted, sessionId])
 
   // Global mouse listener for dragging text input
@@ -526,6 +582,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
         if (data.mode === 'suggest') {
           // Handle suggestion response (empty canvas)
           const newSuggestion: AISuggestionResult = {
+            id: data.messageId, // Store message ID for deletion
             suggestions: data.suggestions || [],
             drawingIdeas: data.drawingIdeas || [],
             visualizationTips: data.visualizationTips || [],
@@ -540,6 +597,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
         } else {
           // Handle analysis response (has drawing)
           const newAnalysis: AIAnalysisResult = {
+            id: data.messageId, // Store message ID for deletion
             analysis: data.analysis,
             suggestions: data.suggestions || [],
             relatedConcepts: data.relatedConcepts || [],
@@ -550,10 +608,9 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
           setShowAnalysisPanel(true)
           setShowSuggestionPanel(false)
 
-          // Add to history (keep last 10)
+          // Add to history (keep last 10) - stored in DB now, no localStorage needed
           setAnalysisHistory((prev) => {
             const updated = [newAnalysis, ...prev].slice(0, 10)
-            localStorage.setItem(`ai-whiteboard-history-${sessionId}`, JSON.stringify(updated))
             return updated
           })
 
@@ -571,12 +628,69 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
     }
   }
 
-  // Clear analysis history
-  const handleClearHistory = () => {
+  // Delete a single AI response from database
+  const handleDeleteResponse = async (responseId: string | undefined, type: 'analysis' | 'suggestion') => {
+    if (!responseId) {
+      // Just close the panel if no ID (legacy local-only response)
+      if (type === 'analysis') {
+        setShowAnalysisPanel(false)
+        setAiAnalysis(null)
+      } else {
+        setShowSuggestionPanel(false)
+        setAiSuggestion(null)
+      }
+      return
+    }
+
+    try {
+      const res = await fetch(
+        `/api/ai-partner/whiteboard/responses?responseId=${responseId}&sessionId=${sessionId}`,
+        { method: 'DELETE' }
+      )
+
+      if (res.ok) {
+        if (type === 'analysis') {
+          setShowAnalysisPanel(false)
+          setAiAnalysis(null)
+          // Remove from history
+          setAnalysisHistory((prev) => prev.filter((item) => item.id !== responseId))
+        } else {
+          setShowSuggestionPanel(false)
+          setAiSuggestion(null)
+        }
+        toast.success('Response deleted')
+      } else {
+        toast.error('Failed to delete response')
+      }
+    } catch (error) {
+      console.error('Failed to delete response:', error)
+      toast.error('Failed to delete response')
+    }
+  }
+
+  // Clear all analysis history from database
+  const handleClearHistory = async () => {
     if (!confirm('Clear all analysis history?')) return
-    setAnalysisHistory([])
-    localStorage.removeItem(`ai-whiteboard-history-${sessionId}`)
-    toast.success('History cleared')
+
+    // Delete all responses from history
+    const deletePromises = analysisHistory
+      .filter((item) => item.id)
+      .map((item) =>
+        fetch(`/api/ai-partner/whiteboard/responses?responseId=${item.id}&sessionId=${sessionId}`, {
+          method: 'DELETE',
+        })
+      )
+
+    try {
+      await Promise.all(deletePromises)
+      setAnalysisHistory([])
+      setAiAnalysis(null)
+      setShowAnalysisPanel(false)
+      toast.success('History cleared')
+    } catch (error) {
+      console.error('Failed to clear history:', error)
+      toast.error('Failed to clear some responses')
+    }
   }
 
   // Format timestamp
@@ -845,12 +959,22 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 <h3 className="font-semibold text-white">AI Analysis</h3>
               </div>
-              <button
-                onClick={() => setShowAnalysisPanel(false)}
-                className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleDeleteResponse(aiAnalysis.id, 'analysis')}
+                  className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                  title="Delete this analysis"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowAnalysisPanel(false)}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors"
+                  title="Close panel"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -919,12 +1043,22 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
                 <Lightbulb className="w-5 h-5 text-yellow-400" />
                 <h3 className="font-semibold text-white">Drawing Ideas</h3>
               </div>
-              <button
-                onClick={() => setShowSuggestionPanel(false)}
-                className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleDeleteResponse(aiSuggestion.id, 'suggestion')}
+                  className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                  title="Delete these suggestions"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowSuggestionPanel(false)}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors"
+                  title="Close panel"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Content */}

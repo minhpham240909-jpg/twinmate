@@ -60,12 +60,17 @@ export async function POST(req: NextRequest) {
 
     // If oldEndpoint is provided, this is a subscription refresh - delete old one
     if (oldEndpoint) {
-      await prisma.pushSubscription.deleteMany({
-        where: {
-          userId: user.id,
-          endpoint: oldEndpoint,
-        },
-      }).catch(() => {})
+      try {
+        await prisma.pushSubscription.deleteMany({
+          where: {
+            userId: user.id,
+            endpoint: oldEndpoint,
+          },
+        })
+      } catch (error) {
+        // Log error but don't fail subscription - old endpoint cleanup is non-critical
+        console.error('[Push Subscribe] Failed to delete old subscription:', error)
+      }
     }
 
     // Check if this exact subscription already exists

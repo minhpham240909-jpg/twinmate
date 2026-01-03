@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get all existing matches (sent or received) for this user
+    // SCALABILITY: Get existing matches with limit to prevent OOM for users with many connections
+    // Most users won't have more than a few hundred matches
+    const MAX_MATCHES_TO_FETCH = 1000
     const existingMatches = await prisma.match.findMany({
       where: {
         OR: [
@@ -36,7 +38,8 @@ export async function GET(request: NextRequest) {
         senderId: true,
         receiverId: true,
         status: true
-      }
+      },
+      take: MAX_MATCHES_TO_FETCH
     })
 
     // SECURITY: Get blocked user IDs to exclude

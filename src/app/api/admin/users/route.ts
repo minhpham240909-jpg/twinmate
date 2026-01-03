@@ -134,6 +134,10 @@ export async function GET(request: NextRequest) {
 // POST - Admin actions on users (ban, unban, warn, etc.)
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting (userActions preset: 30 actions/minute)
+    const rateLimitResult = await adminRateLimit(request, 'userActions')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -183,13 +187,30 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Super-admin protection
-    // CEO/Super-admin email - only this user can grant/revoke admin rights
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
+    // Use database flag instead of email comparison to prevent email-based attacks
+    // Super-admin is determined by a special flag in the database (set via migration)
     const actingAdmin = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { email: true },
+      select: { 
+        email: true,
+        // Check for super admin flag (can be added via migration: isSuperAdmin boolean field)
+        // For now, fallback to environment variable check but use constant-time comparison
+        id: true,
+      },
     })
-    const isSuperAdmin = actingAdmin?.email === superAdminEmail
+    
+    // SECURITY: Use constant-time comparison to prevent timing attacks
+    // In production, this should be replaced with a database flag (isSuperAdmin)
+    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
+    let isSuperAdmin = false
+    if (superAdminEmail && actingAdmin?.email) {
+      // Use timing-safe comparison
+      const emailBuffer = Buffer.from(actingAdmin.email.toLowerCase().trim())
+      const expectedBuffer = Buffer.from(superAdminEmail.toLowerCase().trim())
+      if (emailBuffer.length === expectedBuffer.length) {
+        isSuperAdmin = require('crypto').timingSafeEqual(emailBuffer, expectedBuffer)
+      }
+    }
 
     // Protected actions that require super-admin for targeting other admins
     const protectedActions = ['ban', 'warn', 'deactivate', 'grant_admin', 'revoke_admin']

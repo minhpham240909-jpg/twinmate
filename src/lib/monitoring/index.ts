@@ -1,6 +1,6 @@
 /**
  * Monitoring Module
- * 
+ *
  * Exports all monitoring and logging utilities.
  */
 
@@ -29,4 +29,27 @@ export {
   withPerformanceTracking,
   startTransaction,
 } from './performance'
+
+// Application Metrics
+export {
+  // Metric recording
+  recordCacheHit,
+  recordCacheMiss,
+  updateCacheSize,
+  recordCacheEviction,
+  recordApiRequest,
+  recordApiTimeout,
+  resetMetrics,
+  // Metric retrieval
+  getCacheMetrics,
+  getApiMetrics,
+  getSystemMetrics,
+  getHealthStatus,
+  // Types
+  type QueueMetrics,
+  type CacheMetrics,
+  type ApiMetrics,
+  type SystemMetrics,
+  type HealthStatus,
+} from './metrics'
 

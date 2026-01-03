@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { CONTENT_LIMITS, STUDY_SESSION } from '@/lib/constants'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
+import { updateGroupEmbedding } from '@/lib/embeddings'
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(CONTENT_LIMITS.GROUP_NAME_MAX),
@@ -165,6 +166,18 @@ export async function POST(request: NextRequest) {
 
       await Promise.all(notificationPromises)
     }
+
+    // Update group embedding for semantic search (async, non-blocking)
+    // This generates OpenAI embeddings for vector search
+    updateGroupEmbedding(group.id).catch(err => {
+      // Log error in all environments for monitoring
+      console.error('[groups/create] Failed to update embedding:', err)
+      // In production, also log to error tracking service if available
+      if (process.env.NODE_ENV === 'production') {
+        // Error is non-critical - group creation succeeded, embedding can be retried later
+        // Consider adding to a retry queue for background processing
+      }
+    })
 
     return NextResponse.json({
       success: true,

@@ -16,6 +16,7 @@ import { prisma } from '@/lib/prisma'
 import logger from '@/lib/logger'
 
 // Verify cron secret to prevent unauthorized access
+// SECURITY: Use timing-safe comparison to prevent timing attacks
 function verifyCronSecret(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
@@ -27,7 +28,19 @@ function verifyCronSecret(request: NextRequest): boolean {
   if (!authHeader) return false
   
   const token = authHeader.replace('Bearer ', '')
-  return token === cronSecret
+  
+  // SECURITY: Use timing-safe comparison to prevent timing attacks
+  // Timing attacks can reveal secret length and characters through response time differences
+  const crypto = require('crypto')
+  const tokenBuffer = Buffer.from(token)
+  const secretBuffer = Buffer.from(cronSecret)
+  
+  // Must be same length for timing-safe comparison
+  if (tokenBuffer.length !== secretBuffer.length) {
+    return false
+  }
+  
+  return crypto.timingSafeEqual(tokenBuffer, secretBuffer)
 }
 
 export async function GET(request: NextRequest) {

@@ -23,21 +23,36 @@ export async function GET(req: NextRequest) {
     const dateThreshold = new Date()
     dateThreshold.setDate(dateThreshold.getDate() - days)
 
-    // Get accepted partners for privacy filtering
-    const matches = await prisma.match.findMany({
+    // OPTIMIZATION: Single query to get ALL user connections (for both privacy filtering and connection status)
+    // This eliminates the duplicate N+1 query pattern
+    const allConnections = await prisma.match.findMany({
       where: {
-        status: 'ACCEPTED',
         OR: [{ senderId: user.id }, { receiverId: user.id }],
       },
       select: {
+        id: true,
         senderId: true,
         receiverId: true,
+        status: true,
       },
     })
 
-    const partnerIds = matches.map((match) =>
-      match.senderId === user.id ? match.receiverId : match.senderId
-    )
+    // Build partner IDs (ACCEPTED only) for privacy filtering
+    const partnerIds: string[] = []
+    // Build connection status map for all connections
+    const connectionStatusMap = new Map<string, 'none' | 'pending' | 'connected'>()
+    
+    allConnections.forEach(connection => {
+      const otherUserId = connection.senderId === user.id ? connection.receiverId : connection.senderId
+      
+      // For privacy filtering: only ACCEPTED partners
+      if (connection.status === 'ACCEPTED') {
+        partnerIds.push(otherUserId)
+        connectionStatusMap.set(otherUserId, 'connected')
+      } else if (connection.status === 'PENDING') {
+        connectionStatusMap.set(otherUserId, 'pending')
+      }
+    })
     partnerIds.push(user.id) // Include user's own posts
 
     // Fetch posts with engagement counts
@@ -109,33 +124,6 @@ export async function GET(req: NextRequest) {
         },
       },
       take: PAGINATION.POPULAR_POSTS_FETCH, // Get more to calculate scores
-    })
-
-    // Get all connections for the current user
-    const userConnections = await prisma.match.findMany({
-      where: {
-        OR: [
-          { senderId: user.id },
-          { receiverId: user.id },
-        ],
-      },
-      select: {
-        id: true,
-        senderId: true,
-        receiverId: true,
-        status: true,
-      },
-    })
-
-    // Create a map of userId -> connectionStatus
-    const connectionStatusMap = new Map<string, 'none' | 'pending' | 'connected'>()
-    userConnections.forEach(connection => {
-      const otherUserId = connection.senderId === user.id ? connection.receiverId : connection.senderId
-      if (connection.status === 'ACCEPTED') {
-        connectionStatusMap.set(otherUserId, 'connected')
-      } else if (connection.status === 'PENDING') {
-        connectionStatusMap.set(otherUserId, 'pending')
-      }
     })
 
     // Calculate engagement score for each post

@@ -55,42 +55,37 @@ export async function GET(request: Request) {
       skip: offset,
     })
 
-    // Calculate statistics
-    const totalSent = await prisma.match.count({
-      where: { senderId: user.id },
-    })
+    // Calculate statistics using groupBy to avoid N+1 (6 queries → 2 queries)
+    const [sentStats, receivedStats] = await Promise.all([
+      prisma.match.groupBy({
+        by: ['status'],
+        where: { senderId: user.id },
+        _count: { _all: true },
+      }),
+      prisma.match.groupBy({
+        by: ['status'],
+        where: { receiverId: user.id },
+        _count: { _all: true },
+      }),
+    ])
 
-    const totalReceived = await prisma.match.count({
-      where: { receiverId: user.id },
-    })
+    // Transform groupBy results into counts
+    const sentCounts = sentStats.reduce((acc, item) => {
+      acc[item.status] = item._count._all
+      return acc
+    }, {} as Record<string, number>)
 
-    const acceptedSent = await prisma.match.count({
-      where: {
-        senderId: user.id,
-        status: 'ACCEPTED',
-      },
-    })
+    const receivedCounts = receivedStats.reduce((acc, item) => {
+      acc[item.status] = item._count._all
+      return acc
+    }, {} as Record<string, number>)
 
-    const acceptedReceived = await prisma.match.count({
-      where: {
-        receiverId: user.id,
-        status: 'ACCEPTED',
-      },
-    })
-
-    const pendingSent = await prisma.match.count({
-      where: {
-        senderId: user.id,
-        status: 'PENDING',
-      },
-    })
-
-    const pendingReceived = await prisma.match.count({
-      where: {
-        receiverId: user.id,
-        status: 'PENDING',
-      },
-    })
+    const totalSent = Object.values(sentCounts).reduce((a, b) => a + b, 0)
+    const totalReceived = Object.values(receivedCounts).reduce((a, b) => a + b, 0)
+    const acceptedSent = sentCounts['ACCEPTED'] || 0
+    const acceptedReceived = receivedCounts['ACCEPTED'] || 0
+    const pendingSent = sentCounts['PENDING'] || 0
+    const pendingReceived = receivedCounts['PENDING'] || 0
 
     return NextResponse.json({
       matches: matches.map(match => ({

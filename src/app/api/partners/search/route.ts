@@ -1,5 +1,22 @@
+/**
+ * Partner Search API - Smart Semantic Search
+ *
+ * Enterprise-level search like YouTube:
+ * - "CS" matches "Computer Science"
+ * - "math" matches "Mathematics", "Calculus", "Algebra"
+ * - "saginaw" matches "Saginaw High School"
+ *
+ * Features:
+ * - Vector semantic search with OpenAI embeddings
+ * - Hybrid scoring (vector + text)
+ * - Synonym expansion
+ * - N+1 query prevention
+ * - Caching for scale
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
@@ -10,7 +27,6 @@ import {
   countFilledFields,
   getMissingFields,
   hasMinimumProfileData,
-  sortByMatchScore,
   type ProfileData
 } from '@/lib/matching'
 import {
@@ -19,18 +35,24 @@ import {
   validateSkillLevel,
   validateStudyStyle,
   validateAgeRange,
-  escapeLikePattern,
 } from '@/lib/security/search-sanitization'
+import { searchPartnersSmartly, generateProfileEmbedding } from '@/lib/search'
+
+// ============================================
+// Input Validation Schema
+// ============================================
 
 const searchSchema = z.object({
   searchQuery: z.string().optional(),
-  searchType: z.enum(['simple', 'full']).optional().default('full'),
+  // searchType kept for backward compatibility but now defaults to smart semantic search
+  searchType: z.enum(['simple', 'full', 'smart']).optional().default('smart'),
+  useSemanticSearch: z.boolean().optional().default(true),
   subjects: z.array(z.string()).optional(),
   skillLevel: z.string().optional(),
   studyStyle: z.string().optional(),
   interests: z.array(z.string()).optional(),
   availability: z.array(z.string()).optional(),
-  availableHours: z.string().optional(), // NEW: Filter by available hours
+  availableHours: z.string().optional(),
   subjectCustomDescription: z.string().optional(),
   skillLevelCustomDescription: z.string().optional(),
   studyStyleCustomDescription: z.string().optional(),
@@ -38,54 +60,44 @@ const searchSchema = z.object({
   aboutYourselfSearch: z.string().optional(),
   school: z.string().optional(),
   languages: z.string().optional(),
-  ageRange: z.string().optional(), // NEW: Age range filter
-  role: z.array(z.string()).optional(), // NEW: Role filter (can select multiple)
-  goals: z.array(z.string()).optional(), // NEW: Goals filter
-  locationCity: z.string().optional(), // NEW: Location filter - city
-  locationState: z.string().optional(), // NEW: Location filter - state
-  locationCountry: z.string().optional(), // NEW: Location filter - country
+  ageRange: z.string().optional(),
+  role: z.array(z.string()).optional(),
+  goals: z.array(z.string()).optional(),
+  locationCity: z.string().optional(),
+  locationState: z.string().optional(),
+  locationCountry: z.string().optional(),
   page: z.number().optional().default(1),
   limit: z.number().optional().default(20),
 })
 
+// ============================================
+// Main API Handler
+// ============================================
+
 export async function POST(request: NextRequest) {
-  // PERFORMANCE: Stricter rate limiting for expensive search (processes 100+ profiles)
-  // 10 requests/minute instead of 60 to prevent server overload
+  // Rate limiting
   const rateLimitResult = await rateLimit(request, RateLimitPresets.expensiveSearch)
   if (!rateLimitResult.success) {
     return NextResponse.json(
       { error: 'Too many search requests. Please slow down.' },
-      {
-        status: 429,
-        headers: rateLimitResult.headers
-      }
+      { status: 429, headers: rateLimitResult.headers }
     )
   }
 
   try {
-    // Verify user is authenticated
+    // Authenticate user
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError) {
-      logger.error('Partner search auth error', authError)
-      return NextResponse.json(
-        { error: 'Authentication failed', details: authError.message },
-        { status: 401 }
-      )
-    }
-
-    if (!user) {
-      logger.warn('Partner search - no user in session')
+    if (authError || !user) {
+      logger.warn('Partner search - authentication failed')
       return NextResponse.json(
         { error: 'Please sign in to search for partners' },
         { status: 401 }
       )
     }
 
-    logger.debug('Partner search initiated')
-
-    // Parse and validate request body
+    // Parse and validate request
     const body = await request.json()
     const validation = searchSchema.safeParse(body)
 
@@ -98,62 +110,37 @@ export async function POST(request: NextRequest) {
 
     const rawData = validation.data
 
-    // SECURITY: Sanitize all search inputs to prevent injection and abuse
+    // Sanitize inputs
     const sanitizedSearch = sanitizeSearchQuery(rawData.searchQuery)
     const searchQuery = sanitizedSearch.sanitized || undefined
-    const searchType = rawData.searchType
-    
-    // Sanitize array inputs
     const subjects = sanitizeArrayInput(rawData.subjects, { maxItems: 10 })
     const interests = sanitizeArrayInput(rawData.interests, { maxItems: 10 })
-    const availability = sanitizeArrayInput(rawData.availability, { maxItems: 7 })
     const goals = sanitizeArrayInput(rawData.goals, { maxItems: 10 })
-    const role = sanitizeArrayInput(rawData.role, { maxItems: 5 })
-    
-    // Validate enum values
     const skillLevel = validateSkillLevel(rawData.skillLevel)
     const studyStyle = validateStudyStyle(rawData.studyStyle)
     const ageRangeValues = validateAgeRange(rawData.ageRange)
-    const ageRange = rawData.ageRange // Keep original for hasSearchCriteria check
-    
-    // Sanitize text search fields
-    const availableHours = sanitizeSearchQuery(rawData.availableHours).sanitized || undefined
-    const subjectCustomDescription = sanitizeSearchQuery(rawData.subjectCustomDescription).sanitized || undefined
-    const skillLevelCustomDescription = sanitizeSearchQuery(rawData.skillLevelCustomDescription).sanitized || undefined
-    const studyStyleCustomDescription = sanitizeSearchQuery(rawData.studyStyleCustomDescription).sanitized || undefined
-    const interestsCustomDescription = sanitizeSearchQuery(rawData.interestsCustomDescription).sanitized || undefined
-    const aboutYourselfSearch = sanitizeSearchQuery(rawData.aboutYourselfSearch).sanitized || undefined
-    const school = sanitizeSearchQuery(rawData.school).sanitized || undefined
-    const languages = sanitizeSearchQuery(rawData.languages).sanitized || undefined
+
     const locationCity = sanitizeSearchQuery(rawData.locationCity).sanitized || undefined
     const locationState = sanitizeSearchQuery(rawData.locationState).sanitized || undefined
     const locationCountry = sanitizeSearchQuery(rawData.locationCountry).sanitized || undefined
-    
+
     const page = rawData.page
     const limit = rawData.limit
+    const useSemanticSearch = rawData.useSemanticSearch
 
-    // Validate that at least one search criteria is provided
+    // Validate at least one search criteria
     const hasSearchCriteria =
       (searchQuery && searchQuery.trim().length > 0) ||
       (subjects && subjects.length > 0) ||
       (skillLevel && skillLevel !== '') ||
       (studyStyle && studyStyle !== '') ||
       (interests && interests.length > 0) ||
-      (availability && availability.length > 0) ||
-      (availableHours && availableHours.trim().length > 0) ||
-      (subjectCustomDescription && subjectCustomDescription.trim().length > 0) ||
-      (skillLevelCustomDescription && skillLevelCustomDescription.trim().length > 0) ||
-      (studyStyleCustomDescription && studyStyleCustomDescription.trim().length > 0) ||
-      (interestsCustomDescription && interestsCustomDescription.trim().length > 0) ||
-      (aboutYourselfSearch && aboutYourselfSearch.trim().length > 0) ||
-      (school && school.trim().length > 0) ||
-      (languages && languages.trim().length > 0) ||
-      (ageRange && ageRange !== '') ||
-      (role && role.length > 0) ||
       (goals && goals.length > 0) ||
+      (rawData.ageRange && rawData.ageRange !== '') ||
       (locationCity && locationCity.trim().length > 0) ||
       (locationState && locationState.trim().length > 0) ||
-      (locationCountry && locationCountry.trim().length > 0)
+      (locationCountry && locationCountry.trim().length > 0) ||
+      (rawData.school && rawData.school.trim().length > 0)
 
     if (!hasSearchCriteria) {
       return NextResponse.json(
@@ -162,49 +149,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PERFORMANCE: Create cache key from search criteria
-    // Cache key includes all filters to ensure accurate results
-    const cacheKey = `${CACHE_PREFIX.SEARCH_PARTNERS}:${user.id}:${JSON.stringify({
-      searchQuery,
-      subjects,
-      skillLevel,
-      studyStyle,
-      interests,
-      availability,
-      availableHours,
-      ageRange,
-      role,
-      goals,
-      school,
-      languages,
-      locationCity,
-      locationState,
-      locationCountry,
-      page,
-      limit,
-    })}`
+    // Get blocked users and existing connections to exclude
+    const blockedUserIds = await getBlockedUserIds(user.id)
 
-    // PERFORMANCE: Try to get results from cache first
-    // Reduces expensive database queries by 80% for repeat searches
-    return await getOrSetCached(
-      cacheKey,
-      CACHE_TTL.SEARCH_PARTNERS,
-      async () => {
-        logger.debug('Partner search - cache miss, querying database')
-
-        // SECURITY: Get blocked user IDs to exclude from search
-        const blockedUserIds = await getBlockedUserIds(user.id)
-
-    // Get existing matches to filter out
-    const { data: existingMatches } = await supabase
-      .from('Match')
-      .select('senderId, receiverId, status')
-      .or(`senderId.eq.${user.id},receiverId.eq.${user.id}`)
+    // Get existing matches (to show status)
+    const existingMatches = await prisma.match.findMany({
+      where: {
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id }
+        ]
+      },
+      select: {
+        senderId: true,
+        receiverId: true,
+        status: true
+      }
+    })
 
     const acceptedPartnerIds = new Set<string>()
     const pendingOrOtherUserIds = new Set<string>()
 
-    existingMatches?.forEach(match => {
+    existingMatches.forEach(match => {
       const otherUserId = match.senderId === user.id ? match.receiverId : match.senderId
       if (match.status === 'ACCEPTED') {
         acceptedPartnerIds.add(otherUserId)
@@ -213,465 +179,431 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Add blocked users to exclusion set
-    blockedUserIds.forEach(id => pendingOrOtherUserIds.add(id))
+    // Combine exclusion lists
+    const excludeUserIds = [...new Set([...blockedUserIds, ...pendingOrOtherUserIds])]
 
-    // Build Supabase query - include all fields needed for enhanced matching
-    let query = supabase
-      .from('Profile')
-      .select(`
-        userId,
-        age,
-        role,
-        subjects,
-        interests,
-        goals,
-        studyStyle,
-        skillLevel,
-        availableDays,
-        availableHours,
-        bio,
-        school,
-        languages,
-        timezone,
-        aboutYourself,
-        aboutYourselfItems,
-        subjectCustomDescription,
-        skillLevelCustomDescription,
-        studyStyleCustomDescription,
-        interestsCustomDescription,
-        availabilityCustomDescription,
-        location_lat,
-        location_lng,
-        location_city,
-        location_state,
-        location_country,
-        location_visibility,
-        updatedAt,
-        user:User!inner(
-          id,
-          name,
-          email,
-          avatarUrl,
-          role,
-          createdAt
-        )
-      `)
-      .neq('userId', user.id)
+    // Build cache key
+    const cacheKey = `${CACHE_PREFIX.SEARCH_PARTNERS}:${user.id}:${JSON.stringify({
+      searchQuery, subjects, skillLevel, studyStyle, interests, goals,
+      ageRange: rawData.ageRange, locationCity, locationState, locationCountry,
+      page, limit, useSemanticSearch
+    })}`
 
-    // Exclude pending/rejected connections
-    if (pendingOrOtherUserIds.size > 0) {
-      query = query.not('userId', 'in', `(${Array.from(pendingOrOtherUserIds).join(',')})`)
-    }
+    // Try cache first
+    return await getOrSetCached(
+      cacheKey,
+      CACHE_TTL.SEARCH_PARTNERS,
+      async () => {
+        // Build combined search query for semantic search
+        const combinedSearchQuery = [
+          searchQuery,
+          rawData.school,
+          rawData.subjectCustomDescription,
+          rawData.skillLevelCustomDescription,
+          rawData.studyStyleCustomDescription,
+          rawData.interestsCustomDescription,
+          rawData.aboutYourselfSearch,
+          locationCity,
+          locationState,
+          locationCountry,
+        ].filter(Boolean).join(' ').trim()
 
-    // Filter by subjects - Supabase uses @> for array contains
-    if (subjects && subjects.length > 0) {
-      query = query.overlaps('subjects', subjects)
-    }
+        let profiles: Array<{
+          id: string
+          userId: string
+          similarity: number
+          hybridScore: number
+          textScore: number
+          profile: {
+            id: string
+            userId: string
+            bio: string | null
+            school: string | null
+            languages: string | null
+            subjects: string[]
+            interests: string[]
+            goals: string[]
+            skillLevel: string | null
+            studyStyle: string | null
+            age: number | null
+            location_city: string | null
+            location_state: string | null
+            location_country: string | null
+            aboutYourself: string | null
+            subjectCustomDescription: string | null
+            user: {
+              id: string
+              name: string | null
+              avatarUrl: string | null
+              lastLoginAt: Date | null
+            }
+          }
+        }> = []
+        let totalCount = 0
+        let searchMetadata = { usedVectorSearch: false, tokensUsed: 0 }
 
-    // Filter by skill level
-    if (skillLevel && skillLevel !== '') {
-      query = query.eq('skillLevel', skillLevel)
-    }
+        // Use semantic search if query provided and enabled
+        if (combinedSearchQuery && useSemanticSearch) {
+          try {
+            const semanticResults = await searchPartnersSmartly({
+              query: combinedSearchQuery,
+              excludeUserId: user.id,
+              excludeUserIds,
+              filters: {
+                subjects,
+                skillLevel,
+                studyStyle,
+                interests,
+                goals,
+                ageMin: ageRangeValues?.min,
+                ageMax: ageRangeValues?.max,
+                locationCity,
+                locationState,
+                locationCountry,
+              },
+              limit: limit * 2, // Fetch extra for filtering
+              offset: 0
+            })
 
-    // Filter by study style
-    if (studyStyle && studyStyle !== '') {
-      query = query.eq('studyStyle', studyStyle)
-    }
+            profiles = semanticResults.results
+            totalCount = semanticResults.total
+            searchMetadata = {
+              usedVectorSearch: semanticResults.searchMetadata.usedVectorSearch,
+              tokensUsed: semanticResults.searchMetadata.tokensUsed
+            }
 
-    // Filter by interests
-    if (interests && interests.length > 0) {
-      query = query.overlaps('interests', interests)
-    }
+            logger.debug('Semantic partner search completed', {
+              query: combinedSearchQuery,
+              resultsCount: profiles.length,
+              usedVectorSearch: searchMetadata.usedVectorSearch
+            })
+          } catch (error) {
+            logger.warn('Semantic search failed, falling back to traditional search', { error })
+            // Fall through to traditional search
+          }
+        }
 
-    // Filter by availability
-    if (availability && availability.length > 0) {
-      query = query.overlaps('availableDays', availability)
-    }
+        // Fallback to traditional search if semantic search wasn't used or failed
+        if (profiles.length === 0) {
+          const traditionalResults = await performTraditionalSearch({
+            userId: user.id,
+            excludeUserIds,
+            searchQuery: combinedSearchQuery,
+            subjects,
+            skillLevel,
+            studyStyle,
+            interests,
+            goals,
+            ageRangeValues,
+            locationCity,
+            locationState,
+            locationCountry,
+            limit: limit * 2,
+            offset: 0
+          })
 
-    // Filter by goals
-    if (goals && goals.length > 0) {
-      query = query.overlaps('goals', goals)
-    }
+          profiles = traditionalResults.profiles
+          totalCount = traditionalResults.total
+        }
 
-    // Filter by role
-    if (role && role.length > 0) {
-      query = query.in('role', role)
-    }
+        // Get current user's profile for compatibility scoring
+        const myProfile = await prisma.profile.findUnique({
+          where: { userId: user.id },
+          select: {
+            subjects: true,
+            interests: true,
+            studyStyle: true,
+            skillLevel: true,
+            goals: true,
+            availableDays: true,
+            availableHours: true,
+            school: true,
+            timezone: true,
+            languages: true,
+            role: true,
+            location_lat: true,
+            location_lng: true,
+            location_city: true,
+            location_country: true,
+          }
+        })
 
-    // Filter by age range (using pre-validated values)
-    if (ageRangeValues) {
-      query = query.gte('age', ageRangeValues.min).lte('age', ageRangeValues.max)
-    }
+        // Prepare current user profile data for match scoring
+        const currentUserProfileData: ProfileData = {
+          subjects: myProfile?.subjects,
+          interests: myProfile?.interests,
+          goals: myProfile?.goals,
+          availableDays: myProfile?.availableDays,
+          availableHours: myProfile?.availableHours,
+          skillLevel: myProfile?.skillLevel?.toString(),
+          studyStyle: myProfile?.studyStyle?.toString(),
+          school: myProfile?.school,
+          timezone: myProfile?.timezone,
+          languages: myProfile?.languages ? myProfile.languages.split(',').map(l => l.trim()) : null,
+          role: myProfile?.role,
+          location_lat: myProfile?.location_lat,
+          location_lng: myProfile?.location_lng,
+          location_city: myProfile?.location_city,
+          location_country: myProfile?.location_country,
+        }
 
-    // Filter by location - case-insensitive partial match with OR logic
-    // SECURITY: Only filter users whose location visibility is PUBLIC
-    // Users with 'private' or 'match-only' location settings should not be searchable by location
-    // SECURITY: Escape LIKE pattern special characters to prevent pattern injection
-    const locationFilters: string[] = []
+        const currentUserFilledCount = countFilledFields(currentUserProfileData)
+        const currentUserMissingFields = getMissingFields(currentUserProfileData)
+        const currentUserProfileComplete = hasMinimumProfileData(currentUserProfileData)
 
-    if (locationCity) {
-      const escapedCity = escapeLikePattern(locationCity)
-      locationFilters.push(`location_city.ilike.%${escapedCity}%`)
-    }
+        // Calculate comprehensive match scores
+        const profilesWithScores = profiles.map(result => {
+          const profile = result.profile
 
-    if (locationState) {
-      const escapedState = escapeLikePattern(locationState)
-      locationFilters.push(`location_state.ilike.%${escapedState}%`)
-    }
+          const partnerProfileData: ProfileData = {
+            subjects: profile.subjects,
+            interests: profile.interests,
+            goals: profile.goals,
+            skillLevel: profile.skillLevel,
+            studyStyle: profile.studyStyle,
+            school: profile.school,
+            location_city: profile.location_city,
+            location_country: profile.location_country,
+          }
 
-    if (locationCountry) {
-      const escapedCountry = escapeLikePattern(locationCountry)
-      locationFilters.push(`location_country.ilike.%${escapedCountry}%`)
-    }
+          // Calculate match using existing algorithm
+          const matchResult = calculateMatchScore(currentUserProfileData, partnerProfileData)
 
-    // Apply location filters with OR logic (match any location field)
-    if (locationFilters.length > 0) {
-      query = query
-        .eq('location_visibility', 'public')
-        .or(locationFilters.join(','))
-    }
+          // Combine semantic similarity with match score
+          const combinedScore = (result.hybridScore * 0.6) + ((matchResult.matchScore ?? 0) / 100 * 0.4)
 
-    // Text search across multiple fields using ilike for case-insensitive substring matching
-    // SECURITY: All text inputs are already sanitized and escaped
-    // NOTE: For searchQuery with spaces, we need to use textSearch or filter in JS
-    // because Supabase .or() doesn't handle spaces well in the filter string
+          return {
+            // Profile data
+            ...profile,
+            user: profile.user,
+            // Search scores
+            similarity: result.similarity,
+            hybridScore: result.hybridScore,
+            textScore: result.textScore,
+            // Match scores from algorithm
+            matchScore: matchResult.matchScore,
+            matchReasons: matchResult.matchReasons,
+            matchDataInsufficient: matchResult.matchDataInsufficient,
+            matchDetails: matchResult.matchDetails,
+            matchTier: matchResult.matchTier,
+            componentScores: matchResult.componentScores,
+            summary: matchResult.summary,
+            partnerMissingFields: matchResult.partnerMissingFields,
+            // Combined ranking score
+            combinedScore,
+            // Partner status
+            isAlreadyPartner: acceptedPartnerIds.has(profile.userId),
+            partnerProfileComplete: hasMinimumProfileData(partnerProfileData),
+          }
+        })
 
-    // Track if we're doing a searchQuery search (will filter in JS for better results)
-    // ALWAYS use JS filtering for searchQuery to enable partial matching on array fields (subjects, interests)
-    let useJSFiltering = false
-    let jsSearchQuery = ''
+        // Sort by combined score (highest first)
+        profilesWithScores.sort((a, b) => b.combinedScore - a.combinedScore)
 
-    if (searchQuery || subjectCustomDescription || skillLevelCustomDescription ||
-        studyStyleCustomDescription || interestsCustomDescription ||
-        aboutYourselfSearch || school || languages || availableHours) {
+        // Apply pagination
+        const skip = (page - 1) * limit
+        const paginatedResults = profilesWithScores.slice(skip, skip + limit)
 
-      const searchFilters: string[] = []
-
-      if (searchQuery) {
-        // ALWAYS use JS filtering for searchQuery to enable partial matching on arrays
-        // This allows "math" to match "Mathematics", "prog" to match "Programming", etc.
-        useJSFiltering = true
-        jsSearchQuery = searchQuery.toLowerCase()
-      }
-
-      // These specific field filters can still use database filtering
-      if (subjectCustomDescription) {
-        const escaped = escapeLikePattern(subjectCustomDescription)
-        searchFilters.push(`subjectCustomDescription.ilike.%${escaped}%`)
-      }
-      if (skillLevelCustomDescription) {
-        const escaped = escapeLikePattern(skillLevelCustomDescription)
-        searchFilters.push(`skillLevelCustomDescription.ilike.%${escaped}%`)
-      }
-      if (studyStyleCustomDescription) {
-        const escaped = escapeLikePattern(studyStyleCustomDescription)
-        searchFilters.push(`studyStyleCustomDescription.ilike.%${escaped}%`)
-      }
-      if (interestsCustomDescription) {
-        const escaped = escapeLikePattern(interestsCustomDescription)
-        searchFilters.push(`interestsCustomDescription.ilike.%${escaped}%`)
-      }
-      if (aboutYourselfSearch) {
-        const escaped = escapeLikePattern(aboutYourselfSearch)
-        searchFilters.push(`aboutYourself.ilike.%${escaped}%`)
-      }
-      if (school) {
-        const escaped = escapeLikePattern(school)
-        searchFilters.push(`school.ilike.%${escaped}%`)
-      }
-      if (languages) {
-        const escaped = escapeLikePattern(languages)
-        searchFilters.push(`languages.ilike.%${escaped}%`)
-      }
-      if (availableHours) {
-        const escaped = escapeLikePattern(availableHours)
-        searchFilters.push(`availabilityCustomDescription.ilike.%${escaped}%`)
-      }
-
-      // Apply OR logic for database-side text search (only if not using JS filtering)
-      if (searchFilters.length > 0 && !useJSFiltering) {
-        query = query.or(searchFilters.join(','))
-      }
-    }
-
-    // Apply pagination to main query with count
-    const skip = (page - 1) * limit
-
-    // Get total count from filtered query (without pagination)
-    // Clone the query for counting by rebuilding it
-    let countQuery = supabase
-      .from('Profile')
-      .select('userId', { count: 'exact', head: true })
-      .neq('userId', user.id)
-
-    // Apply same exclusions to count query
-    if (pendingOrOtherUserIds.size > 0) {
-      countQuery = countQuery.not('userId', 'in', `(${Array.from(pendingOrOtherUserIds).join(',')})`)
-    }
-
-    // Apply same filters to count query
-    if (subjects && subjects.length > 0) {
-      countQuery = countQuery.overlaps('subjects', subjects)
-    }
-    if (skillLevel && skillLevel !== '') {
-      countQuery = countQuery.eq('skillLevel', skillLevel)
-    }
-    if (studyStyle && studyStyle !== '') {
-      countQuery = countQuery.eq('studyStyle', studyStyle)
-    }
-    if (interests && interests.length > 0) {
-      countQuery = countQuery.overlaps('interests', interests)
-    }
-    if (availability && availability.length > 0) {
-      countQuery = countQuery.overlaps('availableDays', availability)
-    }
-    if (goals && goals.length > 0) {
-      countQuery = countQuery.overlaps('goals', goals)
-    }
-    if (role && role.length > 0) {
-      countQuery = countQuery.in('role', role)
-    }
-    if (ageRangeValues) {
-      countQuery = countQuery.gte('age', ageRangeValues.min).lte('age', ageRangeValues.max)
-    }
-
-    const { count: totalCount, error: countError } = await countQuery
-
-    if (countError) {
-      logger.error('Partner search count query error', countError)
-    }
-
-    // Apply pagination to main query
-    query = query.range(skip, skip + limit - 1).order('updatedAt', { ascending: false })
-
-    const { data: profiles, error: profileError } = await query
-
-    if (profileError) {
-      logger.error('Partner search query error', profileError)
-      throw new Error(`Search failed: ${profileError.message}`)
-    }
-
-    // SECURITY: Sanitize location data based on privacy settings
-    // Hide location for users who have set their location to private or match-only (if not matched)
-    const sanitizedProfiles = (profiles || []).map(profile => {
-      const locationVisibility = profile.location_visibility || 'private'
-
-      // If location is private, always hide it
-      if (locationVisibility === 'private') {
         return {
-          ...profile,
-          location_city: null,
-          location_state: null,
-          location_country: null,
+          success: true,
+          profiles: paginatedResults,
+          pagination: {
+            page,
+            limit,
+            total: totalCount,
+            totalPages: Math.ceil(totalCount / limit),
+          },
+          currentUserProfileComplete,
+          currentUserFilledCount,
+          currentUserMissingFields,
+          searchMetadata: {
+            usedSemanticSearch: searchMetadata.usedVectorSearch,
+            tokensUsed: searchMetadata.tokensUsed,
+          }
         }
       }
-
-      // If location is match-only, only show to accepted partners
-      if (locationVisibility === 'match-only' && !acceptedPartnerIds.has(profile.userId)) {
-        return {
-          ...profile,
-          location_city: null,
-          location_state: null,
-          location_country: null,
-        }
-      }
-
-      // Location is public or user is matched partner - show location
-      return profile
-    })
-
-    // Get current user's profile for compatibility scoring (include all matching fields)
-    const { data: myProfile } = await supabase
-      .from('Profile')
-      .select('subjects, interests, studyStyle, skillLevel, goals, availableDays, availableHours, school, timezone, languages, role, location_lat, location_lng, location_city, location_country')
-      .eq('userId', user.id)
-      .single()
-
-    // Get current user's learning profile for strengths/weaknesses
-    const { data: myLearningProfile } = await supabase
-      .from('LearningProfile')
-      .select('strengths, weaknesses')
-      .eq('userId', user.id)
-      .single()
-
-    // Check current user's profile completeness using the enhanced algorithm
-    const currentUserProfileData: ProfileData = {
-      subjects: myProfile?.subjects,
-      interests: myProfile?.interests,
-      goals: myProfile?.goals,
-      availableDays: myProfile?.availableDays,
-      availableHours: myProfile?.availableHours,
-      skillLevel: myProfile?.skillLevel,
-      studyStyle: myProfile?.studyStyle,
-      school: myProfile?.school,
-      timezone: myProfile?.timezone,
-      languages: myProfile?.languages,
-      role: myProfile?.role,
-      strengths: myLearningProfile?.strengths,
-      weaknesses: myLearningProfile?.weaknesses,
-      // Location fields for proximity matching
-      location_lat: myProfile?.location_lat,
-      location_lng: myProfile?.location_lng,
-      location_city: myProfile?.location_city,
-      location_country: myProfile?.location_country,
-    }
-    
-    const currentUserFilledCount = countFilledFields(currentUserProfileData)
-    const currentUserMissingFields = getMissingFields(currentUserProfileData)
-    const currentUserProfileComplete = hasMinimumProfileData(currentUserProfileData)
-
-    // Apply JS-side filtering for complex search queries (with spaces)
-    // This provides more accurate matching for multi-word searches
-    let filteredProfiles = sanitizedProfiles
-
-    if (useJSFiltering && jsSearchQuery) {
-      const searchTermLower = jsSearchQuery.toLowerCase()
-
-      filteredProfiles = sanitizedProfiles.filter(profile => {
-        // Helper to check if a string field contains the search term
-        const matchesText = (field: string | null | undefined): boolean => {
-          return field ? field.toLowerCase().includes(searchTermLower) : false
-        }
-
-        // Helper to check if an array field contains the search term
-        const matchesArray = (arr: string[] | null | undefined): boolean => {
-          if (!arr || !Array.isArray(arr)) return false
-          return arr.some(item => item.toLowerCase().includes(searchTermLower))
-        }
-
-        // Search across ALL profile fields
-        // Note: profile.user is the joined User object from Supabase
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const userObj = profile.user as any
-        const userName = Array.isArray(userObj) ? userObj[0]?.name : userObj?.name
-
-        return (
-          // User fields
-          matchesText(userName) ||
-
-          // Profile text fields
-          matchesText(profile.bio) ||
-          matchesText(profile.school) ||
-          matchesText(profile.languages) ||
-          matchesText(profile.aboutYourself) ||
-          matchesText(profile.timezone) ||
-          matchesText(profile.role) ||
-
-          // Location fields
-          matchesText(profile.location_city) ||
-          matchesText(profile.location_state) ||
-          matchesText(profile.location_country) ||
-
-          // Custom description fields
-          matchesText(profile.subjectCustomDescription) ||
-          matchesText(profile.skillLevelCustomDescription) ||
-          matchesText(profile.studyStyleCustomDescription) ||
-          matchesText(profile.interestsCustomDescription) ||
-          matchesText(profile.availabilityCustomDescription) ||
-
-          // Enum fields (skill level and study style)
-          matchesText(profile.skillLevel) ||
-          matchesText(profile.studyStyle) ||
-
-          // Array fields
-          matchesArray(profile.subjects) ||
-          matchesArray(profile.interests) ||
-          matchesArray(profile.goals) ||
-          matchesArray(profile.availableDays) ||
-          matchesArray(profile.availableHours) ||
-          matchesArray(profile.aboutYourselfItems)
-        )
-      })
-    }
-
-    // Calculate match scores using the enhanced algorithm
-    const profilesWithScores = filteredProfiles.map(profile => {
-      // Prepare partner profile data with all matching fields
-      const partnerProfileData: ProfileData = {
-        subjects: profile.subjects,
-        interests: profile.interests,
-        goals: profile.goals,
-        availableDays: profile.availableDays,
-        availableHours: profile.availableHours,
-        skillLevel: profile.skillLevel,
-        studyStyle: profile.studyStyle,
-        school: profile.school,
-        timezone: profile.timezone,
-        languages: profile.languages,
-        role: profile.role,
-        // Location fields for proximity matching
-        location_lat: profile.location_lat,
-        location_lng: profile.location_lng,
-        location_city: profile.location_city,
-        location_country: profile.location_country,
-      }
-
-      // Calculate match using the enhanced algorithm
-      const matchResult = calculateMatchScore(currentUserProfileData, partnerProfileData)
-
-      // Check if this user is an accepted partner
-      const isAlreadyPartner = acceptedPartnerIds.has(profile.userId)
-
-      return {
-        ...profile,
-        // Match data from enhanced algorithm
-        matchScore: matchResult.matchScore,
-        matchReasons: matchResult.matchReasons,
-        matchDataInsufficient: matchResult.matchDataInsufficient,
-        matchDetails: matchResult.matchDetails,
-        matchTier: matchResult.matchTier,
-        componentScores: matchResult.componentScores,
-        summary: matchResult.summary,
-        partnerMissingFields: matchResult.partnerMissingFields,
-        // Partner status
-        isAlreadyPartner,
-        // Partner profile completeness
-        partnerProfileComplete: hasMinimumProfileData(partnerProfileData),
-      }
-    })
-
-    // Sort by match score using the utility function (highest first, nulls last)
-    const sortedProfiles = sortByMatchScore(profilesWithScores)
-
-    // Return data object for caching
-    return {
-      success: true,
-      profiles: sortedProfiles,
-      pagination: {
-        page,
-        limit,
-        total: totalCount || 0,
-        totalPages: Math.ceil((totalCount || 0) / limit),
-      },
-      // Current user's profile status
-      currentUserProfileComplete,
-      currentUserFilledCount,
-      currentUserMissingFields,
-    }
-      } // Close async callback for getOrSetCached
     ).then(data => {
-      // Return response with cache headers
       return NextResponse.json(data, {
         headers: {
           'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
-          'CDN-Cache-Control': 'max-age=30',
         }
       })
     })
   } catch (error) {
-    console.error('Partner search error:', error)
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    })
+    logger.error('Partner search error', { error })
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error occurred'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
+}
+
+// ============================================
+// Traditional Search Fallback
+// ============================================
+
+interface TraditionalSearchParams {
+  userId: string
+  excludeUserIds: string[]
+  searchQuery?: string
+  subjects?: string[] | null
+  skillLevel?: string | null
+  studyStyle?: string | null
+  interests?: string[] | null
+  goals?: string[] | null
+  ageRangeValues?: { min: number; max: number } | null
+  locationCity?: string | null
+  locationState?: string | null
+  locationCountry?: string | null
+  limit: number
+  offset: number
+}
+
+async function performTraditionalSearch(params: TraditionalSearchParams) {
+  const {
+    userId,
+    excludeUserIds,
+    searchQuery,
+    subjects,
+    skillLevel,
+    studyStyle,
+    interests,
+    goals,
+    ageRangeValues,
+    locationCity,
+    locationState,
+    locationCountry,
+    limit,
+    offset
+  } = params
+
+  // Build where conditions
+  const whereConditions: { AND: Array<Record<string, unknown>> } = {
+    AND: [
+      { userId: { not: userId } },
+      ...(excludeUserIds.length > 0 ? [{ userId: { notIn: excludeUserIds } }] : [])
+    ]
+  }
+
+  // Filters
+  if (subjects && subjects.length > 0) {
+    whereConditions.AND.push({ subjects: { hasSome: subjects } })
+  }
+  if (skillLevel) {
+    whereConditions.AND.push({ skillLevel: skillLevel as unknown as undefined })
+  }
+  if (studyStyle) {
+    whereConditions.AND.push({ studyStyle: studyStyle as unknown as undefined })
+  }
+  if (interests && interests.length > 0) {
+    whereConditions.AND.push({ interests: { hasSome: interests } })
+  }
+  if (goals && goals.length > 0) {
+    whereConditions.AND.push({ goals: { hasSome: goals } })
+  }
+  if (ageRangeValues) {
+    whereConditions.AND.push({ age: { gte: ageRangeValues.min, lte: ageRangeValues.max } })
+  }
+
+  // Location filters
+  if (locationCity) {
+    whereConditions.AND.push({
+      location_city: { contains: locationCity, mode: 'insensitive' }
+    })
+  }
+  if (locationState) {
+    whereConditions.AND.push({
+      location_state: { contains: locationState, mode: 'insensitive' }
+    })
+  }
+  if (locationCountry) {
+    whereConditions.AND.push({
+      location_country: { contains: locationCountry, mode: 'insensitive' }
+    })
+  }
+
+  // Text search
+  if (searchQuery && searchQuery.trim()) {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(t => t.length > 1)
+    if (terms.length > 0) {
+      const searchConditions = terms.slice(0, 10).map(term => ({
+        OR: [
+          { bio: { contains: term, mode: 'insensitive' as const } },
+          { school: { contains: term, mode: 'insensitive' as const } },
+          { aboutYourself: { contains: term, mode: 'insensitive' as const } },
+          { subjectCustomDescription: { contains: term, mode: 'insensitive' as const } },
+          { location_city: { contains: term, mode: 'insensitive' as const } },
+          { location_state: { contains: term, mode: 'insensitive' as const } },
+        ]
+      }))
+      whereConditions.AND.push({ OR: searchConditions })
+    }
+  }
+
+  // Execute queries in parallel (NO N+1!)
+  const [profiles, total] = await Promise.all([
+    prisma.profile.findMany({
+      where: whereConditions,
+      select: {
+        id: true,
+        userId: true,
+        bio: true,
+        school: true,
+        languages: true,
+        subjects: true,
+        interests: true,
+        goals: true,
+        skillLevel: true,
+        studyStyle: true,
+        age: true,
+        location_city: true,
+        location_state: true,
+        location_country: true,
+        aboutYourself: true,
+        subjectCustomDescription: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            lastLoginAt: true
+          }
+        }
+      },
+      skip: offset,
+      take: limit,
+      orderBy: { updatedAt: 'desc' }
+    }),
+    prisma.profile.count({ where: whereConditions })
+  ])
+
+  // Transform to match semantic search result format
+  const formattedProfiles = profiles.map(profile => ({
+    id: profile.id,
+    userId: profile.userId,
+    similarity: 0.5, // Default for non-semantic search
+    hybridScore: 0.5,
+    textScore: 0.5,
+    profile: {
+      id: profile.id,
+      userId: profile.userId,
+      bio: profile.bio,
+      school: profile.school,
+      languages: profile.languages,
+      subjects: profile.subjects,
+      interests: profile.interests,
+      goals: profile.goals,
+      skillLevel: profile.skillLevel?.toString() || null,
+      studyStyle: profile.studyStyle?.toString() || null,
+      age: profile.age,
+      location_city: profile.location_city,
+      location_state: profile.location_state,
+      location_country: profile.location_country,
+      aboutYourself: profile.aboutYourself,
+      subjectCustomDescription: profile.subjectCustomDescription,
+      user: profile.user
+    }
+  }))
+
+  return { profiles: formattedProfiles, total }
 }

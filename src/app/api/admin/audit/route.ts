@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       where.action = action
     }
 
-    // Execute query
+    // Execute query - SCALABILITY: Add limits to filter queries to prevent memory explosion
     const [logs, total, admins, actions] = await Promise.all([
       prisma.adminAuditLog.findMany({
         where,
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.adminAuditLog.count({ where }),
-      // Get list of admins for filter
+      // Get list of admins for filter - CRITICAL: Limit to prevent unbounded query
       prisma.adminAuditLog.findMany({
         distinct: ['adminId'],
         select: {
@@ -82,11 +82,15 @@ export async function GET(request: NextRequest) {
             select: { name: true, email: true },
           },
         },
+        take: 100, // Limit to 100 most recent distinct admins
+        orderBy: { createdAt: 'desc' },
       }),
-      // Get list of actions for filter
+      // Get list of actions for filter - CRITICAL: Limit to prevent unbounded query
       prisma.adminAuditLog.findMany({
         distinct: ['action'],
         select: { action: true },
+        take: 50, // Limit to 50 action types
+        orderBy: { createdAt: 'desc' },
       }),
     ])
 
@@ -101,10 +105,12 @@ export async function GET(request: NextRequest) {
           limit,
         },
         filters: {
-          admins: admins.map((a) => ({
-            id: a.adminId,
-            name: a.admin.name || a.admin.email,
-          })),
+          admins: admins
+            .filter((a) => a.admin !== null)
+            .map((a) => ({
+              id: a.adminId,
+              name: a.admin?.name || a.admin?.email || 'Deleted Admin',
+            })),
           actions: actions.map((a) => a.action),
         },
       },
@@ -129,8 +135,51 @@ export async function DELETE(request: NextRequest) {
     const { ids, deleteAll } = body
 
     if (deleteAll) {
-      // Delete all audit logs
-      const result = await prisma.adminAuditLog.deleteMany({})
+      // SECURITY: Require explicit confirmation and super admin status for deleteAll
+      const { confirmDelete, retentionDays } = body
+
+      // Check if current admin is super admin
+      const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
+      const currentAdmin = await prisma.user.findUnique({
+        where: { id: admin.id },
+        select: { email: true },
+      })
+
+      if (currentAdmin?.email !== superAdminEmail) {
+        return NextResponse.json({
+          error: 'Only super admin can delete all audit logs'
+        }, { status: 403 })
+      }
+
+      if (confirmDelete !== 'DELETE_ALL_AUDIT_LOGS') {
+        return NextResponse.json({
+          error: 'Missing confirmation. Send confirmDelete: "DELETE_ALL_AUDIT_LOGS"'
+        }, { status: 400 })
+      }
+
+      // If retentionDays is specified, only delete logs older than that
+      const where: any = {}
+      if (retentionDays && typeof retentionDays === 'number' && retentionDays > 0) {
+        const cutoffDate = new Date()
+        cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
+        where.createdAt = { lt: cutoffDate }
+      }
+
+      // Create an audit log of this deletion BEFORE deleting
+      await prisma.adminAuditLog.create({
+        data: {
+          adminId: admin.id,
+          action: 'AUDIT_LOGS_PURGED',
+          targetType: 'AdminAuditLog',
+          targetId: 'bulk',
+          details: {
+            retentionDays: retentionDays || 'all',
+            deletedAt: new Date().toISOString(),
+          },
+        },
+      })
+
+      const result = await prisma.adminAuditLog.deleteMany({ where })
       return NextResponse.json({
         success: true,
         message: `Deleted ${result.count} audit logs`,

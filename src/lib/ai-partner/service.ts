@@ -1782,24 +1782,24 @@ export async function analyzeWhiteboard(params: {
     userQuestion,
   })
 
-  // Format response content
-  let responseContent = `**Whiteboard Analysis**\n\n${result.analysis}`
-
-  if (result.suggestions.length > 0) {
-    responseContent += `\n\n**Suggestions:**\n${result.suggestions.map(s => `� ${s}`).join('\n')}`
+  // Store as JSON for easy reconstruction in frontend
+  // This allows AI responses to persist across navigation
+  const responseData = {
+    type: 'analysis',
+    analysis: result.analysis,
+    suggestions: result.suggestions,
+    relatedConcepts: result.relatedConcepts,
+    userQuestion: userQuestion || null,
+    timestamp: Date.now(),
   }
 
-  if (result.relatedConcepts.length > 0) {
-    responseContent += `\n\n**Related Concepts to Explore:**\n${result.relatedConcepts.map(c => `� ${c}`).join('\n')}`
-  }
-
-  // Save as message
+  // Save as message with JSON content
   const msg = await prisma.aIPartnerMessage.create({
     data: {
       sessionId,
       studySessionId: session.studySessionId,
       role: 'ASSISTANT',
-      content: responseContent,
+      content: JSON.stringify(responseData),
       messageType: 'WHITEBOARD',
     },
   })
@@ -1857,36 +1857,24 @@ export async function getWhiteboardSuggestions(params: {
     userQuestion,
   })
 
-  // Format response content for message history
-  let responseContent = `**Drawing Ideas & Suggestions**\n\n`
-
-  if (userQuestion) {
-    responseContent += `*Your question: "${userQuestion}"*\n\n`
+  // Store as JSON for easy reconstruction in frontend
+  // This allows AI responses to persist across navigation
+  const responseData = {
+    type: 'suggestion',
+    suggestions: result.suggestions,
+    drawingIdeas: result.drawingIdeas,
+    visualizationTips: result.visualizationTips,
+    userQuestion: userQuestion || null,
+    timestamp: Date.now(),
   }
 
-  responseContent += `**Quick Suggestions:**\n${result.suggestions.map(s => `• ${s}`).join('\n')}`
-
-  if (result.drawingIdeas.length > 0) {
-    responseContent += `\n\n**Drawing Ideas:**\n`
-    result.drawingIdeas.forEach((idea, i) => {
-      responseContent += `\n${i + 1}. **${idea.title}**\n   ${idea.description}\n`
-      if (idea.steps.length > 0) {
-        responseContent += `   Steps: ${idea.steps.join(' → ')}\n`
-      }
-    })
-  }
-
-  if (result.visualizationTips.length > 0) {
-    responseContent += `\n\n**Visualization Tips:**\n${result.visualizationTips.map(t => `• ${t}`).join('\n')}`
-  }
-
-  // Save as message
+  // Save as message with JSON content
   const msg = await prisma.aIPartnerMessage.create({
     data: {
       sessionId,
       studySessionId: session.studySessionId,
       role: 'ASSISTANT',
-      content: responseContent,
+      content: JSON.stringify(responseData),
       messageType: 'WHITEBOARD',
     },
   })
@@ -2047,6 +2035,15 @@ export async function endSession(params: {
       },
     })
   }
+
+  // Delete whiteboard AI responses when session ends
+  // These are temporary and should not persist after session completion
+  await prisma.aIPartnerMessage.deleteMany({
+    where: {
+      sessionId,
+      messageType: 'WHITEBOARD',
+    },
+  })
 
   // Update persona rating if provided
   if (session.personaId && rating) {

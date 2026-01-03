@@ -63,7 +63,7 @@ model User {
 
   // Stripe
   stripeCustomerId     String?   @unique
-  stripeSubscriptionId String?
+  stripeSubscriptionId String?   @unique
   subscriptionStatus   String? // active, canceled, past_due, etc.
   subscriptionEndsAt   DateTime?
 
@@ -140,6 +140,7 @@ model User {
   @@index([twoFactorEnabled])
   @@index([isAdmin])
   @@index([createdAt]) // PERF: Sort users by registration date (admin dashboard)
+  @@index([lastLoginAt]) // PERF: Active user queries
 }
 
 model Profile {
@@ -221,6 +222,7 @@ model Profile {
   @@index([interests])
   @@index([location_city])
   @@index([location_visibility])
+  @@index([isLookingForPartner]) // PERF: Critical for partner matching
 }
 
 model LearningProfile {
@@ -470,6 +472,9 @@ model Message {
   @@index([recipientId, isRead]) // Unread count queries for DMs
   @@index([groupId, isRead]) // Unread count queries for groups
   @@index([senderId, recipientId, groupId]) // Message filtering
+  @@index([groupId, isRead, createdAt]) // PERF: Unread group messages
+  @@index([senderId, createdAt, isDeleted]) // PERF: User's sent messages
+  @@index([readAt]) // PERF: Unread message queries
 }
 
 // New model for per-user conversation archives
@@ -603,6 +608,7 @@ model StudySession {
   @@index([status, type]) // For filtered session lists
   @@index([createdAt]) // For sorting by creation date
   @@index([createdBy, status]) // PERF: Find user's sessions by status
+  @@index([waitingExpiresAt]) // PERF: Session expiration cleanup
 }
 
 model SessionParticipant {
@@ -625,6 +631,8 @@ model SessionParticipant {
   @@index([sessionId])
   @@index([status])
   @@index([sessionId, status]) // PERF: Find active participants in a session
+  @@index([joinedAt]) // PERF: Participant tracking
+  @@index([leftAt]) // PERF: Participant tracking
 }
 
 model SessionGoal {
@@ -793,6 +801,7 @@ model Notification {
   @@index([userId, isRead])
   @@index([createdAt])
   @@index([userId, createdAt]) // PERF: Paginated notification queries sorted by date
+  @@index([relatedUserId]) // PERF: Related user lookups
 }
 
 // Push Subscriptions for Web Push Notifications
@@ -1254,7 +1263,7 @@ model SessionFlashcard {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([sessionId, userId, id])
+  @@unique([id])
   @@index([sessionId, userId])
   @@index([userId, nextReviewDate]) // For querying due cards
   @@index([createdAt])
@@ -1490,8 +1499,12 @@ model TypingIndicator {
 // Admin Audit Log - Track all admin actions for accountability
 model AdminAuditLog {
   id        String   @id @default(uuid())
-  adminId   String
-  admin     User     @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+  adminId   String?  // Nullable to preserve audit logs when admin is deleted
+  admin     User?    @relation("AdminActions", fields: [adminId], references: [id], onDelete: SetNull)
+
+  // Cached admin info - preserved even after admin account deletion for accountability
+  adminName  String?  // Admin's name at time of action
+  adminEmail String?  // Admin's email for identification
 
   action    String   // e.g., "user_banned", "post_deleted", "announcement_created"
   targetType String  // e.g., "user", "post", "group", "message"
@@ -1627,6 +1640,8 @@ model Report {
   @@index([type])
   @@index([createdAt])
   @@index([handledById]) // PERF: Find reports handled by a specific admin
+  @@index([status, createdAt]) // PERF: Pending reports
+  @@unique([reporterId, reportedUserId, contentType, contentId]) // PERF: Prevent duplicate reports
 }
 
 // User Warnings - Track warnings issued to users
@@ -1746,6 +1761,7 @@ model FlaggedContent {
   @@index([senderId])
   @@index([flaggedAt])
   @@index([contentType, status])
+  @@index([senderId, status, flaggedAt]) // PERF: User's flagged content
   @@map("flagged_content")
 }
 
@@ -1939,6 +1955,7 @@ model SuspiciousActivityLog {
   @@index([createdAt])
   @@index([userId, type])
   @@index([severity, isReviewed])
+  @@index([severity, isReviewed, createdAt]) // PERF: Admin review priority
   @@map("suspicious_activity_logs")
 }
 
@@ -2131,6 +2148,7 @@ model AIPartnerSession {
   @@index([userId, status]) // PERF: Find user's active/paused sessions
   @@index([deletedByUserAt])
   @@index([deletedByAdminAt])
+  @@index([endedAt]) // PERF: Completed session queries
 }
 
 enum AISessionStatus {

@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import {
   LineChart,
   Line,
@@ -36,7 +37,7 @@ interface LineChartCardProps {
   valueFormatter?: (value: number) => string
 }
 
-export default function LineChartCard({
+function LineChartCard({
   title,
   subtitle,
   data,
@@ -46,6 +47,21 @@ export default function LineChartCard({
   showLegend = true,
   valueFormatter = (v) => v.toLocaleString(),
 }: LineChartCardProps) {
+  // Error state: Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          {subtitle && <p className="text-sm text-gray-400">{subtitle}</p>}
+        </div>
+        <div className="flex items-center justify-center" style={{ height }}>
+          <p className="text-gray-400">No data available</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
       <div className="mb-4">
@@ -107,3 +123,6 @@ export default function LineChartCard({
     </div>
   )
 }
+
+// PERF: Memoize component to prevent unnecessary re-renders
+export default React.memo(LineChartCard)

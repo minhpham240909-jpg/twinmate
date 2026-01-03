@@ -210,7 +210,10 @@ export function usePushNotifications() {
           body: JSON.stringify({
             endpoint: subscription.endpoint,
           }),
-        }).catch(() => {}) // Ignore server errors
+        }).catch((error) => {
+          // Log error but don't fail unsubscribe - server cleanup is non-critical
+          console.error('[usePushNotifications] Failed to unsubscribe on server:', error)
+        })
 
         // Unsubscribe locally
         await subscription.unsubscribe()

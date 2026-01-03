@@ -2,13 +2,14 @@
  * AI Partner Message API
  * POST /api/ai-partner/message - Send message to AI partner
  *
- * SCALABILITY: Uses Redis-based rate limiting for 1000-3000 concurrent users
+ * SCALABILITY: Uses Redis-based rate limiting and per-user quota for 1000-3000 concurrent users
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendMessage } from '@/lib/ai-partner'
 import { rateLimit } from '@/lib/rate-limit'
+import { enforceQuota } from '@/lib/ai-partner/quota'
 
 // AI Partner rate limit: 30 messages per minute per user
 const AI_PARTNER_RATE_LIMIT = {
@@ -34,6 +35,15 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // SCALABILITY: Check per-user daily quota
+    const quotaCheck = await enforceQuota(user.id)
+    if (!quotaCheck.allowed) {
+      return NextResponse.json(
+        { error: quotaCheck.error!.message, quotaExceeded: true },
+        { status: quotaCheck.error!.status }
+      )
     }
 
     const body = await request.json()
@@ -64,6 +74,7 @@ export async function POST(request: NextRequest) {
       aiMessage: result.aiMessage,
       safetyBlocked: result.safetyBlocked,
       generatedImage: result.generatedImage, // Include image generation result if any
+      quotaWarning: quotaCheck.warning, // Include quota warning if approaching limit
     })
   } catch (error) {
     console.error('[AI Partner] Send message error:', error)

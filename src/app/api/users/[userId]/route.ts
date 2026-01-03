@@ -367,10 +367,12 @@ export async function GET(
       ? { 'Cache-Control': 'private, no-cache' } // Don't cache own profile
       : { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' }
 
+    // SECURITY: Only show email to the user themselves, not to other users
+    // This prevents email enumeration attacks
     return NextResponse.json({
       user: {
         id: dbUser.id,
-        email: dbUser.email,
+        email: isSelfFetch ? dbUser.email : undefined, // CRITICAL: Hide email from other users
         name: dbUser.name,
         avatarUrl: dbUser.avatarUrl,
         coverPhotoUrl: dbUser.coverPhotoUrl || null,

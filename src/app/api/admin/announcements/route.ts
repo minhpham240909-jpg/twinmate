@@ -3,10 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET - List announcements
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting (default preset: 100 requests/minute)
+    const rateLimitResult = await adminRateLimit(request, 'default')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -84,6 +89,11 @@ export async function GET(request: NextRequest) {
 // POST - Create or manage announcements
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
+    // Announcements can be expensive due to notification broadcasting
+    const rateLimitResult = await adminRateLimit(request, 'bulk')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -152,28 +162,76 @@ export async function POST(request: NextRequest) {
             }
             // If no users selected in SPECIFIC mode, targetUsers stays empty
           } else if (Array.isArray(targetUserIds) && targetUserIds.length > 0 && !targetRole) {
-            // Specific users selected with "All Users" - send to BOTH selected users AND all users
-            // This combines the targeting
-            const specificUsers = await prisma.user.findMany({
-              where: { id: { in: targetUserIds } },
-              select: { id: true },
-            })
-            const allUsers = await prisma.user.findMany({
-              where: { deactivatedAt: null },
-              select: { id: true },
-            })
-            // Merge and dedupe
-            const userIdSet = new Set([...specificUsers.map(u => u.id), ...allUsers.map(u => u.id)])
-            targetUsers = Array.from(userIdSet).map(id => ({ id }))
+            // Specific users selected with "All Users" - just target all users (specific are included)
+            // Use cursor-based pagination to avoid memory issues
+            const FETCH_BATCH_SIZE = 1000
+            let cursorId: string | undefined = undefined
+            let hasMoreUsers = true
+
+            while (hasMoreUsers) {
+              const userBatch: { id: string }[] = await prisma.user.findMany({
+                where: { deactivatedAt: null },
+                select: { id: true },
+                take: FETCH_BATCH_SIZE,
+                skip: cursorId ? 1 : 0,
+                cursor: cursorId ? { id: cursorId } : undefined,
+                orderBy: { id: 'asc' },
+              })
+
+              if (userBatch.length < FETCH_BATCH_SIZE) {
+                hasMoreUsers = false
+              }
+
+              if (userBatch.length > 0) {
+                cursorId = userBatch[userBatch.length - 1].id
+                targetUsers.push(...userBatch)
+              } else {
+                hasMoreUsers = false
+              }
+
+              if (targetUsers.length >= 100000) {
+                console.warn('[Announcements] Hit 100K user limit')
+                hasMoreUsers = false
+              }
+            }
           } else if (targetRole === 'FREE' || targetRole === 'PREMIUM') {
             // Users with specific role (e.g., 'FREE', 'PREMIUM')
-            targetUsers = await prisma.user.findMany({
-              where: {
-                role: targetRole as 'FREE' | 'PREMIUM',
-                deactivatedAt: null,
-              },
-              select: { id: true },
-            })
+            // SCALABILITY: Use cursor-based pagination for role-based queries too
+            const ROLE_BATCH_SIZE = 1000
+            let roleCursor: string | undefined = undefined
+            let hasMoreRoleUsers = true
+
+            while (hasMoreRoleUsers) {
+              const roleBatch: { id: string }[] = await prisma.user.findMany({
+                where: {
+                  role: targetRole as 'FREE' | 'PREMIUM',
+                  deactivatedAt: null,
+                },
+                select: { id: true },
+                take: ROLE_BATCH_SIZE,
+                skip: roleCursor ? 1 : 0,
+                cursor: roleCursor ? { id: roleCursor } : undefined,
+                orderBy: { id: 'asc' },
+              })
+
+              if (roleBatch.length < ROLE_BATCH_SIZE) {
+                hasMoreRoleUsers = false
+              }
+
+              if (roleBatch.length > 0) {
+                roleCursor = roleBatch[roleBatch.length - 1].id
+                targetUsers.push(...roleBatch)
+              } else {
+                hasMoreRoleUsers = false
+              }
+
+              // Safety limit
+              if (targetUsers.length >= 100000) {
+                console.warn('[Announcements] Hit 100K user limit for role-based targeting')
+                hasMoreRoleUsers = false
+              }
+            }
+            
             // If specific users also selected, add them too
             if (Array.isArray(targetUserIds) && targetUserIds.length > 0) {
               const additionalUsers = await prisma.user.findMany({
@@ -187,30 +245,63 @@ export async function POST(request: NextRequest) {
               targetUsers = Array.from(userIdSet).map(id => ({ id }))
             }
           } else {
-            // All active users (not deactivated)
-            targetUsers = await prisma.user.findMany({
-              where: { deactivatedAt: null },
-              select: { id: true },
-            })
+            // All active users - CRITICAL: Use cursor-based pagination to avoid loading all users into memory
+            // This prevents memory explosion for large user bases (100K+ users)
+            const BATCH_SIZE = 1000
+            let pageCursor: string | undefined = undefined
+            let hasMore = true
+
+            while (hasMore) {
+              const batchResults: { id: string }[] = await prisma.user.findMany({
+                where: { deactivatedAt: null },
+                select: { id: true },
+                take: BATCH_SIZE,
+                skip: pageCursor ? 1 : 0,
+                cursor: pageCursor ? { id: pageCursor } : undefined,
+                orderBy: { id: 'asc' },
+              })
+
+              if (batchResults.length < BATCH_SIZE) {
+                hasMore = false
+              }
+
+              if (batchResults.length > 0) {
+                pageCursor = batchResults[batchResults.length - 1].id
+                targetUsers.push(...batchResults)
+              } else {
+                hasMore = false
+              }
+
+              // Safety limit: Don't fetch more than 100K users in one announcement
+              if (targetUsers.length >= 100000) {
+                console.warn('[Announcements] Hit 100K user limit for broadcast')
+                hasMore = false
+              }
+            }
           }
 
           // Create notifications in batches for efficiency
           if (targetUsers.length > 0) {
-            const BATCH_SIZE = 500
-            const notificationData = targetUsers.map(u => ({
-              userId: u.id,
+            const NOTIF_BATCH_SIZE = 500
+            const notificationTemplate = {
               type: 'ANNOUNCEMENT' as const,
               title: `📢 ${title}`,
               message: content.length > 200 ? content.substring(0, 200) + '...' : content,
-              actionUrl: '/dashboard', // Or a dedicated announcements page
+              actionUrl: '/dashboard',
               isRead: false,
-            }))
+            }
 
             // Insert in batches to avoid overwhelming the database
-            for (let i = 0; i < notificationData.length; i += BATCH_SIZE) {
-              const batch = notificationData.slice(i, i + BATCH_SIZE)
+            // Process in smaller chunks to reduce memory pressure
+            for (let i = 0; i < targetUsers.length; i += NOTIF_BATCH_SIZE) {
+              const batchUsers = targetUsers.slice(i, i + NOTIF_BATCH_SIZE)
+              const notificationData = batchUsers.map(u => ({
+                ...notificationTemplate,
+                userId: u.id,
+              }))
+
               await prisma.notification.createMany({
-                data: batch,
+                data: notificationData,
                 skipDuplicates: true,
               })
             }

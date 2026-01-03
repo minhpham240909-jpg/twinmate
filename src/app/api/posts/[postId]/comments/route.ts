@@ -21,41 +21,43 @@ export async function GET(
 
     const { postId } = await params
 
-    const comments = await prisma.postComment.findMany({
-      where: { postId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-            presence: {
-              select: {
-                // @ts-ignore - Prisma type inference issue
-                onlineStatus: true,
+    // OPTIMIZATION: Fetch comments and partner connections in parallel to reduce latency
+    const [comments, partnerConnections] = await Promise.all([
+      prisma.postComment.findMany({
+        where: { postId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+              presence: {
+                select: {
+                  // @ts-ignore - Prisma type inference issue
+                  onlineStatus: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    }) as any
-
-    // Get user's partner connections
-    const partnerConnections = await prisma.match.findMany({
-      where: {
-        OR: [
-          { senderId: user.id, status: 'ACCEPTED' },
-          { receiverId: user.id, status: 'ACCEPTED' },
-        ],
-      },
-      select: {
-        senderId: true,
-        receiverId: true,
-      },
-    })
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }) as Promise<any[]>,
+      // Get user's partner connections
+      prisma.match.findMany({
+        where: {
+          OR: [
+            { senderId: user.id, status: 'ACCEPTED' },
+            { receiverId: user.id, status: 'ACCEPTED' },
+          ],
+        },
+        select: {
+          senderId: true,
+          receiverId: true,
+        },
+      }),
+    ])
 
     const partnerIds = new Set(partnerConnections.map(match =>
       match.senderId === user.id ? match.receiverId : match.senderId

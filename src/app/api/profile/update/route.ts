@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { StudyStyle } from '@prisma/client'
 import { z } from 'zod'
 import { invalidateUserCache } from '@/lib/cache'
+import { updateProfileEmbedding } from '@/lib/embeddings'
 import {
   MAX_BIO_LENGTH,
   MAX_ARRAY_ITEMS,
@@ -190,6 +191,12 @@ export async function POST(request: NextRequest) {
 
     // Invalidate user cache after profile update
     await invalidateUserCache(user.id)
+
+    // Update profile embedding for semantic search (async, non-blocking)
+    // This generates OpenAI embeddings for vector search
+    updateProfileEmbedding(profile.id).catch(err => {
+      console.error('[Profile Update] Failed to update embedding:', err)
+    })
 
     return NextResponse.json({
       success: true,

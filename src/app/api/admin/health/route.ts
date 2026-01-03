@@ -5,11 +5,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runHealthCheck, getDashboardMetrics, generateDiagnosticReport } from '@/lib/admin/monitoring'
 import { trackPerformance } from '@/lib/admin/performance'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 export async function GET(req: NextRequest) {
   const tracker = trackPerformance('/api/admin/health', 'GET')
 
   try {
+    // Apply rate limiting (default preset: 100 requests/minute)
+    const rateLimitResult = await adminRateLimit(req, 'default')
+    if (rateLimitResult) return rateLimitResult
+
     const url = new URL(req.url)
     const detailed = url.searchParams.get('detailed') === 'true'
 

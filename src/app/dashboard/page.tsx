@@ -188,19 +188,26 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user || loading) return
 
+    const abortController = new AbortController()
+    let isMounted = true
+
     const fetchData = async () => {
+      if (!isMounted) return
+
       try {
         // Use allSettled to allow dashboard to load even if some APIs fail
         // Note: Bell notification count is managed by NotificationPanel component
         const results = await Promise.allSettled([
-          fetch('/api/partners/count').then(r => r.json()),
-          fetch('/api/study-sessions/pending-invites').then(r => r.json()),
-          fetch('/api/connections?type=received').then(r => r.json()),
-          fetch('/api/partners/active').then(r => r.json()),
-          fetch('/api/groups/invites/pending').then(r => r.ok ? r.json() : { count: 0 }),
-          fetch('/api/community/new-posts-count').then(r => r.ok ? r.json() : { count: 0 }),
-          fetch('/api/messages/unread-counts').then(r => r.ok ? r.json() : { total: 0 })
+          fetch('/api/partners/count', { signal: abortController.signal }).then(r => r.json()),
+          fetch('/api/study-sessions/pending-invites', { signal: abortController.signal }).then(r => r.json()),
+          fetch('/api/connections?type=received', { signal: abortController.signal }).then(r => r.json()),
+          fetch('/api/partners/active', { signal: abortController.signal }).then(r => r.json()),
+          fetch('/api/groups/invites/pending', { signal: abortController.signal }).then(r => r.ok ? r.json() : { count: 0 }),
+          fetch('/api/community/new-posts-count', { signal: abortController.signal }).then(r => r.ok ? r.json() : { count: 0 }),
+          fetch('/api/messages/unread-counts', { signal: abortController.signal }).then(r => r.ok ? r.json() : { total: 0 })
         ])
+
+        if (!isMounted) return
 
         // Extract values with fallbacks for failed requests
         const partners = results[0].status === 'fulfilled' ? results[0].value : { count: 0 }
@@ -211,6 +218,8 @@ export default function DashboardPage() {
         const communityPosts = results[5].status === 'fulfilled' ? results[5].value : { count: 0 }
         const unreadMessages = results[6].status === 'fulfilled' ? results[6].value : { total: 0 }
 
+        if (!isMounted) return
+
         const partners_count = partners.count || 0
         const pending = invites.invites?.length || 0
         const requests = connections.receivedCount || 0
@@ -219,56 +228,67 @@ export default function DashboardPage() {
         const unreadMessagesTotal = unreadMessages.total || 0
 
         // Update state (bell notification count managed by NotificationPanel)
-        setPartnersCount(partners_count)
-        setPendingInvitesCount(pending)
-        setConnectionRequestsCount(requests)
-        setGroupInvitesCount(groupInvitesCount)
-        setNewCommunityPostsCount(communityPostsCount)
-        setUnreadMessagesCount(unreadMessagesTotal)
+        // Only update if component is still mounted
+        if (isMounted) {
+          setPartnersCount(partners_count)
+          setPendingInvitesCount(pending)
+          setConnectionRequestsCount(requests)
+          setGroupInvitesCount(groupInvitesCount)
+          setNewCommunityPostsCount(communityPostsCount)
+          setUnreadMessagesCount(unreadMessagesTotal)
 
-        // Filter and set online partners
-        // FIX: Use top-level onlineStatus instead of p.profile?.onlineStatus
-        // This ensures partners without profiles still show as online if they are
-        const online = activePartners.partners
-          ?.filter((p: any) => p.onlineStatus === 'ONLINE')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            avatarUrl: p.avatarUrl,
-            onlineStatus: p.onlineStatus
-          })) || []
-        setOnlinePartners(online)
-        
-        // Mark that we've successfully loaded data
-        hasLoadedOnceRef.current = true
-        setLoadingOnlinePartners(false)
+          // Filter and set online partners
+          // FIX: Use top-level onlineStatus instead of p.profile?.onlineStatus
+          // This ensures partners without profiles still show as online if they are
+          const online = activePartners.partners
+            ?.filter((p: any) => p.onlineStatus === 'ONLINE')
+            .map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              avatarUrl: p.avatarUrl,
+              onlineStatus: p.onlineStatus
+            })) || []
+          setOnlinePartners(online)
+          
+          // Mark that we've successfully loaded data
+          hasLoadedOnceRef.current = true
+          setLoadingOnlinePartners(false)
 
-        // Cache to localStorage for next visit
-        // Note: Bell notification count (unreadCount) is cached by NotificationPanel component
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('dashboard_partnersCount', String(partners_count))
-          localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
-          localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
-          localStorage.setItem('dashboard_groupInvitesCount', String(groupInvitesCount))
-          localStorage.setItem('dashboard_newCommunityPostsCount', String(communityPostsCount))
-          localStorage.setItem('dashboard_unreadMessagesCount', String(unreadMessagesTotal))
-          localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
-          // Mark that we've loaded data at least once
-          localStorage.setItem('dashboard_hasLoadedOnce', 'true')
+          // Cache to localStorage for next visit
+          // Note: Bell notification count (unreadCount) is cached by NotificationPanel component
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('dashboard_partnersCount', String(partners_count))
+            localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
+            localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
+            localStorage.setItem('dashboard_groupInvitesCount', String(groupInvitesCount))
+            localStorage.setItem('dashboard_newCommunityPostsCount', String(communityPostsCount))
+            localStorage.setItem('dashboard_unreadMessagesCount', String(unreadMessagesTotal))
+            localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
+            // Mark that we've loaded data at least once
+            localStorage.setItem('dashboard_hasLoadedOnce', 'true')
+          }
         }
       } catch (error) {
+        // Ignore abort errors
+        if (error instanceof Error && error.name === 'AbortError') return
+        
         console.error('Error fetching dashboard data:', error)
-        // Only hide loading if we've never loaded before
-        // If we have cached data, keep showing it even if fetch fails
-        if (!hasLoadedOnceRef.current) {
+        // Only hide loading if we've never loaded before and component is still mounted
+        if (isMounted && !hasLoadedOnceRef.current) {
           setLoadingOnlinePartners(false)
         }
       }
     }
 
     fetchData()
-    const interval = setInterval(fetchData, 30000)
-    return () => clearInterval(interval)
+    // Increased interval from 30s to 60s to reduce server load
+    const interval = setInterval(fetchData, 60000)
+    
+    return () => {
+      isMounted = false
+      abortController.abort()
+      clearInterval(interval)
+    }
   }, [user, loading])
 
   // Fetch user's group IDs for real-time subscription

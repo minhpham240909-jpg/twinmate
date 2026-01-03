@@ -25,36 +25,103 @@ export default function IncomingCallModal() {
   const [isRinging, setIsRinging] = useState(false)
 
   // Audio element for ringtone
+  // CRITICAL: Properly manage Web Audio Context to prevent memory leaks
   useEffect(() => {
-    if (incomingCall && isRinging) {
-      // Create ringtone sound (browser beep)
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const oscillator = audioContext.createOscillator()
-      const gainNode = audioContext.createGain()
+    if (!incomingCall || !isRinging) return
 
-      oscillator.connect(gainNode)
-      gainNode.connect(audioContext.destination)
+    let audioContext: AudioContext | null = null
+    let gainNode: GainNode | null = null
+    let currentOscillator: OscillatorNode | null = null
+    let ringInterval: NodeJS.Timeout | null = null
+    let isCleanedUp = false
 
-      oscillator.frequency.value = 440 // A4 note
-      gainNode.gain.value = 0.1 // Volume
+    const createRingtone = () => {
+      try {
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        gainNode = audioContext.createGain()
+        gainNode.connect(audioContext.destination)
+        gainNode.gain.value = 0.1 // Volume
 
-      oscillator.start()
+        const startRing = () => {
+          if (isCleanedUp || !audioContext || !gainNode) return
 
-      // Ring for 2 seconds, pause 1 second, repeat
-      const ringInterval = setInterval(() => {
-        oscillator.stop()
-        setTimeout(() => {
-          const newOsc = audioContext.createOscillator()
-          newOsc.connect(gainNode)
-          newOsc.frequency.value = 440
-          newOsc.start()
-        }, 1000)
-      }, 3000)
+          // Stop previous oscillator if exists
+          if (currentOscillator) {
+            try {
+              currentOscillator.stop()
+              currentOscillator.disconnect()
+            } catch {
+              // Ignore errors from already stopped oscillators
+            }
+          }
 
-      return () => {
+          // Create new oscillator for this ring cycle
+          currentOscillator = audioContext.createOscillator()
+          currentOscillator.connect(gainNode)
+          currentOscillator.frequency.value = 440 // A4 note
+          currentOscillator.start()
+
+          // Stop after 2 seconds (ring duration)
+          setTimeout(() => {
+            if (currentOscillator && !isCleanedUp) {
+              try {
+                currentOscillator.stop()
+                currentOscillator.disconnect()
+              } catch {
+                // Ignore errors
+              }
+              currentOscillator = null
+            }
+          }, 2000)
+        }
+
+        // Start first ring immediately
+        startRing()
+
+        // Repeat ring every 3 seconds (2s ring + 1s pause)
+        ringInterval = setInterval(startRing, 3000)
+      } catch (error) {
+        console.error('Error creating ringtone:', error)
+      }
+    }
+
+    createRingtone()
+
+    // CRITICAL: Cleanup function to prevent memory leaks
+    return () => {
+      isCleanedUp = true
+
+      if (ringInterval) {
         clearInterval(ringInterval)
-        oscillator.stop()
-        audioContext.close()
+        ringInterval = null
+      }
+
+      if (currentOscillator) {
+        try {
+          currentOscillator.stop()
+          currentOscillator.disconnect()
+        } catch {
+          // Ignore errors from already stopped oscillators
+        }
+        currentOscillator = null
+      }
+
+      if (gainNode) {
+        try {
+          gainNode.disconnect()
+        } catch {
+          // Ignore errors
+        }
+        gainNode = null
+      }
+
+      if (audioContext) {
+        try {
+          audioContext.close()
+        } catch {
+          // Ignore errors from already closed context
+        }
+        audioContext = null
       }
     }
   }, [incomingCall, isRinging])

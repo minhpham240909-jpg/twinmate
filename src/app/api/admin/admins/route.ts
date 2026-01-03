@@ -2,10 +2,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET - List all admin users
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    // Apply rate limiting (users preset: 60 requests/minute)
+    const rateLimitResult = await adminRateLimit(req, 'users')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -13,13 +18,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Verify admin status
+    // Verify admin status - CRITICAL: Also check deactivatedAt to prevent deactivated admins from accessing
     const adminUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { isAdmin: true, email: true },
+      select: { isAdmin: true, email: true, deactivatedAt: true },
     })
 
-    if (!adminUser?.isAdmin) {
+    // SECURITY: Deactivated admins should not have access
+    if (!adminUser?.isAdmin || adminUser.deactivatedAt !== null) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
@@ -66,13 +72,14 @@ export async function GET() {
       grantedBy: admin.adminGrantedBy ? granterMap.get(admin.adminGrantedBy) : null,
     }))
 
+    // SECURITY: Don't expose super admin email in response
     return NextResponse.json({
       success: true,
       data: {
         admins: adminsWithGranter,
         currentUserId: user.id,
         isSuperAdmin,
-        superAdminEmail,
+        // Removed superAdminEmail from response to prevent information disclosure
       },
     })
   } catch (error) {

@@ -11,6 +11,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { recordUsage } from './quota'
 
 // Types
 export interface AIUsageMetric {
@@ -155,6 +156,11 @@ export async function trackUsage(metric: AIUsageMetric): Promise<void> {
   // Flush if buffer is full
   if (metricsBuffer.length >= BUFFER_FLUSH_SIZE) {
     await flushMetricsBuffer()
+  }
+
+  // SCALABILITY: Update per-user quota tracking in Redis
+  if (metric.userId && metric.success) {
+    await recordUsage(metric.userId, metric.totalTokens, metric.estimatedCost)
   }
 }
 

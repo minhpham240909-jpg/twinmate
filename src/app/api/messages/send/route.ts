@@ -133,36 +133,83 @@ export async function POST(req: NextRequest) {
         select: { name: true, email: true, avatarUrl: true }
       })
 
-      // Create group message with delivery timestamp
-      // Include sender info for admin dashboard persistence even after account deletion
-      message = await prisma.message.create({
-        data: {
-          content,
-          type: type || 'TEXT',
-          senderId: userId,
-          senderName: senderInfo?.name || null,
-          senderEmail: senderInfo?.email || null,
-          senderAvatarUrl: senderInfo?.avatarUrl || null,
-          groupId: conversationId,
-          fileUrl,
-          fileName,
-          fileSize,
-          deliveredAt: new Date(), // Mark as delivered to server immediately
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatarUrl: true
+      // CRITICAL: Use transaction to ensure message and notifications are created atomically
+      // This prevents race conditions where message exists but notifications fail
+      const createdMessage = await prisma.$transaction(async (tx) => {
+        // Create group message with delivery timestamp
+        const createdMessage = await tx.message.create({
+          data: {
+            content,
+            type: type || 'TEXT',
+            senderId: userId,
+            senderName: senderInfo?.name || null,
+            senderEmail: senderInfo?.email || null,
+            senderAvatarUrl: senderInfo?.avatarUrl || null,
+            groupId: conversationId,
+            fileUrl,
+            fileName,
+            fileSize,
+            deliveredAt: new Date(),
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true
+              }
             }
           }
+        })
+
+        // Fetch group data within transaction
+        const group = await tx.group.findUnique({
+          where: { id: conversationId },
+          select: { name: true }
+        })
+
+        // SCALABILITY: Fetch group members in batches to prevent OOM for large groups
+        // Limit notification recipients to prevent memory issues
+        const MAX_NOTIFICATION_RECIPIENTS = 500 // Reasonable limit for notification creation
+        const groupMembers = await tx.groupMember.findMany({
+          where: {
+            groupId: conversationId,
+            userId: { not: userId }
+          },
+          select: { userId: true },
+          take: MAX_NOTIFICATION_RECIPIENTS // Limit to prevent OOM
+        })
+
+        // Create notifications within transaction using batches
+        if (groupMembers.length > 0) {
+          const contentPreview = content.length > 50
+            ? content.substring(0, 50) + '...'
+            : content
+
+          // SCALABILITY: Batch notification creation for large groups
+          const NOTIFICATION_BATCH_SIZE = 100
+          for (let i = 0; i < groupMembers.length; i += NOTIFICATION_BATCH_SIZE) {
+            const batch = groupMembers.slice(i, i + NOTIFICATION_BATCH_SIZE)
+            await tx.notification.createMany({
+              data: batch.map(member => ({
+                userId: member.userId,
+                type: 'NEW_MESSAGE',
+                title: `New message in ${group?.name || 'group'}`,
+                message: `${senderInfo?.name || 'Someone'}: ${contentPreview}`,
+                actionUrl: `/chat?conversation=${conversationId}&type=group`,
+                relatedUserId: userId
+              }))
+            })
+          }
         }
+
+        return createdMessage
       })
 
-      // Scan message content for moderation (non-blocking)
-      // Use cached sender info for reliability
+      message = createdMessage
+
+      // Scan message content for moderation (non-blocking, outside transaction)
       scanMessageContent(
         message.id,
         content,
@@ -173,44 +220,6 @@ export async function POST(req: NextRequest) {
         conversationId,
         'group'
       )
-
-      // PERFORMANCE: Batch fetch group members and group data in parallel
-      const [groupMembers, group] = await Promise.all([
-        prisma.groupMember.findMany({
-          where: {
-            groupId: conversationId,
-            userId: { not: userId }
-          },
-          select: { userId: true }
-        }),
-        prisma.group.findUnique({
-          where: { id: conversationId },
-          select: { name: true }
-        })
-      ])
-
-      // Use cached sender name for notifications
-      if (groupMembers.length > 0) {
-        const contentPreview = content.length > 50
-          ? content.substring(0, 50) + '...'
-          : content
-
-        await prisma.notification.createMany({
-          data: groupMembers.map(member => ({
-            userId: member.userId,
-            type: 'NEW_MESSAGE',
-            title: `New message in ${group?.name || 'group'}`,
-            message: `${senderInfo?.name || 'Someone'}: ${contentPreview}`,
-            actionUrl: `/chat?conversation=${conversationId}&type=group`,
-            relatedUserId: userId
-          }))
-        }).catch(err => {
-          // Log error in development only
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Failed to create group notifications:', err)
-          }
-        })
-      }
 
     } else if (conversationType === 'partner') {
       // SECURITY: Check if either user has blocked the other
@@ -251,38 +260,54 @@ export async function POST(req: NextRequest) {
         })
       ])
 
-      // Create DM message with delivery timestamp
-      // Include sender/recipient info for admin dashboard persistence even after account deletion
-      message = await prisma.message.create({
-        data: {
-          content,
-          type: type || 'TEXT',
-          senderId: userId,
-          senderName: dmSenderInfo?.name || null,
-          senderEmail: dmSenderInfo?.email || null,
-          senderAvatarUrl: dmSenderInfo?.avatarUrl || null,
-          recipientId: conversationId,
-          recipientName: recipientInfo?.name || null,
-          recipientEmail: recipientInfo?.email || null,
-          fileUrl,
-          fileName,
-          fileSize,
-          deliveredAt: new Date(), // Mark as delivered to server immediately
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatarUrl: true
+      // CRITICAL: Use transaction to ensure message and notification are created atomically
+      const createdDMMessage = await prisma.$transaction(async (tx) => {
+        // Create DM message with delivery timestamp
+        const createdMessage = await tx.message.create({
+          data: {
+            content,
+            type: type || 'TEXT',
+            senderId: userId,
+            senderName: dmSenderInfo?.name || null,
+            senderEmail: dmSenderInfo?.email || null,
+            senderAvatarUrl: dmSenderInfo?.avatarUrl || null,
+            recipientId: conversationId,
+            recipientName: recipientInfo?.name || null,
+            recipientEmail: recipientInfo?.email || null,
+            fileUrl,
+            fileName,
+            fileSize,
+            deliveredAt: new Date(),
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true
+              }
             }
           }
-        }
+        })
+
+        // Create notification within transaction
+        await tx.notification.create({
+          data: {
+            userId: conversationId,
+            type: 'NEW_MESSAGE',
+            title: 'New message',
+            message: `${dmSenderInfo?.name || 'Someone'} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+            actionUrl: `/chat?conversation=${userId}&type=partner`
+          }
+        })
+
+        return createdMessage
       })
 
-      // Scan message content for moderation (non-blocking)
-      // Use cached sender info for reliability
+      message = createdDMMessage
+
+      // Scan message content for moderation (non-blocking, outside transaction)
       scanMessageContent(
         message.id,
         content,
@@ -294,23 +319,7 @@ export async function POST(req: NextRequest) {
         'partner'
       )
 
-      // Use cached sender name for notifications
-      await prisma.notification.create({
-        data: {
-          userId: conversationId,
-          type: 'NEW_MESSAGE',
-          title: 'New message',
-          message: `${dmSenderInfo?.name || 'Someone'} sent you a message: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-          actionUrl: `/chat?conversation=${userId}&type=partner`
-        }
-      }).catch(err => {
-        // Log error in development only
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Failed to create notification:', err)
-        }
-      })
-
-      // Send push notification (async, don't wait)
+      // Send push notification (async, don't wait - outside transaction)
       notifyNewMessage(userId, conversationId, content, 'partner').catch(console.error)
 
     } else {

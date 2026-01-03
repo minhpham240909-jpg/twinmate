@@ -147,6 +147,7 @@ export async function revokeAdminAccess(
 
 /**
  * Log an admin action for audit trail
+ * SECURITY: Caches admin name/email to preserve accountability even after admin deletion
  */
 export async function logAdminAction(params: {
   adminId: string
@@ -158,9 +159,17 @@ export async function logAdminAction(params: {
   userAgent?: string
 }) {
   try {
+    // Fetch admin info to cache in audit log (preserves accountability after deletion)
+    const admin = await prisma.user.findUnique({
+      where: { id: params.adminId },
+      select: { name: true, email: true },
+    })
+
     await prisma.adminAuditLog.create({
       data: {
         adminId: params.adminId,
+        adminName: admin?.name || 'Unknown Admin',
+        adminEmail: admin?.email || 'unknown@deleted',
         action: params.action,
         targetType: params.targetType,
         targetId: params.targetId,

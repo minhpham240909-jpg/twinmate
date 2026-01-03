@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getOrSetCached } from '@/lib/cache'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // Cache TTL for analytics (2 minutes for overview, less for real-time data)
 const ANALYTICS_CACHE_TTL = 120
@@ -17,6 +18,10 @@ const ONLINE_THRESHOLD_MS = 2 * 60 * 1000
 
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting (default preset: 100 requests/minute)
+    const rateLimitResult = await adminRateLimit(request, 'default')
+    if (rateLimitResult) return rateLimitResult
+
     // Check if user is admin
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -624,6 +629,10 @@ export async function GET(request: NextRequest) {
 // Mark suspicious activity as reviewed
 export async function PATCH(request: NextRequest) {
   try {
+    // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
+    const rateLimitResult = await adminRateLimit(request, 'bulk')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -649,25 +658,39 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { activityId, actionTaken } = body
 
-    const activity = await prisma.suspiciousActivityLog.update({
-      where: { id: activityId },
-      data: {
-        isReviewed: true,
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-        actionTaken,
-      }
+    // CRITICAL: Use transaction for activity update + audit log to ensure atomicity
+    // This prevents race conditions where update succeeds but audit log fails
+    const adminInfo = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, email: true },
     })
 
-    // Log the admin action
-    await prisma.adminAuditLog.create({
-      data: {
-        adminId: user.id,
-        action: 'REVIEW_SUSPICIOUS_ACTIVITY',
-        targetType: 'suspicious_activity',
-        targetId: activityId,
-        details: { actionTaken },
-      }
+    const activity = await prisma.$transaction(async (tx) => {
+      const updatedActivity = await tx.suspiciousActivityLog.update({
+        where: { id: activityId },
+        data: {
+          isReviewed: true,
+          reviewedById: user.id,
+          reviewedAt: new Date(),
+          actionTaken,
+        }
+      })
+
+      // Log the admin action within transaction
+      // Note: adminName/adminEmail fields exist in schema - run `npx prisma generate` to update types
+      await tx.adminAuditLog.create({
+        data: {
+          adminId: user.id,
+          adminName: adminInfo?.name || 'Unknown Admin',
+          adminEmail: adminInfo?.email || 'unknown@deleted',
+          action: 'REVIEW_SUSPICIOUS_ACTIVITY',
+          targetType: 'suspicious_activity',
+          targetId: activityId,
+          details: { actionTaken },
+        } as any,
+      })
+
+      return updatedActivity
     })
 
     return NextResponse.json({ success: true, activity })

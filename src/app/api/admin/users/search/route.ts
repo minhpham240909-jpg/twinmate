@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get('q') || ''
     const ids = searchParams.get('ids') // Comma-separated IDs for batch lookup
-    const limit = parseInt(searchParams.get('limit') || '10')
+    // SECURITY: Enforce max limit cap to prevent unbounded queries
+    const MAX_LIMIT = 50
+    const requestedLimit = parseInt(searchParams.get('limit') || '10')
+    const limit = Math.min(Math.max(1, requestedLimit), MAX_LIMIT)
 
     // If IDs are provided, do a batch lookup (for loading existing targeted users)
     if (ids) {
@@ -35,8 +38,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, users: [] })
       }
 
+      // SECURITY: Limit batch lookup size to prevent memory issues
+      const MAX_BATCH_SIZE = 100
+      const limitedUserIds = userIds.slice(0, MAX_BATCH_SIZE)
+
       const users = await prisma.user.findMany({
-        where: { id: { in: userIds } },
+        where: { id: { in: limitedUserIds } },
         select: {
           id: true,
           name: true,

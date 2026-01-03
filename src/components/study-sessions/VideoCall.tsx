@@ -1019,7 +1019,8 @@ const ScreenShareTile = React.memo(function ScreenShareTile({
         }
       }, 100)
       
-      // Continuous monitoring with more aggressive removal
+      // Reduced monitoring frequency: Check every 1 second instead of 200ms
+      // Only monitor for 2 seconds instead of 3 seconds to reduce CPU usage
       let checkCount = 0
       const monitorInterval = setInterval(() => {
         checkCount++
@@ -1034,13 +1035,13 @@ const ScreenShareTile = React.memo(function ScreenShareTile({
             lastVideo.remove()
           }
         }
-      }, 200)
+      }, 1000) // Reduced from 200ms to 1000ms (5x less frequent)
       
-      // Stop monitoring after 3 seconds
+      // Stop monitoring after 2 seconds instead of 3 seconds
       setTimeout(() => {
         clearInterval(monitorInterval)
         console.log('Stopped monitoring for duplicate videos')
-      }, 3000)
+      }, 2000) // Reduced from 3000ms to 2000ms
     } catch (error) {
       console.error('Error playing screen share:', error)
       playingTrackIdRef.current = null

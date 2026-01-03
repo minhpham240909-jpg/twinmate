@@ -166,14 +166,14 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
     let isSubscribed = true
     let pollingInterval: NodeJS.Timeout | null = null
     let realtimeWorking = false
-    let consecutiveEmptyPolls = 0
+    let realtimeCheckTimeout: NodeJS.Timeout | null = null
 
-    // Smart polling: starts fast (1s), slows down when idle, speeds up when messages arrive
-    const startSmartPolling = () => {
+    // Fallback polling: Only used if realtime fails to connect
+    const startFallbackPolling = () => {
       if (pollingInterval) return
 
       const poll = async () => {
-        if (!isSubscribed) return
+        if (!isSubscribed || realtimeWorking) return // Stop polling if realtime is working
 
         try {
           const currentMessages = messagesRef.current
@@ -185,38 +185,9 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
           const data = await res.json()
 
           if (data.success && data.messages && data.messages.length > 0) {
-            consecutiveEmptyPolls = 0 // Reset on new messages
             setMessages((prev) => {
-              // H5 FIX: Enhanced deduplication - check both ID and temp ID patterns
               const existingIds = new Set(prev.map(m => m.id))
-              
-              // Also track messages by content + sender for better deduplication
-              const existingContentKeys = new Set(
-                prev.map(m => `${m.sender.id}:${m.content.slice(0, 50)}`)
-              )
-              
-              const newMessages = data.messages.filter((m: Message) => {
-                // Skip if ID already exists
-                if (existingIds.has(m.id)) return false
-                
-                // H5 FIX: Skip if this looks like a duplicate of a temp message
-                // (same sender, same content prefix, within 30 seconds)
-                const contentKey = `${m.sender.id}:${m.content.slice(0, 50)}`
-                if (existingContentKeys.has(contentKey)) {
-                  // Check if there's a temp message that matches
-                  const matchingTemp = prev.find(
-                    p => p.id.startsWith('temp-') && 
-                         p.sender.id === m.sender.id && 
-                         p.content === m.content
-                  )
-                  if (matchingTemp) {
-                    // Replace temp with real message instead of adding duplicate
-                    return false
-                  }
-                }
-                
-                return true
-              })
+              const newMessages = data.messages.filter((m: Message) => !existingIds.has(m.id))
 
               newMessages.forEach((msg: Message) => {
                 if (msg.sender.id !== user?.id) {
@@ -232,38 +203,27 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
 
               if (newMessages.length === 0) return prev
               
-              // H5 FIX: Merge and sort by timestamp to maintain order
               const merged = [...prev, ...newMessages]
               return merged.sort((a, b) => 
                 new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
               )
             })
-          } else {
-            consecutiveEmptyPolls++
           }
         } catch (error) {
           // Silently handle errors
         }
 
-        // Schedule next poll with adaptive timing
-        // If realtime is working, poll less frequently as a backup
-        // If no messages for a while, slow down to reduce load
-        if (isSubscribed) {
-          const baseInterval = realtimeWorking ? 3000 : 1500 // 3s if realtime works, 1.5s otherwise
-          const backoffMultiplier = Math.min(consecutiveEmptyPolls, 5) // Max 5x slower
-          const nextInterval = baseInterval + (backoffMultiplier * 500) // Gradually slow down
-          pollingInterval = setTimeout(poll, nextInterval)
+        // Only continue polling if realtime is not working
+        if (isSubscribed && !realtimeWorking) {
+          pollingInterval = setTimeout(poll, 5000) // Poll every 5s as fallback
         }
       }
 
-      // Start first poll after a short delay
-      pollingInterval = setTimeout(poll, 1000)
+      // Start fallback polling after a delay (gives realtime time to connect)
+      pollingInterval = setTimeout(poll, 3000)
     }
 
-    // Start smart polling
-    startSmartPolling()
-
-    // Try Supabase Realtime as enhancement
+    // Use Supabase Realtime as primary method
     const channel = supabase
       .channel(`session-${sessionId}-messages`)
       .on(
@@ -332,17 +292,34 @@ export default function SessionChat({ sessionId, isHost = false, onUnreadCountCh
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           realtimeWorking = true
+          // Stop polling when realtime is working
+          if (pollingInterval) {
+            clearTimeout(pollingInterval)
+            pollingInterval = null
+          }
           console.log(`✅ Session chat realtime connected: ${sessionId}`)
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           realtimeWorking = false
+          // Start fallback polling if realtime fails
+          if (!pollingInterval) {
+            startFallbackPolling()
+          }
           console.warn(`⚠️ Session chat realtime issue: ${status}`)
         }
       })
+
+    // Check if realtime connects within 5 seconds, otherwise start fallback polling
+    realtimeCheckTimeout = setTimeout(() => {
+      if (!realtimeWorking && !pollingInterval) {
+        startFallbackPolling()
+      }
+    }, 5000)
 
     return () => {
       isSubscribed = false
       supabase.removeChannel(channel)
       if (pollingInterval) clearTimeout(pollingInterval)
+      if (realtimeCheckTimeout) clearTimeout(realtimeCheckTimeout)
     }
   }, [sessionId, supabase, user?.id, isVisible])
 

@@ -20,7 +20,7 @@ import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import BannedUserOverlay from "@/components/BannedUserOverlay";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   subsets: ["latin"],

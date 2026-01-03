@@ -7,10 +7,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getRealTimeStats } from '@/lib/ai-partner/monitoring'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET: Get AI monitoring data for admin dashboard
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting (default preset: 100 requests/minute)
+    const rateLimitResult = await adminRateLimit(request, 'default')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

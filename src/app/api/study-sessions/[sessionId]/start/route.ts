@@ -1,12 +1,29 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit } from '@/lib/rate-limit'
+
+// Rate limit: 10 session starts per minute per user
+const SESSION_START_RATE_LIMIT = {
+  max: 10,
+  windowMs: 60000,
+  keyPrefix: 'session-start',
+}
 
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    // Apply rate limiting
+    const rateLimitResult = await rateLimit(request, SESSION_START_RATE_LIMIT)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many session start requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

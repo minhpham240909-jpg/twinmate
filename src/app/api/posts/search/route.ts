@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ posts: [] })
     }
 
-    // Get user's partner IDs for privacy filtering
+    // SCALABILITY: Get user's partner IDs for privacy filtering with limit
+    // Most users won't have more than a few hundred accepted partners
+    const MAX_PARTNERS_TO_FETCH = 500
     const partnerMatches = await prisma.match.findMany({
       where: {
         OR: [
@@ -34,6 +36,7 @@ export async function GET(req: NextRequest) {
         senderId: true,
         receiverId: true,
       },
+      take: MAX_PARTNERS_TO_FETCH,
     })
 
     const partnerIds = partnerMatches.map(match =>
@@ -175,7 +178,9 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Get all connections for the current user
+    // SCALABILITY: Get connections for current user with limit
+    // Most users won't have more than a few hundred connections
+    const MAX_CONNECTIONS_TO_FETCH = 500
     const userConnections = await prisma.match.findMany({
       where: {
         OR: [
@@ -189,6 +194,7 @@ export async function GET(req: NextRequest) {
         receiverId: true,
         status: true,
       },
+      take: MAX_CONNECTIONS_TO_FETCH,
     })
 
     // Create a map of userId -> connectionStatus

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface PresenceIndicatorProps {
@@ -14,8 +14,9 @@ interface PresenceState {
 
 export default function PresenceIndicator({ sessionId }: PresenceIndicatorProps) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
-  // PERF: Memoize supabase client to prevent subscription recreation on re-renders
-  const supabase = useMemo(() => createClient(), [])
+  // PERF: createClient() returns a singleton instance, so no need for useMemo
+  // The Supabase client is already memoized internally
+  const supabase = createClient()
 
   useEffect(() => {
     let isMounted = true

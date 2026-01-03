@@ -16,17 +16,20 @@
 // Queue configuration optimized for 3000 concurrent users
 const QUEUE_CONFIG = {
   // Maximum concurrent OpenAI requests (OpenAI Tier 3: ~500 RPM for GPT-4o-mini)
-  // With 3000 users, we need to batch/queue requests efficiently
-  maxConcurrent: parseInt(process.env.OPENAI_MAX_CONCURRENT || '50', 10),
+  // Increased from 50 to 120 for better throughput with 3000 users
+  // This allows ~2 concurrent requests per 100 active users
+  maxConcurrent: parseInt(process.env.OPENAI_MAX_CONCURRENT || '120', 10),
 
-  // Rate limiting: requests per minute
+  // Rate limiting: requests per minute (OpenAI Tier 3 limit: ~500 RPM)
+  // Set to 450 to leave headroom for bursts
   requestsPerMinute: parseInt(process.env.OPENAI_REQUESTS_PER_MINUTE || '450', 10),
 
-  // Request timeout in milliseconds
-  requestTimeout: parseInt(process.env.OPENAI_REQUEST_TIMEOUT || '30000', 10),
+  // Request timeout in milliseconds (60 seconds for complex queries)
+  requestTimeout: parseInt(process.env.OPENAI_REQUEST_TIMEOUT || '60000', 10),
 
   // Maximum queue size before rejecting new requests
-  maxQueueSize: parseInt(process.env.OPENAI_MAX_QUEUE_SIZE || '5000', 10),
+  // Increased from 5000 to 10000 to handle traffic spikes
+  maxQueueSize: parseInt(process.env.OPENAI_MAX_QUEUE_SIZE || '10000', 10),
 
   // Retry configuration
   maxRetries: 3,
@@ -34,8 +37,8 @@ const QUEUE_CONFIG = {
   retryMaxDelayMs: 30000,
 
   // Circuit breaker configuration
-  circuitBreakerThreshold: 10, // Failures before opening circuit
-  circuitBreakerResetMs: 60000, // Time before attempting to close circuit
+  circuitBreakerThreshold: 15, // Increased from 10 to reduce false positives
+  circuitBreakerResetMs: 45000, // Reduced from 60s to recover faster
 
   // Deduplication window in milliseconds
   deduplicationWindowMs: 2000,

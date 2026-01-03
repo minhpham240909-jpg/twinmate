@@ -16,6 +16,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { getHealthStatus } from '@/lib/monitoring/database-health'
 import { getQueueStatus } from '@/lib/ai-partner/queue'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic' // Always run fresh, don't cache
 
@@ -29,7 +30,7 @@ interface HealthCheck {
     redis: ServiceStatus
     openaiQueue?: QueueServiceStatus
   }
-  config: {
+  config?: {
     databasePoolSize: number
     queryTimeout: number
   }
@@ -62,7 +63,26 @@ interface QueueServiceStatus {
 }
 
 export async function GET(request: NextRequest) {
+  // SCALABILITY: Rate limit health checks to prevent abuse
+  // Allow 60 requests per minute for monitoring tools
+  const rateLimitResult = await rateLimit(request, {
+    windowMs: 60 * 1000,
+    max: 60,
+    keyPrefix: 'health',
+  })
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { status: 'rate_limited', error: 'Too many health check requests' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   const isDeep = request.nextUrl.searchParams.get('deep') === 'true'
+  const isAdmin = request.nextUrl.searchParams.get('admin') === 'true'
+  
+  // SECURITY: Only expose internal config details to admin requests
+  // For public health checks, return minimal information
   const health: HealthCheck = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -72,10 +92,13 @@ export async function GET(request: NextRequest) {
       auth: { status: 'down' },
       redis: { status: 'down' },
     },
-    config: {
-      databasePoolSize: parseInt(process.env.DATABASE_POOL_SIZE || '10', 10),
-      queryTimeout: parseInt(process.env.DATABASE_QUERY_TIMEOUT || '30', 10),
-    },
+    // Only include config details for admin requests to prevent information disclosure
+    ...(isAdmin ? {
+      config: {
+        databasePoolSize: parseInt(process.env.DATABASE_POOL_SIZE || '10', 10),
+        queryTimeout: parseInt(process.env.DATABASE_QUERY_TIMEOUT || '30', 10),
+      },
+    } : {}),
     uptime: process.uptime(),
     version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
   }

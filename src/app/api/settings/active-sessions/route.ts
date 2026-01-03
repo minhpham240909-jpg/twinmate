@@ -103,8 +103,17 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
-    const { deviceId, logoutAll } = body
+    let body
+    try {
+      body = await request.json()
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
+    const { deviceId, logoutAll } = body || {}
 
     if (logoutAll) {
       // Log out all other devices (keep current device)

@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import {
   BarChart,
   Bar,
@@ -27,7 +28,7 @@ interface BarChartCardProps {
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4']
 
-export default function BarChartCard({
+function BarChartCard({
   title,
   subtitle,
   data,
@@ -39,6 +40,21 @@ export default function BarChartCard({
   showGrid = true,
   valueFormatter = (v) => v.toLocaleString(),
 }: BarChartCardProps) {
+  // Error state: Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          {subtitle && <p className="text-sm text-gray-400">{subtitle}</p>}
+        </div>
+        <div className="flex items-center justify-center" style={{ height }}>
+          <p className="text-gray-400">No data available</p>
+        </div>
+      </div>
+    )
+  }
+
   const chartData = data.map(d => ({
     ...d,
     value: d[dataKey] as number || d.value || d.members || 0,
@@ -136,3 +152,6 @@ export default function BarChartCard({
     </div>
   )
 }
+
+// PERF: Memoize component to prevent unnecessary re-renders
+export default React.memo(BarChartCard)

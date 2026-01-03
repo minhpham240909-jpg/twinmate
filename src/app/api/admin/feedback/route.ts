@@ -3,10 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET - List feedback with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting (default preset: 100 requests/minute)
+    const rateLimitResult = await adminRateLimit(request, 'default')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -114,6 +119,10 @@ export async function GET(request: NextRequest) {
 // POST - Handle feedback actions (review, resolve, archive)
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting (userActions preset: 30 actions/minute)
+    const rateLimitResult = await adminRateLimit(request, 'userActions')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -256,6 +265,10 @@ export async function POST(request: NextRequest) {
 // DELETE - Permanently delete feedback
 export async function DELETE(request: NextRequest) {
   try {
+    // Apply rate limiting (userActions preset: 30 actions/minute)
+    const rateLimitResult = await adminRateLimit(request, 'userActions')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

@@ -266,6 +266,10 @@ export async function GET(request: NextRequest) {
 // POST - Moderate a message (approve, remove, warn)
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting (userActions preset: 30 actions/minute)
+    const rateLimitResult = await adminRateLimit(request, 'userActions')
+    if (rateLimitResult) return rateLimitResult
+
     // Verify admin access
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

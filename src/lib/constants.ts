@@ -174,3 +174,21 @@ export const RATE_LIMIT_WINDOWS = {
   /** Window size for hourly rate limiting in milliseconds */
   HOURLY_WINDOW_MS: 60 * 60 * 1000,
 } as const
+
+/**
+ * AI Usage Quotas
+ * Per-user daily limits to prevent abuse and control costs
+ * Designed for 1000-3000 daily active users
+ */
+export const AI_QUOTAS = {
+  /** Daily token limit per user (default: 100K tokens ≈ $0.05-0.10/day with GPT-4o-mini) */
+  DAILY_TOKEN_LIMIT: parseInt(process.env.AI_DAILY_TOKEN_LIMIT || '100000', 10),
+  /** Daily cost limit per user in dollars (default: $0.25) */
+  DAILY_COST_LIMIT: parseFloat(process.env.AI_DAILY_COST_LIMIT || '0.25'),
+  /** Daily request limit per user (default: 200 requests) */
+  DAILY_REQUEST_LIMIT: parseInt(process.env.AI_DAILY_REQUEST_LIMIT || '200', 10),
+  /** Grace period before hard block (% over limit to warn) */
+  WARNING_THRESHOLD: 0.8,
+  /** Reset time hour in UTC (default: 0 = midnight UTC) */
+  RESET_HOUR_UTC: parseInt(process.env.AI_QUOTA_RESET_HOUR || '0', 10),
+} as const

@@ -20,7 +20,10 @@ function getEncryptionKey(): Buffer {
   if (ENCRYPTION_KEY === 'your-32-character-secret-key-here!' || ENCRYPTION_KEY.length < 32) {
     throw new Error('ENCRYPTION_KEY must be at least 32 characters and not the default value')
   }
-  return Buffer.from(ENCRYPTION_KEY).slice(0, 32)
+  // SECURITY: Use SHA256 hash instead of truncation to ensure consistent 32-byte key
+  // This prevents issues with keys longer than 32 bytes and ensures proper key derivation
+  const hash = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest()
+  return hash.slice(0, 32) // SHA256 produces 32 bytes, so this is safe
 }
 
 function decrypt(text: string): string {

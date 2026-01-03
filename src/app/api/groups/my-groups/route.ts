@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find all groups where user is a member (exclude deleted groups)
+    // SCALABILITY: Limit members to 50 per group to prevent memory explosion
     const memberships = await prisma.groupMember.findMany({
       where: {
         userId: user.id,
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
         group: {
           include: {
             members: {
+              take: 50, // CRITICAL: Limit members per group to prevent unbounded queries
+              orderBy: { joinedAt: 'desc' }, // Most recent members first
               include: {
                 user: {
                   select: {
@@ -43,6 +46,9 @@ export async function GET(request: NextRequest) {
                 },
               },
             },
+            _count: {
+              select: { members: true } // Get accurate count separately
+            }
           },
         },
       },
@@ -78,7 +84,7 @@ export async function GET(request: NextRequest) {
         skillLevel: group.skillLevel,
         skillLevelCustomDescription: group.skillLevelCustomDescription,
         maxMembers: group.maxMembers,
-        memberCount: group.members.length,
+        memberCount: group._count.members, // Use accurate count from _count
         ownerName: ownerMap.get(group.ownerId) || 'Unknown',
         ownerId: group.ownerId,
         isMember: true, // Always true since we're fetching user's groups

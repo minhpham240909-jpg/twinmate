@@ -3,10 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET - List reports with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting (default preset: 100 requests/minute)
+    const rateLimitResult = await adminRateLimit(request, 'default')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -101,6 +106,10 @@ export async function GET(request: NextRequest) {
 // POST - Handle report actions (review, resolve, dismiss)
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
+    const rateLimitResult = await adminRateLimit(request, 'bulk')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -267,6 +276,10 @@ export async function POST(request: NextRequest) {
 // DELETE - Permanently delete reports
 export async function DELETE(request: NextRequest) {
   try {
+    // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
+    const rateLimitResult = await adminRateLimit(request, 'bulk')
+    if (rateLimitResult) return rateLimitResult
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

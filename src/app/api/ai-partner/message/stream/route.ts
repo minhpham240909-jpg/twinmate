@@ -8,7 +8,7 @@
  * - Adaptive behavior tracking
  * - Memory-aware decisions
  *
- * SCALABILITY: Uses Redis-based rate limiting for 1000-3000 concurrent users
+ * SCALABILITY: Uses Redis-based rate limiting and per-user quota for 1000-3000 concurrent users
  */
 
 import { NextRequest } from 'next/server'
@@ -25,6 +25,7 @@ import {
   ImageGenerationStyle,
 } from '@/lib/ai-partner/openai'
 import { rateLimit } from '@/lib/rate-limit'
+import { enforceQuota } from '@/lib/ai-partner/quota'
 
 // Intelligence System imports
 import {
@@ -242,6 +243,18 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // SCALABILITY: Check per-user daily quota
+    const quotaCheck = await enforceQuota(user.id)
+    if (!quotaCheck.allowed) {
+      return new Response(JSON.stringify({
+        error: quotaCheck.error!.message,
+        quotaExceeded: true,
+      }), {
+        status: quotaCheck.error!.status,
         headers: { 'Content-Type': 'application/json' },
       })
     }
