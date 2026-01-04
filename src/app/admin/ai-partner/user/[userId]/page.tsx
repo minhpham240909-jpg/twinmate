@@ -311,7 +311,7 @@ export default function AdminAIPartnerUserPage({
                   className="w-10 h-10 rounded-full"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
               )}
@@ -366,7 +366,7 @@ export default function AdminAIPartnerUserPage({
               <Brain className="w-4 h-4" />
               <span className="text-xs">Quizzes</span>
             </div>
-            <p className="text-2xl font-bold text-purple-400">{data.stats.totalQuizzes}</p>
+            <p className="text-2xl font-bold text-blue-400">{data.stats.totalQuizzes}</p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
             <div className="flex items-center gap-2 text-slate-400 mb-1">

@@ -118,7 +118,7 @@ export default function PartnersPage() {
             <div className="flex items-center gap-3">
               {partners.length > 0 && (
                 <Pulse>
-                  <span className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-600 dark:text-blue-400 rounded-xl font-semibold border border-blue-200 dark:border-blue-700/50">
+                  <span className="px-4 py-2 bg-gradient-to-r from-blue-100 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl font-semibold border border-blue-200 dark:border-blue-700/50">
                     {partners.length} {partners.length === 1 ? t('partner') : t('partners')}
                   </span>
                 </Pulse>
@@ -126,7 +126,7 @@ export default function PartnersPage() {
               <Bounce>
                 <button
                   onClick={() => router.push('/search')}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 hover:shadow-lg transition-all shadow-md"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-600 hover:shadow-lg transition-all shadow-md"
                 >
                   {t('findPartners')}
                 </button>
@@ -142,7 +142,7 @@ export default function PartnersPage() {
           <Bounce>
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-12 text-center shadow-sm">
               <Bounce delay={0.1}>
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-200 dark:border-blue-700/50">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-200 dark:border-blue-700/50">
                   <Pulse>
                     <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -157,7 +157,7 @@ export default function PartnersPage() {
               <Bounce delay={0.2}>
                 <button
                   onClick={() => router.push('/search')}
-                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 hover:shadow-lg transition-all shadow-md"
+                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-600 hover:shadow-lg transition-all shadow-md"
                 >
                   {t('findStudyPartners')}
                 </button>
@@ -219,7 +219,7 @@ export default function PartnersPage() {
                     <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-2">{t('interests')}</p>
                     <div className="flex flex-wrap gap-2">
                       {partner.profile.interests.slice(0, 3).map((interest: string, idx: number) => (
-                        <span key={idx} className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-medium">
+                        <span key={idx} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium">
                           {interest}
                         </span>
                       ))}
@@ -236,7 +236,7 @@ export default function PartnersPage() {
                 <div className="flex gap-2 mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-800">
                   <button
                     onClick={() => router.push(`/profile/${partner.id}`)}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-all text-sm"
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-600 transition-all text-sm"
                   >
                     {t('viewProfile')}
                   </button>

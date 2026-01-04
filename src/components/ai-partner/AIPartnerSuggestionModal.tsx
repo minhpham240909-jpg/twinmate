@@ -321,7 +321,7 @@ export default function AIPartnerSuggestionModal({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="relative bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-6 border-b border-slate-700/50">
+            <div className="relative bg-gradient-to-r from-blue-600/20 to-blue-600/20 p-6 border-b border-slate-700/50">
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
@@ -331,11 +331,11 @@ export default function AIPartnerSuggestionModal({
 
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center overflow-hidden">
                     <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-slate-900 rounded-full flex items-center justify-center border-2 border-purple-500">
-                    <Sparkles className="w-3 h-3 text-purple-400" />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-slate-900 rounded-full flex items-center justify-center border-2 border-blue-500">
+                    <Sparkles className="w-3 h-3 text-blue-400" />
                   </div>
                 </div>
                 <div>
@@ -354,7 +354,7 @@ export default function AIPartnerSuggestionModal({
                   <span className="text-sm text-slate-300">Chat & Discuss</span>
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                  <Brain className="w-5 h-5 text-purple-400" />
+                  <Brain className="w-5 h-5 text-blue-400" />
                   <span className="text-sm text-slate-300">Quiz & Flashcards</span>
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
@@ -410,7 +410,7 @@ export default function AIPartnerSuggestionModal({
                 <button
                   onClick={handleStartAIPartner}
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <>

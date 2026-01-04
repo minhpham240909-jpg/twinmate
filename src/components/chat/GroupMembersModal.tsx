@@ -67,7 +67,7 @@ export default function GroupMembersModal({ isOpen, onClose, groupId, groupName 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
       case 'OWNER':
-        return 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+        return 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
       case 'ADMIN':
         return 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
       default:

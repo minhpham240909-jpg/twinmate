@@ -189,7 +189,7 @@ export default function AdminSettingsPage() {
       description: 'Payments, subscriptions, invoices',
       icon: Key,
       url: 'https://dashboard.stripe.com',
-      color: 'bg-purple-500',
+      color: 'bg-blue-500',
     },
     {
       name: 'Sentry Dashboard',
@@ -331,8 +331,8 @@ export default function AdminSettingsPage() {
       {/* External Services */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-purple-500/20 rounded-lg">
-            <ExternalLink className="w-5 h-5 text-purple-400" />
+          <div className="p-2 bg-blue-500/20 rounded-lg">
+            <ExternalLink className="w-5 h-5 text-blue-400" />
           </div>
           <h2 className="text-lg font-semibold text-white">External Services</h2>
         </div>

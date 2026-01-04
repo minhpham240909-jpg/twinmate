@@ -455,7 +455,7 @@ export default function LandingPageClient() {
             transition={{ duration: 0.5 }}
             className="text-center mb-12"
           >
-            <span className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-300 text-sm font-medium mb-4">
+            <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-300 text-sm font-medium mb-4">
               <span>✨</span> New Feature
             </span>
 
@@ -495,7 +495,7 @@ export default function LandingPageClient() {
           <div className="text-center mt-10">
             <Link
               href="/auth/signup"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
             >
               Try Temporary AI Partner
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

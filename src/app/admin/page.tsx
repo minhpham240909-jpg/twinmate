@@ -291,11 +291,11 @@ export default function AdminDashboard() {
   const colorClasses: Record<string, { bg: string; text: string; icon: string }> = {
     blue: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'bg-blue-500' },
     green: { bg: 'bg-green-500/10', text: 'text-green-400', icon: 'bg-green-500' },
-    purple: { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: 'bg-purple-500' },
+    purple: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'bg-blue-500' },
     yellow: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', icon: 'bg-yellow-500' },
-    indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', icon: 'bg-indigo-500' },
+    indigo: { bg: 'bg-blue-1000/10', text: 'text-blue-500', icon: 'bg-blue-1000' },
     teal: { bg: 'bg-teal-500/10', text: 'text-teal-400', icon: 'bg-teal-500' },
-    pink: { bg: 'bg-pink-500/10', text: 'text-pink-400', icon: 'bg-pink-500' },
+    pink: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'bg-blue-500' },
     red: { bg: 'bg-red-500/10', text: 'text-red-400', icon: 'bg-red-500' },
     gray: { bg: 'bg-gray-500/10', text: 'text-gray-400', icon: 'bg-gray-500' },
   }
@@ -628,7 +628,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* AI Partner Quick Stats */}
-      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-xl border border-blue-500/30 p-6">
+      <div className="bg-gradient-to-br from-blue-900/30 to-blue-900/30 rounded-xl border border-blue-500/30 p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/20 rounded-lg overflow-hidden">
@@ -659,7 +659,7 @@ export default function AdminDashboard() {
             href="/admin/ai-partner"
             className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
           >
-            <p className="text-2xl font-bold text-purple-400">-</p>
+            <p className="text-2xl font-bold text-blue-400">-</p>
             <p className="text-xs text-gray-400">AI Messages</p>
           </Link>
           <Link
@@ -720,7 +720,7 @@ export default function AdminDashboard() {
             href="/admin/ai-memory"
             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
           >
-            <Brain className="w-8 h-8 text-pink-400" />
+            <Brain className="w-8 h-8 text-blue-400" />
             <span className="text-sm text-gray-300">AI Memory</span>
           </Link>
           <Link

@@ -351,7 +351,7 @@ export default function ConnectionsPage() {
                             ) : (
                               <Bounce delay={index * 0.1}>
                                 <Pulse>
-                                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
                                     {getInitials(request.receiver.name)}
                                   </div>
                                 </Pulse>

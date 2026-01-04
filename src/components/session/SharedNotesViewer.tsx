@@ -31,8 +31,8 @@ export default function SharedNotesViewer({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-800/50">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-purple-500/20">
-            <FileText className="w-5 h-5 text-purple-400" />
+          <div className="p-2 rounded-lg bg-blue-500/20">
+            <FileText className="w-5 h-5 text-blue-400" />
           </div>
           <div>
             <h3 className="font-semibold text-white">{title || 'Shared Notes'}</h3>

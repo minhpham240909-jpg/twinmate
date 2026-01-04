@@ -96,7 +96,7 @@ export default function PushNotificationPrompt({ delay = 30000 }: PushNotificati
         >
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-500 px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +155,7 @@ export default function PushNotificationPrompt({ delay = 30000 }: PushNotificati
                 <button
                   onClick={handleEnable}
                   disabled={isLoading}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-lg hover:from-blue-600 hover:to-blue-600 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <>

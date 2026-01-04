@@ -444,7 +444,7 @@ export default function AdminAnnouncementsPage() {
                           {priorityBadge.label}
                         </span>
                         {announcement.targetRole && announcement.targetRole !== 'SPECIFIC' && (
-                          <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-400 flex items-center gap-1">
+                          <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400 flex items-center gap-1">
                             {announcement.targetRole === 'PREMIUM' ? (
                               <Crown className="w-3 h-3" />
                             ) : (

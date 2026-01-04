@@ -432,12 +432,12 @@ export default function SettingsPage() {
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
     { id: 'account', label: t('account'), icon: User, color: 'from-blue-500 to-cyan-500' },
-    { id: 'privacy', label: t('privacy'), icon: Lock, color: 'from-purple-500 to-pink-500' },
+    { id: 'privacy', label: t('privacy'), icon: Lock, color: 'from-blue-500 to-blue-500' },
     { id: 'notifications', label: t('notifications'), icon: Bell, color: 'from-orange-500 to-red-500' },
-    { id: 'communication', label: t('communication'), icon: MessageSquare, color: 'from-indigo-500 to-blue-500' },
-    { id: 'groups', label: t('groups'), icon: Users, color: 'from-violet-500 to-purple-500' },
+    { id: 'communication', label: t('communication'), icon: MessageSquare, color: 'from-blue-1000 to-blue-500' },
+    { id: 'groups', label: t('groups'), icon: Users, color: 'from-blue-500 to-blue-500' },
     { id: 'community', label: t('community'), icon: Globe, color: 'from-teal-500 to-cyan-500' },
-    { id: 'accessibility', label: t('accessibility'), icon: Accessibility, color: 'from-rose-500 to-pink-500' },
+    { id: 'accessibility', label: t('accessibility'), icon: Accessibility, color: 'from-rose-500 to-blue-500' },
     { id: 'data', label: t('data'), icon: Database, color: 'from-slate-500 to-gray-500' },
     { id: 'history', label: 'History', icon: History, color: 'from-zinc-500 to-slate-500' },
     { id: 'integrations', label: t('integrations'), icon: Link2, color: 'from-cyan-500 to-blue-500' },
@@ -749,7 +749,7 @@ function ToggleSetting({
         whileTap={{ scale: 0.95 }}
         className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
           checked
-            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 focus:ring-blue-500'
+            ? 'bg-gradient-to-r from-blue-600 to-blue-700 focus:ring-blue-500'
             : 'bg-gray-300 focus:ring-gray-400'
         }`}
       >
@@ -1285,10 +1285,10 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
           title="Profile Completion"
           description="Complete your profile to improve matching"
         >
-          <div className="p-5 rounded-xl border border-gray-200/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
+          <div className="p-5 rounded-xl border border-gray-200/50 bg-gradient-to-br from-blue-50/50 to-blue-100/50">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-gray-900">Profile Completion</span>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                 {profileCompletion.completionPercentage}%
               </span>
             </div>
@@ -1297,7 +1297,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                 initial={{ width: 0 }}
                 animate={{ width: `${profileCompletion.completionPercentage}%` }}
                 transition={{ duration: 1, ease: 'easeOut' }}
-                className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 h-full rounded-full shadow-lg"
+                className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-600 h-full rounded-full shadow-lg"
               />
             </div>
             {profileCompletion.missingFields.length > 0 && (
@@ -1351,7 +1351,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                   disabled={loading}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
                 >
                   {loading ? 'Sending...' : 'Resend Verification'}
                 </motion.button>
@@ -1375,7 +1375,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
           </div>
           <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
             (user as any)?.role === 'PREMIUM' 
-              ? 'bg-purple-100 text-purple-700' 
+              ? 'bg-blue-100 text-blue-700' 
               : 'bg-gray-100 text-gray-700'
           }`}>
             {(user as any)?.role === 'PREMIUM' ? 'Premium' : 'Free'}
@@ -1402,7 +1402,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                 onClick={() => setShowChangePassword(!showChangePassword)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
               >
                 {showChangePassword ? 'Cancel' : 'Change Password'}
               </motion.button>
@@ -1442,7 +1442,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
                 disabled={loading}
                 whileHover={{ scale: loading ? 1 : 1.02 }}
                 whileTap={{ scale: loading ? 1 : 0.98 }}
-                className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-gray-900 dark:text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 shadow-md"
               >
                 {loading ? 'Changing...' : 'Change Password'}
               </motion.button>
@@ -1462,7 +1462,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
               onClick={() => setShowChangeEmail(!showChangeEmail)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-gray-900 dark:text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all duration-200 shadow-md"
             >
               {showChangeEmail ? 'Cancel' : 'Change Email'}
             </motion.button>
@@ -2284,7 +2284,7 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
       label: 'Default',
       icon: Sun,
       gradient: 'from-yellow-400 via-orange-300 to-amber-200',
-      bgGradient: 'from-white via-blue-50/30 to-indigo-50/20',
+      bgGradient: 'from-white via-blue-50/30 to-blue-100/20',
       previewBg: 'bg-white',
       previewText: 'text-gray-900',
       previewBorder: 'border-gray-200',
@@ -2294,7 +2294,7 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
       value: 'DARK' as const,
       label: t('dark'),
       icon: Moon,
-      gradient: 'from-indigo-600 via-purple-600 to-blue-800',
+      gradient: 'from-blue-700 via-blue-600 to-blue-800',
       bgGradient: 'from-gray-900 via-slate-900 to-zinc-900',
       previewBg: 'bg-slate-950',
       previewText: 'text-gray-100',
@@ -2340,7 +2340,7 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute top-3 right-3 w-6 h-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg"
+                      className="absolute top-3 right-3 w-6 h-6 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg"
                     >
                       <Check className="w-4 h-4 text-gray-900 dark:text-white" />
                     </motion.div>
@@ -2423,8 +2423,8 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
                       {/* Button preview */}
                       <div className={`mt-2 h-2.5 rounded ${
                         option.value === 'LIGHT'
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
-                          : 'bg-gradient-to-r from-blue-600 to-purple-600'
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-1000'
+                          : 'bg-gradient-to-r from-blue-600 to-blue-600'
                       }`} style={{ width: '50%' }} />
                     </div>
                   </div>
@@ -2759,8 +2759,8 @@ function StudyActivityHistory() {
             <div className="text-2xl font-bold text-green-600">{statistics.totalHours}h</div>
             <div className="text-sm text-gray-600">{t('totalHours')}</div>
           </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">{statistics.sessionsThisMonth}</div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{statistics.sessionsThisMonth}</div>
             <div className="text-sm text-gray-600">{t('thisMonth')}</div>
           </div>
         </div>
@@ -2776,7 +2776,7 @@ function StudyActivityHistory() {
                   {/* Session type indicator */}
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     session.sessionType === 'ai' || session.isAISession
-                      ? 'bg-purple-100 text-purple-700'
+                      ? 'bg-blue-100 text-blue-700'
                       : 'bg-blue-100 text-blue-700'
                   }`}>
                     {session.sessionType === 'ai' || session.isAISession ? 'AI' : 'Partner'}
@@ -2853,24 +2853,24 @@ function StudyActivityHistory() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold mb-2">Confirm Delete</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">{t('confirmDeleteTitle')}</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               {t('confirmDeleteSession')}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
               >
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 onClick={() => handleDelete(showDeleteConfirm.id, showDeleteConfirm.type)}
                 disabled={deletingId === showDeleteConfirm.id}
                 className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition disabled:opacity-50"
               >
-                {deletingId === showDeleteConfirm.id ? 'Deleting...' : 'Delete'}
+                {deletingId === showDeleteConfirm.id ? tCommon('loading') : tCommon('delete')}
               </button>
             </div>
           </div>
@@ -3134,8 +3134,8 @@ function AchievementsHistory() {
             <div className="text-2xl font-bold text-green-600">{data.milestones.totalStudyHours}h</div>
             <div className="text-sm text-gray-600">{t('totalHours')}</div>
           </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">{data.badges.length}</div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{data.badges.length}</div>
             <div className="text-sm text-gray-600">{t('badgesEarned')}</div>
           </div>
         </div>
@@ -3702,8 +3702,8 @@ function CommunityActivityHistory() {
             <div className="text-2xl font-bold text-green-600">{data.statistics.totalComments}</div>
             <div className="text-sm text-gray-600">{t('comments')}</div>
           </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">{data.statistics.totalLikesGiven}</div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{data.statistics.totalLikesGiven}</div>
             <div className="text-sm text-gray-600">{t('likesGiven')}</div>
           </div>
           <div className="p-4 bg-yellow-50 rounded-lg">

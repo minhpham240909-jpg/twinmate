@@ -6,11 +6,11 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-white relative flex items-center justify-center p-4 overflow-hidden">
       {/* Subtle background pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-purple-50/30" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-blue-50/30" />
 
       {/* Decorative elements */}
-      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-br from-purple-100/40 to-blue-100/40 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/3" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-purple-100/30 to-pink-100/30 rounded-full blur-3xl translate-y-1/3 translate-x-1/3" />
+      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-gradient-to-br from-blue-100/40 to-blue-100/40 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/3" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-blue-100/30 to-blue-100/30 rounded-full blur-3xl translate-y-1/3 translate-x-1/3" />
 
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />

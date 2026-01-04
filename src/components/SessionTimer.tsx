@@ -103,7 +103,7 @@ export default function SessionTimer({
   }
 
   return (
-    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-xl shadow-lg">
+    <div className="bg-gradient-to-r from-blue-600 to-blue-600 text-white p-6 rounded-xl shadow-lg">
       <div className="text-center">
         <p className="text-sm mb-2 opacity-90">Session Timer</p>
         <p className="text-4xl font-bold mb-4 font-mono">{formatTime(elapsedSeconds)}</p>

@@ -246,11 +246,11 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
         className="relative group"
       >
         {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
 
         {/* Main button */}
         <div className="relative flex items-center gap-3 px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700/50 shadow-xl cursor-pointer hover:border-blue-500/50 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg overflow-hidden">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg overflow-hidden">
             <Image src="/logo.png" alt="AI Partner" width={28} height={28} className="object-contain" />
           </div>
           <div className="text-left">
@@ -287,28 +287,28 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
         className="relative w-full max-w-sm"
       >
         {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-blue-500/20 rounded-3xl blur-xl" />
 
         {/* Main card */}
         <div className="relative bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden">
           {/* Header with gradient */}
           <div className="relative p-5 pb-4">
             {/* Background pattern */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-600/10 to-transparent" />
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/20 to-transparent rounded-full blur-2xl" />
 
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl blur-md opacity-50" />
-                  <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl blur-md opacity-50" />
+                  <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg overflow-hidden">
                     <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
                   </div>
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-lg">AI Study Partner</h3>
                   <p className="text-slate-400 text-xs flex items-center gap-1">
-                    <Brain className="w-3 h-3 text-purple-400" />
+                    <Brain className="w-3 h-3 text-blue-400" />
                     Your personal study assistant
                   </p>
                 </div>
@@ -406,7 +406,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
             <div className="px-5 pb-4">
               <button
                 onClick={handleQuickStart}
-                className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all font-semibold shadow-lg shadow-blue-500/25"
+                className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-semibold shadow-lg shadow-blue-500/25"
               >
                 <Sparkles className="w-5 h-5" />
                 Start Studying with AI
@@ -519,7 +519,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
             >
               {/* Header */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center overflow-hidden">
                   <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                 </div>
                 <div>
@@ -536,17 +536,17 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                   disabled={isStartingSession || !lastCompletedSession?.subject}
                   className={`w-full p-4 rounded-2xl transition-all text-left group disabled:opacity-50 ${
                     lastCompletedSession?.subject
-                      ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/20'
+                      ? 'bg-gradient-to-r from-blue-500/10 to-blue-500/10 border border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/20'
                       : 'bg-slate-700/30 border border-slate-600/50 cursor-not-allowed'
                   }`}
                 >
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                       lastCompletedSession?.subject
-                        ? 'bg-purple-500/20 group-hover:bg-purple-500/30'
+                        ? 'bg-blue-500/20 group-hover:bg-blue-500/30'
                         : 'bg-slate-600/30'
                     }`}>
-                      <History className={`w-6 h-6 ${lastCompletedSession?.subject ? 'text-purple-400' : 'text-slate-500'}`} />
+                      <History className={`w-6 h-6 ${lastCompletedSession?.subject ? 'text-blue-400' : 'text-slate-500'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold mb-1 ${lastCompletedSession?.subject ? 'text-white' : 'text-slate-400'}`}>
@@ -555,7 +555,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                       {lastCompletedSession?.subject ? (
                         <>
                           <p className="text-sm text-slate-400 truncate">
-                            Resume studying: <span className="text-purple-400">{lastCompletedSession.subject}</span>
+                            Resume studying: <span className="text-blue-400">{lastCompletedSession.subject}</span>
                           </p>
                           <p className="text-xs text-slate-500 mt-1">
                             AI will remember your progress and build on it
@@ -568,7 +568,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                       )}
                     </div>
                     {isStartingSession && lastCompletedSession?.subject && (
-                      <Loader2 className="w-5 h-5 text-purple-400 animate-spin flex-shrink-0" />
+                      <Loader2 className="w-5 h-5 text-blue-400 animate-spin flex-shrink-0" />
                     )}
                   </div>
                 </button>

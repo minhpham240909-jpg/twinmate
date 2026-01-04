@@ -189,7 +189,7 @@ export default function AdminMessagesPage() {
       case 'DIRECT_MESSAGE':
         return 'bg-blue-500/20 text-blue-400'
       case 'GROUP_MESSAGE':
-        return 'bg-purple-500/20 text-purple-400'
+        return 'bg-blue-500/20 text-blue-400'
       case 'SESSION_MESSAGE':
         return 'bg-green-500/20 text-green-400'
       case 'POST':

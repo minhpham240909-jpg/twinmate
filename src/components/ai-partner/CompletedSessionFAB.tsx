@@ -274,8 +274,8 @@ export default function CompletedSessionFAB() {
                     </div>
                   </div>
                   <div className="bg-slate-800/50 rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                      <MessageSquare className="w-4 h-4 text-purple-400" />
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                      <MessageSquare className="w-4 h-4 text-blue-400" />
                     </div>
                     <div>
                       <p className="text-xs text-slate-400">{t('completedSession.messages')}</p>
@@ -306,7 +306,7 @@ export default function CompletedSessionFAB() {
                     className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all disabled:opacity-50 ${
                       completedSession.subject
                         ? 'bg-slate-700 text-white hover:bg-slate-600'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-500 text-white hover:from-blue-600 hover:to-blue-600'
                     }`}
                   >
                     <Sparkles className="w-4 h-4" />

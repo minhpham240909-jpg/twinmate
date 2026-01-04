@@ -429,7 +429,7 @@ export default function InteractiveQuiz({
             <button
               onClick={handleDone}
               disabled={isRegenerating}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-500 hover:to-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-xl hover:from-blue-500 hover:to-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               Done
             </button>
@@ -459,7 +459,7 @@ export default function InteractiveQuiz({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -484,7 +484,7 @@ export default function InteractiveQuiz({
         {/* Progress Bar */}
         <div className="w-full h-2 bg-slate-700 rounded-full mb-6 overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-purple-500 to-blue-500"
+            className="h-full bg-gradient-to-r from-blue-500 to-blue-500"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.3 }}
@@ -501,7 +501,7 @@ export default function InteractiveQuiz({
             className={`px-2 py-1 rounded text-xs font-medium ${
               currentQuestion.type === 'multiple_choice'
                 ? 'bg-blue-500/20 text-blue-300'
-                : 'bg-purple-500/20 text-purple-300'
+                : 'bg-blue-500/20 text-blue-300'
             }`}
           >
             {currentQuestion.type === 'multiple_choice' ? 'MC' : 'Open'}
@@ -546,7 +546,7 @@ export default function InteractiveQuiz({
                 } else {
                   if (isSelected) {
                     optionClass +=
-                      'bg-purple-600/20 border-2 border-purple-500 text-white'
+                      'bg-blue-600/20 border-2 border-blue-500 text-white'
                   } else {
                     optionClass +=
                       'bg-slate-700 border-2 border-transparent text-slate-300 hover:bg-slate-600 hover:border-slate-500'
@@ -569,7 +569,7 @@ export default function InteractiveQuiz({
                             ? 'bg-red-500 text-white'
                             : 'bg-slate-600 text-slate-400'
                           : isSelected
-                          ? 'bg-purple-500 text-white'
+                          ? 'bg-blue-500 text-white'
                           : 'bg-slate-600 text-slate-300'
                       }`}
                     >
@@ -601,7 +601,7 @@ export default function InteractiveQuiz({
                     onChange={(e) => setOpenEndedAnswer(e.target.value)}
                     placeholder="Type your answer here..."
                     rows={4}
-                    className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 resize-none"
+                    className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
                   />
                 </div>
               ) : (
@@ -678,7 +678,7 @@ export default function InteractiveQuiz({
                 (currentQuestion.type === 'open_ended' && !openEndedAnswer.trim()) ||
                 isCheckingAnswer
               }
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-500 hover:to-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-xl hover:from-blue-500 hover:to-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isCheckingAnswer ? (
                 <>
@@ -695,7 +695,7 @@ export default function InteractiveQuiz({
           ) : (
             <button
               onClick={handleNext}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-500 hover:to-blue-500 transition-all flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-xl hover:from-blue-500 hover:to-blue-500 transition-all flex items-center justify-center gap-2"
             >
               {isLastQuestion ? (
                 <>

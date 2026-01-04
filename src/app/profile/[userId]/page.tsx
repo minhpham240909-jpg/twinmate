@@ -336,7 +336,7 @@ export default function UserProfilePage() {
           <p className="text-gray-600 dark:text-slate-400 mb-6">{error || 'This user profile could not be found.'}</p>
           <button
             onClick={() => router.back()}
-            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:shadow-lg transition font-semibold"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full hover:shadow-lg transition font-semibold"
           >
             Go Back
           </button>
@@ -369,7 +369,7 @@ export default function UserProfilePage() {
       </header>
 
       {/* Banner with Cover Photo */}
-      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-500">
         {coverPhotoUrl ? (
           <img
             src={coverPhotoUrl}
@@ -524,7 +524,7 @@ export default function UserProfilePage() {
               <div className="absolute right-0 top-4 flex gap-3">
                 <button
                   onClick={() => router.push('/profile/edit')}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm shadow-lg"
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm shadow-lg"
                 >
                   Edit profile
                 </button>
@@ -593,9 +593,9 @@ export default function UserProfilePage() {
               )}
               {(profile?.interests && profile.interests.length > 0) && (
                 <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                  <div className="px-4 py-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
                     <Pulse>
-                      <span className="font-semibold text-purple-400">{profile.interests.length}</span>
+                      <span className="font-semibold text-blue-400">{profile.interests.length}</span>
                     </Pulse>
                     <span className="text-gray-600 dark:text-slate-400 ml-1">{profile.interests.length === 1 ? 'interest' : 'interests'}</span>
                   </div>
@@ -679,7 +679,7 @@ export default function UserProfilePage() {
                       {/* Interests Match */}
                       {profileData.matchDetails.interests.count > 0 && (
                         <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
-                          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
@@ -689,13 +689,13 @@ export default function UserProfilePage() {
                               <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {profileData.matchDetails.interests.count} Shared Interest{profileData.matchDetails.interests.count !== 1 ? 's' : ''}
                               </span>
-                              <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-1 rounded-full border border-purple-500/30">
+                              <span className="text-xs font-bold text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full border border-blue-500/30">
                                 +{profileData.matchDetails.interests.score} pts
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
                               {profileData.matchDetails.interests.items.map((interest, idx) => (
-                                <span key={idx} className="text-xs px-2.5 py-1 bg-purple-500/20 text-purple-400 rounded-full font-medium border border-purple-500/30">
+                                <span key={idx} className="text-xs px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full font-medium border border-blue-500/30">
                                   {interest}
                                 </span>
                               ))}
@@ -755,7 +755,7 @@ export default function UserProfilePage() {
                       {/* Study Style Match */}
                       {profileData.matchDetails.studyStyle.matches && (
                         <div className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-white/10 last:border-0 last:pb-0">
-                          <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <div className="w-6 h-6 bg-blue-1000 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
@@ -763,12 +763,12 @@ export default function UserProfilePage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-sm font-semibold text-gray-900 dark:text-white">Same Study Style</span>
-                              <span className="text-xs font-bold text-indigo-400 bg-indigo-500/20 px-2 py-1 rounded-full border border-indigo-500/30">
+                              <span className="text-xs font-bold text-blue-500 bg-blue-1000/20 px-2 py-1 rounded-full border border-blue-1000/30">
                                 +10 pts
                               </span>
                             </div>
                             <p className="text-xs text-gray-600 dark:text-slate-400">
-                              Both prefer <span className="font-semibold text-indigo-400">{profileData.matchDetails.studyStyle.value}</span> style
+                              Both prefer <span className="font-semibold text-blue-500">{profileData.matchDetails.studyStyle.value}</span> style
                             </p>
                           </div>
                         </div>
@@ -807,7 +807,7 @@ export default function UserProfilePage() {
                   <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 9999 }}>
                     <button
                       onClick={handleMessage}
-                      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
+                      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm flex items-center gap-2 shadow-lg"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -820,7 +820,7 @@ export default function UserProfilePage() {
                     <button
                       onClick={handleSendConnection}
                       disabled={sendingConnection}
-                      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-lg"
+                      className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm disabled:opacity-50 shadow-lg"
                     >
                       {sendingConnection ? 'Connecting...' : tCommon('connect')}
                     </button>
@@ -934,7 +934,7 @@ export default function UserProfilePage() {
                   <div className="flex flex-wrap gap-2">
                     {profile.interests.map((interest, index) => (
                       <Bounce key={index} delay={index * 0.05}>
-                        <span className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium hover:bg-purple-500/30 hover:scale-105 transition-all cursor-default border border-purple-500/30">
+                        <span className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium hover:bg-blue-500/30 hover:scale-105 transition-all cursor-default border border-blue-500/30">
                           {interest}
                         </span>
                       </Bounce>
@@ -1015,7 +1015,7 @@ export default function UserProfilePage() {
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Available Days</h3>
                     <div className="flex flex-wrap gap-2">
                       {profile.availableDays.map((day, index) => (
-                        <span key={index} className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-full text-sm font-medium border border-indigo-500/30">
+                        <span key={index} className="px-3 py-1.5 bg-blue-1000/20 text-blue-500 rounded-full text-sm font-medium border border-blue-1000/30">
                           {day}
                         </span>
                       ))}

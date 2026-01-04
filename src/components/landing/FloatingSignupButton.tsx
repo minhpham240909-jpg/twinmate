@@ -47,12 +47,12 @@ export default function FloatingSignupButton() {
               repeat: Infinity,
               ease: 'linear',
             }}
-            className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-blue-700/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{ backgroundSize: '200% 100%' }}
           />
 
           {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-400 blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
 
           {/* Button text */}
           <span className="relative z-10 flex items-center gap-2">

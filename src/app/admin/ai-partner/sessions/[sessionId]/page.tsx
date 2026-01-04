@@ -175,9 +175,9 @@ export default function AdminAIPartnerSessionDetailPage() {
   const getMessageTypeIcon = (type: string) => {
     switch (type) {
       case 'QUIZ':
-        return <BookOpen className="w-4 h-4 text-purple-400" />
+        return <BookOpen className="w-4 h-4 text-blue-400" />
       case 'FLASHCARD':
-        return <Sparkles className="w-4 h-4 text-pink-400" />
+        return <Sparkles className="w-4 h-4 text-blue-400" />
       case 'WHITEBOARD':
         return <Pencil className="w-4 h-4 text-blue-400" />
       default:
@@ -413,20 +413,20 @@ export default function AdminAIPartnerSessionDetailPage() {
             <p className="text-2xl font-bold text-blue-400">{messageStats.user}</p>
             <p className="text-xs text-gray-400">User Messages</p>
           </div>
-          <div className="p-3 bg-purple-500/10 rounded-lg text-center">
-            <p className="text-2xl font-bold text-purple-400">{messageStats.assistant}</p>
+          <div className="p-3 bg-blue-500/10 rounded-lg text-center">
+            <p className="text-2xl font-bold text-blue-400">{messageStats.assistant}</p>
             <p className="text-xs text-gray-400">AI Messages</p>
           </div>
           <div className="p-3 bg-teal-500/10 rounded-lg text-center">
             <p className="text-2xl font-bold text-teal-400">{messageStats.byType.quiz}</p>
             <p className="text-xs text-gray-400">Quiz Messages</p>
           </div>
-          <div className="p-3 bg-pink-500/10 rounded-lg text-center">
-            <p className="text-2xl font-bold text-pink-400">{messageStats.byType.flashcard}</p>
+          <div className="p-3 bg-blue-500/10 rounded-lg text-center">
+            <p className="text-2xl font-bold text-blue-400">{messageStats.byType.flashcard}</p>
             <p className="text-xs text-gray-400">Flashcard</p>
           </div>
-          <div className="p-3 bg-indigo-500/10 rounded-lg text-center">
-            <p className="text-2xl font-bold text-indigo-400">{messageStats.byType.whiteboard}</p>
+          <div className="p-3 bg-blue-1000/10 rounded-lg text-center">
+            <p className="text-2xl font-bold text-blue-500">{messageStats.byType.whiteboard}</p>
             <p className="text-xs text-gray-400">Whiteboard</p>
           </div>
           <div className="p-3 bg-red-500/10 rounded-lg text-center">
@@ -454,7 +454,7 @@ export default function AdminAIPartnerSessionDetailPage() {
                     ? 'bg-blue-500'
                     : msg.role === 'SYSTEM'
                     ? 'bg-gray-600'
-                    : 'bg-purple-500'
+                    : 'bg-blue-500'
                 }`}
               >
                 {msg.role === 'USER' ? (

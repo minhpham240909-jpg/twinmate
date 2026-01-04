@@ -14,7 +14,7 @@ export default function ProfessionalHeroBackground() {
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
       
       {/* Single accent gradient - Very subtle */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-transparent to-indigo-600/5" />
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-transparent to-blue-700/5" />
       
       {/* Minimal grid pattern - Very subtle */}
       <div 

@@ -118,7 +118,7 @@ export default function GraphQLExample({ sessionId }: Props) {
       {/* Header - GraphQL Badge */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold">{session.title}</h2>
-        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
           🚀 GraphQL Powered
         </span>
       </div>
@@ -163,22 +163,22 @@ export default function GraphQLExample({ sessionId }: Props) {
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
           placeholder="Type a message... (GraphQL mutation)"
-          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={sending}
         />
         <button
           onClick={handleSendMessage}
           disabled={sending || !newMessage.trim()}
-          className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           {sending ? 'Sending...' : 'Send via GraphQL'}
         </button>
       </div>
 
       {/* Info Box */}
-      <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <h4 className="font-semibold text-purple-900 mb-2">📚 GraphQL Features Demo:</h4>
-        <ul className="text-sm text-purple-800 space-y-1">
+      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h4 className="font-semibold text-blue-900 mb-2">📚 GraphQL Features Demo:</h4>
+        <ul className="text-sm text-blue-800 space-y-1">
           <li>✅ Query: Fetching session data with nested fields (creator, participants, messages)</li>
           <li>✅ Mutation: Sending messages</li>
           <li>✅ Polling: Auto-refresh every 3 seconds</li>

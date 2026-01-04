@@ -292,12 +292,12 @@ export default function AdminAIPartnerPage() {
 
   const colorClasses: Record<string, { bg: string; text: string; icon: string }> = {
     blue: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'bg-blue-500' },
-    purple: { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: 'bg-purple-500' },
+    purple: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'bg-blue-500' },
     green: { bg: 'bg-green-500/10', text: 'text-green-400', icon: 'bg-green-500' },
     emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', icon: 'bg-emerald-500' },
-    indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', icon: 'bg-indigo-500' },
+    indigo: { bg: 'bg-blue-1000/10', text: 'text-blue-500', icon: 'bg-blue-1000' },
     teal: { bg: 'bg-teal-500/10', text: 'text-teal-400', icon: 'bg-teal-500' },
-    pink: { bg: 'bg-pink-500/10', text: 'text-pink-400', icon: 'bg-pink-500' },
+    pink: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'bg-blue-500' },
     cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', icon: 'bg-cyan-500' },
     orange: { bg: 'bg-orange-500/10', text: 'text-orange-400', icon: 'bg-orange-500' },
     red: { bg: 'bg-red-500/10', text: 'text-red-400', icon: 'bg-red-500' },
@@ -392,10 +392,10 @@ export default function AdminAIPartnerPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-indigo-400" />
+            <Clock className="w-5 h-5 text-blue-500" />
             <h3 className="font-semibold text-white">Total Focus Time</h3>
           </div>
-          <p className="text-3xl font-bold text-indigo-400">
+          <p className="text-3xl font-bold text-blue-500">
             {data.overview.totalFocusTime > 0 ? formatDuration(data.overview.totalFocusTime) : '0m'}
           </p>
           <p className="text-sm text-gray-400">tracked via Pomodoro timer</p>
@@ -418,10 +418,10 @@ export default function AdminAIPartnerPage() {
         </div>
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-purple-400" />
+            <TrendingUp className="w-5 h-5 text-blue-400" />
             <h3 className="font-semibold text-white">This Month</h3>
           </div>
-          <p className="text-3xl font-bold text-purple-400">{data.timePeriods.sessionsThisMonth}</p>
+          <p className="text-3xl font-bold text-blue-400">{data.timePeriods.sessionsThisMonth}</p>
           <p className="text-sm text-gray-400">sessions started</p>
         </div>
       </div>
@@ -855,7 +855,7 @@ export default function AdminAIPartnerPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                    msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-500/20 text-blue-400'
                   }`}>
                     {msg.role === 'USER' ? 'User' : 'AI'}
                   </span>
@@ -885,7 +885,7 @@ export default function AdminAIPartnerPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                    msg.role === 'USER' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-500/20 text-blue-400'
                   }`}>
                     {msg.role === 'USER' ? 'User' : 'AI'}
                   </span>
@@ -946,7 +946,7 @@ export default function AdminAIPartnerPage() {
             href="/admin/analytics"
             className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
           >
-            <TrendingUp className="w-8 h-8 text-purple-400" />
+            <TrendingUp className="w-8 h-8 text-blue-400" />
             <span className="text-sm text-gray-300">Full Analytics</span>
           </Link>
         </div>

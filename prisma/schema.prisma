@@ -2417,6 +2417,11 @@ model AIUsageLog {
   @@index([operation])
   @@index([createdAt])
   @@index([success])
+  @@index([cached]) // PERF: Filter cached requests
+  @@index([createdAt, cached]) // PERF: Date range + cache filter
+  @@index([createdAt, model]) // PERF: Date range + model filter
+  @@index([createdAt, success]) // PERF: Date range + error filter
+  @@index([userId, createdAt]) // PERF: User usage over time
   @@map("ai_usage_logs")
 }
 

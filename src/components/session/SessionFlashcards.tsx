@@ -271,7 +271,7 @@ export default function SessionFlashcards({
                 <button
                   onClick={() => setShowShareConfirm(true)}
                   disabled={flashcards.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-purple-600/80 hover:bg-purple-600 text-white disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-blue-600/80 hover:bg-blue-600 text-white disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   <Share2 className="w-4 h-4" />
                   Share to Screen
@@ -376,8 +376,8 @@ export default function SessionFlashcards({
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-full bg-purple-500/20">
-                  <Share2 className="w-6 h-6 text-purple-400" />
+                <div className="p-3 rounded-full bg-blue-500/20">
+                  <Share2 className="w-6 h-6 text-blue-400" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white">Share Flashcards to Screen</h3>
@@ -398,7 +398,7 @@ export default function SessionFlashcards({
                 </button>
                 <button
                   onClick={handleShareFlashcards}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
                 >
                   <Share2 className="w-4 h-4" />
                   Share Flashcards
@@ -527,7 +527,7 @@ export default function SessionFlashcards({
             ) : (
               <button
                 onClick={() => setShowShareConfirm(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-all bg-purple-600/80 hover:bg-purple-600 text-white text-sm"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-all bg-blue-600/80 hover:bg-blue-600 text-white text-sm"
               >
                 <Share2 className="w-4 h-4" />
                 Share
@@ -667,8 +667,8 @@ export default function SessionFlashcards({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-full bg-purple-500/20">
-                <Share2 className="w-6 h-6 text-purple-400" />
+              <div className="p-3 rounded-full bg-blue-500/20">
+                <Share2 className="w-6 h-6 text-blue-400" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-white">Share Flashcards to Screen</h3>
@@ -689,7 +689,7 @@ export default function SessionFlashcards({
               </button>
               <button
                 onClick={handleShareFlashcards}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2"
               >
                 <Share2 className="w-4 h-4" />
                 Share Flashcards

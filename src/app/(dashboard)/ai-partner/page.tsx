@@ -115,7 +115,7 @@ export default function AIPartnerPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center overflow-hidden">
                 <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
               </div>
               <div>
@@ -212,7 +212,7 @@ export default function AIPartnerPage() {
           className="mb-8 bg-slate-800/30 rounded-2xl border border-slate-700/50 p-6"
         >
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-400" />
+            <Sparkles className="w-5 h-5 text-blue-400" />
             How AI Partner Works
           </h2>
           <div className="space-y-4">
@@ -226,8 +226,8 @@ export default function AIPartnerPage() {
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-purple-400 font-semibold text-sm">2</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-400 font-semibold text-sm">2</span>
               </div>
               <div>
                 <p className="text-white font-medium">No partners available?</p>
@@ -247,7 +247,7 @@ export default function AIPartnerPage() {
 
           <button
             onClick={() => router.push('/search')}
-            className="mt-6 w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-600 transition-all"
+            className="mt-6 w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-600 transition-all"
           >
             <Search className="w-5 h-5" />
             Find Partners
@@ -262,7 +262,7 @@ export default function AIPartnerPage() {
             <p className="text-slate-500 text-xs">Get concepts explained clearly</p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-            <Sparkles className="w-6 h-6 text-purple-400 mb-2" />
+            <Sparkles className="w-6 h-6 text-blue-400 mb-2" />
             <h3 className="font-medium text-white text-sm">Generate Quizzes</h3>
             <p className="text-slate-500 text-xs">Test your knowledge</p>
           </div>

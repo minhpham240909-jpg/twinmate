@@ -263,7 +263,7 @@ export default function SharedPostPage() {
         )}
 
         {/* CTA Card */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-500/20 dark:to-purple-500/20 backdrop-blur-xl border border-blue-200 dark:border-blue-400/30 rounded-xl shadow-lg dark:shadow-2xl dark:shadow-blue-500/20 p-8 text-center">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-500/20 dark:to-blue-500/20 backdrop-blur-xl border border-blue-200 dark:border-blue-400/30 rounded-xl shadow-lg dark:shadow-2xl dark:shadow-blue-500/20 p-8 text-center">
           <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">See more posts like this</h2>
           <p className="text-blue-700 dark:text-blue-200 mb-6">Join TwinMate to connect with study partners</p>
           <div className="flex gap-4 justify-center">

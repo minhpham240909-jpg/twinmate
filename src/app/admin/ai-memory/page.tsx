@@ -69,13 +69,13 @@ const categoryIcons: Record<string, any> = {
 const categoryColors: Record<string, string> = {
   PREFERENCE: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
   ACADEMIC: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  PERSONAL_FACT: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  PERSONAL_FACT: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
   STUDY_HABIT: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
   ACHIEVEMENT: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
   STRUGGLE: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   GOAL: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
-  FEEDBACK: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
-  CONVERSATION_TOPIC: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+  FEEDBACK: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  CONVERSATION_TOPIC: 'bg-blue-200 text-blue-900 dark:bg-blue-950/30 dark:text-blue-400',
 }
 
 function formatDuration(minutes: number): string {
@@ -154,7 +154,7 @@ export default function AdminAIMemoryPage() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Brain className="w-7 h-7 text-purple-500" />
+                <Brain className="w-7 h-7 text-blue-500" />
                 AI Memory System
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -164,7 +164,7 @@ export default function AdminAIMemoryPage() {
           </div>
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
@@ -175,8 +175,8 @@ export default function AdminAIMemoryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Users with Memory</p>
@@ -271,7 +271,7 @@ export default function AdminAIMemoryPage() {
                   placeholder="Search users..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -298,8 +298,8 @@ export default function AdminAIMemoryPage() {
                             className="w-10 h-10 rounded-full"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <span className="text-purple-600 dark:text-purple-400 font-medium">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">
                               {userStat.user?.name?.[0] || '?'}
                             </span>
                           </div>
@@ -349,7 +349,7 @@ export default function AdminAIMemoryPage() {
                                 {userStat.currentSubjects.map((subject, i) => (
                                   <span
                                     key={i}
-                                    className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs"
+                                    className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs"
                                   >
                                     {subject}
                                   </span>
@@ -360,7 +360,7 @@ export default function AdminAIMemoryPage() {
                         </div>
                         <Link
                           href={`/admin/users/${userStat.userId}`}
-                          className="mt-3 block text-center text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                          className="mt-3 block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
                         >
                           View Full User Profile
                         </Link>

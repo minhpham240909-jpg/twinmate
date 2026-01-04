@@ -583,7 +583,7 @@ export default function SessionTimer({
                   <FastBounce delay={0.2}>
                     <button
                       onClick={handleNewSettings}
-                      className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 hover:scale-105 transition-all font-medium shadow-lg"
+                      className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-105 transition-all font-medium shadow-lg"
                     >
                       {t('newSettings')}
                     </button>

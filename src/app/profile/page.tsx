@@ -227,7 +227,7 @@ export default function MyProfilePage() {
       </header>
 
       {/* Banner */}
-      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+      <div className="relative h-52 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-500">
         <div className="absolute inset-0 bg-black/5"></div>
       </div>
 
@@ -353,9 +353,9 @@ export default function MyProfilePage() {
               )}
               {((profile as any)?.interests && (profile as any).interests.length > 0) && (
                 <GlowBorder color="#8b5cf6" intensity="medium" animated={false}  style={{ borderRadius: 8 }}>
-                  <div className="px-4 py-2 bg-purple-500/20 border border-purple-500/30 rounded-lg">
+                  <div className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg">
                     <Pulse>
-                      <span className="font-semibold text-purple-400">{(profile as any).interests.length}</span>
+                      <span className="font-semibold text-blue-400">{(profile as any).interests.length}</span>
                     </Pulse>
                     <span className="text-gray-700 dark:text-slate-300 ml-1">{(profile as any).interests.length === 1 ? 'interest' : 'interests'}</span>
                   </div>
@@ -462,7 +462,7 @@ export default function MyProfilePage() {
                       <div className="flex flex-wrap gap-2">
                         {(profile as any).interests.map((interest: string, index: number) => (
                           <Bounce key={index} delay={index * 0.05}>
-                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm hover:scale-105 transition-all cursor-default">
+                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-sm hover:scale-105 transition-all cursor-default">
                               {interest}
                             </span>
                           </Bounce>
@@ -520,7 +520,7 @@ export default function MyProfilePage() {
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Available Days</h3>
                     <div className="flex flex-wrap gap-2">
                       {(profile as any).availableDays.map((day: string, index: number) => (
-                        <span key={index} className="px-3 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full text-sm">
+                        <span key={index} className="px-3 py-1 bg-blue-1000/20 text-blue-500 border border-blue-1000/30 rounded-full text-sm">
                           {day}
                         </span>
                       ))}
@@ -661,7 +661,7 @@ export default function MyProfilePage() {
                           <button
                             onClick={() => handleEditPost(post.id)}
                             disabled={!editContent.trim()}
-                            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
                           >
                             Save
                           </button>

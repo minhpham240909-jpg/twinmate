@@ -127,7 +127,7 @@ My question about this: ${userQuestion}`
         >
           <div className="flex items-center justify-between p-4 border-b border-slate-700">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-400" />
+              <Sparkles className="w-5 h-5 text-blue-400" />
               AI Explain
             </h3>
             <button
@@ -196,12 +196,12 @@ My question about this: ${userQuestion}`
                 }}
                 placeholder="Ask a question about this flashcard..."
                 disabled={isLoading}
-                className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 disabled:opacity-50"
               />
               <button
                 onClick={handleAskQuestion}
                 disabled={!question.trim() || isLoading}
-                className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -452,13 +452,13 @@ export default function AIPartnerFlashcards({
                   disabled={isGenerating}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     generationSource === 'topic'
-                      ? 'border-purple-500 bg-purple-500/10'
+                      ? 'border-blue-500 bg-blue-500/10'
                       : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
                   } disabled:opacity-50`}
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <FileText className={`w-6 h-6 ${generationSource === 'topic' ? 'text-purple-400' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-medium ${generationSource === 'topic' ? 'text-purple-300' : 'text-slate-300'}`}>
+                    <FileText className={`w-6 h-6 ${generationSource === 'topic' ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-medium ${generationSource === 'topic' ? 'text-blue-300' : 'text-slate-300'}`}>
                       From Topic
                     </span>
                   </div>
@@ -495,7 +495,7 @@ export default function AIPartnerFlashcards({
                   onChange={(e) => setTopicInput(e.target.value)}
                   placeholder={subject || 'Enter a topic (e.g., Photosynthesis, World War II)'}
                   disabled={isGenerating}
-                  className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 disabled:opacity-50"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleGenerateFlashcards()
                   }}
@@ -584,7 +584,7 @@ export default function AIPartnerFlashcards({
             <button
               onClick={() => handleGenerateFlashcards(false)}
               disabled={isGenerating || (generationSource === 'topic' && !topicInput.trim() && !subject)}
-              className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50"
             >
               {isGenerating ? (
                 <>
@@ -671,7 +671,7 @@ export default function AIPartnerFlashcards({
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleOpenExplainModal(card)}
-                          className="p-1 text-slate-400 hover:text-purple-400 transition-colors"
+                          className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
                           title="AI Explain"
                         >
                           <Sparkles className="w-4 h-4" />
@@ -883,7 +883,7 @@ export default function AIPartnerFlashcards({
               {/* AI Explain button */}
               <button
                 onClick={() => handleOpenExplainModal(currentCard)}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 text-purple-300 rounded-lg hover:bg-purple-600/30 transition-colors text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-300 rounded-lg hover:bg-blue-600/30 transition-colors text-sm"
               >
                 <Sparkles className="w-4 h-4" />
                 AI Explain

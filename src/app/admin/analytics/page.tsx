@@ -363,10 +363,10 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* User Behavior Analytics Link */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl border border-blue-500/30 p-6">
+      <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/10 rounded-xl border border-blue-500/30 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-500 rounded-xl">
               <Eye className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -394,7 +394,7 @@ export default function AdminAnalyticsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
-            <Search className="w-5 h-5 text-purple-400" />
+            <Search className="w-5 h-5 text-blue-400" />
             <div>
               <p className="text-sm text-gray-400">Search Queries</p>
               <p className="text-white font-medium">Monitor searches</p>

@@ -17,7 +17,7 @@ const GraphQLExample = dynamic(
     loading: () => (
       <div className="flex items-center justify-center p-12">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent mb-4"></div>
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent mb-4"></div>
           <p className="text-gray-600">Loading GraphQL client...</p>
         </div>
       </div>
@@ -39,7 +39,7 @@ export default function GraphQLDemoPage() {
 
   return (
     <ApolloProviderWrapper>
-      <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-purple-50 dark:to-blue-50 py-12 px-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-blue-50 dark:to-blue-50 py-12 px-4">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
@@ -97,17 +97,17 @@ export default function GraphQLDemoPage() {
                     value={sessionId}
                     onChange={(e) => setSessionId(e.target.value)}
                     placeholder="Enter session ID (e.g., from /study-sessions page)"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-white/5 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-white/5 text-gray-900 dark:text-white"
                     required
                   />
                   <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">
-                    💡 Tip: Go to <Link href="/study-sessions" className="text-purple-600 hover:underline">Study Sessions</Link>,
+                    💡 Tip: Go to <Link href="/study-sessions" className="text-blue-600 hover:underline">Study Sessions</Link>,
                     join a session, and copy the ID from the URL
                   </p>
                 </div>
                 <button
                   type="submit"
-                  className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition"
+                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
                 >
                   Load Session with GraphQL
                 </button>
@@ -117,7 +117,7 @@ export default function GraphQLDemoPage() {
             <div>
               <button
                 onClick={() => setShowDemo(false)}
-                className="mb-4 px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
+                className="mb-4 px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
               >
                 ← Back to input
               </button>
@@ -130,7 +130,7 @@ export default function GraphQLDemoPage() {
             <h3 className="text-xl font-bold mb-4">GraphQL Endpoint</h3>
             <div className="space-y-4">
               <div>
-                <span className="text-purple-600 dark:text-purple-400 font-mono">POST</span>
+                <span className="text-blue-600 dark:text-blue-400 font-mono">POST</span>
                 <span className="ml-3 font-mono">/api/graphql</span>
               </div>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto border border-gray-200 dark:border-white/10">

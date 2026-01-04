@@ -358,7 +358,7 @@ export default function SessionRoomPage() {
                     setActiveSessionId(sessionId)
                     router.push('/dashboard')
                   }}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition text-sm"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:from-blue-700 hover:to-blue-700 transition text-sm"
                 >
                   {t('goToDashboard')}
                 </button>
@@ -570,7 +570,7 @@ export default function SessionRoomPage() {
                           className="w-6 h-6 rounded-full"
                         />
                       ) : (
-                        <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs">
+                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
                           {session.createdBy.name[0]}
                         </div>
                       )}
@@ -585,7 +585,7 @@ export default function SessionRoomPage() {
                         {session.tags.map((tag, index) => (
                           <span
                             key={index}
-                            className="px-2 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-full"
+                            className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs rounded-full"
                           >
                             {tag}
                           </span>
@@ -621,7 +621,7 @@ export default function SessionRoomPage() {
                   {isHost && (
                     <button
                       onClick={() => setShowInviteModal(true)}
-                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition text-sm"
+                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:from-blue-700 hover:to-blue-700 transition text-sm"
                     >
                       👥 {t('invitePartnersAction')}
                     </button>
@@ -646,7 +646,7 @@ export default function SessionRoomPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('goals')}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition text-sm"
+                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:from-blue-700 hover:to-blue-700 transition text-sm"
                   >
                     ✅ {t('viewGoals')}
                   </button>
@@ -906,7 +906,7 @@ function InvitePartnersModal({
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (
-                          <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs">
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
                             {member.name?.[0] || 'U'}
                           </div>
                         )}
@@ -940,7 +940,7 @@ function InvitePartnersModal({
           <button
             onClick={handleInvite}
             disabled={inviting || selectedInvites.length === 0}
-            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:from-blue-700 hover:to-blue-700 transition disabled:opacity-50"
           >
             {inviting ? t('inviting') : t('invite')}
           </button>

@@ -678,15 +678,15 @@ export default function CommunityPage() {
                   }}
                   className={`flex-1 px-6 py-4 font-semibold transition relative ${
                     activeTab === 'popular'
-                      ? 'text-purple-500 dark:text-purple-400'
-                      : 'text-neutral-500 dark:text-neutral-400 hover:text-purple-500'
+                      ? 'text-blue-500 dark:text-blue-400'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-blue-500'
                   }`}
                 >
                   {t('popular')}
                   {activeTab === 'popular' && (
                     <motion.div
                       layoutId="activeTabIndicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"
                     />
                   )}
                 </button>
@@ -696,7 +696,7 @@ export default function CommunityPage() {
         {/* Loading state for popular posts - only show when no cached posts */}
         {isLoadingPopular && popularPosts.length === 0 && (
           <div className="flex justify-center py-8">
-            <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
 
@@ -748,7 +748,7 @@ export default function CommunityPage() {
                             Partner
                           </span>
                         ) : post.sharedGroups && post.sharedGroups.length > 0 ? (
-                          <span className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full font-medium flex items-center gap-1">
+                          <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium flex items-center gap-1">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
                             </svg>
@@ -762,7 +762,7 @@ export default function CommunityPage() {
                           <button
                             onClick={() => handleSendConnection(post.user.id, post.id)}
                             disabled={connectingPostIds.has(post.id)}
-                            className="text-xs px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full hover:from-blue-600 hover:to-purple-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-xs px-2 py-1 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-full hover:from-blue-600 hover:to-blue-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {connectingPostIds.has(post.id) ? t('sending') : t('connect')}
                           </button>
@@ -868,7 +868,7 @@ export default function CommunityPage() {
                       <button
                         onClick={() => handleEditPost(post.id)}
                         disabled={!editContent.trim()}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed transition"
+                        className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-lg hover:from-blue-600 hover:to-blue-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed transition"
                       >
                         {t('save')}
                       </button>
@@ -929,8 +929,8 @@ export default function CommunityPage() {
                 <button
                   onClick={() => handleLike(post.id, post.isLikedByUser || false)}
                   className={`flex items-center gap-2 hover:scale-105 transition-transform ${
-                    post.isLikedByUser ? 'text-pink-500' : 'text-neutral-500 dark:text-neutral-400'
-                  } hover:text-pink-500`}
+                    post.isLikedByUser ? 'text-blue-500' : 'text-neutral-500 dark:text-neutral-400'
+                  } hover:text-blue-500`}
                 >
                   <svg
                     className="w-5 h-5"
@@ -1000,7 +1000,7 @@ export default function CommunityPage() {
                     <button
                       onClick={() => handleComment(post.id)}
                       disabled={!newComment.trim()}
-                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 transition-all"
+                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-lg hover:from-blue-600 hover:to-blue-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 transition-all"
                     >
                       {tCommon('send')}
                     </button>
@@ -1019,7 +1019,7 @@ export default function CommunityPage() {
 
             {displayPosts.length === 0 && (
               <div className="text-center py-16 bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800">
-                <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/30 rounded-full flex items-center justify-center">
                   <svg className="w-12 h-12 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -1030,7 +1030,7 @@ export default function CommunityPage() {
                 {!isSearching && (
                   <button
                     onClick={() => router.push('/community/create')}
-                    className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all shadow-md"
+                    className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl hover:from-blue-600 hover:to-blue-600 transition-all shadow-md"
                   >
                     {t('createFirstPost')}
                   </button>
@@ -1059,10 +1059,10 @@ export default function CommunityPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-2xl font-bold text-neutral-300 dark:text-neutral-600 group-hover:text-purple-500 transition">
+                          <span className="text-2xl font-bold text-neutral-300 dark:text-neutral-600 group-hover:text-blue-500 transition">
                             #{index + 1}
                           </span>
-                          <span className="font-semibold text-purple-500 dark:text-purple-400 group-hover:text-purple-600">
+                          <span className="font-semibold text-blue-500 dark:text-blue-400 group-hover:text-blue-600">
                             {item.hashtag}
                           </span>
                         </div>
@@ -1086,7 +1086,7 @@ export default function CommunityPage() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => router.push('/community/create')}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-purple-600 flex items-center justify-center z-50 transition-all"
+        className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-blue-600 flex items-center justify-center z-50 transition-all"
         aria-label={t('createNewPost')}
       >
         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">

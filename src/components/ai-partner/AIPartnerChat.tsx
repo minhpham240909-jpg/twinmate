@@ -249,7 +249,7 @@ export default function AIPartnerChat({
               </div>
             </div>
             {message.imageType === 'generated' && (
-              <span className="text-xs text-purple-400 mt-1 flex items-center gap-1">
+              <span className="text-xs text-blue-400 mt-1 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
                 AI Generated
               </span>
@@ -289,7 +289,7 @@ export default function AIPartnerChat({
   return (
     <div className="flex flex-col h-full bg-slate-900 rounded-2xl border border-slate-700/50 overflow-hidden">
       {/* AI Disclosure Banner */}
-      <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-slate-700/50 px-4 py-2">
+      <div className="bg-gradient-to-r from-blue-600/20 to-blue-600/20 border-b border-slate-700/50 px-4 py-2">
         <div className="flex items-center gap-2 text-sm text-slate-300">
           <Image src="/logo.png" alt="AI" width={16} height={16} className="object-contain" />
           <span>
@@ -303,7 +303,7 @@ export default function AIPartnerChat({
         <button
           onClick={() => setShowQuizModal(true)}
           disabled={isLoading || isSending || isGeneratingQuiz}
-          className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 text-purple-300 rounded-lg hover:bg-purple-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
+          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 rounded-lg hover:bg-blue-600/30 transition-colors text-sm disabled:opacity-50 whitespace-nowrap"
         >
           <Brain className="w-4 h-4" />
           {t('chat.generateQuiz')}
@@ -330,7 +330,7 @@ export default function AIPartnerChat({
               }`}
             >
               {message.role === 'ASSISTANT' && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -361,7 +361,7 @@ export default function AIPartnerChat({
             animate={{ opacity: 1 }}
             className="flex gap-3"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div className="bg-slate-800 rounded-2xl px-4 py-3 border border-slate-700/50">
@@ -429,7 +429,7 @@ export default function AIPartnerChat({
           <button
             onClick={handleSend}
           disabled={(!input.trim() && !selectedImage) || isLoading || isSending}
-            className="px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
               <Loader2 className="w-5 h-5 animate-spin" />

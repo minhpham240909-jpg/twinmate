@@ -188,7 +188,7 @@ export default function SignUpForm() {
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
               placeholder="John Doe"
             />
           </div>
@@ -203,7 +203,7 @@ export default function SignUpForm() {
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
               placeholder="you@example.com"
             />
           </div>
@@ -220,7 +220,7 @@ export default function SignUpForm() {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               onFocus={() => setShowPasswordStrength(true)}
               onBlur={() => setShowPasswordStrength(formData.password.length > 0)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
               placeholder="Create a strong password"
             />
 
@@ -273,7 +273,7 @@ export default function SignUpForm() {
               required
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 transition-all outline-none"
               placeholder="Confirm your password"
             />
             {formData.confirmPassword && formData.password !== formData.confirmPassword && (
@@ -337,7 +337,7 @@ export default function SignUpForm() {
 
         <p className="mt-8 text-center text-sm text-slate-600">
           Already have an account?{' '}
-          <Link href="/auth/signin" className="text-purple-600 font-semibold hover:text-purple-700 transition-colors">
+          <Link href="/auth/signin" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
             Sign in
           </Link>
         </p>

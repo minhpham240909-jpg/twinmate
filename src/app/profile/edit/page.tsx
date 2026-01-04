@@ -358,7 +358,7 @@ export default function ProfilePage() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full font-semibold hover:shadow-lg hover:scale-105 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             {isSaving ? (
               <span className="flex items-center gap-2">
@@ -496,7 +496,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => addCustomItem('subject')}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                 >
                   Add
                 </button>
@@ -524,7 +524,7 @@ export default function ProfilePage() {
                     onClick={() => toggleArrayItem(formData.interests, interest, (val) => setFormData({ ...formData, interests: val }))}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                       formData.interests.includes(interest)
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                         : 'bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-white/10'
                     }`}
                   >
@@ -532,7 +532,7 @@ export default function ProfilePage() {
                   </button>
                 ))}
                 {formData.interests.filter(i => !allInterests.includes(i)).map((interest) => (
-                  <span key={interest} className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm font-medium">
+                  <span key={interest} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-sm font-medium">
                     {interest}
                     <button
                       type="button"
@@ -551,21 +551,21 @@ export default function ProfilePage() {
                   onChange={(e) => setCustomInputs({ ...customInputs, interest: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomItem('interest')}
                   placeholder={t('addCustomInterest')}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
                 />
                 <button
                   type="button"
                   onClick={() => addCustomItem('interest')}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                 >
                   Add
                 </button>
               </div>
               {/* Smart split preview */}
               {containsCompoundSeparator(customInputs.interest) && (
-                <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">
                   Will be added as: {splitCompoundText(customInputs.interest).map((s, i) => (
-                    <span key={i} className="inline-block bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
+                    <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
                   ))}
                 </p>
               )}
@@ -616,7 +616,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => addCustomItem('goal')}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                 >
                   Add
                 </button>
@@ -785,7 +785,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => addCustomItem('aboutYourselfItem')}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                     >
                       Add
                     </button>

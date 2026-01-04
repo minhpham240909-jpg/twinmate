@@ -62,7 +62,7 @@ export default function QuizModal({
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Brain className="w-5 h-5 text-purple-400" />
+                <Brain className="w-5 h-5 text-blue-400" />
                 Generate Quiz
               </h3>
               <button
@@ -120,7 +120,7 @@ export default function QuizModal({
                     disabled={isGenerating}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       questionType === type.value
-                        ? 'bg-purple-600 text-white'
+                        ? 'bg-blue-600 text-white'
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     } disabled:opacity-50`}
                   >
@@ -173,7 +173,7 @@ export default function QuizModal({
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-500 hover:to-blue-500 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-xl hover:from-blue-500 hover:to-blue-500 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isGenerating ? (
                   <>

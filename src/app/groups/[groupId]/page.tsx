@@ -173,7 +173,7 @@ export default function ViewGroupPage() {
           <p className="text-gray-700 dark:text-slate-300 mb-6">{error || 'This group could not be found.'}</p>
           <button
             onClick={() => router.push('/groups')}
-            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:from-blue-700 hover:to-purple-700 transition font-semibold shadow-lg hover:shadow-xl"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full hover:from-blue-700 hover:to-blue-700 transition font-semibold shadow-lg hover:shadow-xl"
           >
             Back to Groups
           </button>
@@ -185,7 +185,7 @@ export default function ViewGroupPage() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'OWNER':
-        return 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
+        return 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
       case 'ADMIN':
         return 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
       default:
@@ -215,7 +215,7 @@ export default function ViewGroupPage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white font-semibold">
                 {groupData.name.charAt(0).toUpperCase()}
               </div>
             )}
@@ -228,7 +228,7 @@ export default function ViewGroupPage() {
       </header>
 
       {/* Banner */}
-      <div className="relative h-52 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+      <div className="relative h-52 bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600">
         {groupData.avatarUrl && (
           <img
             src={groupData.avatarUrl}
@@ -252,7 +252,7 @@ export default function ViewGroupPage() {
                   className="w-full h-full object-cover rounded-full"
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white">
+                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center text-white">
                   <Users size={64} />
                 </div>
               )}
@@ -287,7 +287,7 @@ export default function ViewGroupPage() {
             <button
               onClick={handleJoinGroup}
               disabled={actionLoading || groupData.memberCount >= groupData.maxMembers}
-              className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full font-semibold hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {actionLoading ? 'Joining...' : groupData.memberCount >= groupData.maxMembers ? 'Group Full' : 'Join Group'}
             </button>
@@ -295,7 +295,7 @@ export default function ViewGroupPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleMessage}
-                className="flex-1 md:flex-none px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                className="flex-1 md:flex-none px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-full font-semibold hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
                 Message
@@ -357,8 +357,8 @@ export default function ViewGroupPage() {
             {/* Owner */}
             <div>
               <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-semibold mb-2">
-                <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center border border-purple-400/30">
-                  <UserCircle size={20} className="text-purple-400" />
+                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center border border-blue-400/30">
+                  <UserCircle size={20} className="text-blue-400" />
                 </div>
                 <span>Group Owner</span>
               </div>

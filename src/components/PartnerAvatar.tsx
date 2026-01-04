@@ -47,7 +47,7 @@ export default function PartnerAvatar({
           className={`${sizeClass} rounded-full object-cover`}
         />
       ) : (
-        <div className={`${sizeClass} bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold ${
+        <div className={`${sizeClass} bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold ${
           size === 'sm' ? 'text-sm' : size === 'md' ? 'text-lg' : size === 'lg' ? 'text-2xl' : 'text-3xl'
         }`}>
           {name[0]?.toUpperCase() || 'U'}

@@ -86,18 +86,24 @@ interface MonitoringData {
 export default function AIMonitoringPage() {
   const [data, setData] = useState<MonitoringData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('day')
   const [autoRefresh, setAutoRefresh] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
+      setError(null)
       const response = await fetch(`/api/admin/ai-monitoring?period=${period}`)
       if (response.ok) {
         const result = await response.json()
         setData(result)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        setError(errorData.error || `Failed to load data (${response.status})`)
       }
-    } catch (error) {
-      console.error('Failed to fetch monitoring data:', error)
+    } catch (err) {
+      console.error('Failed to fetch monitoring data:', err)
+      setError('Failed to connect to server')
     } finally {
       setLoading(false)
     }
@@ -165,7 +171,7 @@ export default function AIMonitoringPage() {
                   onClick={() => setPeriod(p)}
                   className={`px-3 py-1 text-sm rounded-md transition-colors ${
                     period === p
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-blue-600 text-white'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -197,33 +203,73 @@ export default function AIMonitoringPage() {
           </div>
         </div>
 
-        {data && (
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Failed to Load Data</h3>
+            <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Empty State - No AI Usage Yet */}
+        {!error && !loading && (!data || data.stats.totalRequests === 0) && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-8 text-center shadow-sm">
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No AI Usage Yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
+              AI monitoring data will appear here once users start using AI features like AI Partner chat,
+              study recommendations, and AI-powered matching.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-sm text-gray-600 dark:text-gray-300">
+                💬 AI Partner Chat
+              </div>
+              <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-sm text-gray-600 dark:text-gray-300">
+                🎯 Study Recommendations
+              </div>
+              <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-sm text-gray-600 dark:text-gray-300">
+                🤝 Smart Matching
+              </div>
+            </div>
+          </div>
+        )}
+
+        {data && data.stats.totalRequests > 0 && (
           <>
             {/* Real-time Stats Banner */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-4 text-white">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 text-white">
               <div className="flex items-center gap-2 mb-3">
                 <Activity className="w-5 h-5" />
                 <span className="font-medium">Real-time Stats (In Memory)</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div>
-                  <p className="text-purple-200 text-xs">Requests</p>
+                  <p className="text-blue-200 text-xs">Requests</p>
                   <p className="text-2xl font-bold">{formatNumber(data.realTimeStats.totalRequests)}</p>
                 </div>
                 <div>
-                  <p className="text-purple-200 text-xs">Tokens</p>
+                  <p className="text-blue-200 text-xs">Tokens</p>
                   <p className="text-2xl font-bold">{formatNumber(data.realTimeStats.totalTokens)}</p>
                 </div>
                 <div>
-                  <p className="text-purple-200 text-xs">Errors</p>
+                  <p className="text-blue-200 text-xs">Errors</p>
                   <p className="text-2xl font-bold">{data.realTimeStats.totalErrors}</p>
                 </div>
                 <div>
-                  <p className="text-purple-200 text-xs">Avg Latency</p>
+                  <p className="text-blue-200 text-xs">Avg Latency</p>
                   <p className="text-2xl font-bold">{Math.round(data.realTimeStats.avgLatency)}ms</p>
                 </div>
                 <div>
-                  <p className="text-purple-200 text-xs">Req/min</p>
+                  <p className="text-blue-200 text-xs">Req/min</p>
                   <p className="text-2xl font-bold">{data.realTimeStats.requestsPerMinute.toFixed(1)}</p>
                 </div>
               </div>
@@ -279,7 +325,7 @@ export default function AIMonitoringPage() {
             {/* Cache Stats */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
-                <Database className="w-5 h-5 text-purple-500" />
+                <Database className="w-5 h-5 text-blue-500" />
                 <h2 className="font-semibold text-gray-900 dark:text-white">Cache Performance</h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -310,10 +356,10 @@ export default function AIMonitoringPage() {
 
             {/* Smart Routing Section */}
             {data.smartRouting && (
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
+              <div className="bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-950/20 dark:to-blue-900/20 rounded-xl p-4 border border-blue-300 dark:border-blue-900">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <Route className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <Route className="w-5 h-5 text-blue-700 dark:text-blue-500" />
                     <h2 className="font-semibold text-gray-900 dark:text-white">Smart Routing v2.0</h2>
                   </div>
                   <div className="flex items-center gap-2">
@@ -346,10 +392,10 @@ export default function AIMonitoringPage() {
                   {/* Routing Efficiency */}
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
                     <div className="flex items-center gap-1 mb-1">
-                      <Sparkles className="w-4 h-4 text-indigo-500" />
+                      <Sparkles className="w-4 h-4 text-blue-1000" />
                       <p className="text-gray-500 dark:text-gray-400 text-xs">Efficiency</p>
                     </div>
-                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                    <p className="text-xl font-bold text-blue-700 dark:text-blue-500">
                       {data.smartRouting.routingEfficiency}%
                     </p>
                     <p className="text-xs text-gray-500">cost-optimized</p>
@@ -376,10 +422,10 @@ export default function AIMonitoringPage() {
                   {/* Cached Requests */}
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
                     <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Cache Hits</p>
-                    <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                       {formatNumber(data.smartRouting.cachedRequests)}
                     </p>
-                    <p className="text-xs text-purple-600">{data.smartRouting.cacheHitRate}% hit rate</p>
+                    <p className="text-xs text-blue-600">{data.smartRouting.cacheHitRate}% hit rate</p>
                   </div>
 
                   {/* Estimated Savings */}
@@ -400,7 +446,7 @@ export default function AIMonitoringPage() {
                     <div className="flex h-4 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
                       {data.smartRouting.cachedRequests > 0 && (
                         <div
-                          className="bg-purple-500 transition-all"
+                          className="bg-blue-500 transition-all"
                           style={{ width: `${data.smartRouting.cacheHitRate}%` }}
                           title={`Cached: ${data.smartRouting.cacheHitRate}%`}
                         />
@@ -417,7 +463,7 @@ export default function AIMonitoringPage() {
                       />
                     </div>
                     <div className="flex justify-between mt-1 text-xs">
-                      <span className="text-purple-600">Cache</span>
+                      <span className="text-blue-600">Cache</span>
                       <span className="text-green-600">Mini</span>
                       <span className="text-orange-600">Full</span>
                     </div>
@@ -483,7 +529,7 @@ export default function AIMonitoringPage() {
             {/* Top Users */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-purple-500" />
+                <Users className="w-5 h-5 text-blue-500" />
                 <h2 className="font-semibold text-gray-900 dark:text-white">Top Users by Usage</h2>
               </div>
               <div className="overflow-x-auto">
@@ -511,8 +557,8 @@ export default function AIMonitoringPage() {
                               {u.user?.avatarUrl ? (
                                 <img src={u.user.avatarUrl} className="w-6 h-6 rounded-full" alt="" />
                               ) : (
-                                <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                                  <span className="text-xs text-purple-600">
+                                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                  <span className="text-xs text-blue-600">
                                     {u.user?.name?.charAt(0) || '?'}
                                   </span>
                                 </div>

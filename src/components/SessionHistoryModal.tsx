@@ -129,7 +129,7 @@ export default function SessionHistoryModal({ sessionId, isOpen, onClose }: Sess
                 }`}>
                   {session.status}
                 </span>
-                <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium">
+                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
                   {session.type}
                 </span>
                 {session.subject && (

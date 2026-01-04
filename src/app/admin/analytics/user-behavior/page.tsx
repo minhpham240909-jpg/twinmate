@@ -132,7 +132,7 @@ function StatCard({
   const colors = {
     blue: 'from-blue-500 to-blue-600',
     green: 'from-green-500 to-green-600',
-    purple: 'from-purple-500 to-purple-600',
+    purple: 'from-blue-500 to-blue-600',
     orange: 'from-orange-500 to-orange-600',
     red: 'from-red-500 to-red-600',
   }
@@ -180,7 +180,7 @@ function SimpleBarChart({
             </div>
             <div className="flex-1 h-6 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-500 rounded-full transition-all duration-500"
                 style={{ width: `${percentage}%` }}
               />
             </div>
@@ -554,7 +554,7 @@ export default function UserBehaviorAnalyticsPage() {
                   {analyticsData.topFeatures.map((feature, idx) => (
                     <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700/30 rounded-lg">
                       <span className="text-sm text-gray-900 dark:text-white truncate">{feature.feature}</span>
-                      <span className="text-sm font-medium text-purple-500">{feature.usage.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-blue-500">{feature.usage.toLocaleString()}</span>
                     </div>
                   ))}
                   {analyticsData.topFeatures.length === 0 && (
@@ -670,7 +670,7 @@ export default function UserBehaviorAnalyticsPage() {
                             className="rounded-full"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                             <span className="text-sm font-bold text-white">
                               {activity.user?.name?.charAt(0) || '?'}
                             </span>

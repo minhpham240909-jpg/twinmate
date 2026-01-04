@@ -101,7 +101,7 @@ export default function EndSessionModal({
                     <p className="text-xs text-slate-500">Messages</p>
                   </div>
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-purple-400 mb-1">
+                    <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
                       <Brain className="w-4 h-4" />
                     </div>
                     <p className="text-lg font-bold text-white">

@@ -128,11 +128,11 @@ export default function GroupSearchBar({ onGroupSelect }: GroupSearchBarProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t('searchGroupsAndMessages')}
-          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
         />
         {isSearching && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
         {searchQuery && !isSearching && (
@@ -161,7 +161,7 @@ export default function GroupSearchBar({ onGroupSelect }: GroupSearchBarProps) {
                 }}
                 className="w-full flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition text-left"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
                   {group.name[0]}
                 </div>
                 <div className="flex-1 min-w-0">

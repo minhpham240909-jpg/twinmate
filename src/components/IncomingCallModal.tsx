@@ -204,7 +204,7 @@ export default function IncomingCallModal() {
               {/* Caller Avatar */}
               <div className="flex flex-col items-center mb-6">
                 <Pulse>
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold mb-4 ring-4 ring-blue-200">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold mb-4 ring-4 ring-blue-200">
               {incomingCall.callerAvatar ? (
                 <Image
                   src={incomingCall.callerAvatar}

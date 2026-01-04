@@ -661,7 +661,7 @@ export default function SearchPage() {
                     </button>
                   </div>
                   {showStudyStyleDescription && (
-                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-purple-500/10 rounded border border-purple-500/20">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
                       Describe your preferred study approach. For example: &quot;group discussions&quot;, &quot;quiet independent study&quot;, &quot;hands-on practice&quot;, or &quot;visual learning with diagrams&quot;.
                     </p>
                   )}
@@ -670,7 +670,7 @@ export default function SearchPage() {
                     onChange={(e) => setStudyStyleCustomDescription(e.target.value)}
                     placeholder="e.g., Prefer group discussions, Visual learner, Hands-on practice..."
                     rows={2}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                 </div>
 
@@ -728,7 +728,7 @@ export default function SearchPage() {
                     </button>
                   </div>
                   {showAvailabilityDescription && (
-                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-indigo-500/10 rounded border border-indigo-500/20">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-blue-1000/10 rounded border border-blue-1000/20">
                       Filter partners by the days they&apos;re available to study. Select the days that work best for you to find partners with matching schedules.
                     </p>
                   )}
@@ -739,7 +739,7 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedAvailability.includes(day)}
                           onChange={() => toggleAvailability(day)}
-                          className="w-4 h-4 text-indigo-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-indigo-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
+                          className="w-4 h-4 text-blue-1000 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-1000 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
                         <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{day.slice(0, 3)}</span>
                       </label>
@@ -750,7 +750,7 @@ export default function SearchPage() {
                     value={availableHoursFilter}
                     onChange={(e) => setAvailableHoursFilter(e.target.value)}
                     placeholder="e.g., Morning, Evening, 9am-5pm"
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-blue-1000 focus:border-blue-1000 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
                   />
                   <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Filter by preferred study hours</p>
                 </div>
@@ -864,7 +864,7 @@ export default function SearchPage() {
                     </button>
                   </div>
                   {showRoleDescription && (
-                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-pink-500/10 rounded border border-pink-500/20">
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
                       Find partners with similar roles. Students can connect with other students, teachers with educators, etc.
                     </p>
                   )}
@@ -875,7 +875,7 @@ export default function SearchPage() {
                           type="checkbox"
                           checked={selectedRoles.includes(role)}
                           onChange={() => toggleRole(role)}
-                          className="w-4 h-4 text-pink-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-pink-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
+                          className="w-4 h-4 text-blue-500 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500 focus:ring-offset-white dark:focus:ring-offset-slate-800"
                         />
                         <span className="ml-2 text-sm text-gray-700 dark:text-slate-300">{role}</span>
                       </label>
@@ -1154,8 +1154,8 @@ export default function SearchPage() {
                   ) : (
                   <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-xl p-12 text-center border border-gray-200 dark:border-slate-700/50">
                     {/* AI Partner Suggestion - Dynamic personalized message */}
-                    <div className="mb-8 p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl border border-blue-500/20">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="mb-8 p-6 bg-gradient-to-r from-blue-500/10 to-blue-500/10 rounded-2xl border border-blue-500/20">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
@@ -1247,7 +1247,7 @@ export default function SearchPage() {
                           )}
                           {/* Skill Level */}
                           {skillLevelCustomDescription.trim() && (
-                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full border border-purple-500/30">
+                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
                               {skillLevelCustomDescription.trim().length > 25 ? skillLevelCustomDescription.trim().slice(0, 25) + '...' : skillLevelCustomDescription.trim()}
                             </span>
                           )}
@@ -1277,7 +1277,7 @@ export default function SearchPage() {
                           ))}
                           {/* Roles */}
                           {selectedRoles.slice(0, 2).map((role, idx) => (
-                            <span key={`role-${idx}`} className="px-3 py-1 bg-pink-500/20 text-pink-400 text-xs rounded-full border border-pink-500/30">
+                            <span key={`role-${idx}`} className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
                               {role}
                             </span>
                           ))}
@@ -1289,13 +1289,13 @@ export default function SearchPage() {
                           )}
                           {/* Availability */}
                           {selectedAvailability.length > 0 && (
-                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded-full border border-indigo-500/30">
+                            <span className="px-3 py-1 bg-blue-1000/20 text-blue-500 text-xs rounded-full border border-blue-1000/30">
                               {selectedAvailability.slice(0, 2).map(d => d.slice(0, 3)).join(', ')}{selectedAvailability.length > 2 ? '...' : ''}
                             </span>
                           )}
                           {/* Available Hours */}
                           {availableHoursFilter.trim() && (
-                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded-full border border-indigo-500/30">
+                            <span className="px-3 py-1 bg-blue-1000/20 text-blue-500 text-xs rounded-full border border-blue-1000/30">
                               {availableHoursFilter.trim().length > 20 ? availableHoursFilter.trim().slice(0, 20) + '...' : availableHoursFilter.trim()}
                             </span>
                           )}
@@ -1326,7 +1326,7 @@ export default function SearchPage() {
                           setAiPartnerNoResultsReason(searchQuery ? 'name_not_found' : 'no_partners')
                           setShowAIPartnerModal(true)
                         }}
-                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg flex items-center gap-2 mx-auto"
+                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-600 transition-all shadow-lg flex items-center gap-2 mx-auto"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

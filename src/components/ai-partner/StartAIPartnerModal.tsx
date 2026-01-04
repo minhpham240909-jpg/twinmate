@@ -108,7 +108,7 @@ export default function StartAIPartnerModal({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="relative bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-6 border-b border-slate-700/50">
+            <div className="relative bg-gradient-to-r from-blue-600/20 to-blue-600/20 p-6 border-b border-slate-700/50">
               <button
                 onClick={handleClose}
                 className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
@@ -117,7 +117,7 @@ export default function StartAIPartnerModal({
               </button>
 
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center overflow-hidden">
                   <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                 </div>
                 <div>
@@ -145,9 +145,9 @@ export default function StartAIPartnerModal({
             {/* AI Disclosure */}
             <div className="px-6 py-3 bg-slate-800/50 border-b border-slate-700/50">
               <p className="text-xs text-slate-400 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
+                <Sparkles className="w-4 h-4 text-blue-400" />
                 <span>
-                  <strong className="text-purple-300">{t('aiDisclosure')}</strong> - {t('notRealPerson')}.{' '}
+                  <strong className="text-blue-300">{t('aiDisclosure')}</strong> - {t('notRealPerson')}.{' '}
                   {t('conversationsModerated')}
                 </span>
               </p>
@@ -211,7 +211,7 @@ export default function StartAIPartnerModal({
               {/* Study Goal */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                  <Target className="w-4 h-4 text-purple-400" />
+                  <Target className="w-4 h-4 text-blue-400" />
                   {t('whatToAchieve')}
                 </label>
                 <textarea
@@ -244,7 +244,7 @@ export default function StartAIPartnerModal({
                 <button
                   onClick={handleStart}
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <>

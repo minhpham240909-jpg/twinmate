@@ -387,7 +387,7 @@ export default function AdminReportsPage() {
       case 'HARASSMENT':
         return { label: 'Harassment', color: 'bg-red-500/20 text-red-400' }
       case 'INAPPROPRIATE':
-        return { label: 'Inappropriate', color: 'bg-pink-500/20 text-pink-400' }
+        return { label: 'Inappropriate', color: 'bg-blue-500/20 text-blue-400' }
       case 'HATE_SPEECH':
         return { label: 'Hate Speech', color: 'bg-red-500/20 text-red-400' }
       case 'VIOLENCE':
@@ -636,7 +636,7 @@ export default function AdminReportsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setInvestigationReport(report)}
-                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors flex items-center gap-1"
                       >
                         <Search className="w-3.5 h-3.5" />
                         Investigate
@@ -666,7 +666,7 @@ export default function AdminReportsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setInvestigationReport(report)}
-                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition-colors flex items-center gap-1"
                       >
                         <Search className="w-3.5 h-3.5" />
                         Investigate

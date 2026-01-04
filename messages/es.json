@@ -438,7 +438,11 @@
     "feedbackSubmitFailed": "Error al enviar comentarios. Por favor, inténtalo de nuevo.",
     "feedbackHistory": "Tu Historial de Comentarios",
     "feedbackHistoryDescription": "Ver tus comentarios enviados anteriormente y su estado",
-    "feedbackNoHistory": "Aún no has enviado ningún comentario"
+    "feedbackNoHistory": "Aún no has enviado ningún comentario",
+    "confirmDeleteSession": "¿Estás seguro de que quieres eliminar permanentemente esta sesión de tu historial?",
+    "confirmDeleteTitle": "Confirmar Eliminación",
+    "sessionDeletedSuccessfully": "Sesión eliminada correctamente",
+    "failedToDeleteSession": "Error al eliminar la sesión"
   },
   "auth": {
     "signIn": "Iniciar Sesión",

@@ -143,13 +143,13 @@ export default function FlashcardModal({
                   disabled={isGenerating}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     source === 'topic'
-                      ? 'border-purple-500 bg-purple-500/10'
+                      ? 'border-blue-500 bg-blue-500/10'
                       : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <FileText className={`w-6 h-6 ${source === 'topic' ? 'text-purple-400' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-medium ${source === 'topic' ? 'text-purple-300' : 'text-slate-300'}`}>
+                    <FileText className={`w-6 h-6 ${source === 'topic' ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-medium ${source === 'topic' ? 'text-blue-300' : 'text-slate-300'}`}>
                       From Topic
                     </span>
                   </div>
@@ -172,7 +172,7 @@ export default function FlashcardModal({
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder={subject || 'e.g., Photosynthesis, World War II...'}
                   disabled={isGenerating}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 disabled:opacity-50"
                 />
                 {subject && !topic && (
                   <p className="text-xs text-slate-500 mt-2">

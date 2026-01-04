@@ -614,7 +614,7 @@ export default function GroupsPage() {
                 <Pulse>
                   <button
                     onClick={() => setShowInvitesModal(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm rounded-lg hover:from-purple-700 hover:to-pink-700 hover:scale-105 transition-all relative shadow-lg shadow-purple-500/20"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all relative shadow-lg shadow-blue-500/20"
                   >
                     Invites
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold border-2 border-gray-50 dark:border-slate-900">
@@ -627,7 +627,7 @@ export default function GroupsPage() {
             <Bounce>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
               >
                 {t('createGroup')}
               </button>
@@ -705,8 +705,8 @@ export default function GroupsPage() {
                 {myGroups.length === 0 ? (
                   <Bounce>
                     <div className="col-span-2 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-12 text-center shadow-lg dark:shadow-none">
-                      <div className="w-20 h-20 bg-purple-500/20 border border-purple-400/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-20 h-20 bg-blue-500/20 border border-blue-400/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                       </div>
@@ -720,7 +720,7 @@ export default function GroupsPage() {
                         <Bounce delay={0.1}>
                           <button
                             onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20"
+                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20"
                           >
                             {t('createGroup')}
                           </button>
@@ -728,7 +728,7 @@ export default function GroupsPage() {
                         <Bounce delay={0.2}>
                           <button
                             onClick={() => setActiveTab('find-groups')}
-                            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 hover:scale-105 transition-all shadow-lg shadow-purple-500/20"
+                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20"
                           >
                             {t('findGroups')}
                           </button>
@@ -764,7 +764,7 @@ export default function GroupsPage() {
                           <img src={group.avatarUrl} alt={group.name} className="w-full h-full object-cover" />
                         ) : (
                           <Pulse>
-                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-xl">
+                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white font-semibold text-xl">
                               {group.name[0]}
                             </div>
                           </Pulse>
@@ -797,7 +797,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.2}>
                         <button
                           onClick={() => handleJoinGroup(group.id)}
-                          className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
                         >
                           {t('joinGroup')}
                         </button>
@@ -815,7 +815,7 @@ export default function GroupsPage() {
                       <Bounce delay={index * 0.1 + 0.4}>
                         <button
                           onClick={() => handleShowManage(group)}
-                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 hover:scale-105 transition-all shadow-lg shadow-purple-500/20 font-medium"
+                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
                         >
                           {t('manage')}
                         </button>
@@ -895,7 +895,7 @@ export default function GroupsPage() {
                 </div>
                 <button
                   onClick={handleFindGroups}
-                  className="mt-4 w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/20"
+                  className="mt-4 w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:from-blue-700 hover:to-blue-700 transition shadow-lg shadow-blue-500/20"
                 >
                   Search Groups
                 </button>
@@ -954,7 +954,7 @@ export default function GroupsPage() {
                         <Bounce delay={index * 0.1 + 0.1}>
                           <button
                             onClick={() => handleJoinGroup(group.id)}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-blue-700 hover:scale-105 transition-all shadow-lg shadow-blue-500/20 font-medium"
                           >
                             {t('joinGroup')}
                           </button>
@@ -1208,7 +1208,7 @@ export default function GroupsPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCreateGroup}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/20"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:from-blue-700 hover:to-blue-700 transition shadow-lg shadow-blue-500/20"
               >
                 Create Group
               </button>
@@ -1296,7 +1296,7 @@ export default function GroupsPage() {
                       />
                       <span className="text-gray-900 dark:text-white">{member.name}</span>
                       {member.role === 'OWNER' && (
-                        <span className="ml-auto px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-400/30">Owner</span>
+                        <span className="ml-auto px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full border border-blue-400/30">Owner</span>
                       )}
                     </div>
                   ))}
@@ -1399,7 +1399,7 @@ export default function GroupsPage() {
                       <div className="text-left">
                         <span className="text-gray-900 dark:text-white font-medium">{member.name}</span>
                         {member.role === 'OWNER' && (
-                          <span className="ml-2 px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-400/30">Owner</span>
+                          <span className="ml-2 px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full border border-blue-400/30">Owner</span>
                         )}
                       </div>
                     </button>
@@ -1474,7 +1474,7 @@ export default function GroupsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleRespondToInvite(invite.id, true)}
-                        className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/20"
+                        className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-blue-700 transition shadow-lg shadow-blue-500/20"
                       >
                         Accept
                       </button>

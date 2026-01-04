@@ -197,7 +197,7 @@ export function OptimizedAvatar({
       {showInitials ? (
         // Initials fallback
         <div
-          className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center"
+          className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center"
           style={{ fontSize: pixelSize * 0.4 }}
         >
           <span className="text-white font-medium">{initials}</span>

@@ -225,7 +225,7 @@ export default function InvestigationPanel({
               className="w-full p-4 flex items-center justify-between hover:bg-slate-700/50"
             >
               <div className="flex items-center gap-3">
-                <Activity className="w-5 h-5 text-purple-400" />
+                <Activity className="w-5 h-5 text-blue-400" />
                 <span className="font-semibold text-white">AI Analysis</span>
                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${getRiskLevelColor(aiAnalysis.riskLevel)}`}>
                   {aiAnalysis.riskLevel} RISK

@@ -285,6 +285,26 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('2FA error:', error)
+
+    // Check for specific error types
+    if (error instanceof Error) {
+      // Check for encryption key issues
+      if (error.message.includes('ENCRYPTION_KEY')) {
+        return NextResponse.json(
+          { error: 'Server configuration error: 2FA encryption not properly configured. Please contact support.' },
+          { status: 500 }
+        )
+      }
+
+      // Return more specific error in development
+      if (process.env.NODE_ENV === 'development') {
+        return NextResponse.json(
+          { error: `2FA Error: ${error.message}` },
+          { status: 500 }
+        )
+      }
+    }
+
     return NextResponse.json(
       { error: 'Failed to process 2FA request' },
       { status: 500 }

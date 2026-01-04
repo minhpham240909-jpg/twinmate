@@ -619,7 +619,7 @@ export default function WaitingLobbyPage() {
 
               {/* Chat */}
               <div className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-lg dark:shadow-sm overflow-hidden flex flex-col h-[400px]">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-600 px-6 py-3">
                   <h3 className="text-white font-semibold">{t('waitingRoomChat')}</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -655,7 +655,7 @@ export default function WaitingLobbyPage() {
                     <button
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim() || sending}
-                      className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                      className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50"
                     >
                       {t('send')}
                     </button>
@@ -673,7 +673,7 @@ export default function WaitingLobbyPage() {
                     <Bounce>
                       <button
                         onClick={() => setShowInviteModal(true)}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-2"
+                        className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg font-semibold hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-2"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />

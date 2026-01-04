@@ -227,7 +227,7 @@ export default function CreatePostPage() {
                   className="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-slate-600 shadow-sm"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-lg border-2 border-gray-200 dark:border-slate-600 shadow-sm">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white font-semibold text-lg border-2 border-gray-200 dark:border-slate-600 shadow-sm">
                   {(profile?.name || 'U')[0].toUpperCase()}
                 </div>
               )}
@@ -259,7 +259,7 @@ export default function CreatePostPage() {
                 {activeTab === 'text' && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"
                   />
                 )}
               </button>
@@ -280,7 +280,7 @@ export default function CreatePostPage() {
                 {activeTab === 'link' && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"
                   />
                 )}
               </button>
@@ -301,7 +301,7 @@ export default function CreatePostPage() {
                 {activeTab === 'image' && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500"
                   />
                 )}
               </button>
@@ -343,7 +343,7 @@ export default function CreatePostPage() {
                               className="w-10 h-10 rounded-full"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
                               {user.name[0]}
                             </div>
                           )}
@@ -419,7 +419,7 @@ export default function CreatePostPage() {
                           className="hidden"
                         />
                         <div className="flex flex-col items-center gap-4">
-                          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
@@ -517,7 +517,7 @@ export default function CreatePostPage() {
               <button
                 onClick={handleCreatePost}
                 disabled={(!content.trim() && selectedImages.length === 0 && !postUrl.trim()) || isPosting || isUploadingImages}
-                className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:shadow-none disabled:hover:scale-100 flex items-center gap-2"
+                className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:shadow-none disabled:hover:scale-100 flex items-center gap-2"
               >
                 {isPosting || isUploadingImages ? (
                   <>

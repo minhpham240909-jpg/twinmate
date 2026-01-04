@@ -164,13 +164,13 @@ export default function PausedSessionFAB() {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0, opacity: 0 }}
         onClick={() => setShowModal(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30 flex items-center justify-center overflow-hidden hover:shadow-xl hover:shadow-blue-500/40 transition-shadow"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 flex items-center justify-center overflow-hidden hover:shadow-xl hover:shadow-blue-500/40 transition-shadow"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
         {/* Pulse animation ring */}
         <span className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-30" />
-        <span className="absolute inset-1 rounded-full bg-gradient-to-br from-blue-500 to-purple-600" />
+        <span className="absolute inset-1 rounded-full bg-gradient-to-br from-blue-500 to-blue-600" />
 
         {/* Logo */}
         <Image
@@ -200,7 +200,7 @@ export default function PausedSessionFAB() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="relative bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-5 border-b border-slate-700/50">
+              <div className="relative bg-gradient-to-r from-blue-600/20 to-blue-600/20 p-5 border-b border-slate-700/50">
                 <button
                   onClick={() => setShowModal(false)}
                   className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors p-1"
@@ -209,7 +209,7 @@ export default function PausedSessionFAB() {
                 </button>
 
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center overflow-hidden">
                     <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
                   </div>
                   <div>
@@ -252,7 +252,7 @@ export default function PausedSessionFAB() {
                   <button
                     onClick={handleContinue}
                     disabled={isLoading || isEnding}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50"
                   >
                     {isLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

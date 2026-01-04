@@ -707,7 +707,7 @@ export default function StudyCallPage() {
                                 className="w-10 h-10 rounded-full object-cover"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-medium">
                                 {participant.name.charAt(0).toUpperCase()}
                               </div>
                             )}
@@ -771,7 +771,7 @@ export default function StudyCallPage() {
                     </button>
                   </Bounce>
                   <Bounce delay={0.1}>
-                    <button onClick={() => setActiveFeature('goals')} className="w-12 h-12 bg-purple-600 text-white rounded-lg hover:bg-purple-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('goals')}>
+                    <button onClick={() => setActiveFeature('goals')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('goals')}>
                       <span className="text-xl">✅</span>
                     </button>
                   </Bounce>
@@ -791,12 +791,12 @@ export default function StudyCallPage() {
                     </button>
                   </Bounce>
                   <Bounce delay={0.5}>
-                    <button onClick={() => setActiveFeature('whiteboard')} className="w-12 h-12 bg-pink-600 text-white rounded-lg hover:bg-pink-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('whiteboard')}>
+                    <button onClick={() => setActiveFeature('whiteboard')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('whiteboard')}>
                       <span className="text-xl">🎨</span>
                     </button>
                   </Bounce>
                   <Bounce delay={0.6}>
-                    <button onClick={() => setActiveFeature('participants')} className="w-12 h-12 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('participants')}>
+                    <button onClick={() => setActiveFeature('participants')} className="w-12 h-12 bg-blue-700 text-white rounded-lg hover:bg-blue-800 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('participants')}>
                       <span className="text-xl">👥</span>
                     </button>
                   </Bounce>
@@ -845,7 +845,7 @@ function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: unkno
         {hasVideo ? (
           <div ref={videoRef} className="w-full h-full" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-900">
             <Pulse>
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white text-2xl font-bold">{name[0].toUpperCase()}</div>
             </Pulse>

@@ -475,7 +475,7 @@ export default function AdminUserDetailPage() {
         {/* User Overview Card */}
         <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700/50 overflow-hidden">
           {/* Cover Photo */}
-          <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+          <div className="h-32 bg-gradient-to-r from-blue-500 to-blue-600 relative">
             {user.coverPhotoUrl && (
               <Image src={user.coverPhotoUrl} alt="Cover" fill className="object-cover" />
             )}
@@ -494,7 +494,7 @@ export default function AdminUserDetailPage() {
                     className="rounded-full border-4 border-white dark:border-slate-800"
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border-4 border-white dark:border-slate-800 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 border-4 border-white dark:border-slate-800 flex items-center justify-center">
                     <span className="text-3xl font-bold text-white">{user.name.charAt(0)}</span>
                   </div>
                 )}
@@ -523,7 +523,7 @@ export default function AdminUserDetailPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{user.name}</h2>
                   {user.isAdmin && (
-                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full font-medium flex items-center gap-1">
+                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full font-medium flex items-center gap-1">
                       <Crown className="w-3 h-3" /> Admin
                     </span>
                   )}
@@ -710,7 +710,7 @@ export default function AdminUserDetailPage() {
                       <label className="text-xs font-medium text-gray-500 dark:text-slate-400">Interests</label>
                       <div className="flex flex-wrap gap-2 mt-1">
                         {user.profile.interests.map((interest, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">
+                          <span key={idx} className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
                             {interest}
                           </span>
                         ))}
@@ -913,7 +913,7 @@ export default function AdminUserDetailPage() {
                           className="rounded-full"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                           <span className="text-xs font-bold text-white">{conn.partner.name.charAt(0)}</span>
                         </div>
                       )}
@@ -944,7 +944,7 @@ export default function AdminUserDetailPage() {
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-gray-900 dark:text-white">{membership.group.name}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          membership.role === 'OWNER' ? 'bg-purple-500/20 text-purple-400' :
+                          membership.role === 'OWNER' ? 'bg-blue-500/20 text-blue-400' :
                           membership.role === 'ADMIN' ? 'bg-blue-500/20 text-blue-400' :
                           'bg-gray-500/20 text-gray-400'
                         }`}>
@@ -1050,8 +1050,8 @@ export default function AdminUserDetailPage() {
                         <div className="text-xl font-bold text-blue-400">{data.aiPartner.stats.totalSessions}</div>
                         <div className="text-xs text-gray-500 dark:text-slate-400">Sessions</div>
                       </div>
-                      <div className="text-center p-3 bg-purple-500/10 rounded-lg">
-                        <div className="text-xl font-bold text-purple-400">{data.aiPartner.stats.totalMessages}</div>
+                      <div className="text-center p-3 bg-blue-500/10 rounded-lg">
+                        <div className="text-xl font-bold text-blue-400">{data.aiPartner.stats.totalMessages}</div>
                         <div className="text-xs text-gray-500 dark:text-slate-400">Messages</div>
                       </div>
                       <div className="text-center p-3 bg-green-500/10 rounded-lg">
@@ -1108,7 +1108,7 @@ export default function AdminUserDetailPage() {
                     {/* Recent AI Sessions */}
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-400" />
+                        <Sparkles className="w-4 h-4 text-blue-400" />
                         Recent Sessions
                       </h4>
                       {data.aiPartner.sessions.slice(0, 10).map(session => (

@@ -824,7 +824,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
           <button
             onClick={() => setShowQuestionInput(!showQuestionInput)}
             disabled={isAnalyzing}
-            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-500 hover:to-pink-500 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg font-medium hover:from-blue-500 hover:to-blue-500 transition-all disabled:opacity-50"
             title={actions.length === 0 ? "Get AI suggestions for what to draw" : "Ask AI to analyze your whiteboard"}
           >
             {isAnalyzing ? (
@@ -853,7 +853,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
       {showQuestionInput && (
         <div className="flex gap-2 p-4 bg-slate-800/40 backdrop-blur-xl rounded-xl border border-slate-700/50">
           <div className="flex-1 flex gap-2">
-            <MessageSquare className="w-5 h-5 text-purple-400 mt-2.5" />
+            <MessageSquare className="w-5 h-5 text-blue-400 mt-2.5" />
             <input
               type="text"
               value={aiQuestion}
@@ -871,14 +871,14 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
                     ? `Ask about your ${subject} diagram... (optional)`
                     : "Ask a specific question about your drawing... (optional)"
               }
-              className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500/50 outline-none"
+              className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 outline-none"
               autoFocus
             />
           </div>
           <button
             onClick={() => handleAskAI(aiQuestion)}
             disabled={isAnalyzing}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-colors disabled:opacity-50"
           >
             {isAnalyzing ? 'Processing...' : actions.length === 0 ? 'Get Ideas' : 'Analyze'}
           </button>
@@ -954,9 +954,9 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
         {showAnalysisPanel && aiAnalysis && (
           <div className="w-96 flex-shrink-0 bg-slate-800/60 backdrop-blur-xl rounded-xl border border-slate-700/50 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-purple-600/20 to-pink-600/20">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-600/20 to-blue-600/20">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-400" />
+                <Sparkles className="w-5 h-5 text-blue-400" />
                 <h3 className="font-semibold text-white">AI Analysis</h3>
               </div>
               <div className="flex items-center gap-1">
@@ -996,7 +996,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
                   <ul className="space-y-2">
                     {aiAnalysis.suggestions.map((suggestion, index) => (
                       <li key={index} className="flex gap-2 text-sm text-slate-400">
-                        <span className="text-purple-400">•</span>
+                        <span className="text-blue-400">•</span>
                         <span>{suggestion}</span>
                       </li>
                     ))}
@@ -1038,7 +1038,7 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
         {showSuggestionPanel && aiSuggestion && (
           <div className="w-96 flex-shrink-0 bg-slate-800/60 backdrop-blur-xl rounded-xl border border-slate-700/50 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-600/20 to-blue-600/20">
               <div className="flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-yellow-400" />
                 <h3 className="font-semibold text-white">Drawing Ideas</h3>
@@ -1067,13 +1067,13 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
               {aiSuggestion.suggestions.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <Sparkles className="w-4 h-4 text-blue-400" />
                     <h4 className="font-medium text-white text-sm">Quick Ideas</h4>
                   </div>
                   <ul className="space-y-2">
                     {aiSuggestion.suggestions.map((suggestion, index) => (
                       <li key={index} className="flex gap-2 text-sm text-slate-300">
-                        <span className="text-purple-400">•</span>
+                        <span className="text-blue-400">•</span>
                         <span>{suggestion}</span>
                       </li>
                     ))}

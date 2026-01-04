@@ -104,7 +104,7 @@ export default function FloatingSessionButton() {
   return (
     <button
       onClick={handleReturnToSession}
-      className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105 font-semibold animate-pulse"
+      className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105 font-semibold animate-pulse"
     >
       <div className="px-6 py-3 flex items-center gap-3">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

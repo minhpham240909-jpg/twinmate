@@ -439,7 +439,11 @@
     "feedbackSubmitFailed": "Failed to submit feedback. Please try again.",
     "feedbackHistory": "Your Feedback History",
     "feedbackHistoryDescription": "View your previously submitted feedback and their status",
-    "feedbackNoHistory": "You haven't submitted any feedback yet"
+    "feedbackNoHistory": "You haven't submitted any feedback yet",
+    "confirmDeleteSession": "Are you sure you want to permanently delete this session from your history?",
+    "confirmDeleteTitle": "Confirm Delete",
+    "sessionDeletedSuccessfully": "Session deleted successfully",
+    "failedToDeleteSession": "Failed to delete session"
   },
   "auth": {
     "signIn": "Sign In",

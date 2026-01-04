@@ -254,7 +254,7 @@ export default function VideoCall({
   // Main container classes based on pipMode
   const containerClasses = pipMode
     ? "fixed bottom-4 right-4 w-96 h-64 z-50 rounded-xl shadow-2xl overflow-hidden border border-gray-700 bg-gray-900 transition-all duration-300"
-    : `fixed inset-0 z-50 transition-all duration-300 ${audioOnly ? 'bg-gradient-to-br from-purple-900 via-gray-900 to-gray-900' : 'bg-gray-900'}`
+    : `fixed inset-0 z-50 transition-all duration-300 ${audioOnly ? 'bg-gradient-to-br from-blue-900 via-gray-900 to-gray-900' : 'bg-gray-900'}`
 
   return (
     <div className={containerClasses}>
@@ -269,11 +269,11 @@ export default function VideoCall({
       )}
 
       {/* Header */}
-      <div className={`absolute top-0 left-0 right-0 bg-gradient-to-b ${audioOnly ? 'from-purple-900/50' : 'from-black/50'} to-transparent p-4 z-10`}>
+      <div className={`absolute top-0 left-0 right-0 bg-gradient-to-b ${audioOnly ? 'from-blue-900/50' : 'from-black/50'} to-transparent p-4 z-10`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {audioOnly && (
-              <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
@@ -808,7 +808,7 @@ const VideoTile = React.memo(function VideoTile({
       {hasVideo ? (
         <div ref={videoRef} className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-900">
           <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-white text-3xl font-bold">
             {name[0].toUpperCase()}
           </div>
@@ -859,7 +859,7 @@ const LocalScreenSharePlaceholder = React.memo(function LocalScreenSharePlacehol
   name: string
 }) {
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 flex items-center justify-center">
+    <div className="relative w-full h-full bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center">
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
