@@ -12,18 +12,6 @@
     {
       "path": "/api/cron/cleanup-presence",
       "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/warmup",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-analytics",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/aggregate-stats",
-      "schedule": "0 3 * * *"
     }
   ]
 }
