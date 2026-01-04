@@ -40,7 +40,8 @@ export async function GET(
 
     const { userId } = await params
 
-    // Fetch comprehensive user data
+    // Fetch comprehensive user data with graceful error handling for each query
+    // This prevents missing tables/columns from breaking the entire request
     const [
       userData,
       userPresence,
@@ -134,7 +135,7 @@ export async function GET(
             }
           },
         }
-      }),
+      }).catch(() => null),
 
       // 2. User presence (online/offline status) - REAL-TIME
       prisma.userPresence.findUnique({
@@ -145,7 +146,7 @@ export async function GET(
           lastActivityAt: true,
           updatedAt: true,
         }
-      }),
+      }).catch(() => null),
 
       // 3. Recent messages (last 50)
       prisma.message.findMany({
@@ -162,7 +163,7 @@ export async function GET(
           groupId: true,
           isDeleted: true,
         }
-      }),
+      }).catch(() => []),
 
       // 3. Recent posts (last 30)
       prisma.post.findMany({
@@ -184,7 +185,7 @@ export async function GET(
             }
           }
         }
-      }),
+      }).catch(() => []),
 
       // 4. Group memberships
       prisma.groupMember.findMany({
@@ -205,7 +206,7 @@ export async function GET(
             }
           }
         }
-      }),
+      }).catch(() => []),
 
       // 5. Study sessions (participated in)
       prisma.sessionParticipant.findMany({
@@ -232,7 +233,7 @@ export async function GET(
             }
           }
         }
-      }),
+      }).catch(() => []),
 
       // 6. Partner connections - sent matches
       prisma.match.findMany({
@@ -247,7 +248,7 @@ export async function GET(
           updatedAt: true,
           receiver: { select: { id: true, name: true, email: true, avatarUrl: true } },
         }
-      }),
+      }).catch(() => []),
 
       // 7. Partner connections - received matches
       prisma.match.findMany({
@@ -262,7 +263,7 @@ export async function GET(
           updatedAt: true,
           sender: { select: { id: true, name: true, email: true, avatarUrl: true } },
         }
-      }),
+      }).catch(() => []),
 
       // 8. Reports against this user
       prisma.report.findMany({
@@ -283,7 +284,7 @@ export async function GET(
             select: { id: true, name: true }
           }
         }
-      }),
+      }).catch(() => []),
 
       // 9. Reports filed by this user
       prisma.report.findMany({
@@ -300,7 +301,7 @@ export async function GET(
             select: { id: true, name: true, email: true }
           }
         }
-      }),
+      }).catch(() => []),
 
       // 10. Warnings issued to user
       prisma.userWarning.findMany({
@@ -314,7 +315,7 @@ export async function GET(
           createdAt: true,
           expiresAt: true,
         }
-      }),
+      }).catch(() => []),
 
       // 11. Current ban status
       prisma.userBan.findUnique({
@@ -327,7 +328,7 @@ export async function GET(
           createdAt: true,
           expiresAt: true,
         }
-      }),
+      }).catch(() => null),
 
       // 12. Device sessions (login history)
       prisma.deviceSession.findMany({
@@ -343,24 +344,24 @@ export async function GET(
           lastHeartbeatAt: true,
           isActive: true,
         }
-      }),
+      }).catch(() => []),
 
       // 13. Activity statistics
-      prisma.$transaction([
-        prisma.message.count({ where: { senderId: userId } }),
-        prisma.post.count({ where: { userId } }),
-        prisma.postComment.count({ where: { userId } }),
-        prisma.postLike.count({ where: { userId } }),
-        prisma.sessionParticipant.count({ where: { userId } }),
-        prisma.groupMember.count({ where: { userId } }),
+      Promise.all([
+        prisma.message.count({ where: { senderId: userId } }).catch(() => 0),
+        prisma.post.count({ where: { userId } }).catch(() => 0),
+        prisma.postComment.count({ where: { userId } }).catch(() => 0),
+        prisma.postLike.count({ where: { userId } }).catch(() => 0),
+        prisma.sessionParticipant.count({ where: { userId } }).catch(() => 0),
+        prisma.groupMember.count({ where: { userId } }).catch(() => 0),
         prisma.match.count({
           where: {
             OR: [{ senderId: userId }, { receiverId: userId }],
             status: 'ACCEPTED'
           }
-        }),
-        prisma.report.count({ where: { reportedUserId: userId } }),
-        prisma.userWarning.count({ where: { userId } }),
+        }).catch(() => 0),
+        prisma.report.count({ where: { reportedUserId: userId } }).catch(() => 0),
+        prisma.userWarning.count({ where: { userId } }).catch(() => 0),
       ]),
 
       // 14. AI Partner sessions
@@ -383,7 +384,7 @@ export async function GET(
           wasSafetyBlocked: true,
           createdAt: true,
         }
-      }),
+      }).catch(() => []),
 
       // 15. AI Partner stats
       prisma.aIPartnerSession.aggregate({
@@ -395,7 +396,7 @@ export async function GET(
           flaggedCount: true,
         },
         _avg: { rating: true },
-      }),
+      }).catch(() => ({ _count: 0, _sum: { messageCount: null, totalDuration: null, flaggedCount: null }, _avg: { rating: null } })),
 
       // 16. AI Partner flagged messages
       prisma.aIPartnerMessage.findMany({
@@ -418,7 +419,7 @@ export async function GET(
             }
           }
         }
-      }),
+      }).catch(() => []),
     ])
 
     if (!userData) {
@@ -479,7 +480,7 @@ export async function GET(
       totalWarnings,
     ] = activityStats
 
-    // Log this admin view action
+    // Log this admin view action (gracefully handle if table doesn't exist)
     await prisma.adminAuditLog.create({
       data: {
         adminId: user.id,
@@ -493,7 +494,7 @@ export async function GET(
           ]
         },
       }
-    })
+    }).catch(() => { /* Audit log table may not exist */ })
 
     // Calculate accurate online status
     // User is considered online if last heartbeat was within 2 minutes

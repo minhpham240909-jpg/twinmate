@@ -242,6 +242,7 @@ export async function GET(request: NextRequest) {
     last30Days.setDate(today.getDate() - 30)
 
     // Run all queries in parallel for real-time performance
+    // Each query wrapped with .catch() for graceful error handling if tables don't exist
     const [
       // Core stats
       totalSessions,
@@ -300,41 +301,41 @@ export async function GET(request: NextRequest) {
       activeAIUsers,
     ] = await Promise.all([
       // Total counts
-      prisma.aIPartnerSession.count(),
-      prisma.aIPartnerMessage.count(),
+      prisma.aIPartnerSession.count().catch(() => 0),
+      prisma.aIPartnerMessage.count().catch(() => 0),
       prisma.aIPartnerSession.findMany({
         select: { userId: true },
         distinct: ['userId'],
-      }).then(r => r.length),
+      }).then(r => r.length).catch(() => 0),
 
       // Time-based
-      prisma.aIPartnerSession.count({ where: { createdAt: { gte: today } } }),
-      prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisWeekStart } } }),
-      prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisMonthStart } } }),
+      prisma.aIPartnerSession.count({ where: { createdAt: { gte: today } } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisWeekStart } } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisMonthStart } } }).catch(() => 0),
 
       // Status
-      prisma.aIPartnerSession.count({ where: { status: 'ACTIVE' } }),
-      prisma.aIPartnerSession.count({ where: { status: 'PAUSED' } }),
-      prisma.aIPartnerSession.count({ where: { status: 'COMPLETED' } }),
-      prisma.aIPartnerSession.count({ where: { status: 'BLOCKED' } }),
+      prisma.aIPartnerSession.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { status: 'PAUSED' } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { status: 'COMPLETED' } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { status: 'BLOCKED' } }).catch(() => 0),
 
       // Messages by role
-      prisma.aIPartnerMessage.count({ where: { role: 'USER' } }),
-      prisma.aIPartnerMessage.count({ where: { role: 'ASSISTANT' } }),
+      prisma.aIPartnerMessage.count({ where: { role: 'USER' } }).catch(() => 0),
+      prisma.aIPartnerMessage.count({ where: { role: 'ASSISTANT' } }).catch(() => 0),
 
       // Moderation
-      prisma.aIPartnerMessage.count({ where: { wasFlagged: true } }),
-      prisma.aIPartnerSession.count({ where: { flaggedCount: { gt: 0 } } }),
-      prisma.aIPartnerSession.count({ where: { wasSafetyBlocked: true } }),
+      prisma.aIPartnerMessage.count({ where: { wasFlagged: true } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { flaggedCount: { gt: 0 } } }).catch(() => 0),
+      prisma.aIPartnerSession.count({ where: { wasSafetyBlocked: true } }).catch(() => 0),
 
       // Feature usage
-      prisma.aIPartnerSession.aggregate({ _sum: { quizCount: true } }),
-      prisma.aIPartnerSession.aggregate({ _sum: { flashcardCount: true } }),
-      prisma.aIPartnerMessage.count({ where: { messageType: 'WHITEBOARD' } }),
+      prisma.aIPartnerSession.aggregate({ _sum: { quizCount: true } }).catch(() => ({ _sum: { quizCount: null } })),
+      prisma.aIPartnerSession.aggregate({ _sum: { flashcardCount: true } }).catch(() => ({ _sum: { flashcardCount: null } })),
+      prisma.aIPartnerMessage.count({ where: { messageType: 'WHITEBOARD' } }).catch(() => 0),
 
       // Image generation stats - count by imageType
-      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'generated' } }),
-      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'uploaded' } }),
+      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'generated' } }).catch(() => 0),
+      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'uploaded' } }).catch(() => 0),
       // Recent generated images with session and user info
       prisma.aIPartnerMessage.findMany({
         where: {
@@ -357,7 +358,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-      }),
+      }).catch(() => []),
 
       // Tokens
       prisma.aIPartnerMessage.aggregate({
@@ -366,14 +367,14 @@ export async function GET(request: NextRequest) {
           completionTokens: true,
           totalTokens: true,
         },
-      }),
+      }).catch(() => ({ _sum: { promptTokens: null, completionTokens: null, totalTokens: null } })),
 
       // Ratings
       prisma.aIPartnerSession.aggregate({
         where: { rating: { not: null } },
         _count: true,
         _avg: { rating: true },
-      }),
+      }).catch(() => ({ _count: 0, _avg: { rating: null } })),
 
       // Recent feedback with text (for admin review)
       prisma.aIPartnerSession.findMany({
@@ -395,7 +396,7 @@ export async function GET(request: NextRequest) {
           totalDuration: true,
           messageCount: true,
         },
-      }),
+      }).catch(() => []),
 
       // Daily growth for chart
       prisma.$queryRaw<Array<{ date: string; sessions: bigint; messages: bigint; users: bigint }>>`
@@ -408,14 +409,14 @@ export async function GET(request: NextRequest) {
         WHERE "createdAt" >= ${last30Days}
         GROUP BY DATE("createdAt")
         ORDER BY date ASC
-      `,
+      `.catch(() => []),
 
       // Subject distribution - fetch ALL subjects to normalize and merge similar ones
       prisma.aIPartnerSession.groupBy({
         by: ['subject'],
         where: { subject: { not: null } },
         _count: true,
-      }),
+      }).catch(() => []),
 
       // Recent flagged messages (for alerts)
       prisma.aIPartnerMessage.findMany({
@@ -436,7 +437,7 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      }),
+      }).catch(() => []),
 
       // Active AI users (currently in session)
       prisma.aIPartnerSession.findMany({
@@ -450,7 +451,7 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { startedAt: 'desc' },
         take: 10,
-      }),
+      }).catch(() => []),
     ])
 
     // Max focus time to consider realistic (4 hours)
@@ -465,7 +466,7 @@ export async function GET(request: NextRequest) {
         status: 'COMPLETED',
       },
       _avg: { focusTime: true },
-    })
+    }).catch(() => ({ _avg: { focusTime: null } }))
 
     // Also get total focus time across all sessions for overview
     const totalFocusTime = await prisma.aIPartnerSession.aggregate({
@@ -475,7 +476,7 @@ export async function GET(request: NextRequest) {
       },
       _sum: { focusTime: true },
       _count: true,
-    })
+    }).catch(() => ({ _sum: { focusTime: null }, _count: 0 }))
 
     // Calculate token costs (approximate - GPT-4o-mini pricing)
     // Input: $0.15/1M tokens, Output: $0.60/1M tokens
@@ -528,11 +529,11 @@ export async function GET(request: NextRequest) {
       ? await prisma.user.findMany({
           where: { id: { in: feedbackUserIds } },
           select: { id: true, name: true, email: true, avatarUrl: true },
-        })
+        }).catch(() => [])
       : []
     const userMap = new Map(feedbackUsers.map(u => [u.id, u]))
 
-    // Log admin view
+    // Log admin view (gracefully handle if table doesn't exist)
     await prisma.adminAuditLog.create({
       data: {
         adminId: user.id,
@@ -541,7 +542,7 @@ export async function GET(request: NextRequest) {
         targetId: 'ai-partner-analytics',
         details: { timestamp: now.toISOString() },
       }
-    })
+    }).catch(() => { /* Audit log table may not exist */ })
 
     return NextResponse.json({
       success: true,

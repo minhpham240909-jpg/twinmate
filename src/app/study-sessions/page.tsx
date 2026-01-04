@@ -252,7 +252,7 @@ export default function StudySessionsPage() {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors font-medium"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             {t('newSession')}
           </button>
@@ -312,7 +312,7 @@ export default function StudySessionsPage() {
                       <button
                         onClick={() => handleAcceptInvite(invite.sessionId)}
                         disabled={processingInvite === invite.sessionId}
-                        className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 font-medium"
+                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
                       >
                         {processingInvite === invite.sessionId ? t('accepting') : t('accept')}
                       </button>
@@ -353,7 +353,7 @@ export default function StudySessionsPage() {
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                 >
                   {t('startSession')}
                 </button>
@@ -400,7 +400,7 @@ export default function StudySessionsPage() {
                     <button
                       onClick={() => handleDeleteSession(session.id)}
                       disabled={deletingSession === session.id}
-                      className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {deletingSession === session.id ? t('removing') : t('remove')}
                     </button>
