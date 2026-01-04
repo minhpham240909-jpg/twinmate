@@ -536,7 +536,7 @@ export default function UserProfilePage() {
         {/* User Info */}
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{sanitizeText(viewedUser.name)}</h1>
-          <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">@{sanitizeText(viewedUser.email.split('@')[0])}</p>
+          <p className="text-gray-600 dark:text-slate-400 text-sm mb-3">@{sanitizeText(viewedUser.email?.split('@')[0] || viewedUser.name?.toLowerCase().replace(/\s+/g, '') || 'user')}</p>
 
           {profile?.bio && (
             <p className="text-gray-700 dark:text-slate-300 mb-3 whitespace-pre-wrap leading-relaxed">{sanitizeBio(profile.bio)}</p>
