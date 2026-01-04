@@ -34,10 +34,13 @@ interface Message {
   senderEmail: string | null
   senderName: string | null
   senderAvatar?: string | null
+  senderDeleted?: boolean
   conversationId: string | null
   conversationType: string | null
   groupName?: string
   sessionTitle?: string
+  recipientName?: string
+  recipientEmail?: string
   flagReason?: string
   aiCategories?: Record<string, any>
   aiScore?: number
@@ -52,6 +55,10 @@ interface Message {
   fileName?: string | null
   fileSize?: number | null
   messageType?: string // TEXT, IMAGE, FILE, etc.
+  // Deletion status - admin can see all messages
+  isDeleted?: boolean
+  deletedAt?: string | null
+  deletedByUser?: boolean // True if user soft-deleted, false if admin deleted
 }
 
 // Helper function to check if a message contains an image
@@ -100,6 +107,7 @@ export default function AdminMessagesPage() {
   // Selected message for detail view
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [isActioning, setIsActioning] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const fetchMessages = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true)
@@ -197,6 +205,38 @@ export default function AdminMessagesPage() {
     } catch (error) {
       console.error('Moderation error:', error)
       alert('Failed to moderate message')
+    } finally {
+      setIsActioning(false)
+    }
+  }
+
+  // Permanently delete a message (admin only - cannot be undone)
+  const handlePermanentDelete = async () => {
+    if (!selectedMessage || !selectedMessage.id) return
+
+    setIsActioning(true)
+    try {
+      const response = await fetch('/api/admin/messages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: selectedMessage.id,
+          messageType: selectedMessage.type,
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Refresh messages
+        fetchMessages(true)
+        setSelectedMessage(null)
+        setShowDeleteConfirm(false)
+      } else {
+        alert('Failed to delete: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Failed to delete message')
     } finally {
       setIsActioning(false)
     }
@@ -399,35 +439,47 @@ export default function AdminMessagesPage() {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className="p-4 hover:bg-gray-700/50 transition-colors cursor-pointer"
+                className={`p-4 hover:bg-gray-700/50 transition-colors cursor-pointer ${
+                  message.isDeleted ? 'bg-red-500/5 border-l-2 border-red-500/50' : ''
+                }`}
                 onClick={() => setSelectedMessage(message)}
               >
                 <div className="flex items-start gap-4">
                   {/* Avatar */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 relative">
                     {message.senderAvatar ? (
                       <Image
                         src={message.senderAvatar}
                         alt={message.senderName || 'User'}
                         width={40}
                         height={40}
-                        className="rounded-full"
+                        className={`rounded-full ${message.senderDeleted ? 'opacity-50' : ''}`}
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                      <div className={`w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center ${message.senderDeleted ? 'opacity-50' : ''}`}>
                         <span className="text-white font-medium">
                           {message.senderName?.charAt(0) || message.senderEmail?.charAt(0) || '?'}
                         </span>
+                      </div>
+                    )}
+                    {message.senderDeleted && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center">
+                        <X className="w-3 h-3 text-gray-400" />
                       </div>
                     )}
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-white">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className={`font-medium ${message.senderDeleted ? 'text-gray-400 line-through' : 'text-white'}`}>
                         {message.senderName || 'Unknown'}
                       </span>
+                      {message.senderDeleted && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-500/20 text-gray-400">
+                          Deleted User
+                        </span>
+                      )}
                       <span className="text-xs text-gray-500">{message.senderEmail}</span>
                       <span className={`text-xs px-2 py-0.5 rounded ${getTypeColor(message.type)}`}>
                         {message.type.replace('_', ' ')}
@@ -435,6 +487,12 @@ export default function AdminMessagesPage() {
                       {message.isFlagged && message.status && (
                         <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(message.status)}`}>
                           {message.status}
+                        </span>
+                      )}
+                      {message.isDeleted && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 flex items-center gap-1">
+                          <Trash2 className="w-3 h-3" />
+                          {message.deletedByUser ? 'User Deleted' : 'Deleted'}
                         </span>
                       )}
                     </div>
@@ -535,7 +593,10 @@ export default function AdminMessagesPage() {
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h3 className="text-lg font-semibold text-white">Message Details</h3>
               <button
-                onClick={() => setSelectedMessage(null)}
+                onClick={() => {
+                  setSelectedMessage(null)
+                  setShowDeleteConfirm(false)
+                }}
                 className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-gray-400" />
@@ -616,6 +677,28 @@ export default function AdminMessagesPage() {
                 })()}
               </div>
 
+              {/* Deletion Status Banner */}
+              {selectedMessage.isDeleted && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3">
+                  <div className="p-2 bg-red-500/20 rounded-lg">
+                    <Trash2 className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-red-400">
+                      {selectedMessage.deletedByUser ? 'Deleted by User' : 'Message Deleted'}
+                    </p>
+                    {selectedMessage.deletedAt && (
+                      <p className="text-sm text-gray-400">
+                        Deleted at: {formatDate(selectedMessage.deletedAt)}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Admin can still see this message. Click "Permanently Delete" to remove forever.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Metadata */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 bg-gray-700/50 rounded-lg">
@@ -632,6 +715,7 @@ export default function AdminMessagesPage() {
                     <p className="text-white">
                       {selectedMessage.groupName ||
                         selectedMessage.sessionTitle ||
+                        selectedMessage.recipientName ||
                         `Partner (${selectedMessage.conversationId?.slice(0, 8)}...)`}
                     </p>
                   </div>
@@ -712,6 +796,57 @@ export default function AdminMessagesPage() {
                     <p className="text-sm text-gray-400 mt-1">
                       Reviewed: {formatDate(selectedMessage.reviewedAt)}
                     </p>
+                  )}
+                </div>
+              )}
+
+              {/* Admin Permanent Delete Section - for non-flagged messages */}
+              {!selectedMessage.isFlagged && (
+                <div className="pt-4 border-t border-gray-700">
+                  {!showDeleteConfirm ? (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 rounded-lg text-red-400 text-sm transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Permanently Delete Message
+                    </button>
+                  ) : (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg space-y-3">
+                      <div className="flex items-center gap-2 text-red-400">
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="font-medium">Confirm Permanent Deletion</span>
+                      </div>
+                      <p className="text-sm text-gray-400">
+                        This action cannot be undone. The message will be permanently removed from the database.
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handlePermanentDelete}
+                          disabled={isActioning}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {isActioning ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              Yes, Delete Forever
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          disabled={isActioning}
+                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm transition-colors disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

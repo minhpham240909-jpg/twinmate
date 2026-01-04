@@ -229,6 +229,13 @@ export async function POST(request: NextRequest) {
             location_city: string | null
             location_state: string | null
             location_country: string | null
+            // Additional fields for consistent match scoring
+            location_lat?: number | null
+            location_lng?: number | null
+            availableDays?: string[] | null
+            availableHours?: string[] | null
+            timezone?: string | null
+            role?: string | null
             aboutYourself: string | null
             subjectCustomDescription: string | null
             user: {
@@ -353,15 +360,23 @@ export async function POST(request: NextRequest) {
 
         // Calculate comprehensive match scores
         const profilesWithScores = profiles.map(result => {
-          const profile = result.profile
+          const profile = result.profile as any // Cast to any to access additional fields from updated queries
 
+          // IMPORTANT: Include ALL the same fields used in /api/users/[userId] for consistent match scores
           const partnerProfileData: ProfileData = {
             subjects: profile.subjects,
             interests: profile.interests,
             goals: profile.goals,
-            skillLevel: profile.skillLevel,
-            studyStyle: profile.studyStyle,
+            availableDays: profile.availableDays ?? null,
+            availableHours: profile.availableHours ?? null,
+            skillLevel: profile.skillLevel?.toString() ?? null,
+            studyStyle: profile.studyStyle?.toString() ?? null,
             school: profile.school,
+            timezone: profile.timezone ?? null,
+            languages: profile.languages ? String(profile.languages).split(',').map((l: string) => l.trim()) : null,
+            role: profile.role ?? null,
+            location_lat: profile.location_lat ?? null,
+            location_lng: profile.location_lng ?? null,
             location_city: profile.location_city,
             location_country: profile.location_country,
           }
@@ -562,6 +577,13 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
         location_city: true,
         location_state: true,
         location_country: true,
+        // Additional fields for consistent match scoring with /api/users/[userId]
+        location_lat: true,
+        location_lng: true,
+        availableDays: true,
+        availableHours: true,
+        timezone: true,
+        role: true,
         aboutYourself: true,
         subjectCustomDescription: true,
         user: {
@@ -633,6 +655,13 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
         location_city: true,
         location_state: true,
         location_country: true,
+        // Additional fields for consistent match scoring
+        location_lat: true,
+        location_lng: true,
+        availableDays: true,
+        availableHours: true,
+        timezone: true,
+        role: true,
         aboutYourself: true,
         subjectCustomDescription: true,
         user: {
@@ -672,6 +701,13 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
       location_city: profile.location_city,
       location_state: profile.location_state,
       location_country: profile.location_country,
+      // Additional fields for consistent match scoring
+      location_lat: profile.location_lat,
+      location_lng: profile.location_lng,
+      availableDays: profile.availableDays,
+      availableHours: profile.availableHours,
+      timezone: profile.timezone,
+      role: profile.role,
       aboutYourself: profile.aboutYourself,
       subjectCustomDescription: profile.subjectCustomDescription,
       user: profile.user

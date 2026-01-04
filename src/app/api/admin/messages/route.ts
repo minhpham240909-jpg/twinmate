@@ -153,8 +153,9 @@ export async function GET(request: NextRequest) {
       }))
       totalCount = count
     } else {
-      // Fetch regular messages
-      const baseWhere: any = { isDeleted: false }
+      // Fetch regular messages - ADMIN sees ALL messages including soft-deleted ones
+      // Only permanently deleted messages (hard delete by admin) are not shown
+      const baseWhere: any = {}
 
       if (search) {
         // Search in content AND sender name/email (both live and cached)
@@ -207,6 +208,10 @@ export async function GET(request: NextRequest) {
           fileName: m.fileName,
           fileSize: m.fileSize,
           messageType: m.type, // TEXT, IMAGE, FILE, etc.
+          // Deletion status - admin can see deleted messages
+          isDeleted: m.isDeleted || false,
+          deletedAt: m.deletedAt,
+          deletedByUser: m.isDeleted && !m.deletedAt ? false : !!m.deletedAt, // User soft-deleted
         })))
         if (type === 'dm') totalCount = dmCount
       }
@@ -247,6 +252,10 @@ export async function GET(request: NextRequest) {
           fileName: m.fileName,
           fileSize: m.fileSize,
           messageType: m.type, // TEXT, IMAGE, FILE, etc.
+          // Deletion status - admin can see deleted messages
+          isDeleted: m.isDeleted || false,
+          deletedAt: m.deletedAt,
+          deletedByUser: m.isDeleted && !m.deletedAt ? false : !!m.deletedAt,
         })))
         if (type === 'group') totalCount = groupCount
       }
@@ -329,6 +338,83 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Admin messages API error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Permanently delete a message (hard delete - cannot be undone)
+export async function DELETE(request: NextRequest) {
+  try {
+    // Apply rate limiting
+    const rateLimitResult = await adminRateLimit(request, 'userActions')
+    if (rateLimitResult) return rateLimitResult
+
+    // Verify admin access
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true },
+    })
+
+    if (!dbUser?.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { messageId, messageType } = body
+
+    if (!messageId || !messageType) {
+      return NextResponse.json(
+        { error: 'messageId and messageType are required' },
+        { status: 400 }
+      )
+    }
+
+    // Permanently delete based on message type
+    if (messageType === 'DIRECT_MESSAGE' || messageType === 'GROUP_MESSAGE') {
+      await prisma.message.delete({
+        where: { id: messageId },
+      })
+    } else if (messageType === 'SESSION_MESSAGE') {
+      await prisma.sessionMessage.delete({
+        where: { id: messageId },
+      })
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid message type' },
+        { status: 400 }
+      )
+    }
+
+    // Log the audit action
+    await prisma.adminAuditLog.create({
+      data: {
+        adminId: user.id,
+        action: 'MESSAGE_PERMANENT_DELETE',
+        targetType: 'Message',
+        targetId: messageId,
+        details: {
+          messageType,
+          deletedAt: new Date().toISOString(),
+        },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Message permanently deleted',
+    })
+  } catch (error) {
+    console.error('Permanent delete error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

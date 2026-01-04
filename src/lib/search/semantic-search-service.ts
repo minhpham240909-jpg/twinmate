@@ -86,6 +86,13 @@ export interface PartnerSearchResult {
     location_city: string | null
     location_state: string | null
     location_country: string | null
+    // Additional fields for consistent match scoring with /api/users/[userId]
+    location_lat: number | null
+    location_lng: number | null
+    availableDays: string[] | null
+    availableHours: string[] | null
+    timezone: string | null
+    role: string | null
     aboutYourself: string | null
     subjectCustomDescription: string | null
     skillLevelCustomDescription?: string | null
@@ -318,6 +325,13 @@ export async function searchPartnersSmartly(
       location_city: true,
       location_state: true,
       location_country: true,
+      // Additional fields for consistent match scoring with /api/users/[userId]
+      location_lat: true,
+      location_lng: true,
+      availableDays: true,
+      availableHours: true,
+      timezone: true,
+      role: true,
       aboutYourself: true,
       subjectCustomDescription: true,
       skillLevelCustomDescription: true,
@@ -376,6 +390,13 @@ export async function searchPartnersSmartly(
           location_city: profile.location_city,
           location_state: profile.location_state,
           location_country: profile.location_country,
+          // Additional fields for consistent match scoring
+          location_lat: profile.location_lat,
+          location_lng: profile.location_lng,
+          availableDays: profile.availableDays,
+          availableHours: profile.availableHours,
+          timezone: profile.timezone,
+          role: profile.role,
           aboutYourself: profile.aboutYourself,
           subjectCustomDescription: profile.subjectCustomDescription,
           skillLevelCustomDescription: profile.skillLevelCustomDescription,
@@ -509,6 +530,13 @@ async function searchPartnersFallback(
         location_city: true,
         location_state: true,
         location_country: true,
+        // Additional fields for consistent match scoring
+        location_lat: true,
+        location_lng: true,
+        availableDays: true,
+        availableHours: true,
+        timezone: true,
+        role: true,
         aboutYourself: true,
         subjectCustomDescription: true,
         skillLevelCustomDescription: true,
@@ -604,6 +632,13 @@ async function searchPartnersFallback(
         location_city: true,
         location_state: true,
         location_country: true,
+        // Additional fields for consistent match scoring
+        location_lat: true,
+        location_lng: true,
+        availableDays: true,
+        availableHours: true,
+        timezone: true,
+        role: true,
         aboutYourself: true,
         subjectCustomDescription: true,
         skillLevelCustomDescription: true,
