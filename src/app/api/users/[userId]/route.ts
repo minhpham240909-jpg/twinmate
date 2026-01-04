@@ -288,13 +288,23 @@ export async function GET(
 
         if (currentUserProfile && dbUser.profile) {
           // Prepare profile data for the algorithm
+          // IMPORTANT: Must match the same fields used in /api/partners/search for consistent match scores
           const currentUserProfileData: ProfileData = {
             subjects: currentUserProfile.subjects as string[] | null,
             interests: currentUserProfile.interests as string[] | null,
             goals: currentUserProfile.goals as string[] | null,
             availableDays: currentUserProfile.availableDays as string[] | null,
-            skillLevel: currentUserProfile.skillLevel,
-            studyStyle: currentUserProfile.studyStyle,
+            availableHours: currentUserProfile.availableHours as string[] | null,
+            skillLevel: currentUserProfile.skillLevel?.toString() ?? null,
+            studyStyle: currentUserProfile.studyStyle?.toString() ?? null,
+            school: currentUserProfile.school as string | null,
+            timezone: currentUserProfile.timezone as string | null,
+            languages: currentUserProfile.languages ? (currentUserProfile.languages as string).split(',').map((l: string) => l.trim()) : null,
+            role: currentUserProfile.role as string | null,
+            location_lat: currentUserProfile.location_lat as number | null,
+            location_lng: currentUserProfile.location_lng as number | null,
+            location_city: currentUserProfile.location_city as string | null,
+            location_country: currentUserProfile.location_country as string | null,
           }
 
           const viewedUserProfileData: ProfileData = {
@@ -302,8 +312,17 @@ export async function GET(
             interests: dbUser.profile.interests as string[] | null,
             goals: dbUser.profile.goals as string[] | null,
             availableDays: dbUser.profile.availableDays as string[] | null,
-            skillLevel: dbUser.profile.skillLevel,
-            studyStyle: dbUser.profile.studyStyle,
+            availableHours: dbUser.profile.availableHours as string[] | null,
+            skillLevel: dbUser.profile.skillLevel?.toString() ?? null,
+            studyStyle: dbUser.profile.studyStyle?.toString() ?? null,
+            school: dbUser.profile.school as string | null,
+            timezone: dbUser.profile.timezone as string | null,
+            languages: dbUser.profile.languages ? (dbUser.profile.languages as string).split(',').map((l: string) => l.trim()) : null,
+            role: dbUser.profile.role as string | null,
+            location_lat: dbUser.profile.location_lat as number | null,
+            location_lng: dbUser.profile.location_lng as number | null,
+            location_city: dbUser.profile.location_city as string | null,
+            location_country: dbUser.profile.location_country as string | null,
           }
 
           // Calculate match using the centralized algorithm

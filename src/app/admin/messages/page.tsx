@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ImageIcon,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -46,6 +47,33 @@ interface Message {
   actionTaken?: string
   createdAt: string
   isFlagged: boolean
+  // File/image attachments
+  fileUrl?: string | null
+  fileName?: string | null
+  fileSize?: number | null
+  messageType?: string // TEXT, IMAGE, FILE, etc.
+}
+
+// Helper function to check if a message contains an image
+function getImageUrl(msg: Message): string | null {
+  // Check if message has fileUrl and is an image type
+  if (msg.fileUrl) {
+    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(msg.fileUrl) ||
+                    msg.messageType === 'IMAGE' ||
+                    msg.content.startsWith('[Image:')
+    if (isImage) {
+      return msg.fileUrl
+    }
+  }
+
+  // Check for markdown-style image format: [Image: filename](url)
+  const imageMarkdownRegex = /^\[Image:\s*[^\]]+\]\(([^)]+)\)$/
+  const match = msg.content.match(imageMarkdownRegex)
+  if (match) {
+    return match[1]
+  }
+
+  return null
 }
 
 interface Stats {
@@ -300,9 +328,10 @@ export default function AdminMessagesPage() {
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Message Type Filter */}
-          <div className="flex bg-gray-700 rounded-lg p-1">
+          <div className="flex flex-wrap bg-gray-700 rounded-lg p-1">
             {[
               { key: 'flagged', label: 'Flagged', icon: AlertTriangle },
+              { key: 'images', label: 'Images', icon: ImageIcon },
               { key: 'all', label: 'All', icon: MessageSquare },
               { key: 'dm', label: 'DMs', icon: Users },
               { key: 'group', label: 'Groups', icon: Users },
@@ -410,7 +439,30 @@ export default function AdminMessagesPage() {
                       )}
                     </div>
 
-                    <p className="text-gray-300 text-sm line-clamp-2">{message.content}</p>
+                    {/* Message content with image support */}
+                    {(() => {
+                      const imageUrl = getImageUrl(message)
+                      if (imageUrl) {
+                        return (
+                          <div className="mt-2">
+                            <img
+                              src={imageUrl}
+                              alt={message.fileName || 'Shared image'}
+                              className="max-w-[200px] max-h-[150px] rounded-lg object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
+                              }}
+                            />
+                            {message.fileName && (
+                              <p className="text-xs text-gray-500 mt-1">{message.fileName}</p>
+                            )}
+                          </div>
+                        )
+                      }
+                      return <p className="text-gray-300 text-sm line-clamp-2">{message.content}</p>
+                    })()}
 
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                       <span className="flex items-center gap-1">
@@ -522,7 +574,46 @@ export default function AdminMessagesPage() {
 
               {/* Message Content */}
               <div className="p-4 bg-gray-900 rounded-lg">
-                <p className="text-gray-300 whitespace-pre-wrap">{selectedMessage.content}</p>
+                {(() => {
+                  const imageUrl = getImageUrl(selectedMessage)
+                  if (imageUrl) {
+                    return (
+                      <div className="space-y-3">
+                        <a
+                          href={imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={selectedMessage.fileName || 'Shared image'}
+                            className="max-w-full max-h-[400px] rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                              target.parentElement?.insertAdjacentHTML('afterbegin',
+                                `<p class="text-gray-400">Failed to load image</p>`)
+                            }}
+                          />
+                        </a>
+                        {selectedMessage.fileName && (
+                          <p className="text-sm text-gray-400">
+                            📎 {selectedMessage.fileName}
+                            {selectedMessage.fileSize && (
+                              <span className="ml-2 text-gray-500">
+                                ({(selectedMessage.fileSize / 1024).toFixed(1)} KB)
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        <p className="text-gray-500 text-xs">{selectedMessage.content}</p>
+                      </div>
+                    )
+                  }
+                  return <p className="text-gray-300 whitespace-pre-wrap">{selectedMessage.content}</p>
+                })()}
               </div>
 
               {/* Metadata */}

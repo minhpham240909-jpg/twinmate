@@ -43,6 +43,57 @@ interface Message {
   callType?: string | null
   callDuration?: number | null
   callStatus?: string | null
+  fileUrl?: string | null
+  fileName?: string | null
+  fileSize?: number | null
+}
+
+// Helper function to check if content contains an image URL or markdown image
+function isImageMessage(msg: Message): { isImage: boolean; imageUrl: string | null; fileName: string | null } {
+  // Check if message has fileUrl and is an image type
+  if (msg.fileUrl && (msg.type === 'IMAGE' || msg.type === 'FILE')) {
+    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(msg.fileUrl) ||
+                    msg.content.startsWith('[Image:')
+    if (isImage) {
+      return { isImage: true, imageUrl: msg.fileUrl, fileName: msg.fileName || null }
+    }
+  }
+
+  // Check for markdown-style image format: [Image: filename](url)
+  const imageMarkdownRegex = /^\[Image:\s*([^\]]+)\]\(([^)]+)\)$/
+  const match = msg.content.match(imageMarkdownRegex)
+  if (match) {
+    return { isImage: true, imageUrl: match[2], fileName: match[1] }
+  }
+
+  // Check for markdown-style file format that is an image: [File: filename.jpg](url)
+  const fileMarkdownRegex = /^\[File:\s*([^\]]+)\]\(([^)]+)\)$/
+  const fileMatch = msg.content.match(fileMarkdownRegex)
+  if (fileMatch && /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileMatch[1])) {
+    return { isImage: true, imageUrl: fileMatch[2], fileName: fileMatch[1] }
+  }
+
+  return { isImage: false, imageUrl: null, fileName: null }
+}
+
+// Helper function to check if content is a file attachment
+function isFileMessage(msg: Message): { isFile: boolean; fileUrl: string | null; fileName: string | null } {
+  // Check if message has fileUrl
+  if (msg.fileUrl && msg.type === 'FILE') {
+    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(msg.fileUrl)
+    if (!isImage) {
+      return { isFile: true, fileUrl: msg.fileUrl, fileName: msg.fileName || null }
+    }
+  }
+
+  // Check for markdown-style file format: [File: filename](url)
+  const fileMarkdownRegex = /^\[File:\s*([^\]]+)\]\(([^)]+)\)$/
+  const match = msg.content.match(fileMarkdownRegex)
+  if (match && !/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(match[1])) {
+    return { isFile: true, fileUrl: match[2], fileName: match[1] }
+  }
+
+  return { isFile: false, fileUrl: null, fileName: null }
 }
 
 function GroupsChatContent() {
@@ -845,42 +896,102 @@ function GroupsChatContent() {
                                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 px-1">{msg.sender.name}</p>
                                     )}
                                     <div className="relative">
-                                      <div
-                                        className={`rounded-2xl px-4 py-2 ${
-                                          isDeleted
-                                            ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 italic border border-neutral-200 dark:border-neutral-700'
-                                            : isOwnMessage
-                                            ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
-                                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700'
-                                        } ${!isDeleted && canDelete ? 'cursor-pointer' : ''}`}
-                                        onClick={() => {
-                                          if (!isDeleted && canDelete) {
-                                            setSelectedMessageId(msg.id === selectedMessageId ? null : msg.id)
-                                          }
-                                        }}
-                                      >
-                                        <p className="text-sm whitespace-pre-wrap break-words">
-                                          {isDeleted ? t('messageDeleted') : msg.content}
-                                        </p>
-                                        <span className={`text-xs mt-1 block ${isOwnMessage && !isDeleted ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400'}`}>
-                                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
+                                      {(() => {
+                                        const imageInfo = isImageMessage(msg)
+                                        const fileInfo = isFileMessage(msg)
 
-                                        {/* Delete button - shows on click */}
-                                        {!isDeleted && canDelete && selectedMessageId === msg.id && (
-                                          <div className="absolute -top-1 -right-1 z-10">
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleDeleteMessage(msg.id)
-                                              }}
-                                              className="px-2 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition whitespace-nowrap shadow-lg"
-                                            >
-                                              Delete
-                                            </button>
+                                        return (
+                                          <div
+                                            className={`rounded-2xl ${imageInfo.isImage ? 'p-1' : 'px-4 py-2'} ${
+                                              isDeleted
+                                                ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 italic border border-neutral-200 dark:border-neutral-700'
+                                                : isOwnMessage
+                                                ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                                                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700'
+                                            } ${!isDeleted && canDelete ? 'cursor-pointer' : ''}`}
+                                            onClick={() => {
+                                              if (!isDeleted && canDelete) {
+                                                setSelectedMessageId(msg.id === selectedMessageId ? null : msg.id)
+                                              }
+                                            }}
+                                          >
+                                            {isDeleted ? (
+                                              <p className="text-sm whitespace-pre-wrap break-words px-3 py-1">
+                                                {t('messageDeleted')}
+                                              </p>
+                                            ) : imageInfo.isImage && imageInfo.imageUrl ? (
+                                              // Render image
+                                              <div className="space-y-1">
+                                                <a
+                                                  href={imageInfo.imageUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  <img
+                                                    src={imageInfo.imageUrl}
+                                                    alt={imageInfo.fileName || 'Shared image'}
+                                                    className="max-w-[280px] max-h-[300px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                      // Fallback if image fails to load
+                                                      const target = e.target as HTMLImageElement
+                                                      target.style.display = 'none'
+                                                      target.parentElement?.insertAdjacentHTML('afterbegin',
+                                                        `<div class="px-3 py-2 text-sm">📷 ${imageInfo.fileName || 'Image'}</div>`)
+                                                    }}
+                                                  />
+                                                </a>
+                                                {imageInfo.fileName && (
+                                                  <p className={`text-xs px-2 pb-1 truncate max-w-[280px] ${isOwnMessage ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                                                    {imageInfo.fileName}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            ) : fileInfo.isFile && fileInfo.fileUrl ? (
+                                              // Render file attachment
+                                              <a
+                                                href={fileInfo.fileUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className={`flex items-center gap-2 hover:opacity-80 transition-opacity ${isOwnMessage ? 'text-white dark:text-neutral-900' : 'text-neutral-900 dark:text-neutral-100'}`}
+                                              >
+                                                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                </svg>
+                                                <span className="text-sm truncate max-w-[200px]">{fileInfo.fileName || 'File'}</span>
+                                                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                </svg>
+                                              </a>
+                                            ) : (
+                                              // Regular text message
+                                              <p className="text-sm whitespace-pre-wrap break-words">
+                                                {msg.content}
+                                              </p>
+                                            )}
+                                            <span className={`text-xs mt-1 block ${imageInfo.isImage ? 'px-2' : ''} ${isOwnMessage && !isDeleted ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+
+                                            {/* Delete button - shows on click */}
+                                            {!isDeleted && canDelete && selectedMessageId === msg.id && (
+                                              <div className="absolute -top-1 -right-1 z-10">
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleDeleteMessage(msg.id)
+                                                  }}
+                                                  className="px-2 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition whitespace-nowrap shadow-lg"
+                                                >
+                                                  Delete
+                                                </button>
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
+                                        )
+                                      })()}
                                     </div>
                                   </div>
                                 </div>

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const { searchParams } = new URL(request.url)
-    const type = searchParams.get('type') || 'all' // all, dm, group, session, flagged
+    const type = searchParams.get('type') || 'all' // all, dm, group, session, flagged, images
     const search = searchParams.get('search') || ''
     const userId = searchParams.get('userId') || ''
     const status = searchParams.get('status') || '' // For flagged: pending, approved, removed
@@ -41,7 +41,70 @@ export async function GET(request: NextRequest) {
     let messages: any[] = []
     let totalCount = 0
 
-    if (type === 'flagged') {
+    // NEW: Images filter - fetch all messages with image attachments
+    if (type === 'images') {
+      const imageWhereClause: any = {
+        isDeleted: false,
+        OR: [
+          { type: 'IMAGE' },
+          { fileUrl: { not: null } },
+          { content: { startsWith: '[Image:' } },
+        ],
+      }
+      if (search) {
+        imageWhereClause.AND = [
+          {
+            OR: [
+              { content: { contains: search, mode: 'insensitive' } },
+              { sender: { name: { contains: search, mode: 'insensitive' } } },
+              { sender: { email: { contains: search, mode: 'insensitive' } } },
+              { senderName: { contains: search, mode: 'insensitive' } },
+              { senderEmail: { contains: search, mode: 'insensitive' } },
+              { fileName: { contains: search, mode: 'insensitive' } },
+            ],
+          },
+        ]
+      }
+      if (userId) {
+        imageWhereClause.senderId = userId
+      }
+
+      const [imageMessages, imageCount] = await Promise.all([
+        prisma.message.findMany({
+          where: imageWhereClause,
+          include: {
+            sender: { select: { id: true, name: true, email: true, avatarUrl: true } },
+            group: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.message.count({ where: imageWhereClause }),
+      ])
+
+      messages = imageMessages.map((m) => ({
+        id: m.id,
+        type: m.groupId ? 'GROUP_MESSAGE' : 'DIRECT_MESSAGE',
+        content: m.content,
+        senderId: m.senderId,
+        senderEmail: m.sender?.email || m.senderEmail || '[Deleted User]',
+        senderName: m.sender?.name || m.senderName || 'Deleted User',
+        senderAvatar: m.sender?.avatarUrl || m.senderAvatarUrl,
+        senderDeleted: !m.sender,
+        conversationId: m.groupId || m.recipientId,
+        conversationType: m.groupId ? 'group' : 'partner',
+        groupName: m.group?.name,
+        createdAt: m.createdAt,
+        isFlagged: false,
+        // File/image attachments
+        fileUrl: m.fileUrl,
+        fileName: m.fileName,
+        fileSize: m.fileSize,
+        messageType: m.type,
+      }))
+      totalCount = imageCount
+    } else if (type === 'flagged') {
       // Fetch flagged content
       const whereClause: any = {}
       if (status) {
@@ -139,6 +202,11 @@ export async function GET(request: NextRequest) {
           conversationType: 'partner',
           createdAt: m.createdAt,
           isFlagged: false,
+          // File/image attachments
+          fileUrl: m.fileUrl,
+          fileName: m.fileName,
+          fileSize: m.fileSize,
+          messageType: m.type, // TEXT, IMAGE, FILE, etc.
         })))
         if (type === 'dm') totalCount = dmCount
       }
@@ -174,6 +242,11 @@ export async function GET(request: NextRequest) {
           groupName: m.group?.name,
           createdAt: m.createdAt,
           isFlagged: false,
+          // File/image attachments
+          fileUrl: m.fileUrl,
+          fileName: m.fileName,
+          fileSize: m.fileSize,
+          messageType: m.type, // TEXT, IMAGE, FILE, etc.
         })))
         if (type === 'group') totalCount = groupCount
       }

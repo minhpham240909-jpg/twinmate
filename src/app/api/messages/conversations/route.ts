@@ -191,7 +191,8 @@ export async function GET(request: Request) {
             callStatus: true,
             createdAt: true,
             senderId: true,
-            recipientId: true
+            recipientId: true,
+            deletedAt: true, // Include deletedAt to check for deleted messages
           },
           orderBy: {
             createdAt: 'desc'
@@ -226,7 +227,8 @@ export async function GET(request: Request) {
             callDuration: true,
             callStatus: true,
             createdAt: true,
-            groupId: true
+            groupId: true,
+            deletedAt: true, // Include deletedAt to check for deleted messages
           },
           orderBy: { createdAt: 'desc' },
           distinct: ['groupId'],
@@ -255,10 +257,10 @@ export async function GET(request: Request) {
     messageData.forEach(data => {
       if (data.type === 'partner') {
         // Group messages by partner and get the most recent for each
-        const lastMessageMap = new Map<string, { content: string; createdAt: Date; senderId: string | null; recipientId: string | null }>()
+        const lastMessageMap = new Map<string, { content: string; createdAt: Date; senderId: string | null; recipientId: string | null; deletedAt: Date | null }>()
 
         data.results.forEach((msg: unknown) => {
-          const message = msg as { senderId: string | null; recipientId: string | null; content: string; createdAt: Date }
+          const message = msg as { senderId: string | null; recipientId: string | null; content: string; createdAt: Date; deletedAt: Date | null }
           const partnerId = message.senderId === userId ? message.recipientId : message.senderId
 
           if (partnerId && !lastMessageMap.has(partnerId)) {
@@ -270,7 +272,8 @@ export async function GET(request: Request) {
         partners.forEach(partner => {
           const lastMsg = lastMessageMap.get(partner.id)
           if (lastMsg) {
-            partner.lastMessage = lastMsg.content
+            // Check if message is deleted - show "Message deleted" instead of actual content
+            partner.lastMessage = lastMsg.deletedAt ? 'Message deleted' : lastMsg.content
             partner.lastMessageTime = lastMsg.createdAt
           }
         })
@@ -286,11 +289,12 @@ export async function GET(request: Request) {
       } else if (data.type === 'group') {
         // Use groupMap for O(1) lookup instead of .find()
         data.results.forEach((msg: unknown) => {
-          const message = msg as { groupId: string | null; content: string; createdAt: Date }
+          const message = msg as { groupId: string | null; content: string; createdAt: Date; deletedAt: Date | null }
           if (message.groupId) {
             const group = groupMap.get(message.groupId)
             if (group) {
-              group.lastMessage = message.content
+              // Check if message is deleted - show "Message deleted" instead of actual content
+              group.lastMessage = message.deletedAt ? 'Message deleted' : message.content
               group.lastMessageTime = message.createdAt
             }
           }
