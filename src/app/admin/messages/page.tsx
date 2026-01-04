@@ -212,7 +212,18 @@ export default function AdminMessagesPage() {
 
   // Permanently delete a message (admin only - cannot be undone)
   const handlePermanentDelete = async () => {
-    if (!selectedMessage || !selectedMessage.id) return
+    if (!selectedMessage) return
+
+    // For flagged messages, use contentId (the actual message ID)
+    // For non-flagged messages, use id directly
+    const messageId = selectedMessage.isFlagged && selectedMessage.contentId
+      ? selectedMessage.contentId
+      : selectedMessage.id
+
+    if (!messageId) {
+      alert('Cannot delete: message ID not found')
+      return
+    }
 
     setIsActioning(true)
     try {
@@ -220,7 +231,7 @@ export default function AdminMessagesPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messageId: selectedMessage.id,
+          messageId,
           messageType: selectedMessage.type,
         }),
       })
@@ -800,56 +811,54 @@ export default function AdminMessagesPage() {
                 </div>
               )}
 
-              {/* Admin Permanent Delete Section - for non-flagged messages */}
-              {!selectedMessage.isFlagged && (
-                <div className="pt-4 border-t border-gray-700">
-                  {!showDeleteConfirm ? (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 rounded-lg text-red-400 text-sm transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Permanently Delete Message
-                    </button>
-                  ) : (
-                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg space-y-3">
-                      <div className="flex items-center gap-2 text-red-400">
-                        <AlertTriangle className="w-5 h-5" />
-                        <span className="font-medium">Confirm Permanent Deletion</span>
-                      </div>
-                      <p className="text-sm text-gray-400">
-                        This action cannot be undone. The message will be permanently removed from the database.
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handlePermanentDelete}
-                          disabled={isActioning}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
-                        >
-                          {isActioning ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Deleting...
-                            </>
-                          ) : (
-                            <>
-                              <Trash2 className="w-4 h-4" />
-                              Yes, Delete Forever
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteConfirm(false)}
-                          disabled={isActioning}
-                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm transition-colors disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+              {/* Admin Permanent Delete Section - available for ALL messages */}
+              <div className="pt-4 border-t border-gray-700">
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 rounded-lg text-red-400 text-sm transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Permanently Delete Message
+                  </button>
+                ) : (
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2 text-red-400">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="font-medium">Confirm Permanent Deletion</span>
                     </div>
-                  )}
-                </div>
-              )}
+                    <p className="text-sm text-gray-400">
+                      This action cannot be undone. The message will be permanently removed from the database.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handlePermanentDelete}
+                        disabled={isActioning}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isActioning ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4" />
+                            Yes, Delete Forever
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={isActioning}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm transition-colors disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

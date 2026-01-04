@@ -98,7 +98,9 @@ export default function AdminSettingsPage() {
       const data = await response.json()
       if (data.success) {
         // Filter out users who are already admins
-        const nonAdmins = data.data.filter((u: SearchUser) => !u.isAdmin)
+        // API returns data.users (not data.data)
+        const users = data.users || []
+        const nonAdmins = users.filter((u: SearchUser) => !u.isAdmin)
         setSearchResults(nonAdmins)
       }
     } catch (error) {

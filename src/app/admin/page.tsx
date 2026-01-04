@@ -84,6 +84,15 @@ interface RecentUser {
   signupMethod: string
 }
 
+// AI Partner quick stats for dashboard
+interface AIPartnerQuickStats {
+  totalSessions: number
+  totalMessages: number
+  activeSessions: number
+  flaggedMessages: number
+  error?: string
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [growthData, setGrowthData] = useState<GrowthDataPoint[]>([])
@@ -91,6 +100,10 @@ export default function AdminDashboard() {
   const [onlineUsersData, setOnlineUsersData] = useState<OnlineUsersData | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  // AI Partner quick stats
+  const [aiPartnerStats, setAiPartnerStats] = useState<AIPartnerQuickStats | null>(null)
+  const [aiPartnerLoading, setAiPartnerLoading] = useState(true)
 
   // Real-time WebSocket connection for live updates
   // Replaces polling with Supabase Realtime for ~80% reduction in database load
@@ -165,11 +178,48 @@ export default function AdminDashboard() {
     }
   }, [])
 
+  // Fetch AI Partner quick stats for dashboard overview
+  const fetchAIPartnerStats = useCallback(async () => {
+    setAiPartnerLoading(true)
+    try {
+      const response = await fetch('/api/admin/ai-partner/analytics')
+      const result = await response.json()
+      if (result.success && result.data) {
+        setAiPartnerStats({
+          totalSessions: result.data.overview?.totalSessions || 0,
+          totalMessages: result.data.overview?.totalMessages || 0,
+          activeSessions: result.data.overview?.activeSessions || 0,
+          flaggedMessages: result.data.moderation?.flaggedMessages || 0,
+        })
+      } else {
+        setAiPartnerStats({
+          totalSessions: 0,
+          totalMessages: 0,
+          activeSessions: 0,
+          flaggedMessages: 0,
+          error: result.error || 'Failed to load',
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch AI Partner stats:', err)
+      setAiPartnerStats({
+        totalSessions: 0,
+        totalMessages: 0,
+        activeSessions: 0,
+        flaggedMessages: 0,
+        error: 'Failed to fetch AI Partner sessions',
+      })
+    } finally {
+      setAiPartnerLoading(false)
+    }
+  }, [])
+
   // Initial data fetch
   useEffect(() => {
     fetchDashboardData()
     fetchOnlineUsersDetails()
-  }, [fetchDashboardData, fetchOnlineUsersDetails])
+    fetchAIPartnerStats()
+  }, [fetchDashboardData, fetchOnlineUsersDetails, fetchAIPartnerStats])
 
   // Refresh online users details when realtime count changes significantly
   useEffect(() => {
@@ -184,11 +234,12 @@ export default function AdminDashboard() {
     await Promise.all([
       fetchDashboardData(false),
       fetchOnlineUsersDetails(),
+      fetchAIPartnerStats(),
       refreshRealtime(),
     ])
     setIsRefreshing(false)
     setLastUpdated(new Date())
-  }, [fetchDashboardData, fetchOnlineUsersDetails, refreshRealtime])
+  }, [fetchDashboardData, fetchOnlineUsersDetails, fetchAIPartnerStats, refreshRealtime])
 
   // Merge realtime data with fetched data
   const onlineUsers = useMemo(() => {
@@ -652,34 +703,60 @@ export default function AdminDashboard() {
             href="/admin/ai-partner"
             className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
           >
-            <p className="text-2xl font-bold text-blue-400">-</p>
+            {aiPartnerLoading ? (
+              <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+            ) : aiPartnerStats?.error ? (
+              <p className="text-sm text-red-400">{aiPartnerStats.error}</p>
+            ) : (
+              <p className="text-2xl font-bold text-blue-400">{formatNumber(aiPartnerStats?.totalSessions || 0)}</p>
+            )}
             <p className="text-xs text-gray-400">Total Sessions</p>
           </Link>
           <Link
             href="/admin/ai-partner"
             className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
           >
-            <p className="text-2xl font-bold text-blue-400">-</p>
+            {aiPartnerLoading ? (
+              <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+            ) : aiPartnerStats?.error ? (
+              <p className="text-sm text-red-400">{aiPartnerStats.error}</p>
+            ) : (
+              <p className="text-2xl font-bold text-blue-400">{formatNumber(aiPartnerStats?.totalMessages || 0)}</p>
+            )}
             <p className="text-xs text-gray-400">AI Messages</p>
           </Link>
           <Link
             href="/admin/ai-partner/sessions?status=ACTIVE"
             className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
           >
-            <p className="text-2xl font-bold text-green-400">-</p>
+            {aiPartnerLoading ? (
+              <Loader2 className="w-6 h-6 text-green-400 animate-spin" />
+            ) : aiPartnerStats?.error ? (
+              <p className="text-sm text-red-400">{aiPartnerStats.error}</p>
+            ) : (
+              <p className="text-2xl font-bold text-green-400">{aiPartnerStats?.activeSessions || 0}</p>
+            )}
             <p className="text-xs text-gray-400">Active Now</p>
           </Link>
           <Link
             href="/admin/ai-partner/sessions?flagged=true"
             className="p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors"
           >
-            <p className="text-2xl font-bold text-red-400">-</p>
+            {aiPartnerLoading ? (
+              <Loader2 className="w-6 h-6 text-red-400 animate-spin" />
+            ) : aiPartnerStats?.error ? (
+              <p className="text-sm text-red-400">{aiPartnerStats.error}</p>
+            ) : (
+              <p className="text-2xl font-bold text-red-400">{aiPartnerStats?.flaggedMessages || 0}</p>
+            )}
             <p className="text-xs text-gray-400">Flagged</p>
           </Link>
         </div>
-        <p className="text-xs text-gray-500 mt-3 text-center">
-          Click &quot;View Full Analytics&quot; to see real-time AI Partner data
-        </p>
+        {aiPartnerStats?.error && (
+          <p className="text-xs text-red-400 mt-3 text-center">
+            {aiPartnerStats.error}
+          </p>
+        )}
       </div>
 
       {/* Quick Actions */}

@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import Image from 'next/image'
 
 export default function Footer() {
   const handleFeaturesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -43,7 +42,6 @@ export default function Footer() {
               transition={{ duration: 0.5 }}
             >
               <Link href="/" className="flex items-center gap-2 mb-4">
-                <Image src="/logo.png" alt="Clerva" width={100} height={32} className="h-8 w-auto" />
                 <span className="text-slate-900 text-xl font-bold tracking-tight">
                   Clerva
                 </span>
@@ -148,7 +146,7 @@ export default function Footer() {
           className="text-center"
         >
           <p className="text-slate-500 text-sm">
-            © 2025 Clerva™
+            © 2025 Clerva
           </p>
         </motion.div>
       </div>
