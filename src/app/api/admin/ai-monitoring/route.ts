@@ -54,116 +54,134 @@ export async function GET(request: NextRequest) {
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     }
 
-    // Get database stats
-    const [
-      periodLogs,
-      errorLogs,
-      operationStats,
-      modelStats,
-      dailySummaries,
-      recentLogs,
-      topUsers,
-      cacheStats,
-      // Smart routing specific stats
-      cachedRequests,
-      miniModelRequests,
-      fullModelRequests,
-    ] = await Promise.all([
-      // Period logs count
-      prisma.aIUsageLog.count({
-        where: { createdAt: { gte: startDate } },
-      }),
+    // Get database stats - wrapped in try/catch to handle missing tables gracefully
+    let periodLogs = 0
+    let errorLogs = 0
+    let operationStats: Array<{ operation: string; _count: { _all: number }; _sum: { totalTokens: number | null; estimatedCost: number | null }; _avg: { latencyMs: number | null } }> = []
+    let modelStats: Array<{ model: string; _count: { _all: number }; _sum: { totalTokens: number | null; estimatedCost: number | null } }> = []
+    let dailySummaries: Array<{ date: Date; totalRequests: number; totalTokens: number; totalCost: number; avgLatencyMs: number }> = []
+    let recentLogs: Array<any> = []
+    let topUsers: Array<{ userId: string | null; _count: { _all: number }; _sum: { totalTokens: number | null; estimatedCost: number | null } }> = []
+    let cacheStats: { _count: { _all: number }; _sum: { hitCount: number | null } } = { _count: { _all: 0 }, _sum: { hitCount: 0 } }
+    let cachedRequests = 0
+    let miniModelRequests = 0
+    let fullModelRequests = 0
 
-      // Error count in period
-      prisma.aIUsageLog.count({
-        where: { createdAt: { gte: startDate }, success: false },
-      }),
+    try {
+      // Run all queries in parallel with individual error handling
+      const results = await Promise.all([
+        // Period logs count
+        prisma.aIUsageLog.count({
+          where: { createdAt: { gte: startDate } },
+        }).catch(() => 0),
 
-      // Stats by operation
-      prisma.aIUsageLog.groupBy({
-        by: ['operation'],
-        where: { createdAt: { gte: startDate } },
-        _count: { _all: true },
-        _sum: { totalTokens: true, estimatedCost: true },
-        _avg: { latencyMs: true },
-      }),
+        // Error count in period
+        prisma.aIUsageLog.count({
+          where: { createdAt: { gte: startDate }, success: false },
+        }).catch(() => 0),
 
-      // Stats by model
-      prisma.aIUsageLog.groupBy({
-        by: ['model'],
-        where: { createdAt: { gte: startDate } },
-        _count: { _all: true },
-        _sum: { totalTokens: true, estimatedCost: true },
-      }),
+        // Stats by operation
+        prisma.aIUsageLog.groupBy({
+          by: ['operation'],
+          where: { createdAt: { gte: startDate } },
+          _count: { _all: true },
+          _sum: { totalTokens: true, estimatedCost: true },
+          _avg: { latencyMs: true },
+        }).catch(() => []),
 
-      // Daily summaries for the period
-      prisma.aIUsageDailySummary.findMany({
-        where: { date: { gte: startDate } },
-        orderBy: { date: 'asc' },
-      }),
+        // Stats by model
+        prisma.aIUsageLog.groupBy({
+          by: ['model'],
+          where: { createdAt: { gte: startDate } },
+          _count: { _all: true },
+          _sum: { totalTokens: true, estimatedCost: true },
+        }).catch(() => []),
 
-      // Recent logs for detailed view
-      detailed ? prisma.aIUsageLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-        select: {
-          id: true,
-          userId: true,
-          operation: true,
-          model: true,
-          totalTokens: true,
-          estimatedCost: true,
-          latencyMs: true,
-          success: true,
-          errorMessage: true,
-          cached: true,
-          metadata: true,
-          createdAt: true,
-        },
-      }) : [],
+        // Daily summaries for the period
+        prisma.aIUsageDailySummary.findMany({
+          where: { date: { gte: startDate } },
+          orderBy: { date: 'asc' },
+        }).catch(() => []),
 
-      // Top users by usage
-      prisma.aIUsageLog.groupBy({
-        by: ['userId'],
-        where: {
-          createdAt: { gte: startDate },
-          userId: { not: null },
-        },
-        _count: { _all: true },
-        _sum: { totalTokens: true, estimatedCost: true },
-        orderBy: { _sum: { totalTokens: 'desc' } },
-        take: 10,
-      }),
+        // Recent logs for detailed view
+        detailed ? prisma.aIUsageLog.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+          select: {
+            id: true,
+            userId: true,
+            operation: true,
+            model: true,
+            totalTokens: true,
+            estimatedCost: true,
+            latencyMs: true,
+            success: true,
+            errorMessage: true,
+            cached: true,
+            metadata: true,
+            createdAt: true,
+          },
+        }).catch(() => []) : Promise.resolve([]),
 
-      // Cache stats
-      prisma.aIResponseCache.aggregate({
-        _count: { _all: true },
-        _sum: { hitCount: true },
-      }),
+        // Top users by usage
+        prisma.aIUsageLog.groupBy({
+          by: ['userId'],
+          where: {
+            createdAt: { gte: startDate },
+            userId: { not: null },
+          },
+          _count: { _all: true },
+          _sum: { totalTokens: true, estimatedCost: true },
+          orderBy: { _sum: { totalTokens: 'desc' } },
+          take: 10,
+        }).catch(() => []),
 
-      // Smart routing: Cached request count
-      prisma.aIUsageLog.count({
-        where: { createdAt: { gte: startDate }, cached: true },
-      }),
+        // Cache stats
+        prisma.aIResponseCache.aggregate({
+          _count: { _all: true },
+          _sum: { hitCount: true },
+        }).catch(() => ({ _count: { _all: 0 }, _sum: { hitCount: 0 } })),
 
-      // Smart routing: gpt-4o-mini requests (routed to cheaper model)
-      prisma.aIUsageLog.count({
-        where: {
-          createdAt: { gte: startDate },
-          model: { contains: 'mini' },
-          cached: false,
-        },
-      }),
+        // Smart routing: Cached request count
+        prisma.aIUsageLog.count({
+          where: { createdAt: { gte: startDate }, cached: true },
+        }).catch(() => 0),
 
-      // Smart routing: gpt-4o requests (routed to full model)
-      prisma.aIUsageLog.count({
-        where: {
-          createdAt: { gte: startDate },
-          model: { not: { contains: 'mini' } },
-          cached: false,
-        },
-      }),
-    ])
+        // Smart routing: gpt-4o-mini requests (routed to cheaper model)
+        prisma.aIUsageLog.count({
+          where: {
+            createdAt: { gte: startDate },
+            model: { contains: 'mini' },
+            cached: false,
+          },
+        }).catch(() => 0),
+
+        // Smart routing: gpt-4o requests (routed to full model)
+        prisma.aIUsageLog.count({
+          where: {
+            createdAt: { gte: startDate },
+            model: { not: { contains: 'mini' } },
+            cached: false,
+          },
+        }).catch(() => 0),
+      ])
+
+      // Assign results
+      periodLogs = results[0] as number
+      errorLogs = results[1] as number
+      operationStats = results[2] as typeof operationStats
+      modelStats = results[3] as typeof modelStats
+      dailySummaries = results[4] as typeof dailySummaries
+      recentLogs = results[5] as typeof recentLogs
+      topUsers = results[6] as typeof topUsers
+      cacheStats = results[7] as typeof cacheStats
+      cachedRequests = results[8] as number
+      miniModelRequests = results[9] as number
+      fullModelRequests = results[10] as number
+    } catch (dbError) {
+      // Log but continue - tables might not exist yet, we'll show empty stats
+      console.warn('[Admin AI Monitoring] Database query error (tables may not exist):', dbError)
+    }
 
     // Calculate aggregate stats
     const totalCost = operationStats.reduce((sum, op) => sum + (op._sum?.estimatedCost || 0), 0)
