@@ -2676,6 +2676,7 @@ function HistorySection() {
 // Individual History Components
 function StudyActivityHistory() {
   const t = useTranslations('settings')
+  const tCommon = useTranslations('common')
   const [sessions, setSessions] = useState<any[]>([])
   const [statistics, setStatistics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
