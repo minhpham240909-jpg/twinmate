@@ -179,10 +179,22 @@ export default function AdminDashboard() {
   }, [])
 
   // Fetch AI Partner quick stats for dashboard overview
-  const fetchAIPartnerStats = useCallback(async () => {
+  // Includes retry logic for transient auth/network issues
+  const fetchAIPartnerStats = useCallback(async (retryCount = 0) => {
     setAiPartnerLoading(true)
     try {
       const response = await fetch('/api/admin/ai-partner/analytics')
+
+      // Handle non-OK responses
+      if (!response.ok) {
+        // If unauthorized and this is first attempt, retry after short delay (auth may not be ready)
+        if ((response.status === 401 || response.status === 403) && retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return fetchAIPartnerStats(retryCount + 1)
+        }
+        throw new Error(`HTTP ${response.status}`)
+      }
+
       const result = await response.json()
       if (result.success && result.data) {
         setAiPartnerStats({
@@ -192,22 +204,28 @@ export default function AdminDashboard() {
           flaggedMessages: result.data.moderation?.flaggedMessages || 0,
         })
       } else {
+        // API returned success: false
         setAiPartnerStats({
           totalSessions: 0,
           totalMessages: 0,
           activeSessions: 0,
           flaggedMessages: 0,
-          error: result.error || 'Failed to load',
+          error: result.error || 'Failed to load AI stats',
         })
       }
     } catch (err) {
       console.error('Failed to fetch AI Partner stats:', err)
+      // Retry once on network error
+      if (retryCount < 1) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        return fetchAIPartnerStats(retryCount + 1)
+      }
       setAiPartnerStats({
         totalSessions: 0,
         totalMessages: 0,
         activeSessions: 0,
         flaggedMessages: 0,
-        error: 'Failed to fetch AI Partner sessions',
+        error: 'Failed to load AI stats',
       })
     } finally {
       setAiPartnerLoading(false)
