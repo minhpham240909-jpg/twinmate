@@ -411,6 +411,7 @@ export async function searchPartnersSmartly(
 
 /**
  * Fallback to text-based search when vector search is unavailable
+ * Uses a hybrid approach: Prisma for text fields + raw SQL for array substring matching
  */
 async function searchPartnersFallback(
   params: SemanticSearchParams,
@@ -441,8 +442,13 @@ async function searchPartnersFallback(
 
   // Add text search conditions (OR across all terms)
   if (uniqueTerms.length > 0) {
-    const searchConditions = uniqueTerms.map(term => ({
-      OR: [
+    // For each term, create OR conditions across all searchable fields
+    // We flatten the conditions so ANY term matching ANY field is a match
+    const allSearchConditions: Array<Record<string, unknown>> = []
+
+    for (const term of uniqueTerms) {
+      // Text field searches
+      allSearchConditions.push(
         { bio: { contains: term, mode: 'insensitive' as const } },
         { school: { contains: term, mode: 'insensitive' as const } },
         { aboutYourself: { contains: term, mode: 'insensitive' as const } },
@@ -452,10 +458,10 @@ async function searchPartnersFallback(
         { interestsCustomDescription: { contains: term, mode: 'insensitive' as const } },
         { location_city: { contains: term, mode: 'insensitive' as const } },
         { location_state: { contains: term, mode: 'insensitive' as const } },
-      ]
-    }))
+      )
+    }
 
-    whereConditions.AND.push({ OR: searchConditions })
+    whereConditions.AND.push({ OR: allSearchConditions })
   }
 
   // Add filters
@@ -482,7 +488,10 @@ async function searchPartnersFallback(
   }
 
   // Execute queries in parallel (no N+1!)
-  const [profiles, total] = await Promise.all([
+  // For array field searches, we use a separate raw SQL query since Prisma doesn't support
+  // substring search within array elements
+  const [textMatchProfiles, arrayMatchProfileIds] = await Promise.all([
+    // Standard text field search
     prisma.profile.findMany({
       where: whereConditions,
       select: {
@@ -517,8 +526,104 @@ async function searchPartnersFallback(
       take: limit * 3, // Fetch extra for scoring
       orderBy: { updatedAt: 'desc' }
     }),
-    prisma.profile.count({ where: whereConditions })
+    // Raw SQL for array field substring search
+    // This finds profiles where any subject/interest contains the search term
+    (async () => {
+      if (uniqueTerms.length === 0) return []
+
+      try {
+        // Use Prisma.sql for proper parameter interpolation
+        const { Prisma } = await import('@prisma/client')
+
+        // Build LIKE patterns for each term (limit to first 10 to avoid huge queries)
+        // For "math", this creates patterns like ['%math%', '%mathematics%', '%algebra%']
+        const patterns = uniqueTerms.slice(0, 10).map(t => `%${t.toLowerCase()}%`)
+
+        // Build the query based on whether we have exclude IDs
+        let results: Array<{ id: string }>
+
+        if (excludeUserIds.length > 0) {
+          results = await prisma.$queryRaw<Array<{ id: string }>>(
+            Prisma.sql`
+              SELECT DISTINCT p.id
+              FROM "Profile" p
+              WHERE p."userId" != ${excludeUserId}
+              AND p."userId" NOT IN (${Prisma.join(excludeUserIds)})
+              AND (
+                LOWER(array_to_string(p.subjects, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                OR LOWER(array_to_string(p.interests, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                OR LOWER(array_to_string(p.goals, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+              )
+              LIMIT ${limit * 3}
+            `
+          )
+        } else {
+          results = await prisma.$queryRaw<Array<{ id: string }>>(
+            Prisma.sql`
+              SELECT DISTINCT p.id
+              FROM "Profile" p
+              WHERE p."userId" != ${excludeUserId}
+              AND (
+                LOWER(array_to_string(p.subjects, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                OR LOWER(array_to_string(p.interests, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                OR LOWER(array_to_string(p.goals, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+              )
+              LIMIT ${limit * 3}
+            `
+          )
+        }
+
+        return results.map(r => r.id)
+      } catch (error) {
+        logger.warn('Array search query failed, skipping', { error })
+        return []
+      }
+    })()
   ])
+
+  // Fetch full profile data for array-matched profiles that weren't in text matches
+  const textMatchIds = new Set(textMatchProfiles.map(p => p.id))
+  const additionalIds = arrayMatchProfileIds.filter(id => !textMatchIds.has(id))
+
+  let additionalProfiles: typeof textMatchProfiles = []
+  if (additionalIds.length > 0) {
+    additionalProfiles = await prisma.profile.findMany({
+      where: { id: { in: additionalIds } },
+      select: {
+        id: true,
+        userId: true,
+        bio: true,
+        school: true,
+        languages: true,
+        subjects: true,
+        interests: true,
+        goals: true,
+        skillLevel: true,
+        studyStyle: true,
+        age: true,
+        location_city: true,
+        location_state: true,
+        location_country: true,
+        aboutYourself: true,
+        subjectCustomDescription: true,
+        skillLevelCustomDescription: true,
+        studyStyleCustomDescription: true,
+        interestsCustomDescription: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            lastLoginAt: true
+          }
+        }
+      }
+    })
+  }
+
+  // Combine all profiles
+  const profiles = [...textMatchProfiles, ...additionalProfiles]
+  const total = profiles.length
 
   // Calculate relevance scores
   const scoredResults: PartnerSearchResult[] = profiles.map(profile => {

@@ -36,7 +36,7 @@ import {
   validateStudyStyle,
   validateAgeRange,
 } from '@/lib/security/search-sanitization'
-import { searchPartnersSmartly, generateProfileEmbedding } from '@/lib/search'
+import { searchPartnersSmartly } from '@/lib/search'
 
 // ============================================
 // Input Validation Schema
@@ -522,9 +522,11 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
     })
   }
 
-  // Text search
+  // Text search - search in text fields
+  const searchTerms: string[] = []
   if (searchQuery && searchQuery.trim()) {
     const terms = searchQuery.toLowerCase().split(/\s+/).filter(t => t.length > 1)
+    searchTerms.push(...terms)
     if (terms.length > 0) {
       const searchConditions = terms.slice(0, 10).map(term => ({
         OR: [
@@ -541,7 +543,8 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
   }
 
   // Execute queries in parallel (NO N+1!)
-  const [profiles, total] = await Promise.all([
+  // Also do a raw SQL search for array fields (subjects, interests, goals)
+  const [textMatchProfiles, arrayMatchProfileIds] = await Promise.all([
     prisma.profile.findMany({
       where: whereConditions,
       select: {
@@ -574,8 +577,78 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
       take: limit,
       orderBy: { updatedAt: 'desc' }
     }),
-    prisma.profile.count({ where: whereConditions })
+    // Raw SQL for array field substring search
+    (async () => {
+      if (searchTerms.length === 0) return []
+
+      try {
+        const { Prisma } = await import('@prisma/client')
+
+        // Build LIKE patterns for each term
+        const patterns = searchTerms.slice(0, 10).map(t => `%${t.toLowerCase()}%`)
+
+        const results = await prisma.$queryRaw<Array<{ id: string }>>(
+          Prisma.sql`
+            SELECT DISTINCT p.id
+            FROM "Profile" p
+            WHERE p."userId" != ${userId}
+            ${excludeUserIds.length > 0 ? Prisma.sql`AND p."userId" NOT IN (${Prisma.join(excludeUserIds)})` : Prisma.empty}
+            AND (
+              LOWER(array_to_string(p.subjects, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+              OR LOWER(array_to_string(p.interests, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+              OR LOWER(array_to_string(p.goals, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+            )
+            LIMIT ${limit}
+          `
+        )
+
+        return results.map(r => r.id)
+      } catch (error) {
+        console.warn('Array search query failed, skipping', error)
+        return []
+      }
+    })()
   ])
+
+  // Fetch full profile data for array-matched profiles not in text matches
+  const textMatchIds = new Set(textMatchProfiles.map(p => p.id))
+  const additionalIds = arrayMatchProfileIds.filter(id => !textMatchIds.has(id))
+
+  let additionalProfiles: typeof textMatchProfiles = []
+  if (additionalIds.length > 0) {
+    additionalProfiles = await prisma.profile.findMany({
+      where: { id: { in: additionalIds } },
+      select: {
+        id: true,
+        userId: true,
+        bio: true,
+        school: true,
+        languages: true,
+        subjects: true,
+        interests: true,
+        goals: true,
+        skillLevel: true,
+        studyStyle: true,
+        age: true,
+        location_city: true,
+        location_state: true,
+        location_country: true,
+        aboutYourself: true,
+        subjectCustomDescription: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            lastLoginAt: true
+          }
+        }
+      }
+    })
+  }
+
+  const profiles = [...textMatchProfiles, ...additionalProfiles]
+  const total = profiles.length
 
   // Transform to match semantic search result format
   const formattedProfiles = profiles.map(profile => ({

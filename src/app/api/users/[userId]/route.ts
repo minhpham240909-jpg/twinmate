@@ -183,8 +183,7 @@ export async function GET(
             createdAt: true,
             presence: {
               select: {
-                // @ts-ignore - Prisma type inference issue
-                onlineStatus: true,
+                status: true,
               },
             },
           },
@@ -326,8 +325,8 @@ export async function GET(
     // Safely get online status
     let onlineStatus = null
     try {
-      if (connectionStatus === 'connected' && dbUser.presence?.onlineStatus) {
-        onlineStatus = dbUser.presence.onlineStatus
+      if (connectionStatus === 'connected' && dbUser.presence?.status) {
+        onlineStatus = dbUser.presence.status
       }
     } catch (error) {
       console.warn('Error getting online status:', error)
