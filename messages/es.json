@@ -511,7 +511,16 @@
     "readyToStartJourney": "¿Listo para comenzar tu viaje de aprendizaje?",
     "connectWithPartners": "Completa tu perfil para conectarte con compañeros de estudio",
     "searchPlaceholder": "Buscar compañeros, grupos...",
-    "failedToLoadPartners": "Error al cargar compañeros de estudio"
+    "failedToLoadPartners": "Error al cargar compañeros de estudio",
+    "aiPartner": "Compañero de Estudio IA",
+    "aiPartnerDescription": "Estudia con un compañero IA en cualquier momento, sobre cualquier tema",
+    "startStudying": "Empezar a Estudiar",
+    "aiPartnerModalSubtitle": "Tu asistente de estudio personal con IA",
+    "whatWouldYouLikeToStudy": "¿Qué te gustaría estudiar?",
+    "aiPartnerInputPlaceholder": "ej., Cálculo, Español, Aprendizaje Automático...",
+    "aiPartnerInputHint": "Ingresa cualquier tema o materia que quieras aprender",
+    "aiWillMatchSearch": "Te ayudaré a estudiar:",
+    "starting": "Iniciando..."
   },
   "community": {
     "title": "Comunidad",

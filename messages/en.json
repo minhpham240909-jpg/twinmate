@@ -513,7 +513,16 @@
     "readyToStartJourney": "Ready to start your learning journey?",
     "connectWithPartners": "Complete your profile to connect with study partners",
     "searchPlaceholder": "Search partners, groups...",
-    "failedToLoadPartners": "Failed to load study partners"
+    "failedToLoadPartners": "Failed to load study partners",
+    "aiPartner": "AI Study Partner",
+    "aiPartnerDescription": "Study with an AI partner anytime, on any subject",
+    "startStudying": "Start Studying",
+    "aiPartnerModalSubtitle": "Your personal AI study assistant",
+    "whatWouldYouLikeToStudy": "What would you like to study?",
+    "aiPartnerInputPlaceholder": "e.g., Calculus, Spanish, Machine Learning...",
+    "aiPartnerInputHint": "Enter any topic or subject you want to learn",
+    "aiWillMatchSearch": "I'll help you study:",
+    "starting": "Starting..."
   },
   "community": {
     "title": "Community",
