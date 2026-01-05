@@ -31,11 +31,12 @@ export async function GET(request: Request) {
       },
     })
 
-    // Delete avatar from storage for expired groups
-    for (const group of expiredGroups) {
-      if (group.avatarUrl) {
+    // Delete avatars from storage for expired groups (parallel execution to avoid N+1)
+    const avatarDeletionPromises = expiredGroups
+      .filter(group => group.avatarUrl)
+      .map(async (group) => {
         try {
-          const urlParts = group.avatarUrl.split('/')
+          const urlParts = group.avatarUrl!.split('/')
           const fileName = urlParts[urlParts.length - 1]
           if (fileName) {
             await supabase.storage.from('groups').remove([fileName])
@@ -43,8 +44,9 @@ export async function GET(request: Request) {
         } catch (error) {
           console.error('Error deleting group avatar:', error)
         }
-      }
-    }
+      })
+
+    await Promise.all(avatarDeletionPromises)
 
     // Permanently delete expired groups (cascade will handle members, messages, invites)
     await prisma.group.deleteMany({

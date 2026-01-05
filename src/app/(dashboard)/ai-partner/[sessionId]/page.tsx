@@ -21,8 +21,9 @@ import {
   Sparkles,
 } from 'lucide-react'
 // Regular imports for light components
-import AIPartnerSessionTimer from '@/components/ai-partner/AIPartnerSessionTimer'
+import AIPartnerSessionTimer, { TimerState } from '@/components/ai-partner/AIPartnerSessionTimer'
 import EndSessionModal from '@/components/ai-partner/EndSessionModal'
+import StartTimerPromptModal from '@/components/ai-partner/StartTimerPromptModal'
 import PartnerAvailableNotification from '@/components/ai-partner/PartnerAvailableNotification'
 import InteractiveQuiz, { QuizQuestion, WrongAnswerDetail } from '@/components/ai-partner/InteractiveQuiz'
 import type { QuizConfig } from '@/components/ai-partner/AIPartnerChat'
@@ -114,6 +115,14 @@ export default function AIPartnerSessionPage({
   // This is the key metric for analytics - NOT total session duration
   const [focusTime, setFocusTime] = useState(0)
 
+  // Timer state tracking - users must start timer before using AI features
+  const [timerState, setTimerState] = useState<TimerState>('idle')
+  const [showTimerPrompt, setShowTimerPrompt] = useState(false)
+  const [externalStartTrigger, setExternalStartTrigger] = useState(0)
+
+  // Check if timer is active (study or break mode - user has started the timer)
+  const isTimerActive = timerState === 'study' || timerState === 'break'
+
   // Interactive quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
   const [showInteractiveQuiz, setShowInteractiveQuiz] = useState(false)
@@ -197,7 +206,18 @@ export default function AIPartnerSessionPage({
     setProactiveSuggestion({ show: false, type: 'none' })
   }
 
+  // Handler to start timer from modal
+  const handleStartTimerFromModal = () => {
+    setExternalStartTrigger((prev) => prev + 1)
+  }
+
   const handleSendMessage = async (content: string) => {
+    // Check if timer is active before allowing messages
+    if (!isTimerActive) {
+      setShowTimerPrompt(true)
+      return
+    }
+
     setIsSending(true)
     setError(null)
 
@@ -379,6 +399,12 @@ export default function AIPartnerSessionPage({
   }
 
   const handleGenerateQuiz = async (config: QuizConfig) => {
+    // Check if timer is active before allowing quiz generation
+    if (!isTimerActive) {
+      setShowTimerPrompt(true)
+      return
+    }
+
     setIsSending(true)
     // Store config for Try Again
     setQuizConfig(config)
@@ -497,6 +523,12 @@ export default function AIPartnerSessionPage({
   }
 
   const handleSendMessageWithImage = async (content: string, imageBase64: string, imageMimeType: string) => {
+    // Check if timer is active before allowing image messages
+    if (!isTimerActive) {
+      setShowTimerPrompt(true)
+      return
+    }
+
     setIsSending(true)
     setError(null)
 
@@ -569,6 +601,12 @@ export default function AIPartnerSessionPage({
 
   // Chat-driven image generation (no button). Called when user types an inline image command.
   const handleGenerateImage = async (prompt: string, style: string = 'diagram') => {
+    // Check if timer is active before allowing image generation
+    if (!isTimerActive) {
+      setShowTimerPrompt(true)
+      return
+    }
+
     setIsSending(true)
     setError(null)
 
@@ -908,6 +946,7 @@ export default function AIPartnerSessionPage({
                 onGenerateQuiz={handleGenerateQuiz}
                 isLoading={isSending}
                 subject={session.subject}
+                isTimerActive={isTimerActive}
               />
             )}
 
@@ -943,6 +982,8 @@ export default function AIPartnerSessionPage({
               console.log(isBreak ? 'Break complete!' : 'Study session complete!')
             }}
             onFocusTimeUpdate={(time) => setFocusTime(time)}
+            onTimerStateChange={(state) => setTimerState(state)}
+            externalStartTrigger={externalStartTrigger}
           />
 
           {/* Study Goal */}
@@ -1039,6 +1080,13 @@ export default function AIPartnerSessionPage({
           messageCount: messages.filter((m) => m.role !== 'SYSTEM').length,
           quizCount: messages.filter((m) => m.messageType === 'QUIZ').length,
         }}
+      />
+
+      {/* Start Timer Prompt Modal - shown when user tries to use AI without starting timer */}
+      <StartTimerPromptModal
+        isOpen={showTimerPrompt}
+        onClose={() => setShowTimerPrompt(false)}
+        onStartTimer={handleStartTimerFromModal}
       />
 
       {/* Real Partner Available Notification */}

@@ -4,18 +4,23 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Pause, RotateCcw, Coffee, Clock, Zap } from 'lucide-react'
 
+// Timer state type exported for use in parent components
+export type TimerState = 'idle' | 'study' | 'break' | 'paused'
+
 interface AIPartnerSessionTimerProps {
   sessionStartedAt: Date | string
   onTimerComplete?: (isBreak: boolean) => void
   onFocusTimeUpdate?: (focusTime: number) => void // Callback to report focus time in seconds
+  onTimerStateChange?: (state: TimerState) => void // Callback when timer state changes
+  externalStartTrigger?: number // Increment to trigger timer start externally
 }
-
-type TimerState = 'idle' | 'study' | 'break' | 'paused'
 
 export default function AIPartnerSessionTimer({
   sessionStartedAt,
   onTimerComplete,
   onFocusTimeUpdate,
+  onTimerStateChange,
+  externalStartTrigger,
 }: AIPartnerSessionTimerProps) {
   // Pomodoro settings (in seconds)
   const STUDY_DURATION = 25 * 60 // 25 minutes
@@ -25,6 +30,19 @@ export default function AIPartnerSessionTimer({
   const [timeRemaining, setTimeRemaining] = useState(STUDY_DURATION)
   const [cycle, setCycle] = useState(1)
   const [totalStudyTime, setTotalStudyTime] = useState(0)
+
+  // Notify parent when timer state changes
+  useEffect(() => {
+    onTimerStateChange?.(timerState)
+  }, [timerState, onTimerStateChange])
+
+  // Handle external trigger to start timer (from parent component)
+  useEffect(() => {
+    if (externalStartTrigger && externalStartTrigger > 0 && timerState === 'idle') {
+      setTimerState('study')
+      setTimeRemaining(STUDY_DURATION)
+    }
+  }, [externalStartTrigger, timerState, STUDY_DURATION])
 
   // Calculate session duration
   const [sessionDuration, setSessionDuration] = useState(0)

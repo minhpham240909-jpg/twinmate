@@ -15,6 +15,7 @@ import {
   ImageIcon,
   Upload,
   ZoomIn,
+  Timer,
 } from 'lucide-react'
 import QuizModal from './QuizModal'
 
@@ -46,6 +47,7 @@ interface AIPartnerChatProps {
   onGenerateQuiz: (config: QuizConfig) => Promise<void>
   isLoading?: boolean
   subject?: string | null
+  isTimerActive?: boolean // Whether the Pomodoro timer is running (required for AI features)
 }
 
 export default function AIPartnerChat({
@@ -58,6 +60,7 @@ export default function AIPartnerChat({
   onGenerateQuiz,
   isLoading = false,
   subject,
+  isTimerActive = true, // Default to true for backwards compatibility
 }: AIPartnerChatProps) {
   const t = useTranslations('aiPartner')
   const [input, setInput] = useState('')
@@ -397,6 +400,16 @@ export default function AIPartnerChat({
         </div>
       )}
 
+      {/* Timer Required Banner - shown when timer is not active */}
+      {!isTimerActive && (
+        <div className="px-4 py-3 bg-amber-500/10 border-t border-amber-500/20">
+          <div className="flex items-center gap-2 text-sm text-amber-200">
+            <Timer className="w-4 h-4 text-amber-400" />
+            <span>Start the Pomodoro timer to begin chatting with your AI study partner.</span>
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-800/50">
         <div className="flex gap-3 items-end">
@@ -410,9 +423,9 @@ export default function AIPartnerChat({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading || isSending}
+            disabled={isLoading || isSending || !isTimerActive}
             className="p-3 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t('chat.uploadImage')}
+            title={!isTimerActive ? 'Start the timer first' : t('chat.uploadImage')}
           >
             <ImageIcon className="w-5 h-5" />
           </button>
@@ -421,15 +434,16 @@ export default function AIPartnerChat({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder={selectedImage ? t('chat.askAboutImage') : t('chat.typeMessage')}
+            placeholder={!isTimerActive ? 'Start the timer to chat...' : (selectedImage ? t('chat.askAboutImage') : t('chat.typeMessage'))}
             rows={1}
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
-          disabled={isLoading || isSending}
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none disabled:opacity-60"
+            disabled={isLoading || isSending || !isTimerActive}
           />
           <button
             onClick={handleSend}
-          disabled={(!input.trim() && !selectedImage) || isLoading || isSending}
+            disabled={(!input.trim() && !selectedImage) || isLoading || isSending || !isTimerActive}
             className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!isTimerActive ? 'Start the timer first' : undefined}
           >
             {isSending ? (
               <Loader2 className="w-5 h-5 animate-spin" />
