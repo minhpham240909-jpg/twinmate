@@ -130,7 +130,7 @@ export default function StudyCallPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
       return
     }
 

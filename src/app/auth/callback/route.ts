@@ -140,7 +140,7 @@ export async function GET(request: Request) {
       }
 
       // If no session, redirect to signin
-      return NextResponse.redirect(new URL('/auth/signin', requestUrl.origin))
+      return NextResponse.redirect(new URL('/auth', requestUrl.origin))
     } catch (err) {
       console.error('Callback error:', err)
       return NextResponse.redirect(new URL('/auth/error?message=Authentication+failed', requestUrl.origin))
@@ -148,5 +148,5 @@ export async function GET(request: Request) {
   }
 
   // No code present, redirect to sign in
-  return NextResponse.redirect(new URL('/auth/signin', requestUrl.origin))
+  return NextResponse.redirect(new URL('/auth', requestUrl.origin))
 }

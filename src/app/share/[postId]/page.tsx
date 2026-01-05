@@ -95,7 +95,7 @@ export default function SharedPostPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Post Not Found</h1>
           <p className="text-gray-700 dark:text-slate-300 mb-6">{error || 'This post may have been removed or is no longer available.'}</p>
           <Link
-            href="/auth/signin"
+            href="/auth"
             className="inline-block px-6 py-3 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-300 rounded-lg hover:bg-blue-500/30 hover:scale-105 transition-all font-semibold shadow-lg shadow-blue-500/20"
           >
             Go to TwinMate
@@ -113,7 +113,7 @@ export default function SharedPostPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">TwinMate</h1>
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="px-4 py-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-300 rounded-lg hover:bg-blue-500/30 hover:scale-105 transition-all text-sm font-semibold shadow-lg shadow-blue-500/20"
             >
               Sign In
@@ -217,7 +217,7 @@ export default function SharedPostPage() {
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700/50">
             <Bounce>
               <Link
-                href="/auth/signin"
+                href="/auth"
                 className="w-full block text-center px-4 py-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-300 rounded-lg hover:bg-blue-500/30 hover:scale-105 transition-all font-semibold shadow-lg shadow-blue-500/20"
               >
                 Sign in to like and comment
@@ -252,7 +252,7 @@ export default function SharedPostPage() {
               ))}
               {post.hasMoreComments && (
                 <Link
-                  href="/auth/signin"
+                  href="/auth"
                   className="block text-center text-sm text-blue-400 hover:text-blue-300 font-medium"
                 >
                   Sign in to see more comments
@@ -268,13 +268,13 @@ export default function SharedPostPage() {
           <p className="text-blue-700 dark:text-blue-200 mb-6">Join TwinMate to connect with study partners</p>
           <div className="flex gap-4 justify-center">
             <Link
-              href="/auth/signup"
+              href="/auth"
               className="px-6 py-3 bg-white dark:bg-white/10 backdrop-blur-sm border border-gray-200 dark:border-white/20 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-white/20 hover:scale-105 transition-all font-semibold shadow-lg dark:shadow-none"
             >
               Join Now
             </Link>
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="px-6 py-3 bg-blue-500/30 backdrop-blur-sm border border-blue-400/30 text-blue-200 rounded-lg hover:bg-blue-500/40 hover:scale-105 transition-all font-semibold shadow-lg shadow-blue-500/20"
             >
               Sign In

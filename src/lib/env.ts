@@ -23,8 +23,8 @@ const envSchema = z.object({
   // Supabase (Private - server only)
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
 
-  // Authentication
-  NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
+  // Authentication (optional - only needed if using NextAuth instead of Supabase Auth)
+  NEXTAUTH_SECRET: z.string().optional(),
   NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL').optional(),
 
   // Google OAuth

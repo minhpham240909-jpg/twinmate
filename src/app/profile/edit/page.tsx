@@ -52,7 +52,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
     }
     if (profile) {
       const initialFormData = {

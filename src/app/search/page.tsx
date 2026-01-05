@@ -286,7 +286,7 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
     }
   }, [user, loading, router])
 

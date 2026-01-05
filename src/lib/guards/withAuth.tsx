@@ -26,7 +26,7 @@ export function withAuth<P extends object>(
   } = {}
 ) {
   const {
-    redirectTo = '/auth/signin',
+    redirectTo = '/auth',
     loadingComponent: LoadingComponent
   } = options
 

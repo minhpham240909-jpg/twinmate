@@ -32,7 +32,7 @@ export default function CreatePostPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
     }
   }, [user, loading, router])
 

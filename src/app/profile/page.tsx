@@ -43,7 +43,7 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
       return
     }
 

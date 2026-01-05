@@ -42,6 +42,7 @@ type Comment = {
     name: string
     avatarUrl: string | null
     onlineStatus?: 'ONLINE' | 'OFFLINE' | null
+    isPartner?: boolean // Whether the commenter is a partner of current user
   }
 }
 
@@ -104,6 +105,7 @@ export default function CommunityPage() {
   const [newPostsCount, setNewPostsCount] = useState(0)
   const [showComments, setShowComments] = useState<string | null>(null)
   const [comments, setComments] = useState<{ [key: string]: Comment[] }>({})
+  const [loadingComments, setLoadingComments] = useState<{ [key: string]: boolean }>({})
   const [newComment, setNewComment] = useState('')
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
@@ -120,7 +122,7 @@ export default function CommunityPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
     }
   }, [user, loading, router])
 
@@ -372,6 +374,8 @@ export default function CommunityPage() {
   }, [searchQuery])
 
   const fetchComments = async (postId: string) => {
+    // Set loading state for this specific post
+    setLoadingComments(prev => ({ ...prev, [postId]: true }))
     try {
       const response = await fetch(`/api/posts/${postId}/comments`)
       if (response.ok) {
@@ -380,6 +384,8 @@ export default function CommunityPage() {
       }
     } catch (error) {
       console.error('Error fetching comments:', error)
+    } finally {
+      setLoadingComments(prev => ({ ...prev, [postId]: false }))
     }
   }
 
@@ -994,36 +1000,61 @@ export default function CommunityPage() {
                 </button>
               </div>
 
-              {/* Comments Section */}
+              {/* Comments Section - Visible to ALL users */}
               {showComments === post.id && (
                 <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                  <div className="space-y-3 mb-4">
-                    {comments[post.id]?.map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        {/* Clickable Avatar */}
-                        <Link href={`/profile/${comment.user.id}`}>
-                          <div className="cursor-pointer hover:opacity-80 transition">
-                            <PartnerAvatar
-                              avatarUrl={comment.user.avatarUrl}
-                              name={comment.user.name}
-                              size="sm"
-                              onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                              showStatus={!!comment.user.onlineStatus}
-                            />
-                          </div>
-                        </Link>
-                        <div className="flex-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
-                          {/* Clickable Name */}
+                  {/* Loading state */}
+                  {loadingComments[post.id] && (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                    </div>
+                  )}
+
+                  {/* Comments list - visible to everyone */}
+                  {!loadingComments[post.id] && (
+                    <div className="space-y-3 mb-4">
+                      {comments[post.id]?.length === 0 && (
+                        <p className="text-neutral-500 dark:text-neutral-400 text-sm text-center py-2">
+                          {t('noComments') || 'No comments yet. Be the first to comment!'}
+                        </p>
+                      )}
+                      {comments[post.id]?.map((comment) => (
+                        <div key={comment.id} className="flex gap-3">
+                          {/* Clickable Avatar - links to commenter's profile */}
                           <Link href={`/profile/${comment.user.id}`}>
-                            <p className="font-semibold text-sm text-neutral-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
-                              {sanitizeText(comment.user.name)}
-                            </p>
+                            <div className="cursor-pointer hover:opacity-80 transition">
+                              <PartnerAvatar
+                                avatarUrl={comment.user.avatarUrl}
+                                name={comment.user.name}
+                                size="sm"
+                                onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                                showStatus={!!comment.user.onlineStatus}
+                              />
+                            </div>
                           </Link>
-                          <p className="text-neutral-600 dark:text-neutral-300 text-sm">{sanitizeText(comment.content)}</p>
+                          <div className="flex-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
+                            {/* Clickable Name - links to commenter's profile */}
+                            <div className="flex items-center gap-2">
+                              <Link href={`/profile/${comment.user.id}`}>
+                                <p className="font-semibold text-sm text-neutral-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
+                                  {sanitizeText(comment.user.name)}
+                                </p>
+                              </Link>
+                              {/* Partner badge */}
+                              {comment.user.isPartner && (
+                                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                                  Partner
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-neutral-600 dark:text-neutral-300 text-sm">{sanitizeText(comment.content)}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Comment input - any logged in user can comment */}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1046,7 +1077,7 @@ export default function CommunityPage() {
                     </button>
                   </div>
                 </div>
-                )}
+              )}
                   </div>
                 )
                 

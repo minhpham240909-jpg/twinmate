@@ -33,6 +33,42 @@ const nextConfig: NextConfig = {
     },
   },
 
+  // Redirects for domain normalization and legacy routes
+  async redirects() {
+    return [
+      // Redirect www to non-www (canonical domain)
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'www.clerva.app',
+          },
+        ],
+        destination: 'https://clerva.app/:path*',
+        permanent: true,
+      },
+      // Redirect legacy /auth/signin to /auth
+      {
+        source: '/auth/signin',
+        destination: '/auth',
+        permanent: true,
+      },
+      // Redirect legacy /auth/signup to /auth
+      {
+        source: '/auth/signup',
+        destination: '/auth',
+        permanent: true,
+      },
+      // Redirect legacy /auth/login to /auth
+      {
+        source: '/auth/login',
+        destination: '/auth',
+        permanent: true,
+      },
+    ]
+  },
+
   // Security Headers for Production
   async headers() {
     return [

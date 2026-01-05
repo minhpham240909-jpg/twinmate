@@ -53,7 +53,7 @@ export default function ViewGroupPage() {
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
-      router.push('/auth/signin')
+      router.push('/auth')
       return
     }
 

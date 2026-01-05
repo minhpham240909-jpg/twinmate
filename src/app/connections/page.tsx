@@ -74,7 +74,7 @@ export default function ConnectionsPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
     } else if (user) {
       fetchConnectionRequests()
     }

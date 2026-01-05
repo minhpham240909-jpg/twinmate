@@ -153,7 +153,7 @@ export default function SettingsPage() {
   // Redirect if not authenticated (use replace to prevent redirect loops)
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/auth/signin')
+      router.replace('/auth')
     }
   }, [user, loading, router])
 
@@ -268,7 +268,7 @@ export default function SettingsPage() {
 
         // Sign out and redirect to home page
         setTimeout(() => {
-          window.location.href = '/auth/signin'
+          window.location.href = '/auth'
         }, 2000)
       } else {
         const error = await response.json()
@@ -1264,7 +1264,7 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
       if (response.ok) {
         toast.success('Account deactivated. You will be signed out.')
         setTimeout(() => {
-          window.location.href = '/auth/signin'
+          window.location.href = '/auth'
         }, 2000)
       } else {
         toast.error(data.error || 'Failed to deactivate account')

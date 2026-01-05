@@ -104,7 +104,7 @@ export default function GroupsPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/signin')
+      router.push('/auth')
     } else if (user) {
       // Fetch user's groups when user is loaded
       fetchMyGroups()
@@ -495,7 +495,7 @@ export default function GroupsPage() {
       if (response.status === 401) {
         toast.error(t('sessionExpired'))
         console.error('[FRONTEND] Authentication failed (401) - redirecting to signin')
-        setTimeout(() => router.push('/auth/signin'), 2000)
+        setTimeout(() => router.push('/auth'), 2000)
         return
       }
 

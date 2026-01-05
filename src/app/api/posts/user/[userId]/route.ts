@@ -17,7 +17,8 @@ export async function GET(
 
     const { userId } = await params
 
-    // Get user's posts with likes and comments
+    // OPTIMIZED: Get user's posts with counts only (not all likes/comments)
+    // Only fetch current user's like/repost status, use _count for totals
     const posts = await prisma.post.findMany({
       where: {
         userId: userId,
@@ -31,38 +32,19 @@ export async function GET(
             avatarUrl: true,
           },
         },
+        // Only fetch current user's like (for isLikedByUser check)
         likes: {
-          select: {
-            userId: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
-              },
-            },
-          },
+          where: { userId: user.id },
+          select: { userId: true },
+          take: 1,
         },
-        comments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'asc',
-          },
-        },
+        // Only fetch current user's repost (for isRepostedByUser check)
         reposts: {
-          select: {
-            id: true,
-            userId: true,
-          },
+          where: { userId: user.id },
+          select: { userId: true },
+          take: 1,
         },
+        // Use _count for totals instead of fetching all records
         _count: {
           select: {
             likes: true,
@@ -76,11 +58,14 @@ export async function GET(
       },
     })
 
-    // Check if current user has liked each post
+    // Map to include isLikedByUser and isRepostedByUser flags
     const postsWithUserData = posts.map(post => ({
       ...post,
-      isLikedByUser: post.likes.some(like => like.userId === user.id),
-      isRepostedByUser: post.reposts.some(repost => repost.userId === user.id),
+      isLikedByUser: post.likes.length > 0,
+      isRepostedByUser: post.reposts.length > 0,
+      // Remove the filtered likes/reposts arrays from response (we only needed them for the check)
+      likes: undefined,
+      reposts: undefined,
     }))
 
     return NextResponse.json({ posts: postsWithUserData })

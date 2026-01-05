@@ -33,8 +33,7 @@ export async function GET(
               avatarUrl: true,
               presence: {
                 select: {
-                  // @ts-ignore - Prisma type inference issue
-                  onlineStatus: true,
+                  status: true,
                 },
               },
             },
@@ -68,7 +67,7 @@ export async function GET(
       ...comment,
       user: {
         ...comment.user,
-        onlineStatus: partnerIds.has(comment.user.id) ? comment.user.presence?.onlineStatus : null,
+        onlineStatus: partnerIds.has(comment.user.id) ? comment.user.presence?.status : null,
         isPartner: partnerIds.has(comment.user.id),
       },
     }))
