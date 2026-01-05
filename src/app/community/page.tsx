@@ -46,25 +46,41 @@ type Comment = {
   }
 }
 
+// Cache version - increment this to invalidate all client caches on deploy
+const CACHE_VERSION = 'v2'
+const CACHE_KEY_POSTS = `community_posts_${CACHE_VERSION}`
+const CACHE_KEY_POPULAR = `community_popular_posts_${CACHE_VERSION}`
+
 export default function CommunityPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const t = useTranslations('community')
   const tCommon = useTranslations('common')
 
+  // Clear old cache keys on mount (one-time cleanup)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Remove old unversioned cache keys
+      localStorage.removeItem('community_posts')
+      localStorage.removeItem('community_popular_posts')
+      // Remove old versions if needed
+      localStorage.removeItem('community_posts_v1')
+      localStorage.removeItem('community_popular_posts_v1')
+    }
+  }, [])
+
   // Helper to get cached posts from localStorage for instant display
   const getCachedPosts = (): Post[] => {
     if (typeof window === 'undefined') return []
     try {
-      const cached = localStorage.getItem('community_posts')
+      const cached = localStorage.getItem(CACHE_KEY_POSTS)
       if (!cached) return []
 
       const posts: Post[] = JSON.parse(cached)
 
-      // Validate cache: if posts don't have _count or connectionStatus field (old cache), return empty
-      // This ensures users see fresh data with correct counts and Partner/Group badges
+      // Validate cache structure
       if (posts.length > 0 && (!posts[0]._count || posts[0].connectionStatus === undefined)) {
-        localStorage.removeItem('community_posts') // Clear old cache
+        localStorage.removeItem(CACHE_KEY_POSTS)
         return []
       }
 
@@ -79,14 +95,14 @@ export default function CommunityPage() {
   const getCachedPopularPosts = (): Post[] => {
     if (typeof window === 'undefined') return []
     try {
-      const cached = localStorage.getItem('community_popular_posts')
+      const cached = localStorage.getItem(CACHE_KEY_POPULAR)
       if (!cached) return []
 
       const posts: Post[] = JSON.parse(cached)
 
-      // Validate cache: if posts don't have _count or connectionStatus field (old cache), return empty
+      // Validate cache structure
       if (posts.length > 0 && (!posts[0]._count || posts[0].connectionStatus === undefined)) {
-        localStorage.removeItem('community_popular_posts') // Clear old cache
+        localStorage.removeItem(CACHE_KEY_POPULAR)
         return []
       }
 
@@ -181,7 +197,7 @@ export default function CommunityPage() {
         // Cache posts to localStorage for instant display next time
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('community_posts', JSON.stringify(data.posts))
+            localStorage.setItem(CACHE_KEY_POSTS, JSON.stringify(data.posts))
           } catch (error) {
             console.error('Error caching posts:', error)
           }
@@ -206,7 +222,7 @@ export default function CommunityPage() {
         // Cache popular posts to localStorage
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('community_popular_posts', JSON.stringify(data.posts))
+            localStorage.setItem(CACHE_KEY_POPULAR, JSON.stringify(data.posts))
           } catch (error) {
             console.error('Error caching popular posts:', error)
           }
@@ -312,7 +328,7 @@ export default function CommunityPage() {
           // Update cache
           if (typeof window !== 'undefined') {
             try {
-              localStorage.setItem('community_posts', JSON.stringify(updated))
+              localStorage.setItem(CACHE_KEY_POSTS, JSON.stringify(updated))
             } catch (error) {
               console.error('Error updating cache:', error)
             }
@@ -327,7 +343,7 @@ export default function CommunityPage() {
           // Update popular posts cache
           if (typeof window !== 'undefined') {
             try {
-              localStorage.setItem('community_popular_posts', JSON.stringify(updated))
+              localStorage.setItem(CACHE_KEY_POPULAR, JSON.stringify(updated))
             } catch (error) {
               console.error('Error updating popular cache:', error)
             }
