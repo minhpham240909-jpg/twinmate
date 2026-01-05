@@ -957,6 +957,7 @@ export default function AIPartnerSessionPage({
                     sessionId={session.id}
                     subject={session.subject}
                     onAskAI={handleAskAIFromFlashcards}
+                    isTimerActive={isTimerActive}
                   />
                 </div>
               </div>
@@ -968,6 +969,7 @@ export default function AIPartnerSessionPage({
                   sessionId={session.id}
                   subject={session.subject}
                   skillLevel={session.skillLevel}
+                  isTimerActive={isTimerActive}
                 />
               </div>
             )}

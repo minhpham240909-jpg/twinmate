@@ -23,6 +23,7 @@ import {
   ChevronUp,
   PenTool,
   ListChecks,
+  Timer,
 } from 'lucide-react'
 
 type Tool = 'pen' | 'eraser' | 'line' | 'circle' | 'rectangle' | 'text'
@@ -61,9 +62,10 @@ interface AIPartnerWhiteboardProps {
   subject?: string | null
   skillLevel?: string | null
   onAIResponse?: (response: string) => void
+  isTimerActive?: boolean // Whether the Pomodoro timer is running (required for AI features)
 }
 
-export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: AIPartnerWhiteboardProps) {
+export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, isTimerActive = true }: AIPartnerWhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -536,6 +538,12 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
 
   // Ask AI to analyze the whiteboard OR get suggestions (for empty canvas)
   const handleAskAI = async (question?: string) => {
+    // Check if timer is active before allowing AI analysis
+    if (!isTimerActive) {
+      toast.error('Start the Pomodoro timer first to use AI features')
+      return
+    }
+
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -823,16 +831,18 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
           {/* AI Analysis/Suggestion Button */}
           <button
             onClick={() => setShowQuestionInput(!showQuestionInput)}
-            disabled={isAnalyzing}
+            disabled={isAnalyzing || !isTimerActive}
             className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white rounded-lg font-medium hover:from-blue-500 hover:to-blue-500 transition-all disabled:opacity-50"
-            title={actions.length === 0 ? "Get AI suggestions for what to draw" : "Ask AI to analyze your whiteboard"}
+            title={!isTimerActive ? "Start the timer first" : (actions.length === 0 ? "Get AI suggestions for what to draw" : "Ask AI to analyze your whiteboard")}
           >
             {isAnalyzing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : !isTimerActive ? (
+              <Timer className="w-4 h-4" />
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            {actions.length === 0 ? 'Get Ideas' : 'Ask AI'}
+            {!isTimerActive ? 'Start Timer' : (actions.length === 0 ? 'Get Ideas' : 'Ask AI')}
           </button>
 
           {/* History Button */}
@@ -877,8 +887,9 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel }: 
           </div>
           <button
             onClick={() => handleAskAI(aiQuestion)}
-            disabled={isAnalyzing}
+            disabled={isAnalyzing || !isTimerActive}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-colors disabled:opacity-50"
+            title={!isTimerActive ? 'Start the timer first' : undefined}
           >
             {isAnalyzing ? 'Processing...' : actions.length === 0 ? 'Get Ideas' : 'Analyze'}
           </button>

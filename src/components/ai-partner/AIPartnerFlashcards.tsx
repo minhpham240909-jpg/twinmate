@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Send,
   FileText,
+  Timer,
 } from 'lucide-react'
 
 interface Flashcard {
@@ -32,6 +33,7 @@ interface AIPartnerFlashcardsProps {
   sessionId: string
   subject?: string | null
   onAskAI?: (question: string) => Promise<void>
+  isTimerActive?: boolean // Whether the Pomodoro timer is running (required for AI features)
 }
 
 type GenerationSource = 'topic' | 'chat'
@@ -216,6 +218,7 @@ My question about this: ${userQuestion}`
 export default function AIPartnerFlashcards({
   sessionId,
   subject,
+  isTimerActive = true, // Default to true for backwards compatibility
 }: AIPartnerFlashcardsProps) {
   // Data State
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
@@ -295,6 +298,12 @@ export default function AIPartnerFlashcards({
 
   // Generate flashcards using AI
   const handleGenerateFlashcards = async (isRestart = false) => {
+    // Check if timer is active before allowing generation
+    if (!isTimerActive) {
+      toast.error('Start the Pomodoro timer first to use AI features')
+      return
+    }
+
     const config = isRestart && lastGenerationConfig
       ? lastGenerationConfig
       : {
@@ -580,11 +589,20 @@ export default function AIPartnerFlashcards({
               </div>
             </div>
 
+            {/* Timer Required Banner */}
+            {!isTimerActive && (
+              <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <Timer className="w-4 h-4 text-amber-400" />
+                <span className="text-sm text-amber-200">Start the Pomodoro timer to generate flashcards.</span>
+              </div>
+            )}
+
             {/* Generate Button */}
             <button
               onClick={() => handleGenerateFlashcards(false)}
-              disabled={isGenerating || (generationSource === 'topic' && !topicInput.trim() && !subject)}
+              disabled={isGenerating || !isTimerActive || (generationSource === 'topic' && !topicInput.trim() && !subject)}
               className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-600 transition-all disabled:opacity-50"
+              title={!isTimerActive ? 'Start the timer first' : undefined}
             >
               {isGenerating ? (
                 <>
