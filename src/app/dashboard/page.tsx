@@ -460,17 +460,23 @@ export default function DashboardPage() {
 
     setIsStartingAISession(true)
     try {
+      // Build searchCriteria object with the input as a subject
+      // This matches the expected format of the API
+      const searchCriteria = {
+        subjects: [aiPartnerInput.trim()],
+        subjectDescription: aiPartnerInput.trim(),
+      }
+
       const res = await fetch('/api/ai-partner/session-from-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchQuery: aiPartnerInput.trim() }),
+        body: JSON.stringify({ searchCriteria }),
       })
       const data = await res.json()
 
-      if (data.success && data.redirectUrl) {
-        router.push(data.redirectUrl)
-      } else if (data.existingSessionId) {
-        router.push(`/ai-partner/${data.existingSessionId}`)
+      if (data.success && data.session?.id) {
+        // Redirect to the AI session
+        router.push(`/ai-partner/${data.session.id}`)
       } else {
         console.error('Failed to start AI session:', data.error)
       }
