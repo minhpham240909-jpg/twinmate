@@ -33,21 +33,11 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // Redirects for domain normalization and legacy routes
+  // Redirects for legacy auth routes
+  // NOTE: www to non-www redirect should be configured in Vercel Dashboard, not here
+  // (to avoid redirect loops with Vercel's edge redirects)
   async redirects() {
     return [
-      // Redirect www to non-www (canonical domain)
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'www.clerva.app',
-          },
-        ],
-        destination: 'https://clerva.app/:path*',
-        permanent: true,
-      },
       // Redirect legacy /auth/signin to /auth
       {
         source: '/auth/signin',
