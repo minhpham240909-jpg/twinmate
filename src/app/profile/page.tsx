@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
@@ -23,6 +24,26 @@ type UserPost = {
   }
 }
 
+type Comment = {
+  id: string
+  content: string
+  createdAt: string
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
+type Liker = {
+  id: string
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
 export default function MyProfilePage() {
   const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -34,6 +55,17 @@ export default function MyProfilePage() {
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
+
+  // Comments states
+  const [showComments, setShowComments] = useState<string | null>(null)
+  const [comments, setComments] = useState<{ [key: string]: Comment[] }>({})
+  const [loadingComments, setLoadingComments] = useState<{ [key: string]: boolean }>({})
+  const [newComment, setNewComment] = useState('')
+
+  // Likers modal states
+  const [likersModal, setLikersModal] = useState<{ isOpen: boolean; postId: string } | null>(null)
+  const [likers, setLikers] = useState<Liker[]>([])
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false)
 
   // Avatar states
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -194,6 +226,94 @@ export default function MyProfilePage() {
       console.error('Error deleting post:', error)
       alert(t('failedToDeletePostRetry'))
     }
+  }
+
+  // Fetch comments for a post
+  const fetchComments = async (postId: string) => {
+    setLoadingComments(prev => ({ ...prev, [postId]: true }))
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`)
+      if (response.ok) {
+        const data = await response.json()
+        setComments(prev => ({ ...prev, [postId]: data.comments }))
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+    } finally {
+      setLoadingComments(prev => ({ ...prev, [postId]: false }))
+    }
+  }
+
+  // Toggle comments section
+  const toggleComments = (postId: string) => {
+    if (showComments === postId) {
+      setShowComments(null)
+    } else {
+      setShowComments(postId)
+      if (!comments[postId]) {
+        fetchComments(postId)
+      }
+    }
+  }
+
+  // Add a comment
+  const handleComment = async (postId: string) => {
+    if (!newComment.trim()) return
+
+    const commentContent = newComment
+    setNewComment('')
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: commentContent }),
+      })
+
+      if (response.ok) {
+        // Update comment count
+        setPosts(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? { ...post, _count: { ...post._count, comments: post._count.comments + 1 } }
+              : post
+          )
+        )
+        // Refresh comments list
+        await fetchComments(postId)
+      } else {
+        setNewComment(commentContent)
+        alert('Failed to add comment')
+      }
+    } catch (error) {
+      console.error('Error commenting:', error)
+      setNewComment(commentContent)
+      alert('Failed to add comment')
+    }
+  }
+
+  // Fetch likers for a post
+  const fetchLikers = async (postId: string) => {
+    setIsLoadingLikers(true)
+    setLikers([])
+    setLikersModal({ isOpen: true, postId })
+    try {
+      const response = await fetch(`/api/posts/${postId}/like?limit=50`)
+      if (response.ok) {
+        const data = await response.json()
+        setLikers(data.likers || [])
+      }
+    } catch (error) {
+      console.error('Error fetching likers:', error)
+    } finally {
+      setIsLoadingLikers(false)
+    }
+  }
+
+  // Close likers modal
+  const closeLikersModal = () => {
+    setLikersModal(null)
+    setLikers([])
   }
 
   if (authLoading) {
@@ -705,31 +825,108 @@ export default function MyProfilePage() {
                     </>
                   )}
 
-                  {/* Post Stats */}
+                  {/* Post Stats - Interactive */}
                   <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-slate-400 pt-3 border-t border-gray-200 dark:border-white/10">
-                    {post._count.likes > 0 ? (
-                      <Pulse>
-                        <span>❤️ {post._count.likes}</span>
-                      </Pulse>
-                    ) : (
-                      <span>❤️ {post._count.likes}</span>
-                    )}
-                    {post._count.comments > 0 ? (
-                      <Pulse>
-                        <span>💬 {post._count.comments}</span>
-                      </Pulse>
-                    ) : (
-                      <span>💬 {post._count.comments}</span>
-                    )}
-                    {post._count.reposts > 0 ? (
-                      <Pulse>
-                        <span>🔁 {post._count.reposts}</span>
-                      </Pulse>
-                    ) : (
-                      <span>🔁 {post._count.reposts}</span>
-                    )}
+                    {/* Likes - Clickable to see who liked */}
+                    <button
+                      onClick={() => post._count.likes > 0 && fetchLikers(post.id)}
+                      className={`flex items-center gap-1 ${post._count.likes > 0 ? 'hover:text-red-500 cursor-pointer' : 'cursor-default'}`}
+                      disabled={post._count.likes === 0}
+                    >
+                      <svg className="w-5 h-5" fill={post._count.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      {post._count.likes > 0 ? (
+                        <Pulse><span>{post._count.likes}</span></Pulse>
+                      ) : (
+                        <span>{post._count.likes}</span>
+                      )}
+                    </button>
+
+                    {/* Comments - Clickable to toggle comments */}
+                    <button
+                      onClick={() => toggleComments(post.id)}
+                      className="flex items-center gap-1 hover:text-blue-500 cursor-pointer"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      {post._count.comments > 0 ? (
+                        <Pulse><span>{post._count.comments}</span></Pulse>
+                      ) : (
+                        <span>{post._count.comments}</span>
+                      )}
+                    </button>
+
                     <span className="ml-auto text-xs">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
+
+                  {/* Comments Section */}
+                  {showComments === post.id && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+                      {/* Loading state */}
+                      {loadingComments[post.id] && (
+                        <div className="flex justify-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+
+                      {/* Comments list */}
+                      {!loadingComments[post.id] && (
+                        <div className="space-y-3 mb-4">
+                          {comments[post.id]?.length === 0 && (
+                            <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-2">
+                              No comments yet. Be the first to comment!
+                            </p>
+                          )}
+                          {comments[post.id]?.map((comment) => (
+                            <div key={comment.id} className="flex gap-3">
+                              <Link href={`/profile/${comment.user.id}`}>
+                                <div className="cursor-pointer hover:opacity-80 transition">
+                                  <PartnerAvatar
+                                    avatarUrl={comment.user.avatarUrl}
+                                    name={comment.user.name}
+                                    size="sm"
+                                  />
+                                </div>
+                              </Link>
+                              <div className="flex-1 bg-gray-100 dark:bg-neutral-800 rounded-lg p-3">
+                                <Link href={`/profile/${comment.user.id}`}>
+                                  <p className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
+                                    {comment.user.name}
+                                  </p>
+                                </Link>
+                                <p className="text-gray-600 dark:text-gray-300 text-sm">{comment.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Comment input */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Write a comment..."
+                          className="flex-1 px-4 py-2 border border-gray-200 dark:border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleComment(post.id)
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => handleComment(post.id)}
+                          disabled={!newComment.trim()}
+                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-neutral-700 transition-all"
+                        >
+                          Send
+                        </button>
+                      </div>
+                    </div>
+                  )}
                     </div>
                   </GlowBorder>
                 </FadeIn>
@@ -748,6 +945,60 @@ export default function MyProfilePage() {
           </div>
         )}
       </div>
+
+      {/* Likers Modal */}
+      {likersModal?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={closeLikersModal}>
+          <div
+            className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-neutral-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Liked by</h3>
+              <button
+                onClick={closeLikersModal}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="overflow-y-auto max-h-[60vh]">
+              {isLoadingLikers ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+              ) : likers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  No likes yet
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100 dark:divide-neutral-800">
+                  {likers.map((liker) => (
+                    <Link
+                      key={liker.id}
+                      href={`/profile/${liker.user.id}`}
+                      onClick={closeLikersModal}
+                      className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <PartnerAvatar
+                        avatarUrl={liker.user.avatarUrl}
+                        name={liker.user.name}
+                        size="sm"
+                      />
+                      <span className="font-medium text-gray-900 dark:text-white">{liker.user.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

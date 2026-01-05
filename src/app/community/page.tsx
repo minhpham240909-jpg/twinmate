@@ -61,9 +61,9 @@ export default function CommunityPage() {
 
       const posts: Post[] = JSON.parse(cached)
 
-      // Validate cache: if posts don't have connectionStatus field (old cache), return empty
-      // This ensures users see fresh data with Partner/Group badges
-      if (posts.length > 0 && posts[0].connectionStatus === undefined) {
+      // Validate cache: if posts don't have _count or connectionStatus field (old cache), return empty
+      // This ensures users see fresh data with correct counts and Partner/Group badges
+      if (posts.length > 0 && (!posts[0]._count || posts[0].connectionStatus === undefined)) {
         localStorage.removeItem('community_posts') // Clear old cache
         return []
       }
@@ -84,8 +84,8 @@ export default function CommunityPage() {
 
       const posts: Post[] = JSON.parse(cached)
 
-      // Validate cache: if posts don't have connectionStatus field (old cache), return empty
-      if (posts.length > 0 && posts[0].connectionStatus === undefined) {
+      // Validate cache: if posts don't have _count or connectionStatus field (old cache), return empty
+      if (posts.length > 0 && (!posts[0]._count || posts[0].connectionStatus === undefined)) {
         localStorage.removeItem('community_popular_posts') // Clear old cache
         return []
       }
