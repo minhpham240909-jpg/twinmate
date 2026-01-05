@@ -63,7 +63,7 @@ export default function ResetPasswordPage() {
         toast.success(t('passwordUpdatedSuccessfully'))
         // Redirect to signin after 2 seconds
         setTimeout(() => {
-          router.push('/auth/signin')
+          router.push('/auth')
         }, 2000)
       } else {
         toast.error(data.error || t('failedToResetPassword'))
@@ -174,7 +174,7 @@ export default function ResetPasswordPage() {
 
           <div className="mt-6 text-center">
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="text-sm text-blue-400 hover:text-blue-300 font-medium"
             >
               ← Back to Sign In

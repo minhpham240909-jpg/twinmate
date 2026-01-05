@@ -97,23 +97,24 @@ export async function GET(req: NextRequest) {
                 postPrivacy: true,
               },
             },
+            presence: {
+              select: {
+                status: true,
+              },
+            },
           },
         },
+        // PERFORMANCE: Only fetch current user's like/repost, not all of them
+        // This dramatically reduces data transfer for popular posts (100s of likes -> 1)
         likes: {
-          select: {
-            userId: true,
-          },
-        },
-        comments: {
-          select: {
-            id: true,
-          },
+          where: { userId: user.id },
+          select: { userId: true },
+          take: 1,
         },
         reposts: {
-          select: {
-            id: true,
-            userId: true,
-          },
+          where: { userId: user.id },
+          select: { userId: true },
+          take: 1,
         },
         _count: {
           select: {
@@ -129,20 +130,29 @@ export async function GET(req: NextRequest) {
     // Calculate engagement score for each post
     // Formula: (likes × 2) + (comments × 3) + (reposts × 4)
     // Comments and reposts weighted higher as they require more effort
-    const postsWithScore = posts.map((post) => ({
-      ...post,
-      engagementScore:
-        post._count.likes * ENGAGEMENT_WEIGHTS.LIKE_WEIGHT +
-        post._count.comments * ENGAGEMENT_WEIGHTS.COMMENT_WEIGHT +
-        post._count.reposts * ENGAGEMENT_WEIGHTS.REPOST_WEIGHT,
-      isLikedByUser: post.likes.some((like) => like.userId === user.id),
-      isRepostedByUser: post.reposts.some((repost) => repost.userId === user.id),
-      connectionStatus: post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none'),
-    }))
+    const postsWithScore = posts.map((post: any) => {
+      const connectionStatus = post.user.id === user.id ? undefined : (connectionStatusMap.get(post.user.id) || 'none')
+      return {
+        ...post,
+        user: {
+          ...post.user,
+          // Only show online status for connected partners
+          onlineStatus: connectionStatus === 'connected' ? (post.user.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE') : null,
+        },
+        engagementScore:
+          post._count.likes * ENGAGEMENT_WEIGHTS.LIKE_WEIGHT +
+          post._count.comments * ENGAGEMENT_WEIGHTS.COMMENT_WEIGHT +
+          post._count.reposts * ENGAGEMENT_WEIGHTS.REPOST_WEIGHT,
+        // PERFORMANCE: Since we filtered likes/reposts to user.id, just check if array has items
+        isLikedByUser: post.likes.length > 0,
+        isRepostedByUser: post.reposts.length > 0,
+        connectionStatus,
+      }
+    })
 
     // Sort by engagement score and take top N
     const popularPosts = postsWithScore
-      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .sort((a: any, b: any) => b.engagementScore - a.engagementScore)
       .slice(0, limit)
 
     // Return with private cache (user-specific data, cache for 2 minutes)

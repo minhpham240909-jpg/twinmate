@@ -71,10 +71,10 @@ export async function updateSession(request: NextRequest) {
 
   // Define route categories
   const publicRoutes = ['/auth/confirm-email', '/auth/reset-password', '/auth/error', '/auth/callback', '/privacy', '/terms', '/help']
-  const authRoutes = ['/auth/signin', '/auth/signup', '/auth/forgot-password']
+  const authRoutes = ['/auth', '/auth/forgot-password']
   const publicApiRoutes = ['/api/auth/', '/api/cron/', '/api/webhooks/', '/api/health', '/api/stripe/webhook']
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
-  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))
+  const isAuthRoute = pathname === '/auth' || authRoutes.some(route => pathname.startsWith(route))
   const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route))
   const isRootRoute = pathname === '/'
   const isAdminRoute = pathname.startsWith('/admin')
@@ -117,9 +117,9 @@ export async function updateSession(request: NextRequest) {
   } else {
     // User is NOT logged in
     if (!isAuthRoute && !isPublicRoute && !isPublicApiRoute && !isRootRoute) {
-      // Redirect to sign-in if trying to access protected routes
+      // Redirect to auth page if trying to access protected routes
       const url = request.nextUrl.clone()
-      url.pathname = '/auth/signin'
+      url.pathname = '/auth'
       return NextResponse.redirect(url)
     }
   }

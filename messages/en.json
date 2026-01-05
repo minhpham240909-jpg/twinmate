@@ -33,7 +33,8 @@
     "weeksAgo": "{count}w ago",
     "connect": "Connect",
     "message": "Message",
-    "cancelRequest": "Cancel Request"
+    "cancelRequest": "Cancel Request",
+    "send": "Send"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -571,7 +572,9 @@
     "postMovedToHistory": "Post moved to history. You can restore it within 30 days.",
     "failedToDeletePostAlert": "Failed to delete post",
     "failedToSendConnectionRequest": "Failed to send connection request",
-    "userAlreadySentRequest": "This user has already sent you a connection request! Check your notifications."
+    "userAlreadySentRequest": "This user has already sent you a connection request! Check your notifications.",
+    "likedBy": "Liked by",
+    "noLikesYet": "No likes yet"
   },
   "studySessions": {
     "title": "Study Sessions",

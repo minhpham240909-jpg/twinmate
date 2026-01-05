@@ -5,7 +5,8 @@ export function corsHeaders(origin?: string | null) {
   // In production, only allow requests from the app domain
   const allowedOrigins = [
     process.env.NEXT_PUBLIC_SITE_URL,
-    'https://clerva-app.vercel.app',
+    'https://clerva.app',
+    'https://www.clerva.app',
     'http://localhost:3000',
     'https://localhost:3000',
   ].filter(Boolean) as string[]

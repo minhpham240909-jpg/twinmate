@@ -33,7 +33,7 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
             <div className="flex gap-4">
               <FastBounce delay={0.2}>
                 <Link
-                  href="/auth/signin"
+                  href="/auth"
                   className="flex-1 px-6 py-3 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-300 rounded-lg font-semibold hover:bg-blue-500/30 hover:scale-105 transition-all shadow-lg shadow-blue-500/20"
                 >
                   Try Again

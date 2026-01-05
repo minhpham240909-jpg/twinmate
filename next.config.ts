@@ -81,7 +81,7 @@ const nextConfig: NextConfig = {
               // CSP wildcards DON'T match IP-based subdomains (148-153-236-83.edge.agora.io)
               // Solution: Allow ALL wss: and https: for Agora domains using broader patterns
               // Include statscollector domains for Agora analytics
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https: wss: https://*.agora.io wss://*.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://statscollector-1.agora.io https://web-2.statscollector.sd-rtn.com https://api.openai.com https://*.sentry.io https://clerva-app.vercel.app https://*.posthog.com https://us.i.posthog.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https: wss: https://*.agora.io wss://*.agora.io https://*.sd-rtn.com wss://*.sd-rtn.com https://*.statscollector.sd-rtn.com https://statscollector-1.agora.io https://web-2.statscollector.sd-rtn.com https://api.openai.com https://*.sentry.io https://clerva.app https://www.clerva.app https://*.posthog.com https://us.i.posthog.com",
               // DIRECTIVE 3: media-src - Allow media streams from all sources (camera/mic permissions handled by browser)
               "media-src 'self' data: blob: https: mediastream:",
               // DIRECTIVE 4: worker-src - Allow workers from all blob sources

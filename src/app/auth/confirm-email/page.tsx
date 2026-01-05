@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import GlowBorder from '@/components/ui/GlowBorder'
@@ -109,7 +109,7 @@ export default function ConfirmEmailPage() {
               </FastBounce>
 
               <Link
-                href="/auth/signin"
+                href="/auth"
                 className="text-sm text-slate-400 hover:text-blue-400 font-medium"
               >
                 Back to Sign In

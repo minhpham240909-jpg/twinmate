@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import LandingPageClient from '@/components/landing/LandingPageClient'
 
 export default async function HomePage() {
   // Server-side auth check - instant redirect, no page flash
@@ -11,6 +10,6 @@ export default async function HomePage() {
     redirect('/dashboard')
   }
 
-  // Only render landing page if user is NOT authenticated
-  return <LandingPageClient />
+  // Redirect to auth page for non-authenticated users
+  redirect('/auth')
 }

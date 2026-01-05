@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
@@ -20,27 +20,29 @@ import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import BannedUserOverlay from "@/components/BannedUserOverlay";
-import { Analytics } from "@vercel/analytics/react";
+import AnalyticsProvider from "@/components/providers/AnalyticsProvider";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
-export const metadata: Metadata = {
-  title: "Clerva - Social Learning & Study Partners",
-  description: "Find study partners, collaborate in real-time, and supercharge your learning",
-  keywords: ["study partners", "learning", "collaboration", "education"],
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
+// Viewport configuration (Next.js 15+ requires separate export)
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#020617' },
     { media: '(prefers-color-scheme: dark)', color: '#020617' },
   ],
+};
+
+export const metadata: Metadata = {
+  title: "Clerva - Social Learning & Study Partners",
+  description: "Find study partners, collaborate in real-time, and supercharge your learning",
+  keywords: ["study partners", "learning", "collaboration", "education"],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -119,7 +121,7 @@ export default function RootLayout({
             </PostHogProvider>
           </Suspense>
         </ErrorBoundary>
-        <Analytics />
+        <AnalyticsProvider />
       </body>
     </html>
   );

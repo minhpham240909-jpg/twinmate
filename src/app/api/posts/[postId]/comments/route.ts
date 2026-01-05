@@ -63,12 +63,13 @@ export async function GET(
       match.senderId === user.id ? match.receiverId : match.senderId
     ))
 
-    // Add onlineStatus only for partners
+    // Add onlineStatus and partner status to commenters
     const commentsWithStatus = comments.map((comment: any) => ({
       ...comment,
       user: {
         ...comment.user,
         onlineStatus: partnerIds.has(comment.user.id) ? comment.user.presence?.onlineStatus : null,
+        isPartner: partnerIds.has(comment.user.id),
       },
     }))
 

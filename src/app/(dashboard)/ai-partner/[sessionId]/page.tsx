@@ -24,6 +24,7 @@ import {
 import AIPartnerSessionTimer, { TimerState } from '@/components/ai-partner/AIPartnerSessionTimer'
 import EndSessionModal from '@/components/ai-partner/EndSessionModal'
 import StartTimerPromptModal from '@/components/ai-partner/StartTimerPromptModal'
+import SessionFeedbackModal from '@/components/ai-partner/SessionFeedbackModal'
 import PartnerAvailableNotification from '@/components/ai-partner/PartnerAvailableNotification'
 import InteractiveQuiz, { QuizQuestion, WrongAnswerDetail } from '@/components/ai-partner/InteractiveQuiz'
 import type { QuizConfig } from '@/components/ai-partner/AIPartnerChat'
@@ -130,6 +131,9 @@ export default function AIPartnerSessionPage({
   const [excludedQuestions, setExcludedQuestions] = useState<string[]>([])
   const [pendingWrongAnswers, setPendingWrongAnswers] = useState<WrongAnswerDetail[]>([])
   const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false)
+
+  // Session feedback modal state (shown when study timer ends)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
 
   useEffect(() => {
     fetchSession()
@@ -732,6 +736,33 @@ export default function AIPartnerSessionPage({
     await handleSendMessage(question)
   }
 
+  // Handler when study timer ends - show feedback modal
+  const handleStudyTimerComplete = () => {
+    setShowFeedbackModal(true)
+  }
+
+  // Handler for submitting session feedback (from feedback modal)
+  const handleSubmitFeedback = async (rating: number | null, feedback: string | null) => {
+    try {
+      const res = await fetch(`/api/ai-partner/session/${sessionId}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating,
+          feedback,
+          focusTime,
+        }),
+      })
+
+      const data = await res.json()
+      if (!data.success) {
+        console.error('Failed to submit feedback:', data.error)
+      }
+    } catch (err) {
+      console.error('Failed to submit feedback:', err)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -983,6 +1014,7 @@ export default function AIPartnerSessionPage({
             onTimerComplete={(isBreak) => {
               console.log(isBreak ? 'Break complete!' : 'Study session complete!')
             }}
+            onStudyTimerComplete={handleStudyTimerComplete}
             onFocusTimeUpdate={(time) => setFocusTime(time)}
             onTimerStateChange={(state) => setTimerState(state)}
             externalStartTrigger={externalStartTrigger}
@@ -1111,6 +1143,18 @@ export default function AIPartnerSessionPage({
           subject={session.subject || undefined}
         />
       )}
+
+      {/* Session Feedback Modal - shown when study timer ends */}
+      <SessionFeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmit={handleSubmitFeedback}
+        sessionStats={{
+          focusTime,
+          messageCount: messages.filter((m) => m.role !== 'SYSTEM').length,
+          subject: session.subject,
+        }}
+      />
     </div>
   )
 }

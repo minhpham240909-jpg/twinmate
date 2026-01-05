@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Pause, RotateCcw, Coffee, Clock, Zap } from 'lucide-react'
+import { Play, Pause, Coffee, Clock, Zap } from 'lucide-react'
 
 // Timer state type exported for use in parent components
 export type TimerState = 'idle' | 'study' | 'break' | 'paused'
@@ -10,6 +10,7 @@ export type TimerState = 'idle' | 'study' | 'break' | 'paused'
 interface AIPartnerSessionTimerProps {
   sessionStartedAt: Date | string
   onTimerComplete?: (isBreak: boolean) => void
+  onStudyTimerComplete?: () => void // Callback when study timer ends (for showing feedback modal)
   onFocusTimeUpdate?: (focusTime: number) => void // Callback to report focus time in seconds
   onTimerStateChange?: (state: TimerState) => void // Callback when timer state changes
   externalStartTrigger?: number // Increment to trigger timer start externally
@@ -18,6 +19,7 @@ interface AIPartnerSessionTimerProps {
 export default function AIPartnerSessionTimer({
   sessionStartedAt,
   onTimerComplete,
+  onStudyTimerComplete,
   onFocusTimeUpdate,
   onTimerStateChange,
   externalStartTrigger,
@@ -67,9 +69,11 @@ export default function AIPartnerSessionTimer({
           if (timerState === 'study') {
             setTimerState('break')
             onTimerComplete?.(false)
+            // Call onStudyTimerComplete to show feedback modal
+            onStudyTimerComplete?.()
             return BREAK_DURATION
           } else {
-            setTimerState('idle')
+            setTimerState('study')
             setCycle((c) => c + 1)
             onTimerComplete?.(true)
             return STUDY_DURATION
@@ -91,7 +95,7 @@ export default function AIPartnerSessionTimer({
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [timerState, onTimerComplete, onFocusTimeUpdate, STUDY_DURATION, BREAK_DURATION])
+  }, [timerState, onTimerComplete, onStudyTimerComplete, onFocusTimeUpdate, STUDY_DURATION, BREAK_DURATION])
 
   const startTimer = useCallback(() => {
     setTimerState('study')
@@ -103,11 +107,6 @@ export default function AIPartnerSessionTimer({
   const pauseTimer = useCallback(() => {
     setTimerState('paused')
   }, [])
-
-  const resetTimer = useCallback(() => {
-    setTimerState('idle')
-    setTimeRemaining(STUDY_DURATION)
-  }, [STUDY_DURATION])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -222,13 +221,6 @@ export default function AIPartnerSessionTimer({
             Pause
           </button>
         )}
-        <button
-          onClick={resetTimer}
-          className="p-2 text-slate-400 hover:text-white transition-colors"
-          title="Reset"
-        >
-          <RotateCcw className="w-5 h-5" />
-        </button>
       </div>
 
       {/* Stats */}

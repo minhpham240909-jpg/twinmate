@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useTranslations } from 'next-intl'
@@ -11,7 +10,6 @@ import FastFadeIn from '@/components/ui/FastFadeIn'
 import FastBounce from '@/components/ui/FastBounce'
 
 export default function ForgotPasswordPage() {
-  const router = useRouter()
   const t = useTranslations('auth')
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -72,7 +70,7 @@ export default function ForgotPasswordPage() {
                 </p>
                 <FastBounce delay={0.2}>
                   <Link
-                    href="/auth/signin"
+                    href="/auth"
                     className="block w-full py-3 px-4 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 hover:bg-blue-500/30 hover:scale-105 text-blue-300 font-semibold rounded-lg transition-all shadow-lg shadow-blue-500/20"
                   >
                     Back to Sign In
@@ -138,7 +136,7 @@ export default function ForgotPasswordPage() {
 
           <div className="mt-6 text-center">
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="text-sm text-blue-400 hover:text-blue-300 font-medium"
             >
               ← Back to Sign In

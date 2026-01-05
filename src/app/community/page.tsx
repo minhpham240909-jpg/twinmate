@@ -114,6 +114,9 @@ export default function CommunityPage() {
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
   const [connectingPostIds, setConnectingPostIds] = useState<Set<string>>(new Set())
   const [reportModal, setReportModal] = useState<{ isOpen: boolean; contentType: 'post' | 'comment'; contentId: string; preview: string } | null>(null)
+  const [likersModal, setLikersModal] = useState<{ isOpen: boolean; postId: string } | null>(null)
+  const [likers, setLikers] = useState<{ id: string; user: { id: string; name: string; avatarUrl: string | null; onlineStatus?: 'ONLINE' | 'OFFLINE' | null; isPartner?: boolean } }[]>([])
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -226,6 +229,22 @@ export default function CommunityPage() {
     }
   }
 
+  const fetchLikers = async (postId: string) => {
+    setIsLoadingLikers(true)
+    setLikers([])
+    setLikersModal({ isOpen: true, postId })
+    try {
+      const response = await fetch(`/api/posts/${postId}/like?limit=50`)
+      if (response.ok) {
+        const data = await response.json()
+        setLikers(data.likers)
+      }
+    } catch (error) {
+      console.error('Error fetching likers:', error)
+    } finally {
+      setIsLoadingLikers(false)
+    }
+  }
 
   const handleSharePost = async (postId: string) => {
     const shareUrl = `${window.location.origin}/share/${postId}`
@@ -926,27 +945,38 @@ export default function CommunityPage() {
 
               {/* Post Actions */}
               <div className="flex items-center gap-6 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                <button
-                  onClick={() => handleLike(post.id, post.isLikedByUser || false)}
-                  className={`flex items-center gap-2 hover:scale-105 transition-transform ${
-                    post.isLikedByUser ? 'text-blue-500' : 'text-neutral-500 dark:text-neutral-400'
-                  } hover:text-blue-500`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill={post.isLikedByUser ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleLike(post.id, post.isLikedByUser || false)}
+                    className={`flex items-center gap-2 hover:scale-105 transition-transform ${
+                      post.isLikedByUser ? 'text-blue-500' : 'text-neutral-500 dark:text-neutral-400'
+                    } hover:text-blue-500`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium">{post._count.likes}</span>
-                </button>
+                    <svg
+                      className="w-5 h-5"
+                      fill={post.isLikedByUser ? 'currentColor' : 'none'}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  </button>
+                  {/* Clickable like count to see who liked */}
+                  <button
+                    onClick={() => post._count.likes > 0 && fetchLikers(post.id)}
+                    className={`text-sm font-medium hover:underline ${
+                      post._count.likes > 0 ? 'cursor-pointer' : 'cursor-default'
+                    } ${post.isLikedByUser ? 'text-blue-500' : 'text-neutral-500 dark:text-neutral-400'}`}
+                    disabled={post._count.likes === 0}
+                  >
+                    {post._count.likes}
+                  </button>
+                </div>
 
                 <button
                   onClick={() => toggleComments(post.id)}
@@ -970,15 +1000,25 @@ export default function CommunityPage() {
                   <div className="space-y-3 mb-4">
                     {comments[post.id]?.map((comment) => (
                       <div key={comment.id} className="flex gap-3">
-                        <PartnerAvatar
-                          avatarUrl={comment.user.avatarUrl}
-                          name={comment.user.name}
-                          size="sm"
-                          onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                          showStatus={!!comment.user.onlineStatus}
-                        />
+                        {/* Clickable Avatar */}
+                        <Link href={`/profile/${comment.user.id}`}>
+                          <div className="cursor-pointer hover:opacity-80 transition">
+                            <PartnerAvatar
+                              avatarUrl={comment.user.avatarUrl}
+                              name={comment.user.name}
+                              size="sm"
+                              onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                              showStatus={!!comment.user.onlineStatus}
+                            />
+                          </div>
+                        </Link>
                         <div className="flex-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
-                          <p className="font-semibold text-sm text-neutral-900 dark:text-white">{sanitizeText(comment.user.name)}</p>
+                          {/* Clickable Name */}
+                          <Link href={`/profile/${comment.user.id}`}>
+                            <p className="font-semibold text-sm text-neutral-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
+                              {sanitizeText(comment.user.name)}
+                            </p>
+                          </Link>
                           <p className="text-neutral-600 dark:text-neutral-300 text-sm">{sanitizeText(comment.content)}</p>
                         </div>
                       </div>
@@ -1103,6 +1143,85 @@ export default function CommunityPage() {
           contentId={reportModal.contentId}
           contentPreview={reportModal.preview}
         />
+      )}
+
+      {/* Likers Modal */}
+      {likersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setLikersModal(null)}
+          />
+
+          {/* Modal */}
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 w-full max-w-md mx-4 max-h-[70vh] overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                {t('likedBy') || 'Liked by'}
+              </h3>
+              <button
+                onClick={() => setLikersModal(null)}
+                className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition"
+              >
+                <svg className="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="overflow-y-auto max-h-[calc(70vh-4rem)] p-4">
+              {isLoadingLikers ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : likers.length === 0 ? (
+                <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
+                  {t('noLikesYet') || 'No likes yet'}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {likers.map((liker) => (
+                    <Link
+                      key={liker.id}
+                      href={`/profile/${liker.user.id}`}
+                      onClick={() => setLikersModal(null)}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
+                    >
+                      <PartnerAvatar
+                        avatarUrl={liker.user.avatarUrl}
+                        name={liker.user.name}
+                        size="md"
+                        onlineStatus={liker.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                        showStatus={!!liker.user.onlineStatus}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-900 dark:text-white">
+                          {liker.user.name}
+                        </p>
+                        {liker.user.isPartner && (
+                          <span className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                            </svg>
+                            Partner
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   )
