@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { getAppUrl } from '@/lib/env'
 
 // Content moderation scan (async, non-blocking)
 async function scanSessionMessageContent(
@@ -14,7 +15,7 @@ async function scanSessionMessageContent(
   sessionId: string
 ) {
   try {
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/moderation/scan`, {
+    fetch(`${getAppUrl()}/api/moderation/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

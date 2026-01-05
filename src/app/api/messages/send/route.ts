@@ -7,6 +7,7 @@ import { sendMessageSchema, validateRequest } from '@/lib/validation'
 import { isBlocked } from '@/lib/blocked-users'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
 import { notifyNewMessage } from '@/lib/notifications/send'
+import { getAppUrl } from '@/lib/env'
 
 // Content moderation scan (async, non-blocking)
 async function scanMessageContent(
@@ -21,7 +22,7 @@ async function scanMessageContent(
 ) {
   try {
     // Call moderation API in background (don't await to not block message sending)
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/moderation/scan`, {
+    fetch(`${getAppUrl()}/api/moderation/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

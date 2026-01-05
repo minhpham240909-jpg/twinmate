@@ -128,3 +128,18 @@ export const features = {
 if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
   validateEnv()
 }
+
+/**
+ * Get the correct application URL
+ * Ensures we use the production domain (clerva.app) and not Vercel's default URL
+ * This fixes issues where notifications show clerva-app.vercel.app instead of clerva.app
+ */
+export function getAppUrl(): string {
+  // Production: Always use the official domain
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://clerva.app'
+  }
+
+  // Development: Use NEXT_PUBLIC_APP_URL or fallback to localhost
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+}

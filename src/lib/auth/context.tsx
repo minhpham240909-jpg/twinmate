@@ -245,11 +245,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Use window.location for a full page reload to ensure clean state
       // This ensures all cached auth state is cleared
-      window.location.href = '/'
+      window.location.href = '/auth'
     } catch (error) {
       console.error('Error signing out:', error)
       // Still try to redirect even if there's an error
-      window.location.href = '/'
+      window.location.href = '/auth'
     }
   }
 

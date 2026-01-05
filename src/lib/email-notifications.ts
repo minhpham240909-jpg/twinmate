@@ -6,6 +6,7 @@
 
 import { Resend } from 'resend'
 import logger from './logger'
+import { getAppUrl } from './env'
 
 // Initialize Resend client
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
@@ -94,7 +95,7 @@ export function generateConnectionRequestEmail(ctx: NotificationContext): EmailN
         <p>Hi ${ctx.userName},</p>
         <p><strong>${ctx.senderName}</strong> wants to connect with you on Clerva!</p>
         <a href="${ctx.actionUrl}" style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">View Profile & Respond</a>
-        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">email preferences</a>.</p>
+        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${getAppUrl()}/settings">email preferences</a>.</p>
       </div>
     `,
   }
@@ -111,7 +112,7 @@ export function generateConnectionAcceptedEmail(ctx: NotificationContext): Email
         <p>Hi ${ctx.userName},</p>
         <p><strong>${ctx.senderName}</strong> accepted your connection request! You can now message and schedule study sessions together.</p>
         <a href="${ctx.actionUrl}" style="display: inline-block; background: #10B981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Start Chatting</a>
-        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">email preferences</a>.</p>
+        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${getAppUrl()}/settings">email preferences</a>.</p>
       </div>
     `,
   }
@@ -129,7 +130,7 @@ export function generateSessionInviteEmail(ctx: NotificationContext): EmailNotif
         <p>Hi ${ctx.userName},</p>
         <p><strong>${ctx.senderName}</strong> invited you to join <strong>"${sessionTitle}"</strong>.</p>
         <a href="${ctx.actionUrl}" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Join Session</a>
-        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">email preferences</a>.</p>
+        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${getAppUrl()}/settings">email preferences</a>.</p>
       </div>
     `,
   }
@@ -146,7 +147,7 @@ export function generateNewMessageEmail(ctx: NotificationContext): EmailNotifica
         <p>Hi ${ctx.userName},</p>
         <p><strong>${ctx.senderName}</strong> sent you a message on Clerva.</p>
         <a href="${ctx.actionUrl}" style="display: inline-block; background: #0EA5E9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">View Message</a>
-        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">email preferences</a>.</p>
+        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${getAppUrl()}/settings">email preferences</a>.</p>
       </div>
     `,
   }
@@ -170,8 +171,8 @@ export function generateWeeklySummaryEmail(ctx: NotificationContext): EmailNotif
           <p style="margin: 8px 0;"><strong>💬 Messages:</strong> ${stats.messages || 0}</p>
         </div>
         <p>Keep up the great work!</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">View Dashboard</a>
-        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">email preferences</a>.</p>
+        <a href="${getAppUrl()}/dashboard" style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">View Dashboard</a>
+        <p style="color: #666; font-size: 14px;">If you don't want to receive these notifications, update your <a href="${getAppUrl()}/settings">email preferences</a>.</p>
       </div>
     `,
   }
