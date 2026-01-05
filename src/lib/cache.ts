@@ -547,6 +547,10 @@ export async function invalidateUserCache(userId: string): Promise<void> {
     invalidateCache(`${CACHE_PREFIX.CONVERSATIONS}:list:${userId}:*`),
     invalidateCache(connectionsKey(userId)),
     invalidateCache(onlineUsersKey()),
+    // IMPORTANT: Invalidate partner search cache when profile changes
+    // This ensures match percentages are recalculated with fresh profile data
+    invalidateCache(`${CACHE_PREFIX.SEARCH_PARTNERS}:${userId}:*`),
+    invalidateCache(`${CACHE_PREFIX.SEARCH_PARTNERS}:*`), // Also invalidate ALL search caches since match % depends on both profiles
   ])
 }
 
