@@ -188,10 +188,8 @@ export default function SearchPage() {
         setCurrentUserMissingFields(data.currentUserMissingFields)
       }
 
-      // Set error only if no partners found
-      if (!data.partners || data.partners.length === 0) {
-        setRandomError('No partners available at the moment. Try again later.')
-      }
+      // No longer showing error when no partners found
+      // The empty state already shows the AI partner suggestion
     } catch (error) {
       console.error('Error loading random partners:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to load random partners. Please try again.'

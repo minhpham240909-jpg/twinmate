@@ -24,6 +24,7 @@ import {
   Check,
   RefreshCw,
   Eye,
+  Trash2,
 } from 'lucide-react'
 
 interface UserData {
@@ -59,7 +60,7 @@ interface Pagination {
   limit: number
 }
 
-type ActionType = 'ban' | 'unban' | 'warn' | 'deactivate' | 'reactivate' | 'grant_admin' | 'revoke_admin'
+type ActionType = 'ban' | 'unban' | 'warn' | 'deactivate' | 'reactivate' | 'grant_admin' | 'revoke_admin' | 'permanent_delete'
 
 export default function AdminUsersPage() {
   const router = useRouter()
@@ -87,6 +88,7 @@ export default function AdminUsersPage() {
   const [banDuration, setBanDuration] = useState<number | null>(null)
   const [warningSeverity, setWarningSeverity] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   // Dropdown state
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -182,6 +184,7 @@ export default function AdminUsersPage() {
         setActionReason('')
         setBanDuration(null)
         setWarningSeverity(1)
+        setDeleteConfirmText('')
       } else {
         alert(data.error || 'Action failed')
       }
@@ -242,6 +245,9 @@ export default function AdminUsersPage() {
     } else {
       actions.push({ action: 'grant_admin', label: 'Grant Admin', icon: Shield, color: 'text-blue-400' })
     }
+
+    // Permanent delete - dangerous action (super-admin only)
+    actions.push({ action: 'permanent_delete', label: 'Delete Permanently', icon: Trash2, color: 'text-red-500' })
 
     return actions
   }
@@ -550,9 +556,13 @@ export default function AdminUsersPage() {
                 {actionModal.action === 'reactivate' && 'Reactivate User'}
                 {actionModal.action === 'grant_admin' && 'Grant Admin Access'}
                 {actionModal.action === 'revoke_admin' && 'Revoke Admin Access'}
+                {actionModal.action === 'permanent_delete' && 'Permanently Delete User'}
               </h2>
               <button
-                onClick={() => setActionModal(null)}
+                onClick={() => {
+                  setActionModal(null)
+                  setDeleteConfirmText('')
+                }}
                 className="p-2 rounded-lg hover:bg-gray-700 text-gray-400"
               >
                 <X className="w-5 h-5" />
@@ -626,10 +636,48 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {/* Permanent Delete Confirmation */}
+            {actionModal.action === 'permanent_delete' && (
+              <div className="mb-4">
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg mb-4">
+                  <div className="flex items-start gap-3">
+                    <Trash2 className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-red-400 mb-1">This action is irreversible!</h4>
+                      <p className="text-sm text-gray-400">
+                        Permanently deleting this user will remove:
+                      </p>
+                      <ul className="text-sm text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>All messages, posts, and comments</li>
+                        <li>All connections and group memberships</li>
+                        <li>All study sessions and AI partner history</li>
+                        <li>Profile data and settings</li>
+                        <li>All activity and analytics data</li>
+                      </ul>
+                      <p className="text-sm text-red-400 mt-3 font-medium">
+                        This cannot be undone. The user will need to create a new account.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Type <span className="text-red-400 font-mono">DELETE</span> to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  className="w-full px-4 py-2.5 bg-gray-700 border border-red-500/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
+                />
+              </div>
+            )}
+
             {/* Reason */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Reason {actionModal.action !== 'grant_admin' && actionModal.action !== 'revoke_admin' && '(required)'}
+                Reason {actionModal.action !== 'grant_admin' && actionModal.action !== 'revoke_admin' && actionModal.action !== 'permanent_delete' && '(required)'}
+                {actionModal.action === 'permanent_delete' && '(optional)'}
               </label>
               <textarea
                 value={actionReason}
@@ -652,10 +700,23 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {/* Super Admin Notice for permanent delete */}
+            {actionModal.action === 'permanent_delete' && (
+              <div className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-sm text-blue-400 flex items-start gap-2">
+                  <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  Only the super-admin can permanently delete users. This action will be logged.
+                </p>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={() => setActionModal(null)}
+                onClick={() => {
+                  setActionModal(null)
+                  setDeleteConfirmText('')
+                }}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
               >
                 Cancel
@@ -663,12 +724,17 @@ export default function AdminUsersPage() {
               <button
                 onClick={handleAction}
                 disabled={isSubmitting || (
-                  !actionReason &&
-                  actionModal.action !== 'grant_admin' &&
-                  actionModal.action !== 'revoke_admin'
+                  // Reason required for most actions
+                  (!actionReason &&
+                    actionModal.action !== 'grant_admin' &&
+                    actionModal.action !== 'revoke_admin' &&
+                    actionModal.action !== 'permanent_delete'
+                  ) ||
+                  // DELETE confirmation required for permanent delete
+                  (actionModal.action === 'permanent_delete' && deleteConfirmText !== 'DELETE')
                 )}
                 className={`px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  actionModal.action === 'ban' || actionModal.action === 'revoke_admin' || actionModal.action === 'deactivate'
+                  actionModal.action === 'ban' || actionModal.action === 'revoke_admin' || actionModal.action === 'deactivate' || actionModal.action === 'permanent_delete'
                     ? 'bg-red-600 hover:bg-red-700'
                     : 'bg-blue-600 hover:bg-blue-700'
                 }`}
@@ -677,6 +743,11 @@ export default function AdminUsersPage() {
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     Processing...
+                  </>
+                ) : actionModal.action === 'permanent_delete' ? (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Permanently
                   </>
                 ) : (
                   <>

@@ -422,6 +422,167 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Admin access revoked' })
       }
 
+      case 'permanent_delete': {
+        // CRITICAL: Only super-admin can permanently delete users
+        if (!isSuperAdmin) {
+          return NextResponse.json(
+            { error: 'Only the super-admin can permanently delete users' },
+            { status: 403 }
+          )
+        }
+
+        // SECURITY: Cannot delete yourself
+        if (userId === user.id) {
+          return NextResponse.json(
+            { error: 'Cannot delete your own account' },
+            { status: 403 }
+          )
+        }
+
+        // Fetch user details before deletion for audit log
+        const userToDelete = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            createdAt: true,
+            _count: {
+              select: {
+                sentMessages: true,
+                posts: true,
+                groupMemberships: true,
+                sentMatches: true,
+                receivedMatches: true,
+              },
+            },
+          },
+        })
+
+        if (!userToDelete) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 })
+        }
+
+        // PERFORMANCE: Use transaction for atomic deletion
+        // Most relations have onDelete: Cascade, so they will be auto-deleted
+        // Some relations have onDelete: SetNull (Messages, Reports) to preserve data
+        await prisma.$transaction(async (tx) => {
+          // 1. Delete user bans first (has userId unique constraint)
+          await tx.userBan.deleteMany({ where: { userId } })
+
+          // 2. Delete user warnings
+          await tx.userWarning.deleteMany({ where: { userId } })
+
+          // 3. Delete conversation archives
+          await tx.conversationArchive.deleteMany({ where: { userId } })
+
+          // 4. Delete announcement dismissals
+          await tx.announcementDismissal.deleteMany({ where: { userId } })
+
+          // 5. Delete activity tracking data (to avoid orphaned analytics)
+          await tx.userPageVisit.deleteMany({ where: { userId } })
+          await tx.userFeatureUsage.deleteMany({ where: { userId } })
+          await tx.userSearchQuery.deleteMany({ where: { userId } })
+          await tx.userSessionAnalytics.deleteMany({ where: { userId } })
+          await tx.userActivitySummary.deleteMany({ where: { userId } })
+          await tx.suspiciousActivityLog.deleteMany({ where: { userId } })
+
+          // 6. Delete AI-related data
+          await tx.aIUserMemory.deleteMany({ where: { userId } })
+          await tx.aIMemoryEntry.deleteMany({ where: { userId } })
+          await tx.aIUsageLog.deleteMany({ where: { userId } })
+          await tx.aIUsageDailySummary.deleteMany({ where: { userId } })
+
+          // 7. Delete flagged content records (preserve but nullify sender for audit)
+          await tx.flaggedContent.updateMany({
+            where: { senderId: userId },
+            data: { senderId: 'deleted-user' },
+          })
+
+          // 8. Transfer group ownership or delete user's groups
+          // First, find groups where user is the sole owner
+          const ownedGroups = await tx.group.findMany({
+            where: { ownerId: userId },
+            select: {
+              id: true,
+              members: {
+                where: {
+                  userId: { not: userId },
+                  role: { in: ['ADMIN', 'OWNER'] },
+                },
+                select: { userId: true, role: true },
+                take: 1,
+              },
+            },
+          })
+
+          for (const group of ownedGroups) {
+            if (group.members.length > 0) {
+              // Transfer ownership to first admin/member
+              await tx.group.update({
+                where: { id: group.id },
+                data: { ownerId: group.members[0].userId },
+              })
+              await tx.groupMember.update({
+                where: {
+                  groupId_userId: {
+                    groupId: group.id,
+                    userId: group.members[0].userId,
+                  },
+                },
+                data: { role: 'OWNER' },
+              })
+            } else {
+              // Mark group as deleted if no other admins
+              await tx.group.update({
+                where: { id: group.id },
+                data: { isDeleted: true, deletedAt: new Date() },
+              })
+            }
+          }
+
+          // 9. Finally, delete the user (cascades most relations)
+          await tx.user.delete({ where: { id: userId } })
+        })
+
+        // Log the permanent deletion action
+        await logAdminAction({
+          adminId: user.id,
+          action: 'user_permanently_deleted',
+          targetType: 'user',
+          targetId: userId,
+          details: {
+            reason,
+            deletedUserEmail: userToDelete.email,
+            deletedUserName: userToDelete.name,
+            accountAge: Math.floor(
+              (Date.now() - userToDelete.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+            ),
+            stats: userToDelete._count,
+          },
+          ipAddress,
+          userAgent,
+        })
+
+        logger.info('User permanently deleted', {
+          data: {
+            deletedUserId: userId,
+            deletedBy: user.id,
+            email: userToDelete.email,
+          },
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: 'User permanently deleted',
+          deletedUser: {
+            id: userToDelete.id,
+            email: userToDelete.email,
+            name: userToDelete.name,
+          },
+        })
+      }
+
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
