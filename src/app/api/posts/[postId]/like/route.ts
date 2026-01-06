@@ -124,13 +124,26 @@ export async function POST(
 
     const { postId } = await params
 
-    // Check if post exists
+    // Check if post exists and allows likes
     const post = await prisma.post.findUnique({
       where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+        allowLikes: true,
+      },
     })
 
     if (!post) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    }
+
+    // Check if likes are allowed on this post
+    if (!post.allowLikes) {
+      return NextResponse.json(
+        { error: 'Likes are disabled for this post' },
+        { status: 403 }
+      )
     }
 
     // Check if already liked

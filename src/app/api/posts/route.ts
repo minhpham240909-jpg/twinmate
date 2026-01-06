@@ -346,7 +346,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { content = '', imageUrls = [], postUrl = null, allowSharing = true } = body
+    const { content = '', imageUrls = [], postUrl = null, allowSharing = true, allowComments = true, allowLikes = true } = body
 
     // Allow posts with only images or only links (content can be empty in those cases)
     const hasImages = Array.isArray(imageUrls) && imageUrls.length > 0
@@ -386,6 +386,8 @@ export async function POST(req: NextRequest) {
         imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
         postUrl: postUrl && typeof postUrl === 'string' ? postUrl.trim() : null,
         allowSharing: typeof allowSharing === 'boolean' ? allowSharing : true,
+        allowComments: typeof allowComments === 'boolean' ? allowComments : true,
+        allowLikes: typeof allowLikes === 'boolean' ? allowLikes : true,
       },
       include: {
         user: {

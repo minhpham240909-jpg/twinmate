@@ -37,6 +37,8 @@ type Comment = {
   id: string
   content: string
   createdAt: string
+  parentId?: string | null // If this is a reply, the parent comment ID
+  replyCount?: number // Number of replies (only for top-level comments)
   user: {
     id: string
     name: string
@@ -45,6 +47,8 @@ type Comment = {
     isPartner?: boolean // Whether the commenter is a partner of current user
   }
 }
+
+type Reply = Comment // Replies have the same structure as comments
 
 // Cache version - increment this to invalidate all client caches on deploy
 const CACHE_VERSION = 'v2'
@@ -135,6 +139,16 @@ export default function CommunityPage() {
   const [likersModal, setLikersModal] = useState<{ isOpen: boolean; postId: string } | null>(null)
   const [likers, setLikers] = useState<{ id: string; user: { id: string; name: string; avatarUrl: string | null; onlineStatus?: 'ONLINE' | 'OFFLINE' | null; isPartner?: boolean } }[]>([])
   const [isLoadingLikers, setIsLoadingLikers] = useState(false)
+
+  // Reply states
+  const [expandedReplies, setExpandedReplies] = useState<{ [commentId: string]: boolean }>({})
+  const [replies, setReplies] = useState<{ [commentId: string]: Comment[] }>({})
+  const [loadingReplies, setLoadingReplies] = useState<{ [commentId: string]: boolean }>({})
+  const [replyingTo, setReplyingTo] = useState<{ commentId: string; userName: string } | null>(null)
+  const [replyContent, setReplyContent] = useState('')
+
+  // Post settings (allowComments, allowLikes per post)
+  const [postSettings, setPostSettings] = useState<{ [postId: string]: { allowComments: boolean; allowLikes: boolean } }>({})
 
   useEffect(() => {
     if (!loading && !user) {
@@ -465,6 +479,58 @@ export default function CommunityPage() {
     }
   }
 
+  // Delete comment handler
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    // Store previous state for rollback
+    const previousComments = comments[postId] || []
+    const previousPosts = posts
+    const previousSearchResults = searchResults
+    const previousPopularPosts = popularPosts
+
+    // Helper to update comment count
+    const updateCommentCount = (posts: Post[]) =>
+      posts.map(post =>
+        post.id === postId
+          ? { ...post, _count: { ...post._count, comments: Math.max(0, post._count.comments - 1) } }
+          : post
+      )
+
+    // Optimistic update - remove comment and decrement count immediately
+    setComments(prev => ({
+      ...prev,
+      [postId]: prev[postId]?.filter(c => c.id !== commentId) || [],
+    }))
+    setPosts(prev => updateCommentCount(prev))
+    setSearchResults(prev => updateCommentCount(prev))
+    setPopularPosts(prev => updateCommentCount(prev))
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        // ROLLBACK: Restore previous state
+        setComments(prev => ({ ...prev, [postId]: previousComments }))
+        setPosts(previousPosts)
+        setSearchResults(previousSearchResults)
+        setPopularPosts(previousPopularPosts)
+
+        const error = await response.json()
+        alert(error.error || 'Failed to delete comment. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error)
+
+      // ROLLBACK: Restore previous state
+      setComments(prev => ({ ...prev, [postId]: previousComments }))
+      setPosts(previousPosts)
+      setSearchResults(previousSearchResults)
+      setPopularPosts(previousPopularPosts)
+      alert('Failed to delete comment. Please try again.')
+    }
+  }
+
   const toggleComments = (postId: string) => {
     if (showComments === postId) {
       setShowComments(null)
@@ -473,6 +539,144 @@ export default function CommunityPage() {
       if (!comments[postId]) {
         fetchComments(postId)
       }
+    }
+  }
+
+  // Fetch replies for a comment
+  const fetchReplies = async (postId: string, commentId: string) => {
+    setLoadingReplies(prev => ({ ...prev, [commentId]: true }))
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments/${commentId}/replies`)
+      if (response.ok) {
+        const data = await response.json()
+        setReplies(prev => ({ ...prev, [commentId]: data.replies }))
+      }
+    } catch (error) {
+      console.error('Error fetching replies:', error)
+    } finally {
+      setLoadingReplies(prev => ({ ...prev, [commentId]: false }))
+    }
+  }
+
+  // Toggle replies visibility
+  const toggleReplies = (postId: string, commentId: string) => {
+    const isExpanded = expandedReplies[commentId]
+    if (isExpanded) {
+      // Collapse
+      setExpandedReplies(prev => ({ ...prev, [commentId]: false }))
+    } else {
+      // Expand and fetch if not already loaded
+      setExpandedReplies(prev => ({ ...prev, [commentId]: true }))
+      if (!replies[commentId]) {
+        fetchReplies(postId, commentId)
+      }
+    }
+  }
+
+  // Handle reply submission
+  const handleReply = async (postId: string, parentCommentId: string) => {
+    if (!replyContent.trim()) return
+
+    const content = replyContent
+    setReplyContent('')
+    setReplyingTo(null)
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, parentId: parentCommentId }),
+      })
+
+      if (response.ok) {
+        // Increment reply count on parent comment
+        setComments(prev => ({
+          ...prev,
+          [postId]: prev[postId]?.map(c =>
+            c.id === parentCommentId
+              ? { ...c, replyCount: (c.replyCount || 0) + 1 }
+              : c
+          ) || [],
+        }))
+
+        // Refresh replies if expanded
+        if (expandedReplies[parentCommentId]) {
+          fetchReplies(postId, parentCommentId)
+        }
+
+        // Update comment count on post
+        const updateCommentCount = (posts: Post[]) =>
+          posts.map(post =>
+            post.id === postId
+              ? { ...post, _count: { ...post._count, comments: post._count.comments + 1 } }
+              : post
+          )
+        setPosts(prev => updateCommentCount(prev))
+        setSearchResults(prev => updateCommentCount(prev))
+        setPopularPosts(prev => updateCommentCount(prev))
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to add reply. Please try again.')
+        setReplyContent(content) // Restore content
+      }
+    } catch (error) {
+      console.error('Error adding reply:', error)
+      alert('Failed to add reply. Please try again.')
+      setReplyContent(content) // Restore content
+    }
+  }
+
+  // Delete reply handler
+  const handleDeleteReply = async (postId: string, parentCommentId: string, replyId: string) => {
+    // Store previous state for rollback
+    const previousReplies = replies[parentCommentId] || []
+
+    // Optimistic update
+    setReplies(prev => ({
+      ...prev,
+      [parentCommentId]: prev[parentCommentId]?.filter(r => r.id !== replyId) || [],
+    }))
+    setComments(prev => ({
+      ...prev,
+      [postId]: prev[postId]?.map(c =>
+        c.id === parentCommentId
+          ? { ...c, replyCount: Math.max(0, (c.replyCount || 1) - 1) }
+          : c
+      ) || [],
+    }))
+
+    // Update post comment count
+    const updateCommentCount = (posts: Post[]) =>
+      posts.map(post =>
+        post.id === postId
+          ? { ...post, _count: { ...post._count, comments: Math.max(0, post._count.comments - 1) } }
+          : post
+      )
+    setPosts(prev => updateCommentCount(prev))
+    setSearchResults(prev => updateCommentCount(prev))
+    setPopularPosts(prev => updateCommentCount(prev))
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments/${replyId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        // Rollback
+        setReplies(prev => ({ ...prev, [parentCommentId]: previousReplies }))
+        // Re-fetch to restore correct state
+        fetchReplies(postId, parentCommentId)
+        fetchComments(postId)
+        const error = await response.json()
+        alert(error.error || 'Failed to delete reply.')
+      }
+    } catch (error) {
+      console.error('Error deleting reply:', error)
+      // Rollback
+      setReplies(prev => ({ ...prev, [parentCommentId]: previousReplies }))
+      fetchReplies(postId, parentCommentId)
+      fetchComments(postId)
+      alert('Failed to delete reply.')
     }
   }
 
@@ -1035,35 +1239,177 @@ export default function CommunityPage() {
                         </p>
                       )}
                       {comments[post.id]?.map((comment) => (
-                        <div key={comment.id} className="flex gap-3">
-                          {/* Clickable Avatar - links to commenter's profile */}
-                          <Link href={`/profile/${comment.user.id}`}>
-                            <div className="cursor-pointer hover:opacity-80 transition">
-                              <PartnerAvatar
-                                avatarUrl={comment.user.avatarUrl}
-                                name={comment.user.name}
-                                size="sm"
-                                onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
-                                showStatus={!!comment.user.onlineStatus}
-                              />
-                            </div>
-                          </Link>
-                          <div className="flex-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
-                            {/* Clickable Name - links to commenter's profile */}
-                            <div className="flex items-center gap-2">
-                              <Link href={`/profile/${comment.user.id}`}>
-                                <p className="font-semibold text-sm text-neutral-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
-                                  {sanitizeText(comment.user.name)}
-                                </p>
-                              </Link>
-                              {/* Partner badge */}
-                              {comment.user.isPartner && (
-                                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
-                                  Partner
-                                </span>
+                        <div key={comment.id}>
+                          {/* Main comment */}
+                          <div className="flex gap-3 group/comment">
+                            {/* Clickable Avatar - links to commenter's profile */}
+                            <Link href={`/profile/${comment.user.id}`}>
+                              <div className="cursor-pointer hover:opacity-80 transition">
+                                <PartnerAvatar
+                                  avatarUrl={comment.user.avatarUrl}
+                                  name={comment.user.name}
+                                  size="sm"
+                                  onlineStatus={comment.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                                  showStatus={!!comment.user.onlineStatus}
+                                />
+                              </div>
+                            </Link>
+                            <div className="flex-1">
+                              <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3 relative">
+                                {/* Clickable Name - links to commenter's profile */}
+                                <div className="flex items-center gap-2">
+                                  <Link href={`/profile/${comment.user.id}`}>
+                                    <p className="font-semibold text-sm text-neutral-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
+                                      {sanitizeText(comment.user.name)}
+                                    </p>
+                                  </Link>
+                                  {/* Partner badge */}
+                                  {comment.user.isPartner && (
+                                    <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                                      Partner
+                                    </span>
+                                  )}
+                                  {/* Delete button - visible on hover for comment author or post owner */}
+                                  {(comment.user.id === user?.id || post.user.id === user?.id) && (
+                                    <button
+                                      onClick={() => handleDeleteComment(post.id, comment.id)}
+                                      className="ml-auto opacity-0 group-hover/comment:opacity-100 p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                      title="Delete comment"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-neutral-600 dark:text-neutral-300 text-sm">{sanitizeText(comment.content)}</p>
+                              </div>
+
+                              {/* Reply actions row */}
+                              <div className="flex items-center gap-4 mt-1 ml-3">
+                                {/* Reply button */}
+                                <button
+                                  onClick={() => setReplyingTo({ commentId: comment.id, userName: comment.user.name })}
+                                  className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-blue-500 font-medium transition"
+                                >
+                                  Reply
+                                </button>
+
+                                {/* View replies button (only show if has replies) */}
+                                {(comment.replyCount || 0) > 0 && (
+                                  <button
+                                    onClick={() => toggleReplies(post.id, comment.id)}
+                                    className="text-xs text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1 transition"
+                                  >
+                                    <svg
+                                      className={`w-3 h-3 transition-transform ${expandedReplies[comment.id] ? 'rotate-90' : ''}`}
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    {expandedReplies[comment.id] ? 'Hide' : 'View'} {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Reply input (when replying to this comment) */}
+                              {replyingTo?.commentId === comment.id && (
+                                <div className="mt-2 ml-3">
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={replyContent}
+                                      onChange={(e) => setReplyContent(e.target.value)}
+                                      placeholder={`Reply to ${replyingTo.userName}...`}
+                                      className="flex-1 px-3 py-1.5 text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleReply(post.id, comment.id)
+                                        } else if (e.key === 'Escape') {
+                                          setReplyingTo(null)
+                                          setReplyContent('')
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => handleReply(post.id, comment.id)}
+                                      disabled={!replyContent.trim()}
+                                      className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 transition-all"
+                                    >
+                                      Reply
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setReplyingTo(null)
+                                        setReplyContent('')
+                                      }}
+                                      className="px-2 py-1.5 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Expanded replies */}
+                              {expandedReplies[comment.id] && (
+                                <div className="mt-2 ml-3 space-y-2">
+                                  {/* Loading replies */}
+                                  {loadingReplies[comment.id] && (
+                                    <div className="flex justify-center py-2">
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                    </div>
+                                  )}
+
+                                  {/* Replies list */}
+                                  {!loadingReplies[comment.id] && replies[comment.id]?.map((reply) => (
+                                    <div key={reply.id} className="flex gap-2 group/reply">
+                                      <Link href={`/profile/${reply.user.id}`}>
+                                        <div className="cursor-pointer hover:opacity-80 transition">
+                                          <PartnerAvatar
+                                            avatarUrl={reply.user.avatarUrl}
+                                            name={reply.user.name}
+                                            size="sm"
+                                            onlineStatus={reply.user.onlineStatus as 'ONLINE' | 'OFFLINE'}
+                                            showStatus={!!reply.user.onlineStatus}
+                                          />
+                                        </div>
+                                      </Link>
+                                      <div className="flex-1 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-2 relative">
+                                        <div className="flex items-center gap-2">
+                                          <Link href={`/profile/${reply.user.id}`}>
+                                            <p className="font-semibold text-xs text-neutral-900 dark:text-white hover:text-blue-500 cursor-pointer transition inline-block">
+                                              {sanitizeText(reply.user.name)}
+                                            </p>
+                                          </Link>
+                                          {reply.user.isPartner && (
+                                            <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded">
+                                              Partner
+                                            </span>
+                                          )}
+                                          {/* Delete reply button */}
+                                          {(reply.user.id === user?.id || post.user.id === user?.id) && (
+                                            <button
+                                              onClick={() => handleDeleteReply(post.id, comment.id, reply.id)}
+                                              className="ml-auto opacity-0 group-hover/reply:opacity-100 p-0.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                              title="Delete reply"
+                                            >
+                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                              </svg>
+                                            </button>
+                                          )}
+                                        </div>
+                                        <p className="text-neutral-600 dark:text-neutral-300 text-xs">{sanitizeText(reply.content)}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               )}
                             </div>
-                            <p className="text-neutral-600 dark:text-neutral-300 text-sm">{sanitizeText(comment.content)}</p>
                           </div>
                         </div>
                       ))}

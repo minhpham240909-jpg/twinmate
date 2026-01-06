@@ -23,6 +23,8 @@ export default function CreatePostPage() {
   const [isPosting, setIsPosting] = useState(false)
   const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [allowSharing, setAllowSharing] = useState(true)
+  const [allowComments, setAllowComments] = useState(true)
+  const [allowLikes, setAllowLikes] = useState(true)
   const [showMentions, setShowMentions] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionUsers, setMentionUsers] = useState<{ id: string; name: string; avatarUrl: string | null }[]>([])
@@ -154,7 +156,9 @@ export default function CreatePostPage() {
           content: content.trim() || (imageUrls.length > 0 ? t('postedImages') : t('sharedLink')),
           imageUrls,
           postUrl: postUrl.trim() || null,
-          allowSharing
+          allowSharing,
+          allowComments,
+          allowLikes,
         }),
       })
 
@@ -488,8 +492,39 @@ export default function CreatePostPage() {
               )}
             </AnimatePresence>
 
-            {/* Allow Sharing */}
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700/50">
+            {/* Post Settings */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700/50 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Post Settings</h3>
+
+              {/* Allow Comments */}
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={allowComments}
+                  onChange={(e) => setAllowComments(e.target.checked)}
+                  className="w-5 h-5 text-blue-500 bg-white dark:bg-slate-800/50 border-gray-200 dark:border-slate-600/50 rounded focus:ring-blue-500/50 focus:ring-2 cursor-pointer"
+                />
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">Allow Comments</span>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">Let others comment on your post</p>
+                </div>
+              </label>
+
+              {/* Allow Likes */}
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={allowLikes}
+                  onChange={(e) => setAllowLikes(e.target.checked)}
+                  className="w-5 h-5 text-blue-500 bg-white dark:bg-slate-800/50 border-gray-200 dark:border-slate-600/50 rounded focus:ring-blue-500/50 focus:ring-2 cursor-pointer"
+                />
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">Allow Likes</span>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">Let others like your post</p>
+                </div>
+              </label>
+
+              {/* Allow Sharing */}
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"

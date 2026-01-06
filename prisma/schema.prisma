@@ -875,6 +875,10 @@ model Post {
   // Share settings
   allowSharing Boolean @default(true) // Allow post to be shared outside the app
 
+  // Interaction settings - post owner can disable comments/likes
+  allowComments Boolean @default(true) // Allow users to comment on this post
+  allowLikes    Boolean @default(true) // Allow users to like this post
+
   // Relations
   likes    PostLike[]
   comments PostComment[]
@@ -914,12 +918,18 @@ model PostComment {
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   content String @db.Text
 
+  // Threading/Replies - 1 level deep (comment -> reply)
+  parentId String?       // If this is a reply, points to parent comment
+  parent   PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  PostComment[] @relation("CommentReplies")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([postId])
   @@index([userId])
   @@index([createdAt])
+  @@index([parentId])
 }
 
 model PostRepost {

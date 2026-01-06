@@ -6,7 +6,7 @@ import { validateContent } from '@/lib/validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { notifyPostComment } from '@/lib/notifications/send'
 
-// GET /api/posts/[postId]/comments - Get comments for a post
+// GET /api/posts/[postId]/comments - Get comments for a post (with replies)
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
@@ -21,10 +21,13 @@ export async function GET(
 
     const { postId } = await params
 
-    // OPTIMIZATION: Fetch comments and partner connections in parallel to reduce latency
-    const [comments, partnerConnections] = await Promise.all([
+    // OPTIMIZATION: Fetch top-level comments (parentId is null), post settings, and partner connections in parallel
+    const [comments, post, partnerConnections] = await Promise.all([
       prisma.postComment.findMany({
-        where: { postId },
+        where: {
+          postId,
+          parentId: null, // Only top-level comments, not replies
+        },
         include: {
           user: {
             select: {
@@ -38,11 +41,24 @@ export async function GET(
               },
             },
           },
+          _count: {
+            select: {
+              replies: true, // Count of replies for "X replies" display
+            },
+          },
         },
         orderBy: {
           createdAt: 'asc',
         },
       }) as Promise<any[]>,
+      // Get post settings
+      prisma.post.findUnique({
+        where: { id: postId },
+        select: {
+          allowComments: true,
+          allowLikes: true,
+        },
+      }),
       // Get user's partner connections
       prisma.match.findMany({
         where: {
@@ -62,9 +78,10 @@ export async function GET(
       match.senderId === user.id ? match.receiverId : match.senderId
     ))
 
-    // Add onlineStatus and partner status to commenters
+    // Add onlineStatus, partner status, and reply count to commenters
     const commentsWithStatus = comments.map((comment: any) => ({
       ...comment,
+      replyCount: comment._count?.replies || 0,
       user: {
         ...comment.user,
         onlineStatus: partnerIds.has(comment.user.id) ? comment.user.presence?.status : null,
@@ -72,7 +89,11 @@ export async function GET(
       },
     }))
 
-    return NextResponse.json({ comments: commentsWithStatus })
+    return NextResponse.json({
+      comments: commentsWithStatus,
+      allowComments: post?.allowComments ?? true,
+      allowLikes: post?.allowLikes ?? true,
+    })
   } catch (error) {
     console.error('Error fetching comments:', error)
     return NextResponse.json(
@@ -82,7 +103,7 @@ export async function GET(
   }
 }
 
-// POST /api/posts/[postId]/comments - Add a comment to a post
+// POST /api/posts/[postId]/comments - Add a comment or reply to a post
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
@@ -106,7 +127,7 @@ export async function POST(
 
     const { postId } = await params
     const body = await req.json()
-    const { content } = body
+    const { content, parentId } = body // parentId is optional - if provided, this is a reply
 
     // Validate content
     const contentValidation = validateContent(content, CONTENT_LIMITS.COMMENT_MAX_LENGTH, 'Comment')
@@ -117,13 +138,49 @@ export async function POST(
       )
     }
 
-    // Check if post exists
+    // Check if post exists and allows comments
     const post = await prisma.post.findUnique({
       where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+        allowComments: true,
+      },
     })
 
     if (!post) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    }
+
+    // Check if comments are allowed on this post
+    if (!post.allowComments) {
+      return NextResponse.json(
+        { error: 'Comments are disabled for this post' },
+        { status: 403 }
+      )
+    }
+
+    // If this is a reply, validate the parent comment exists and belongs to same post
+    let parentComment = null
+    if (parentId) {
+      parentComment = await prisma.postComment.findFirst({
+        where: {
+          id: parentId,
+          postId: postId,
+          parentId: null, // Only allow replying to top-level comments (1-level deep)
+        },
+        select: {
+          id: true,
+          userId: true,
+        },
+      })
+
+      if (!parentComment) {
+        return NextResponse.json(
+          { error: 'Parent comment not found or cannot reply to a reply' },
+          { status: 400 }
+        )
+      }
     }
 
     const comment = await prisma.postComment.create({
@@ -131,6 +188,7 @@ export async function POST(
         postId,
         userId: user.id,
         content: content.trim(),
+        parentId: parentId || null, // null for top-level comments
       },
       include: {
         user: {
@@ -143,8 +201,18 @@ export async function POST(
       },
     })
 
-    // Send notification to post owner (async, don't wait)
-    notifyPostComment(user.id, post.userId, postId, content.trim()).catch(console.error)
+    // Send notification to post owner (for comments) or parent comment author (for replies)
+    if (parentId && parentComment) {
+      // Notify parent comment author about the reply (if not self-reply)
+      if (parentComment.userId !== user.id) {
+        notifyPostComment(user.id, parentComment.userId, postId, content.trim()).catch(console.error)
+      }
+    } else {
+      // Notify post owner about the comment (if not self-comment)
+      if (post.userId !== user.id) {
+        notifyPostComment(user.id, post.userId, postId, content.trim()).catch(console.error)
+      }
+    }
 
     return NextResponse.json({ success: true, comment }, { status: 201 })
   } catch (error) {

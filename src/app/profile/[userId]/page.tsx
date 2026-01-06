@@ -99,6 +99,9 @@ export default function UserProfilePage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [showMatchDetails, setShowMatchDetails] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [openPostMenu, setOpenPostMenu] = useState<string | null>(null)
+  const [postSettingsModal, setPostSettingsModal] = useState<{ isOpen: boolean; postId: string; allowComments: boolean; allowLikes: boolean } | null>(null)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -203,6 +206,68 @@ export default function UserProfilePage() {
 
   const handleMessage = () => {
     router.push(`/chat/partners?conversation=${userId}`)
+  }
+
+  const handleSavePostSettings = async () => {
+    if (!postSettingsModal) return
+
+    setIsSavingSettings(true)
+    try {
+      const response = await fetch(`/api/posts/${postSettingsModal.postId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allowComments: postSettingsModal.allowComments,
+          allowLikes: postSettingsModal.allowLikes,
+        }),
+      })
+
+      if (response.ok) {
+        setPostSettingsModal(null)
+        alert('Post settings updated successfully')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to update settings')
+      }
+    } catch (error) {
+      console.error('Error updating post settings:', error)
+      alert('Failed to update settings')
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
+
+  const openPostSettings = async (postId: string) => {
+    // Fetch current settings for the post
+    try {
+      const response = await fetch(`/api/posts/${postId}/settings`)
+      if (response.ok) {
+        const data = await response.json()
+        setPostSettingsModal({
+          isOpen: true,
+          postId,
+          allowComments: data.allowComments,
+          allowLikes: data.allowLikes,
+        })
+      } else {
+        // Default to true if fetch fails
+        setPostSettingsModal({
+          isOpen: true,
+          postId,
+          allowComments: true,
+          allowLikes: true,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching post settings:', error)
+      setPostSettingsModal({
+        isOpen: true,
+        postId,
+        allowComments: true,
+        allowLikes: true,
+      })
+    }
+    setOpenPostMenu(null)
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -901,8 +966,47 @@ export default function UserProfilePage() {
               posts.map((post, index) => (
                 <FadeIn key={post.id} delay={index * 0.05}>
                   <GlowBorder color="#e5e7eb" animated={false}  style={{ borderRadius: 12 }}>
-                    <div className="border-b border-gray-200 dark:border-white/10 py-6 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer rounded-lg">
-                  <p className="text-gray-700 dark:text-slate-300 mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+                    <div className="border-b border-gray-200 dark:border-white/10 py-6 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-all rounded-lg relative">
+                  {/* 3-dot menu for own posts */}
+                  {isOwnProfile && (
+                    <div className="absolute top-4 right-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenPostMenu(openPostMenu === post.id ? null : post.id)
+                        }}
+                        className="p-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                      </button>
+
+                      {/* Dropdown menu */}
+                      {openPostMenu === post.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setOpenPostMenu(null)}></div>
+                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 py-1 z-20">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openPostSettings(post.id)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              Post Settings
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-gray-700 dark:text-slate-300 mb-4 whitespace-pre-wrap leading-relaxed pr-10">{post.content}</p>
 
                   {/* Post Images */}
                   {post.imageUrls && post.imageUrls.length > 0 && (
@@ -1003,6 +1107,102 @@ export default function UserProfilePage() {
           contentId={userId}
           contentPreview={viewedUser.name}
         />
+      )}
+
+      {/* Post Settings Modal */}
+      {postSettingsModal?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setPostSettingsModal(null)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 w-full max-w-md mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Post Settings
+              </h3>
+              <button
+                onClick={() => setPostSettingsModal(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Allow Comments Toggle */}
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-white">Allow Comments</span>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Let others comment on this post</p>
+                </div>
+                <button
+                  onClick={() => setPostSettingsModal(prev => prev ? { ...prev, allowComments: !prev.allowComments } : null)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    postSettingsModal.allowComments ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      postSettingsModal.allowComments ? 'translate-x-7' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </label>
+
+              {/* Allow Likes Toggle */}
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-white">Allow Likes</span>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Let others like this post</p>
+                </div>
+                <button
+                  onClick={() => setPostSettingsModal(prev => prev ? { ...prev, allowLikes: !prev.allowLikes } : null)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    postSettingsModal.allowLikes ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      postSettingsModal.allowLikes ? 'translate-x-7' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </label>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+              <button
+                onClick={() => setPostSettingsModal(null)}
+                className="px-4 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePostSettings}
+                disabled={isSavingSettings}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              >
+                {isSavingSettings ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
