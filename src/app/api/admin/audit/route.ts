@@ -58,7 +58,18 @@ export async function GET(request: NextRequest) {
     const [logs, total, admins, actions] = await Promise.all([
       prisma.adminAuditLog.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          adminId: true,
+          adminName: true,
+          adminEmail: true,
+          action: true,
+          targetType: true,
+          targetId: true,
+          details: true,
+          ipAddress: true,
+          userAgent: true,
+          createdAt: true,
           admin: {
             select: {
               id: true,
@@ -74,10 +85,13 @@ export async function GET(request: NextRequest) {
       }),
       prisma.adminAuditLog.count({ where }),
       // Get list of admins for filter - CRITICAL: Limit to prevent unbounded query
+      // Also fetch cached adminName/adminEmail to handle deleted admins
       prisma.adminAuditLog.findMany({
         distinct: ['adminId'],
         select: {
           adminId: true,
+          adminName: true,
+          adminEmail: true,
           admin: {
             select: { name: true, email: true },
           },
@@ -105,12 +119,11 @@ export async function GET(request: NextRequest) {
           limit,
         },
         filters: {
-          admins: admins
-            .filter((a) => a.admin !== null)
-            .map((a) => ({
-              id: a.adminId,
-              name: a.admin?.name || a.admin?.email || 'Deleted Admin',
-            })),
+          // Use cached adminName/adminEmail when admin relation is null (deleted admin)
+          admins: admins.map((a) => ({
+            id: a.adminId,
+            name: a.admin?.name || a.adminName || a.admin?.email || a.adminEmail || 'Unknown Admin',
+          })),
           actions: actions.map((a) => a.action),
         },
       },

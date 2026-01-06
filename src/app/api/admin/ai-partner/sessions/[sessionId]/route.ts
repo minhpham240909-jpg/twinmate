@@ -33,7 +33,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     const adminUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { isAdmin: true }
+      select: { isAdmin: true, name: true, email: true }
     })
 
     if (!adminUser?.isAdmin) {
@@ -143,10 +143,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       (tokenStats.completionTokens * 0.60 / 1000000)
     )
 
-    // Log admin view
-    await prisma.adminAuditLog.create({
+    // Log admin view (non-blocking to prevent errors from affecting the response)
+    prisma.adminAuditLog.create({
       data: {
         adminId: user.id,
+        adminName: adminUser.name,
+        adminEmail: adminUser.email,
         action: 'VIEW_AI_PARTNER_SESSION_DETAIL',
         targetType: 'AI_SESSION',
         targetId: sessionId,
@@ -155,7 +157,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           messageCount: session.messages.length,
         },
       }
-    })
+    }).catch(err => console.error('Failed to log admin action:', err))
 
     return NextResponse.json({
       success: true,

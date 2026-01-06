@@ -29,6 +29,8 @@ import {
 interface AuditLog {
   id: string
   adminId: string
+  adminName: string | null  // Cached admin name for when admin is deleted
+  adminEmail: string | null // Cached admin email for when admin is deleted
   action: string
   targetType: string
   targetId: string
@@ -41,7 +43,7 @@ interface AuditLog {
     name: string | null
     email: string
     avatarUrl: string | null
-  }
+  } | null  // Admin can be null if deleted
 }
 
 interface Pagination {
@@ -369,28 +371,40 @@ export default function AdminAuditPage() {
                         </span>
                       </div>
 
-                      {/* Admin Info */}
-                      <Link
-                        href={`/admin/users/${log.admin.id}`}
-                        className="flex items-center gap-2 text-sm text-gray-400 hover:text-blue-400 transition-colors group"
-                      >
-                        {log.admin.avatarUrl ? (
-                          <Image
-                            src={log.admin.avatarUrl}
-                            alt={log.admin.name || log.admin.email}
-                            width={20}
-                            height={20}
-                            className="rounded-full"
-                          />
-                        ) : (
+                      {/* Admin Info - Handle null admin with fallback to cached info */}
+                      {log.admin ? (
+                        <Link
+                          href={`/admin/users/${log.admin.id}`}
+                          className="flex items-center gap-2 text-sm text-gray-400 hover:text-blue-400 transition-colors group"
+                        >
+                          {log.admin.avatarUrl ? (
+                            <Image
+                              src={log.admin.avatarUrl}
+                              alt={log.admin.name || log.admin.email}
+                              width={20}
+                              height={20}
+                              className="rounded-full"
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center">
+                              <span className="text-white text-xs">
+                                {(log.admin.name || log.admin.email).charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <span className="group-hover:text-blue-400">by {log.admin.name || log.admin.email}</span>
+                        </Link>
+                      ) : (
+                        // Fallback to cached admin info when admin relation is null
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
                           <div className="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center">
                             <span className="text-white text-xs">
-                              {log.admin.name?.charAt(0) || log.admin.email.charAt(0).toUpperCase()}
+                              {(log.adminName || log.adminEmail || 'U').charAt(0).toUpperCase()}
                             </span>
                           </div>
-                        )}
-                        <span className="group-hover:text-blue-400">by {log.admin.name || log.admin.email}</span>
-                      </Link>
+                          <span>by {log.adminName || log.adminEmail || 'Unknown Admin'}</span>
+                        </div>
+                      )}
 
                       {/* Details */}
                       {log.details && Object.keys(log.details).length > 0 && (
