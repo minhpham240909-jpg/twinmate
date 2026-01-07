@@ -14,12 +14,19 @@ export async function register() {
   // Only run on server
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // Import dynamically to avoid client-side issues
-    const { validateOrExit, getEnvironmentInfo } = await import('./lib/env-validator')
+    const { validateEnvironment, logValidationResults, getEnvironmentInfo } = await import('./lib/env-validator')
 
     console.log('\n🚀 Starting Clerva Server...\n')
 
-    // Validate environment variables
-    validateOrExit()
+    // Validate environment variables - LOG but don't exit
+    // This allows the app to start so we can debug issues
+    const results = validateEnvironment()
+    logValidationResults(results)
+
+    if (!results.valid) {
+      console.warn('⚠️  Some environment variables are missing - app may have limited functionality')
+      console.warn('   Missing:', results.missing.join(', '))
+    }
 
     // Log environment info (sanitized)
     const envInfo = getEnvironmentInfo()
