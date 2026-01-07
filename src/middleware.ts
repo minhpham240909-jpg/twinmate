@@ -4,6 +4,17 @@ import logger from '@/lib/logger'
 import { validateContentType } from '@/lib/security/content-type'
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || ''
+
+  // CRITICAL: Redirect www to non-www to prevent CORS issues
+  // When users access www.clerva.app but cookies/auth are set on clerva.app,
+  // the browser treats them as different origins and blocks requests
+  if (host.startsWith('www.')) {
+    const newUrl = request.nextUrl.clone()
+    newUrl.host = host.replace('www.', '')
+    return NextResponse.redirect(newUrl, { status: 301 })
+  }
+
   // Security: Check for suspicious patterns in URL
   const url = request.nextUrl.pathname
   const suspiciousPatterns = [
@@ -61,16 +72,22 @@ export async function middleware(request: NextRequest) {
 
     if (!isExempt) {
       const origin = request.headers.get('origin')
-      const host = request.headers.get('host')
+      const requestHost = request.headers.get('host')
 
       // Verify origin matches host for state-changing requests (CSRF protection)
       // Allow requests without origin (server-to-server) or from same origin
-      if (origin && !origin.includes(host || '')) {
-        logger.warn('CSRF attempt detected', { origin, host, path: url })
-        return NextResponse.json(
-          { error: 'Invalid origin' },
-          { status: 403 }
-        )
+      if (origin && requestHost) {
+        // Normalize both origin and host for comparison (handle www vs non-www)
+        const normalizedOrigin = origin.replace('https://', '').replace('http://', '').replace('www.', '')
+        const normalizedHost = requestHost.replace('www.', '')
+
+        if (!normalizedOrigin.startsWith(normalizedHost)) {
+          logger.warn('CSRF attempt detected', { origin, host: requestHost, path: url })
+          return NextResponse.json(
+            { error: 'Invalid origin' },
+            { status: 403 }
+          )
+        }
       }
     }
   }

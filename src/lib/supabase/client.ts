@@ -16,16 +16,8 @@ export function createClient() {
   const url = supabaseUrl || 'https://placeholder.supabase.co'
   const key = supabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTIwMDAsImV4cCI6MTk2MDc2ODAwMH0.placeholder'
 
-  // CRITICAL: Use default cookie-based storage for SSR compatibility
-  // The createBrowserClient automatically handles cookie storage which allows
-  // the server middleware to read auth tokens and maintain session consistency
-  // DO NOT use custom localStorage/sessionStorage - it breaks server-side auth checks
-  return createBrowserClient(url, key, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-    },
-  })
+  // CRITICAL: createBrowserClient from @supabase/ssr automatically handles cookies
+  // It sets cookies that the server middleware can read
+  // DO NOT add custom storage - let it use the default cookie-based storage
+  return createBrowserClient(url, key)
 }

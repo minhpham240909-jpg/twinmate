@@ -127,6 +127,7 @@ function AuthPageContent() {
     setSignInLoading(true)
 
     try {
+      // Step 1: Call API for rate limiting, lockout check, and 2FA verification
       const apiResponse = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
@@ -154,6 +155,8 @@ function AuthPageContent() {
         return
       }
 
+      // Step 2: Sign in with Supabase client to set browser cookies
+      // This is the CRITICAL step that establishes the session for middleware
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
@@ -171,34 +174,38 @@ function AuthPageContent() {
         return
       }
 
-      if (!data.user) {
+      if (!data.user || !data.session) {
         setSignInError('Sign in failed. Please try again.')
         setSignInLoading(false)
         return
       }
 
-      // CRITICAL: Wait for cookies to be properly set before navigation
-      // The Supabase client sets cookies asynchronously, and we need to ensure
-      // they're fully written before the next request hits the server middleware
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Verify the session is actually set
-      const { data: sessionCheck } = await supabase.auth.getUser()
-      if (!sessionCheck.user) {
-        // If session not ready, wait a bit more
-        await new Promise(resolve => setTimeout(resolve, 500))
+      // Step 3: Wait for session to be fully established
+      // Poll until getSession returns the session (cookies are set)
+      let sessionVerified = false
+      for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200))
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (sessionData.session) {
+          sessionVerified = true
+          break
+        }
       }
 
-      // Check if user is admin
+      if (!sessionVerified) {
+        console.warn('[Auth] Session verification timeout, proceeding anyway')
+      }
+
+      // Step 4: Check if user is admin
       const userCheckResponse = await fetch('/api/admin/check')
       const userCheckData = await userCheckResponse.json()
       const redirectUrl = userCheckData.isAdmin ? '/admin' : '/dashboard'
 
-      // CRITICAL: Use window.location.href for a full page reload
-      // This ensures the browser sends the cookies with the new request
-      // router.push() can race with cookie setting and cause redirect loops
+      // Step 5: Navigate using full page reload to ensure cookies are sent
+      // This is more reliable than router.push() for auth state changes
       window.location.href = redirectUrl
     } catch (err) {
+      console.error('[Auth] Sign in error:', err)
       setSignInError('Network error. Please try again.')
       setSignInLoading(false)
     }

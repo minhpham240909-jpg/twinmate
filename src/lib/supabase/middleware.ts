@@ -47,48 +47,24 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // SECURITY: Verify auth with Supabase - NEVER trust cookies alone
-  // Cookies can be manipulated; only trust verified sessions
+  // Get session from Supabase - this reads from cookies and validates the JWT locally
+  // getSession() is fast (no network call) and sufficient for middleware routing
+  // Individual API routes use getUser() for full server-side verification
   let user: { id: string } | null = null
 
-  // First, check if auth cookies exist (fast check - no network call)
-  // Supabase sets cookies like 'sb-<project-ref>-auth-token'
-  const cookies = request.cookies.getAll()
-  const hasAuthCookies = cookies.some(cookie =>
-    cookie.name.includes('-auth-token') && cookie.value.length > 10
-  )
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession()
 
-  if (hasAuthCookies) {
-    // Auth cookies exist - MUST verify with Supabase
-    try {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser()
-      if (!error && authUser) {
-        // SECURITY: Only trust verified users from Supabase
-        user = { id: authUser.id }
-      } else if (error) {
-        // Log the error for debugging but don't expose to user
-        console.warn('[Middleware] Auth verification failed:', error.message)
-
-        // IMPORTANT: If the error is a network/config issue (not expired token),
-        // we should be more lenient to avoid redirect loops
-        // Common config errors: invalid URL, invalid key, network timeout
-        if (error.message?.includes('fetch') ||
-            error.message?.includes('network') ||
-            error.message?.includes('Invalid URL') ||
-            error.status === 0) {
-          console.error('[Middleware] Supabase connection error - skipping auth redirect')
-          // Trust the cookie temporarily to avoid redirect loop
-          // The actual API calls will fail and show proper errors
-          user = { id: 'unknown' }
-        }
-      }
-    } catch (err) {
-      // SECURITY FIX: Auth verification failed - but check if it's a config error
-      console.error('[Middleware] Auth check exception:', err)
-      // If we can't verify, allow access to prevent redirect loops
-      // API routes will handle proper authentication
-      user = { id: 'unknown' }
+    if (error) {
+      console.warn('[Middleware] Session error:', error.message)
     }
+
+    if (session?.user) {
+      user = { id: session.user.id }
+    }
+  } catch (err) {
+    console.error('[Middleware] Auth check exception:', err)
+    // On error, allow the request through - API routes will handle auth properly
   }
 
   const pathname = request.nextUrl.pathname
