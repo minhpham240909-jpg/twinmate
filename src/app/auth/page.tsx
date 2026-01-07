@@ -177,17 +177,27 @@ function AuthPageContent() {
         return
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // CRITICAL: Wait for cookies to be properly set before navigation
+      // The Supabase client sets cookies asynchronously, and we need to ensure
+      // they're fully written before the next request hits the server middleware
+      await new Promise(resolve => setTimeout(resolve, 300))
 
+      // Verify the session is actually set
       const { data: sessionCheck } = await supabase.auth.getUser()
       if (!sessionCheck.user) {
-        await new Promise(resolve => setTimeout(resolve, 200))
+        // If session not ready, wait a bit more
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
 
+      // Check if user is admin
       const userCheckResponse = await fetch('/api/admin/check')
       const userCheckData = await userCheckResponse.json()
       const redirectUrl = userCheckData.isAdmin ? '/admin' : '/dashboard'
-      router.push(redirectUrl)
+
+      // CRITICAL: Use window.location.href for a full page reload
+      // This ensures the browser sends the cookies with the new request
+      // router.push() can race with cookie setting and cause redirect loops
+      window.location.href = redirectUrl
     } catch (err) {
       setSignInError('Network error. Please try again.')
       setSignInLoading(false)
