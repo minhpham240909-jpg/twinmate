@@ -174,12 +174,12 @@ const ENV_SCHEMA: EnvConfig[] = [
   },
 
   // ==========================================
-  // Email Service - Required in Production
+  // Email Service - Optional (app works without email)
   // ==========================================
   {
     name: 'RESEND_API_KEY',
     required: false,
-    requiredInProduction: true,
+    requiredInProduction: false, // Made optional - email features will be disabled without it
     description: 'Resend API key for email notifications',
     validationFn: (v) => v.startsWith('re_'),
   },
