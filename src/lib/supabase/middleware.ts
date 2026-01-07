@@ -51,20 +51,57 @@ export async function updateSession(request: NextRequest) {
   // getSession() is fast (no network call) and sufficient for middleware routing
   // Individual API routes use getUser() for full server-side verification
   let user: { id: string } | null = null
+  
+  // Check if this is a fresh redirect from auth callback
+  // The auth_verified cookie is set by the callback route and is short-lived (30s)
+  const isFromAuthCallback = request.cookies.get('auth_verified')?.value === 'true'
+  const hasAuthCallbackParam = request.nextUrl.searchParams.get('auth_callback') === 'true'
+  
+  // Check for auth cookies existence
+  const cookies = request.cookies.getAll()
+  const hasAuthCookies = cookies.some(cookie =>
+    cookie.name.includes('-auth-token') && cookie.value.length > 10
+  )
 
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession()
-
-    if (error) {
-      console.warn('[Middleware] Session error:', error.message)
+  // OPTIMIZATION: If coming from auth callback with fresh cookies + verification cookie,
+  // trust the auth and extract user ID directly from the JWT
+  // This prevents the race condition where getSession() fails due to cookie sync timing
+  if (isFromAuthCallback && hasAuthCallbackParam && hasAuthCookies) {
+    try {
+      // Parse the access token to get user ID (safe since callback just verified)
+      const accessToken = cookies.find(c => c.name.includes('-auth-token'))
+      if (accessToken) {
+        // JWT structure: header.payload.signature - payload contains 'sub' (user ID)
+        const payloadBase64 = accessToken.value.split('.')[1]
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64))
+          if (payload.sub) {
+            user = { id: payload.sub }
+          }
+        }
+      }
+    } catch {
+      // If parsing fails, fall through to standard verification
+      user = null
     }
+  }
+  
+  // Standard path: Get session from Supabase if not already authenticated via callback
+  if (!user) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
 
-    if (session?.user) {
-      user = { id: session.user.id }
+      if (error) {
+        console.warn('[Middleware] Session error:', error.message)
+      }
+
+      if (session?.user) {
+        user = { id: session.user.id }
+      }
+    } catch (err) {
+      console.error('[Middleware] Auth check exception:', err)
+      // On error, allow the request through - API routes will handle auth properly
     }
-  } catch (err) {
-    console.error('[Middleware] Auth check exception:', err)
-    // On error, allow the request through - API routes will handle auth properly
   }
 
   const pathname = request.nextUrl.pathname
@@ -88,6 +125,16 @@ export async function updateSession(request: NextRequest) {
   // Auth redirect logic
   if (user) {
     // User is logged in
+    
+    // Clean up auth_callback param if present (prevents it being bookmarked)
+    if (hasAuthCallbackParam) {
+      const cleanUrl = request.nextUrl.clone()
+      cleanUrl.searchParams.delete('auth_callback')
+      // Delete the short-lived auth_verified cookie since it's been used
+      response = NextResponse.redirect(cleanUrl)
+      response.cookies.delete('auth_verified')
+      return response
+    }
 
     // If admin is entering user view mode, set the cookie and continue
     if (enteringUserView) {

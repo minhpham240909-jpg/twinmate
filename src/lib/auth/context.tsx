@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Get initial session with timeout to prevent infinite loading
+    // Get initial session with timeout and retry logic to prevent infinite loading
     const initAuth = async () => {
       // Check if Supabase is properly configured
       if (!isSupabaseConfigured()) {
@@ -175,21 +175,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Helper function to get user with retry logic
+      // This helps handle race conditions after OAuth callback
+      const getUserWithRetry = async (retries = 3, delayMs = 500): Promise<{ user: any; error: any }> => {
+        for (let attempt = 0; attempt < retries; attempt++) {
+          try {
+            const { data: { user }, error } = await supabase.auth.getUser()
+            
+            // If we got a user or a definitive "no session" response, return
+            if (user || (!error && !user)) {
+              return { user, error: null }
+            }
+            
+            // If there's an error but we have cookies, retry after a short delay
+            // This handles the cookie sync race condition
+            const hasCookies = document.cookie.includes('-auth-token')
+            if (error && hasCookies && attempt < retries - 1) {
+              console.log(`[AuthContext] Auth check failed, retrying in ${delayMs}ms (attempt ${attempt + 1}/${retries})`)
+              await new Promise(resolve => setTimeout(resolve, delayMs))
+              continue
+            }
+            
+            return { user: null, error }
+          } catch (err) {
+            if (attempt < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delayMs))
+              continue
+            }
+            return { user: null, error: err }
+          }
+        }
+        return { user: null, error: new Error('Max retries exceeded') }
+      }
+
       // Create a timeout promise that rejects after 10 seconds
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Auth initialization timed out')), 10000)
       })
 
       try {
-        // Race between auth check and timeout
+        // Race between auth check (with retry) and timeout
         const result = await Promise.race([
-          supabase.auth.getUser(),
+          getUserWithRetry(),
           timeoutPromise
-        ]) as { data: { user: any }, error: any }
+        ]) as { user: any, error: any }
 
-        const { data: { user }, error } = result
+        const { user, error } = result
         if (error) {
-          console.error('[AuthContext] Error getting user:', error.message)
+          console.error('[AuthContext] Error getting user:', error.message || error)
           // Don't set configError for auth errors (user just not logged in)
         }
         setUser(user)

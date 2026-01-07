@@ -121,8 +121,13 @@ export async function GET(request: Request) {
           // Continue anyway - user can be synced later
         }
 
-        // Create redirect response and attach all cookies
-        const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
+        // Create redirect response with auth_callback flag
+        // This flag tells middleware to skip redundant getUser() verification
+        // since we JUST authenticated and cookies are fresh
+        const redirectUrl = new URL(redirectPath, requestUrl.origin)
+        redirectUrl.searchParams.set('auth_callback', 'true')
+        
+        const response = NextResponse.redirect(redirectUrl)
 
         // CRITICAL: Set all session cookies on the redirect response
         // This ensures the browser receives the auth cookies with the redirect
@@ -134,6 +139,16 @@ export async function GET(request: Request) {
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
           })
+        })
+
+        // Set a short-lived cookie to confirm successful auth callback
+        // This cookie is checked by middleware to trust fresh auth
+        response.cookies.set('auth_verified', 'true', {
+          path: '/',
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 30, // Only valid for 30 seconds
+          httpOnly: true,
         })
 
         return response
