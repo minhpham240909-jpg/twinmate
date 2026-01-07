@@ -4,16 +4,8 @@ import logger from '@/lib/logger'
 import { validateContentType } from '@/lib/security/content-type'
 
 export async function middleware(request: NextRequest) {
-  const host = request.headers.get('host') || ''
-
-  // CRITICAL: Redirect www to non-www to prevent CORS issues
-  // When users access www.clerva.app but cookies/auth are set on clerva.app,
-  // the browser treats them as different origins and blocks requests
-  if (host.startsWith('www.')) {
-    const newUrl = request.nextUrl.clone()
-    newUrl.host = host.replace('www.', '')
-    return NextResponse.redirect(newUrl, { status: 301 })
-  }
+  // NOTE: www to non-www redirect should be configured in Vercel Dashboard
+  // Do NOT add it here - it causes redirect loops with Vercel's edge redirects
 
   // Security: Check for suspicious patterns in URL
   const url = request.nextUrl.pathname
