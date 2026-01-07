@@ -161,40 +161,13 @@ export default function ChatSelectionPage() {
                   </div>
                 )}
                 <div className="absolute bottom-5 left-5">
-                  <h3 className="text-xl font-semibold text-white mb-1">{t('partnerChat')}</h3>
-                  <p className="text-blue-100 text-sm">{t('oneOnOneConversations')}</p>
+                  <h3 className="text-xl font-semibold text-white">{t('partnerChat')}</h3>
                 </div>
               </div>
 
-              {/* Card Body */}
+              {/* Card Footer */}
               <div className="p-5">
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm">{t('privateMessages')}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm">{t('videoAudioCalls')}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm">{t('searchPartnersAndMessages')}</p>
-                  </div>
-                </div>
-                <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-neutral-900 dark:text-white">{t('getStarted')}</span>
                   <svg className="w-4 h-4 text-neutral-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -227,40 +200,13 @@ export default function ChatSelectionPage() {
                   </div>
                 )}
                 <div className="absolute bottom-5 left-5">
-                  <h3 className="text-xl font-semibold text-white mb-1">{t('groupChat')}</h3>
-                  <p className="text-blue-100 text-sm">{t('groupConversations')}</p>
+                  <h3 className="text-xl font-semibold text-white">{t('groupChat')}</h3>
                 </div>
               </div>
 
-              {/* Card Body */}
+              {/* Card Footer */}
               <div className="p-5">
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm">{t('groupMessages')}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm">{t('viewGroupMembers')}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm">{t('searchGroupsAndMessages')}</p>
-                  </div>
-                </div>
-                <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-neutral-900 dark:text-white">{t('getStarted')}</span>
                   <svg className="w-4 h-4 text-neutral-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

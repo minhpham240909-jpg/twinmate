@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useSettings } from '@/contexts/SettingsContext'
 import { useTranslations } from 'next-intl'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { useCsrfToken } from '@/hooks/useCsrfToken'
 import { getOrCreateDeviceId } from '@/lib/utils/deviceId'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -141,6 +142,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
   const { settings: globalSettings, loading: loadingSettings, refreshSettings } = useSettings()
+  const { csrfToken } = useCsrfToken()
   const t = useTranslations('settings')
   const tCommon = useTranslations('common')
   const [activeTab, setActiveTab] = useState<TabId>('account')
@@ -258,7 +260,10 @@ export default function SettingsPage() {
 
       const response = await fetch('/api/settings/delete-account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+        },
         body: JSON.stringify({ confirmation: 'DELETE' }),
       })
 
@@ -585,7 +590,7 @@ export default function SettingsPage() {
               <AnimatePresence mode="wait">
                 {activeTab === 'account' && (
                   <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <AccountSettings settings={settings} updateSetting={updateSetting} />
+                    <AccountSettings settings={settings} updateSetting={updateSetting} csrfToken={csrfToken} />
                   </motion.div>
                 )}
                 {activeTab === 'privacy' && (
@@ -898,7 +903,7 @@ function NumberSetting({
 }
 
 // Account Settings
-function AccountSettings({ settings, updateSetting }: { settings: UserSettings; updateSetting: any }) {
+function AccountSettings({ settings, updateSetting, csrfToken }: { settings: UserSettings; updateSetting: any; csrfToken: string | null }) {
   const { user, profile } = useAuth()
   const router = useRouter()
   const t = useTranslations('settings')
@@ -1255,7 +1260,10 @@ function AccountSettings({ settings, updateSetting }: { settings: UserSettings; 
     try {
       const response = await fetch('/api/settings/deactivate-account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+        },
         body: JSON.stringify({ confirmation: 'DEACTIVATE' }),
       })
 

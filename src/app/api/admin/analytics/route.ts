@@ -77,79 +77,34 @@ export async function GET(request: NextRequest) {
         const now = new Date()
         const onlineThreshold = new Date(now.getTime() - ONLINE_THRESHOLD_MS)
 
-        // Platform-wide analytics
-        const [
-          totalUsers,
-          newUsersThisPeriod,
-          activeUsersThisPeriod,
-          onlineUsersNow,
-          totalSessions,
-          totalPageViews,
-          totalMessages,
-          totalPosts,
-          totalConnections,
-          suspiciousActivities,
-          dailyStats,
-        ] = await Promise.all([
-          // Total users
-          prisma.user.count(),
+        // PERFORMANCE OPTIMIZATION: Use raw SQL to get all counts in a single query
+        // This reduces 10+ database round-trips to just 2-3 queries
+        // Each COUNT is executed in parallel by the database, not sequentially
+        type CountResult = { name: string; count: bigint }[]
 
-          // New users this period
-          prisma.user.count({
-            where: { createdAt: { gte: startDate } }
-          }),
+        const [countsResult, dailyStats] = await Promise.all([
+          // Single query with multiple counts using UNION ALL
+          prisma.$queryRaw<CountResult>`
+            SELECT 'totalUsers' as name, COUNT(*)::bigint as count FROM "User"
+            UNION ALL
+            SELECT 'newUsersThisPeriod', COUNT(*)::bigint FROM "User" WHERE "createdAt" >= ${startDate}
+            UNION ALL
+            SELECT 'onlineUsersNow', COUNT(*)::bigint FROM "user_presence" WHERE status = 'online' AND "lastSeenAt" >= ${onlineThreshold}
+            UNION ALL
+            SELECT 'totalSessions', COUNT(*)::bigint FROM "UserSessionAnalytics" WHERE "startedAt" >= ${startDate}
+            UNION ALL
+            SELECT 'totalPageViews', COUNT(*)::bigint FROM "UserPageVisit" WHERE "createdAt" >= ${startDate}
+            UNION ALL
+            SELECT 'totalMessages', COUNT(*)::bigint FROM "Message" WHERE "createdAt" >= ${startDate}
+            UNION ALL
+            SELECT 'totalPosts', COUNT(*)::bigint FROM "Post" WHERE "createdAt" >= ${startDate}
+            UNION ALL
+            SELECT 'totalConnections', COUNT(*)::bigint FROM "Match" WHERE status = 'ACCEPTED' AND "updatedAt" >= ${startDate}
+            UNION ALL
+            SELECT 'suspiciousActivities', COUNT(*)::bigint FROM "SuspiciousActivityLog" WHERE "createdAt" >= ${startDate} AND "isReviewed" = false
+          `,
 
-          // Active users (had a session during period)
-          prisma.userSessionAnalytics.groupBy({
-            by: ['userId'],
-            where: { startedAt: { gte: startDate } },
-          }).then(r => r.length),
-
-          // Real-time online users (seen within 2 minutes)
-          prisma.userPresence.count({
-            where: {
-              status: 'online', // lowercase as per schema
-              lastSeenAt: { gte: onlineThreshold },
-            }
-          }),
-
-          // Total sessions
-          prisma.userSessionAnalytics.count({
-            where: { startedAt: { gte: startDate } }
-          }),
-
-          // Total page views
-          prisma.userPageVisit.count({
-            where: { createdAt: { gte: startDate } }
-          }),
-
-          // Total messages
-          prisma.message.count({
-            where: { createdAt: { gte: startDate } }
-          }),
-
-          // Total posts
-          prisma.post.count({
-            where: { createdAt: { gte: startDate } }
-          }),
-
-          // Total new connections
-          prisma.match.count({
-            where: {
-              status: 'ACCEPTED',
-              updatedAt: { gte: startDate }
-            }
-          }),
-
-          // Suspicious activities
-          prisma.suspiciousActivityLog.count({
-            where: {
-              createdAt: { gte: startDate },
-              isReviewed: false
-            }
-          }),
-
-          // Daily stats for chart
+          // Daily stats for chart (kept separate as it returns multiple rows)
           prisma.userActivitySummary.groupBy({
             by: ['date'],
             where: { date: { gte: startDate } },
@@ -163,6 +118,20 @@ export async function GET(request: NextRequest) {
             orderBy: { date: 'asc' }
           })
         ])
+
+        // Convert counts array to object for easy access
+        const counts: Record<string, number> = {}
+        for (const row of countsResult) {
+          counts[row.name] = Number(row.count)
+        }
+
+        // Get active users count (requires DISTINCT, done separately)
+        const activeUsersResult = await prisma.$queryRaw<[{ count: bigint }]>`
+          SELECT COUNT(DISTINCT "userId")::bigint as count
+          FROM "UserSessionAnalytics"
+          WHERE "startedAt" >= ${startDate}
+        `
+        const activeUsersThisPeriod = Number(activeUsersResult[0]?.count || 0)
 
         // Get top pages
         const topPages = await prisma.userPageVisit.groupBy({
@@ -194,16 +163,16 @@ export async function GET(request: NextRequest) {
         // Return data object (not Response) for caching
         return {
           summary: {
-            totalUsers,
-            newUsersThisPeriod,
+            totalUsers: counts.totalUsers || 0,
+            newUsersThisPeriod: counts.newUsersThisPeriod || 0,
             activeUsersThisPeriod,
-            onlineUsersNow, // Real-time online users count
-            totalSessions,
-            totalPageViews,
-            totalMessages,
-            totalPosts,
-            totalConnections,
-            suspiciousActivities,
+            onlineUsersNow: counts.onlineUsersNow || 0,
+            totalSessions: counts.totalSessions || 0,
+            totalPageViews: counts.totalPageViews || 0,
+            totalMessages: counts.totalMessages || 0,
+            totalPosts: counts.totalPosts || 0,
+            totalConnections: counts.totalConnections || 0,
+            suspiciousActivities: counts.suspiciousActivities || 0,
           },
           dailyStats: dailyStats.map(day => ({
             date: day.date,

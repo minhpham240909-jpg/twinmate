@@ -94,9 +94,31 @@ async function getClientId(request: NextRequest): Promise<string> {
   return `ip:${ip}`
 }
 
+// Track if we've warned about missing Redis in production
+let redisWarningShown = false
+
+/**
+ * Validate Redis configuration at startup
+ * Called by env-validator.ts during server initialization
+ */
+export function validateRedisConfiguration(): { valid: boolean; error?: string } {
+  const hasRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  if (isProduction && !hasRedis) {
+    return {
+      valid: false,
+      error: 'Redis (UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN) is REQUIRED in production for rate limiting security',
+    }
+  }
+
+  return { valid: true }
+}
+
 /**
  * Check if request should be rate limited using Upstash Redis
- * Falls back to in-memory store in development
+ * In production: Redis is REQUIRED - rejects requests if not configured
+ * In development: Falls back to in-memory store with warning
  */
 export async function rateLimit(
   request: NextRequest,
@@ -111,14 +133,32 @@ export async function rateLimit(
   const clientId = await getClientId(request)
   const key = keyPrefix ? `${keyPrefix}:${clientId}` : clientId
 
-  // Check if we should use Upstash Redis (production)
-  const useRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  // Check if Redis is configured
+  const hasRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  const isProduction = process.env.NODE_ENV === 'production'
 
-  if (useRedis) {
+  if (hasRedis) {
     return await rateLimitWithRedis(key, max, windowMs)
-  } else {
-    return rateLimitWithMemory(key, max, windowMs)
   }
+
+  // In production, Redis is REQUIRED for proper rate limiting across instances
+  if (isProduction) {
+    if (!redisWarningShown) {
+      console.error('🔴 CRITICAL: Redis not configured in production!')
+      console.error('   Rate limiting will NOT work correctly across server instances.')
+      console.error('   This leaves the application vulnerable to abuse.')
+      console.error('   Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN')
+      redisWarningShown = true
+    }
+
+    // SECURITY: In production without Redis, apply strict rate limiting
+    // Use much lower limits since we can't coordinate across instances
+    const strictMax = Math.min(max, 3) // Maximum 3 requests per window per instance
+    console.warn(`⚠️  Rate limit using STRICT memory fallback (key: ${key}, limit: ${strictMax})`)
+    return rateLimitWithMemory(key, strictMax, windowMs)
+  }
+
+  return rateLimitWithMemory(key, max, windowMs)
 }
 
 /**

@@ -35,12 +35,29 @@ interface Partner {
   connectedAt: Date
 }
 
+// Cache key for instant display
+const CACHE_KEY_PARTNERS = 'active_partners_v1'
+
+// Helper to get cached partners from localStorage for instant display
+const getCachedPartners = (): Partner[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const cached = localStorage.getItem(CACHE_KEY_PARTNERS)
+    if (!cached) return []
+    return JSON.parse(cached)
+  } catch {
+    return []
+  }
+}
+
 export default function PartnersPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const t = useTranslations('partners')
-  const [partners, setPartners] = useState<Partner[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  // Initialize with cached data for instant display
+  const [partners, setPartners] = useState<Partner[]>(() => getCachedPartners())
+  // Only show loading if no cached data
+  const [isLoading, setIsLoading] = useState(() => getCachedPartners().length === 0)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -56,7 +73,17 @@ export default function PartnersPage() {
         const response = await fetch('/api/partners/active')
         if (!response.ok) throw new Error('Failed to fetch partners')
         const data = await response.json()
-        setPartners(data.partners || [])
+        const fetchedPartners = data.partners || []
+        setPartners(fetchedPartners)
+
+        // Cache partners to localStorage for instant display next time
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(CACHE_KEY_PARTNERS, JSON.stringify(fetchedPartners))
+          } catch (cacheError) {
+            console.error('Error caching partners:', cacheError)
+          }
+        }
       } catch (error) {
         console.error('Error fetching partners:', error)
         toast.error(t('failedToLoadPartners'))
@@ -81,7 +108,17 @@ export default function PartnersPage() {
       if (!response.ok) throw new Error('Failed to remove partner')
 
       toast.success(t('removed'))
-      setPartners(partners.filter(p => p.matchId !== matchId))
+      const updatedPartners = partners.filter(p => p.matchId !== matchId)
+      setPartners(updatedPartners)
+
+      // Update cache after removal
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(CACHE_KEY_PARTNERS, JSON.stringify(updatedPartners))
+        } catch (cacheError) {
+          console.error('Error updating cache:', cacheError)
+        }
+      }
     } catch (error) {
       console.error('Error removing partner:', error)
       toast.error(t('removeFailed'))

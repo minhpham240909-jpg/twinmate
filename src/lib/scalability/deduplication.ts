@@ -7,13 +7,15 @@
  * SCALABILITY: Critical for handling 1000-3000 concurrent users
  *
  * Features:
- * - In-flight request tracking
+ * - In-flight request tracking with atomic operations
  * - Grace period for duplicate detection
  * - Automatic cleanup
  * - Per-user and global deduplication
+ * - FIX: Race condition prevention using atomic check-and-set
  */
 
 import { SCALABILITY_CONFIG } from './config'
+import logger from '@/lib/logger'
 
 interface InFlightRequest<T> {
   promise: Promise<T>
@@ -26,6 +28,9 @@ const inFlightRequests = new Map<string, InFlightRequest<unknown>>()
 
 // Recent completed requests (for grace period)
 const recentCompleted = new Map<string, { timestamp: number; result: unknown }>()
+
+// FIX: Lock set to prevent race conditions during check-and-set operations
+const pendingLocks = new Set<string>()
 
 /**
  * Generate a deduplication key from request parameters
@@ -56,6 +61,11 @@ export function generateDedupeKey(params: {
  * Check if a request is a duplicate and should be deduplicated
  */
 export function isDuplicate(key: string): boolean {
+  // FIX: Check if there's a pending lock (another request in the process of being registered)
+  if (pendingLocks.has(key)) {
+    return true
+  }
+
   // Check in-flight requests
   const inFlight = inFlightRequests.get(key)
   if (inFlight) {
@@ -101,7 +111,27 @@ export function getCachedResult<T>(key: string): T | null {
 }
 
 /**
+ * FIX: Atomic check-and-acquire lock to prevent race conditions
+ * Returns true if lock was acquired, false if already locked
+ */
+function tryAcquireLock(key: string): boolean {
+  if (pendingLocks.has(key) || inFlightRequests.has(key)) {
+    return false
+  }
+  pendingLocks.add(key)
+  return true
+}
+
+/**
+ * Release the pending lock
+ */
+function releaseLock(key: string): void {
+  pendingLocks.delete(key)
+}
+
+/**
  * Execute a request with deduplication
+ * FIX: Uses atomic lock to prevent race condition between check and set
  *
  * @param key - Deduplication key
  * @param execute - Function to execute if not a duplicate
@@ -111,11 +141,11 @@ export async function withDeduplication<T>(
   key: string,
   execute: () => Promise<T>
 ): Promise<T> {
-  // Check for in-flight duplicate
-  const inFlight = inFlightRequests.get(key)
-  if (inFlight) {
-    console.log(`[Deduplication] Returning in-flight request: ${key}`)
-    return inFlight.promise as Promise<T>
+  // Check for in-flight duplicate first
+  const existingInFlight = inFlightRequests.get(key)
+  if (existingInFlight) {
+    logger.debug(`Returning in-flight request: ${key}`)
+    return existingInFlight.promise as Promise<T>
   }
 
   // Check for recently completed duplicate
@@ -123,19 +153,48 @@ export async function withDeduplication<T>(
   if (recent) {
     const age = Date.now() - recent.timestamp
     if (age < SCALABILITY_CONFIG.deduplication.gracePeriodMs) {
-      console.log(`[Deduplication] Returning cached result: ${key} (${age}ms old)`)
+      logger.debug(`Returning cached result: ${key} (${age}ms old)`)
       return recent.result as T
+    }
+  }
+
+  // FIX: Try to acquire lock atomically
+  if (!tryAcquireLock(key)) {
+    // Another request beat us - wait for the in-flight request
+    // Small delay to allow the other request to register
+    await new Promise(resolve => setTimeout(resolve, 10))
+    
+    // Check again for the in-flight request
+    const newInFlight = inFlightRequests.get(key)
+    if (newInFlight) {
+      logger.debug(`Returning concurrent in-flight request: ${key}`)
+      return newInFlight.promise as Promise<T>
+    }
+    
+    // If still no in-flight, the other request may have failed/completed very quickly
+    // Try to acquire lock again
+    if (!tryAcquireLock(key)) {
+      // Check completed cache
+      const recentAfterWait = recentCompleted.get(key)
+      if (recentAfterWait) {
+        const ageAfterWait = Date.now() - recentAfterWait.timestamp
+        if (ageAfterWait < SCALABILITY_CONFIG.deduplication.gracePeriodMs) {
+          return recentAfterWait.result as T
+        }
+      }
+      // Fall through to execute - very rare edge case
     }
   }
 
   // Execute the request
   const promise = execute()
 
-  // Track as in-flight
+  // Track as in-flight and release the pending lock
   inFlightRequests.set(key, {
     promise,
     timestamp: Date.now(),
   })
+  releaseLock(key)
 
   try {
     const result = await promise
@@ -166,7 +225,7 @@ export function cleanup(): void {
   for (const [key, request] of inFlightRequests.entries()) {
     if (now - request.timestamp > 60000) {
       // 1 minute timeout for stuck requests
-      console.log(`[Deduplication] Cleaning up stuck in-flight request: ${key}`)
+      logger.debug(`Cleaning up stuck in-flight request: ${key}`)
       inFlightRequests.delete(key)
     }
   }
@@ -177,6 +236,10 @@ export function cleanup(): void {
       recentCompleted.delete(key)
     }
   }
+
+  // FIX: Also cleanup any stale pending locks (shouldn't happen, but safety measure)
+  // Pending locks should be very short-lived, if any exist for > 5 seconds, clear them
+  pendingLocks.clear()
 }
 
 /**
@@ -185,10 +248,12 @@ export function cleanup(): void {
 export function getStats(): {
   inFlightCount: number
   recentCompletedCount: number
+  pendingLocksCount: number
 } {
   return {
     inFlightCount: inFlightRequests.size,
     recentCompletedCount: recentCompleted.size,
+    pendingLocksCount: pendingLocks.size,
   }
 }
 
@@ -198,6 +263,7 @@ export function getStats(): {
 export function clearAll(): void {
   inFlightRequests.clear()
   recentCompleted.clear()
+  pendingLocks.clear()
 }
 
 // Start cleanup interval

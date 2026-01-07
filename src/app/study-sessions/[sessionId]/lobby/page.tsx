@@ -59,7 +59,6 @@ export default function WaitingLobbyPage() {
   const sessionId = params.sessionId as string
   const supabase = createClient()
   const t = useTranslations('studySessions')
-  const tCommon = useTranslations('common')
 
   const [session, setSession] = useState<Session | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
@@ -87,8 +86,6 @@ export default function WaitingLobbyPage() {
 
       if (data.success) {
         const sess = data.session
-        console.log('Fetch session: Session data received:', sess)
-        console.log('Fetch session: waitingExpiresAt:', sess.waitingExpiresAt)
 
         // If session is ACTIVE, redirect to call page
         if (sess.status === 'ACTIVE') {
@@ -111,7 +108,6 @@ export default function WaitingLobbyPage() {
           const expiresAt = new Date(sess.waitingExpiresAt)
           const now = new Date()
           const diff = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
-          console.log('Fetch session: Initial time remaining:', diff, 'seconds')
           setTimeRemaining(diff)
 
           // If expired, show message and redirect
@@ -119,8 +115,6 @@ export default function WaitingLobbyPage() {
             toast.error(t('sessionHasExpired'))
             router.push('/study-sessions')
           }
-        } else {
-          console.log('Fetch session: No waitingExpiresAt found in session data!')
         }
       } else {
         toast.error(data.error || t('failedToLoadSession'))
@@ -147,19 +141,14 @@ export default function WaitingLobbyPage() {
 
   // Countdown timer - updates every second
   useEffect(() => {
-    if (!session?.waitingExpiresAt) {
-      console.log('Timer: No waitingExpiresAt found')
-      return
-    }
+    if (!session?.waitingExpiresAt) return
 
     const expiresAt = new Date(session.waitingExpiresAt).getTime()
-    console.log('Timer: Starting countdown. Expires at:', new Date(expiresAt))
 
     // Calculate and set initial time
     const updateTimer = () => {
       const now = Date.now()
       const diff = Math.max(0, Math.floor((expiresAt - now) / 1000))
-      console.log('Timer: Updating... Time remaining:', diff, 'seconds')
       setTimeRemaining(diff)
 
       if (diff === 0) {
@@ -181,7 +170,6 @@ export default function WaitingLobbyPage() {
     }, 1000)
 
     return () => {
-      console.log('Timer: Cleanup interval')
       clearInterval(interval)
     }
   }, [session?.waitingExpiresAt, router])
@@ -190,7 +178,6 @@ export default function WaitingLobbyPage() {
   useEffect(() => {
     if (!sessionId) return
 
-    console.log('[Lobby RT] Setting up session status listener...')
     const channel = supabase
       .channel(`lobby-status-${sessionId}`)
       .on(
@@ -202,27 +189,16 @@ export default function WaitingLobbyPage() {
           filter: `id=eq.${sessionId}`,
         },
         (payload) => {
-          console.log('[Lobby RT] Session status update received:', payload)
           const newStatus = (payload.new as { status?: string }).status
           if (newStatus === 'ACTIVE') {
-            console.log('[Lobby RT] Session is now ACTIVE, redirecting to call...')
             toast.success(t('sessionIsStarting'))
             router.push(`/study-sessions/${sessionId}/call`)
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Lobby RT] Session status subscription status:', status)
-        if (status === 'SUBSCRIBED') {
-          console.log('[Lobby RT] Successfully subscribed to session status changes')
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('[Lobby RT] Failed to subscribe to session status changes')
-        }
-      })
+      .subscribe()
 
     return () => {
-      console.log('[Lobby RT] Cleaning up session status listener')
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, router])
@@ -231,7 +207,6 @@ export default function WaitingLobbyPage() {
   useEffect(() => {
     if (!sessionId) return
 
-    console.log('[Lobby RT] Setting up participant listener...')
     const channel = supabase
       .channel(`lobby-participants-${sessionId}`)
       .on(
@@ -242,8 +217,7 @@ export default function WaitingLobbyPage() {
           table: 'SessionParticipant',
           filter: `sessionId=eq.${sessionId}`,
         },
-        (payload) => {
-          console.log('[Lobby RT] New participant joined:', payload)
+        () => {
           toast.success(t('someoneJoinedSession'))
           fetchSession() // Refresh to get new participant list
         }
@@ -256,8 +230,7 @@ export default function WaitingLobbyPage() {
           table: 'SessionParticipant',
           filter: `sessionId=eq.${sessionId}`,
         },
-        (payload) => {
-          console.log('[Lobby RT] Participant updated:', payload)
+        () => {
           fetchSession() // Refresh to get updated participant data
         }
       )
@@ -269,24 +242,14 @@ export default function WaitingLobbyPage() {
           table: 'SessionParticipant',
           filter: `sessionId=eq.${sessionId}`,
         },
-        (payload) => {
-          console.log('[Lobby RT] Participant left:', payload)
+        () => {
           toast('Someone left the session', { icon: '👋' })
           fetchSession() // Refresh to get updated participant list
         }
       )
-      .subscribe((status) => {
-        console.log('[Lobby RT] Participant subscription status:', status)
-        if (status === 'SUBSCRIBED') {
-          console.log('[Lobby RT] Successfully subscribed to participant changes')
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('[Lobby RT] Failed to subscribe to participant changes')
-        }
-      })
+      .subscribe()
 
     return () => {
-      console.log('[Lobby RT] Cleaning up participant listener')
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, fetchSession])

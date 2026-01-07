@@ -143,7 +143,14 @@ export async function POST(req: NextRequest) {
         }
       })
 
+      // Get group name for notification
+      const group = await prisma.group.findUnique({
+        where: { id: conversationId },
+        select: { name: true }
+      })
+
       // Create incoming call notifications for each group member
+      // Include full caller details and call metadata for real-time display
       const notifications = groupMembers.map(member => ({
         userId: member.userId,
         type: 'INCOMING_CALL' as NotificationType,
@@ -151,7 +158,16 @@ export async function POST(req: NextRequest) {
         message: `${message.sender.name} is calling the group`,
         actionUrl: `/chat?conversation=${conversationId}&type=group`,
         relatedUserId: userId,
-        isRead: false
+        isRead: false,
+        // Store call metadata for real-time notification display
+        metadata: {
+          callType: callType,
+          messageId: message.id,
+          groupName: group?.name,
+          callerName: message.sender.name,
+          callerAvatar: message.sender.avatarUrl,
+          isGroupCall: true
+        }
       }))
 
       if (notifications.length > 0) {
@@ -201,15 +217,24 @@ export async function POST(req: NextRequest) {
       })
 
       // Create incoming call notification for the partner
+      // Include full caller details and call metadata for real-time display
       await prisma.notification.create({
         data: {
           userId: conversationId,
           type: 'INCOMING_CALL' as NotificationType,
           title: 'Incoming Call',
           message: `${message.sender.name} is calling you`,
-          actionUrl: `/chat?conversation=${conversationId}&type=partner`,
+          actionUrl: `/chat?conversation=${userId}&type=partner`,
           relatedUserId: userId,
-          isRead: false
+          isRead: false,
+          // Store call metadata for real-time notification display
+          metadata: {
+            callType: callType,
+            messageId: message.id,
+            callerName: message.sender.name,
+            callerAvatar: message.sender.avatarUrl,
+            isGroupCall: false
+          }
         }
       })
 

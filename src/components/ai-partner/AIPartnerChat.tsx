@@ -71,12 +71,67 @@ export default function AIPartnerChat({
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const lastMessageCountRef = useRef(0)
+  const isUserNearBottomRef = useRef(true)
 
-  // Scroll to bottom when new messages arrive
+  // Check if user is near bottom of chat (within 100px)
+  const checkIfNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return true
+    const threshold = 100
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold
+  }, [])
+
+  // Smooth scroll to bottom - only when appropriate
+  const scrollToBottom = useCallback((force = false) => {
+    if (!messagesEndRef.current || !messagesContainerRef.current) return
+
+    // Only auto-scroll if user is near bottom or forced
+    if (force || isUserNearBottomRef.current) {
+      // Use requestAnimationFrame for smoother scrolling without jitter
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      })
+    }
+  }, [])
+
+  // Track scroll position to know if user scrolled up
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      isUserNearBottomRef.current = checkIfNearBottom()
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [checkIfNearBottom])
+
+  // Scroll to bottom only when new messages are added (not during streaming updates)
+  useEffect(() => {
+    const messageCount = messages.length
+    const isNewMessage = messageCount > lastMessageCountRef.current
+    const isStreamingUpdate = messageCount === lastMessageCountRef.current &&
+      messages.some(m => m.role === 'ASSISTANT' && m.id.startsWith('temp-'))
+
+    if (isNewMessage) {
+      // New message added - scroll to bottom
+      lastMessageCountRef.current = messageCount
+      scrollToBottom(true)
+    } else if (isStreamingUpdate && isUserNearBottomRef.current) {
+      // Streaming update - only scroll if user is at bottom (debounced)
+      // Don't use smooth scroll during streaming to prevent jitter
+      requestAnimationFrame(() => {
+        const container = messagesContainerRef.current
+        if (container && isUserNearBottomRef.current) {
+          container.scrollTop = container.scrollHeight
+        }
+      })
+    }
+  }, [messages, scrollToBottom])
 
   const handleSend = async () => {
     if (isSending) return
@@ -320,14 +375,20 @@ export default function AIPartnerChat({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <AnimatePresence mode="popLayout">
-          {messages.map((message) => (
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {messages.map((message) => {
+            // Don't animate streaming messages to prevent jitter
+            const isStreaming = message.role === 'ASSISTANT' && message.id.startsWith('temp-')
+
+            return (
             <motion.div
               key={message.id}
-              initial={{ opacity: 0, y: 10 }}
+              initial={isStreaming ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: isStreaming ? 0 : 0.2 }}
+              layout={false}
               className={`flex gap-3 ${
                 message.role === 'USER' ? 'justify-end' : 'justify-start'
               }`}
@@ -354,7 +415,8 @@ export default function AIPartnerChat({
                 </div>
               )}
             </motion.div>
-          ))}
+            )
+          })}
         </AnimatePresence>
 
         {/* Loading indicator - only show if no streaming message exists */}

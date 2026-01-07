@@ -5,6 +5,8 @@ import { StudyStyle } from '@prisma/client'
 import { z } from 'zod'
 import { invalidateUserCache } from '@/lib/cache'
 import { updateProfileEmbedding } from '@/lib/embeddings'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
 import {
   MAX_BIO_LENGTH,
   MAX_ARRAY_ITEMS,
@@ -58,18 +60,30 @@ const profileSchema = z.object({
   languages: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().nullable(),
   // Post Privacy
   postPrivacy: z.enum(['PUBLIC', 'PARTNERS_ONLY']).optional(),
+  // Strengths and Weaknesses for partner matching (stored in LearningProfile)
+  strengths: safeArraySchema.optional().default([]),
+  weaknesses: safeArraySchema.optional().default([]),
   // H2 FIX: Optimistic locking - client sends the updatedAt timestamp they're basing their changes on
   expectedUpdatedAt: z.string().datetime().optional(),
 })
 
 export async function POST(request: NextRequest) {
+  // Rate limiting: 30 profile updates per minute (moderate)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many profile updates. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Use server client which automatically reads Supabase cookies
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.error('[Profile Update] Auth error:', authError)
+      logger.warn('Profile update auth error', { error: authError })
       return NextResponse.json(
         { error: 'Unauthorized - Invalid token. Please sign in again.' },
         { status: 401 }
@@ -81,7 +95,7 @@ export async function POST(request: NextRequest) {
     const validation = profileSchema.safeParse(body)
 
     if (!validation.success) {
-      console.error('[Profile Update] Validation failed:', validation.error.issues)
+      logger.warn('Profile update validation failed', { issues: validation.error.issues })
       return NextResponse.json(
         { error: 'Invalid data', details: validation.error.issues },
         { status: 400 }
@@ -92,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Verify user is updating their own profile
     if (data.userId !== user.id) {
-      console.error('[Profile Update] User ID mismatch:', { requested: data.userId, actual: user.id })
+      logger.warn('Profile update forbidden - user ID mismatch', { requested: data.userId, actual: user.id })
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -172,21 +186,48 @@ export async function POST(request: NextRequest) {
         where: { userId: user.id },
       })
 
+      let updatedProfile
       if (existingProfile) {
         // Update existing profile
-        return await tx.profile.update({
+        updatedProfile = await tx.profile.update({
           where: { userId: user.id },
           data: profileDataFields,
         })
       } else {
         // Create new profile
-        return await tx.profile.create({
+        updatedProfile = await tx.profile.create({
           data: {
             userId: user.id,
             ...profileDataFields,
           },
         })
       }
+
+      // Update or create LearningProfile for strengths and weaknesses
+      const learningProfileData = {
+        strengths: data.strengths || [],
+        weaknesses: data.weaknesses || [],
+      }
+
+      const existingLearningProfile = await tx.learningProfile.findUnique({
+        where: { userId: user.id },
+      })
+
+      if (existingLearningProfile) {
+        await tx.learningProfile.update({
+          where: { userId: user.id },
+          data: learningProfileData,
+        })
+      } else {
+        await tx.learningProfile.create({
+          data: {
+            userId: user.id,
+            ...learningProfileData,
+          },
+        })
+      }
+
+      return updatedProfile
     })
 
     // Invalidate user cache after profile update
@@ -195,7 +236,7 @@ export async function POST(request: NextRequest) {
     // Update profile embedding for semantic search (async, non-blocking)
     // This generates OpenAI embeddings for vector search
     updateProfileEmbedding(profile.id).catch(err => {
-      console.error('[Profile Update] Failed to update embedding:', err)
+      logger.error('Failed to update profile embedding', err instanceof Error ? err : { error: err })
     })
 
     return NextResponse.json({
@@ -203,11 +244,8 @@ export async function POST(request: NextRequest) {
       profile,
     })
   } catch (error) {
-    console.error('[Profile Update] ERROR occurred:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const errorStack = error instanceof Error ? error.stack : ''
-    console.error('[Profile Update] Error message:', errorMessage)
-    console.error('[Profile Update] Error stack:', errorStack)
+    logger.error('Profile update error', error instanceof Error ? error : { error: errorMessage })
     
     // H2 FIX: Handle concurrent update error with proper status code
     if (errorMessage.includes('CONCURRENT_UPDATE')) {

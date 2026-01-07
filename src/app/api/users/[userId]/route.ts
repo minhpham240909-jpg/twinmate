@@ -63,6 +63,12 @@ export async function GET(
             role: true,
             isAdmin: true,
             profile: true,
+            learningProfile: {
+              select: {
+                strengths: true,
+                weaknesses: true,
+              },
+            },
             createdAt: true,
             presence: {
               select: {
@@ -86,6 +92,12 @@ export async function GET(
               role: true,
               isAdmin: true,
               profile: true,
+              learningProfile: {
+                select: {
+                  strengths: true,
+                  weaknesses: true,
+                },
+              },
               createdAt: true,
             },
           })
@@ -109,6 +121,12 @@ export async function GET(
           role: true,
           isAdmin: true,
           profile: true,
+          learningProfile: {
+            select: {
+              strengths: true,
+              weaknesses: true,
+            },
+          },
           createdAt: true,
           presence: {
             select: {
@@ -133,6 +151,12 @@ export async function GET(
             role: true,
             isAdmin: true,
             profile: true,
+            learningProfile: {
+              select: {
+                strengths: true,
+                weaknesses: true,
+              },
+            },
           createdAt: true,
         },
       }).then(user => {
@@ -180,6 +204,12 @@ export async function GET(
             role: true,
             isAdmin: true,
             profile: true,
+            learningProfile: {
+              select: {
+                strengths: true,
+                weaknesses: true,
+              },
+            },
             createdAt: true,
             presence: {
               select: {
@@ -385,6 +415,13 @@ export async function GET(
       ? { 'Cache-Control': 'private, no-cache' } // Don't cache own profile
       : { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' }
 
+    // Merge learningProfile data (strengths, weaknesses) into the profile response
+    const profileWithLearning = sanitizedProfile ? {
+      ...sanitizedProfile,
+      strengths: dbUser.learningProfile?.strengths || [],
+      weaknesses: dbUser.learningProfile?.weaknesses || [],
+    } : null
+
     // SECURITY: Only show email to the user themselves, not to other users
     // This prevents email enumeration attacks
     return NextResponse.json({
@@ -398,7 +435,7 @@ export async function GET(
         isAdmin: dbUser.isAdmin || false,
         onlineStatus,
       },
-      profile: sanitizedProfile || null,
+      profile: profileWithLearning,
       posts: userPosts || [],
       connectionStatus,
       connectionId,

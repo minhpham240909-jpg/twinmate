@@ -38,6 +38,9 @@ export default function ProfilePage() {
     locationLat: null as number | null,
     locationLng: null as number | null,
     locationVisibility: 'match-only' as 'private' | 'match-only' | 'public',
+    // Strengths and Weaknesses for partner matching
+    strengths: [] as string[],
+    weaknesses: [] as string[],
   })
 
   const [customInputs, setCustomInputs] = useState({
@@ -45,6 +48,8 @@ export default function ProfilePage() {
     interest: '',
     goal: '',
     aboutYourselfItem: '',
+    strength: '',
+    weakness: '',
   })
 
   const [showAboutYourself, setShowAboutYourself] = useState(false)
@@ -78,6 +83,9 @@ export default function ProfilePage() {
         locationLat: (profile as { location_lat?: number }).location_lat || null,
         locationLng: (profile as { location_lng?: number }).location_lng || null,
         locationVisibility: ((profile as { location_visibility?: string }).location_visibility || 'match-only') as 'private' | 'match-only' | 'public',
+        // Strengths and Weaknesses from LearningProfile
+        strengths: (profile as { strengths?: string[] }).strengths || [],
+        weaknesses: (profile as { weaknesses?: string[] }).weaknesses || [],
       }
 
       setFormData(initialFormData)
@@ -156,7 +164,7 @@ export default function ProfilePage() {
     }
   }
 
-  const addCustomItem = (field: 'subject' | 'interest' | 'goal' | 'aboutYourselfItem') => {
+  const addCustomItem = (field: 'subject' | 'interest' | 'goal' | 'aboutYourselfItem' | 'strength' | 'weakness') => {
     const value = customInputs[field].trim()
     if (!value) return
 
@@ -191,12 +199,22 @@ export default function ProfilePage() {
       if (updated.length !== formData.aboutYourselfItems.length) {
         setFormData({ ...formData, aboutYourselfItems: updated })
       }
+    } else if (field === 'strength') {
+      const updated = addWithoutDuplicates(formData.strengths, splitValues)
+      if (updated.length !== formData.strengths.length) {
+        setFormData({ ...formData, strengths: updated })
+      }
+    } else if (field === 'weakness') {
+      const updated = addWithoutDuplicates(formData.weaknesses, splitValues)
+      if (updated.length !== formData.weaknesses.length) {
+        setFormData({ ...formData, weaknesses: updated })
+      }
     }
 
     setCustomInputs({ ...customInputs, [field]: '' })
   }
 
-  const removeCustomItem = (field: 'subjects' | 'interests' | 'goals' | 'aboutYourselfItems', item: string) => {
+  const removeCustomItem = (field: 'subjects' | 'interests' | 'goals' | 'aboutYourselfItems' | 'strengths' | 'weaknesses', item: string) => {
     setFormData({ ...formData, [field]: formData[field].filter(i => i !== item) })
   }
 
@@ -223,6 +241,9 @@ export default function ProfilePage() {
         school: formData.school || undefined,
         languages: formData.languages || undefined,
         postPrivacy: formData.postPrivacy,
+        // Strengths and Weaknesses for partner matching
+        strengths: formData.strengths,
+        weaknesses: formData.weaknesses,
       }
 
       const response = await fetch('/api/profile/update', {
@@ -626,6 +647,112 @@ export default function ProfilePage() {
                 <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">
                   Will be added as: {splitCompoundText(customInputs.goal).map((s, i) => (
                     <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
+                  ))}
+                </p>
+              )}
+            </div>
+
+            {/* Strengths */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
+                My Strengths
+              </label>
+              <p className="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                Topics or skills you excel at and can help others with
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {formData.strengths.map((strength) => (
+                  <Bounce key={strength} delay={formData.strengths.indexOf(strength) * 0.05}>
+                    <Pulse>
+                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30 rounded-full text-sm font-medium hover:scale-105 transition-all cursor-default">
+                        {strength}
+                        <button
+                          type="button"
+                          onClick={() => removeCustomItem('strengths', strength)}
+                          className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    </Pulse>
+                  </Bounce>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customInputs.strength}
+                  onChange={(e) => setCustomInputs({ ...customInputs, strength: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('strength')}
+                  placeholder="e.g., Calculus, Essay Writing, Python Programming..."
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => addCustomItem('strength')}
+                  className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                >
+                  Add
+                </button>
+              </div>
+              {/* Smart split preview */}
+              {containsCompoundSeparator(customInputs.strength) && (
+                <p className="text-xs text-green-500 dark:text-green-400 mt-1">
+                  Will be added as: {splitCompoundText(customInputs.strength).map((s, i) => (
+                    <span key={i} className="inline-block bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
+                  ))}
+                </p>
+              )}
+            </div>
+
+            {/* Weaknesses */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
+                Areas I Need Help With
+              </label>
+              <p className="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                Topics or skills you&apos;re looking to improve - helps partners find you!
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {formData.weaknesses.map((weakness) => (
+                  <Bounce key={weakness} delay={formData.weaknesses.indexOf(weakness) * 0.05}>
+                    <Pulse>
+                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 rounded-full text-sm font-medium hover:scale-105 transition-all cursor-default">
+                        {weakness}
+                        <button
+                          type="button"
+                          onClick={() => removeCustomItem('weaknesses', weakness)}
+                          className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    </Pulse>
+                  </Bounce>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customInputs.weakness}
+                  onChange={(e) => setCustomInputs({ ...customInputs, weakness: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomItem('weakness')}
+                  placeholder="e.g., Statistics, Grammar, Algorithms..."
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => addCustomItem('weakness')}
+                  className="px-6 py-2 bg-gradient-to-r from-orange-600 to-orange-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                >
+                  Add
+                </button>
+              </div>
+              {/* Smart split preview */}
+              {containsCompoundSeparator(customInputs.weakness) && (
+                <p className="text-xs text-orange-500 dark:text-orange-400 mt-1">
+                  Will be added as: {splitCompoundText(customInputs.weakness).map((s, i) => (
+                    <span key={i} className="inline-block bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded mx-0.5">{s}</span>
                   ))}
                 </p>
               )}

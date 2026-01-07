@@ -4,50 +4,60 @@
 
 import * as Sentry from "@sentry/nextjs"
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN
 
-  // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 1.0,
+// Only initialize if DSN is provided
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+    // Lower sample rate in production to control costs
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 
-  // Only enable Sentry in production
-  enabled: process.env.NODE_ENV === 'production',
+    // Setting this option to true will print useful information to the console while you're setting up Sentry.
+    debug: false,
 
-  // Ignore specific errors
-  ignoreErrors: [
-    'ECONNRESET',
-    'ETIMEDOUT',
-    'ENOTFOUND',
-    'socket hang up',
-  ],
+    // Only enable Sentry in production
+    enabled: process.env.NODE_ENV === 'production',
 
-  // Filter sensitive data
-  beforeSend(event, hint) {
-    // Don't send events if in development
-    if (process.env.NODE_ENV !== 'production') {
-      return null
-    }
+    // Environment tag
+    environment: process.env.NODE_ENV,
 
-    // Remove sensitive data
-    if (event.request) {
-      delete event.request.cookies
-      delete event.request.headers
-    }
+    // Ignore specific errors
+    ignoreErrors: [
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'ENOTFOUND',
+      'socket hang up',
+    ],
 
-    // Remove query parameters that might contain sensitive data
-    if (event.request?.url) {
-      try {
-        const url = new URL(event.request.url)
-        url.search = '' // Remove all query parameters
-        event.request.url = url.toString()
-      } catch (e) {
-        // Invalid URL, leave as is
+    // Filter sensitive data
+    beforeSend(event) {
+      // Don't send events if in development
+      if (process.env.NODE_ENV !== 'production') {
+        return null
       }
-    }
 
-    return event
-  },
-})
+      // Remove sensitive data
+      if (event.request) {
+        delete event.request.cookies
+        delete event.request.headers
+      }
+
+      // Remove query parameters that might contain sensitive data
+      if (event.request?.url) {
+        try {
+          const url = new URL(event.request.url)
+          url.search = '' // Remove all query parameters
+          event.request.url = url.toString()
+        } catch {
+          // Invalid URL, leave as is
+        }
+      }
+
+      return event
+    },
+  })
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  Sentry DSN not configured - error tracking disabled')
+}

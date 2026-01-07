@@ -8,6 +8,7 @@
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { enqueueRequest, QueuePriority, createDedupeKey } from './queue'
+import logger from '@/lib/logger'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -134,7 +135,7 @@ export async function manageContextWindow(
     return messages
   }
   
-  console.log(`[Context Window] Token limit exceeded: ${currentTokens} > ${targetMaxTokens}. Managing...`)
+  logger.debug('Context window token limit exceeded, managing', { currentTokens, targetMaxTokens })
   
   // Separate system prompt from conversation
   const systemMessage = preserveSystemPrompt 
@@ -171,7 +172,7 @@ export async function manageContextWindow(
     managedMessages.push(...recentMessages)
     
     const newTokens = estimateMessagesTokenCount(managedMessages)
-    console.log(`[Context Window] Reduced from ${currentTokens} to ${newTokens} tokens via summarization`)
+    logger.debug('Context window reduced via summarization', { from: currentTokens, to: newTokens })
     
     return managedMessages
   }
@@ -202,7 +203,7 @@ export async function manageContextWindow(
   
   managedMessages.push(...messagesToKeep)
   
-  console.log(`[Context Window] Reduced to ${managedMessages.length} messages (${currentTokens} tokens) via sliding window`)
+  logger.debug('Context window reduced via sliding window', { messageCount: managedMessages.length, tokens: currentTokens })
   
   return managedMessages
 }
@@ -551,6 +552,7 @@ CORE RULES:
 5. Be encouraging but honest about areas that need improvement.
 6. If you don't know something, admit it and suggest resources.
 7. NEVER use quotation marks around subjects, topics, or names.
+8. Always display equations, formulas, and expressions in plain readable text - never use LaTeX or code markup. Write them naturally as you would see in a textbook or on paper.
 ${conversationRules}
 YOUR CAPABILITIES:
 - Explain concepts clearly at the appropriate level
@@ -601,7 +603,7 @@ export async function sendChatMessage(
       const modelLimit = TOKEN_LIMITS[model as keyof typeof TOKEN_LIMITS] || 100000
       
       if (currentTokens + maxTokens > modelLimit - 1000) {
-        console.log(`[AI Partner] Context too large (${currentTokens} tokens), managing...`)
+        logger.debug('AI Partner context too large, managing', { currentTokens })
         managedMessages = await manageContextWindow(messages, {
           maxTokens: modelLimit - maxTokens - 1000,
           reserveTokens: maxTokens + 500,
@@ -2409,7 +2411,7 @@ Style requirements:
           .getPublicUrl(filePath)
 
         permanentUrl = urlData.publicUrl
-        console.log('[AI Partner] Image uploaded to permanent storage:', permanentUrl)
+        logger.debug('AI Partner image uploaded to permanent storage', { url: permanentUrl })
       }
     } catch (uploadErr) {
       console.error('[AI Partner] Error uploading to permanent storage:', uploadErr)

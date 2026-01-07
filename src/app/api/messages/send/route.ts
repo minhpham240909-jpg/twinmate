@@ -8,6 +8,24 @@ import { isBlocked } from '@/lib/blocked-users'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
 import { notifyNewMessage } from '@/lib/notifications/send'
 import { getAppUrl } from '@/lib/env'
+import logger from '@/lib/logger'
+
+// FIX: Idempotency key cache to prevent duplicate message creation
+// Maps idempotency key -> { messageId, timestamp }
+const idempotencyCache = new Map<string, { messageId: string; timestamp: number }>()
+const IDEMPOTENCY_TTL = 5 * 60 * 1000 // 5 minutes
+
+// Cleanup old idempotency keys periodically
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [key, value] of idempotencyCache.entries()) {
+      if (now - value.timestamp > IDEMPOTENCY_TTL) {
+        idempotencyCache.delete(key)
+      }
+    }
+  }, 60 * 1000) // Every minute
+}
 
 // Content moderation scan (async, non-blocking)
 async function scanMessageContent(
@@ -80,6 +98,53 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+    
+    // FIX: Idempotency key handling - prevent duplicate messages from rapid clicks or retries
+    const idempotencyKey = req.headers.get('x-idempotency-key') || body.idempotencyKey
+    if (idempotencyKey) {
+      const cached = idempotencyCache.get(`${userId}:${idempotencyKey}`)
+      if (cached) {
+        // Return the existing message instead of creating a duplicate
+        const existingMessage = await prisma.message.findUnique({
+          where: { id: cached.messageId },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true
+              }
+            }
+          }
+        })
+        
+        if (existingMessage) {
+          logger.debug('Returning cached message for idempotency key', { 
+            idempotencyKey, 
+            messageId: cached.messageId 
+          })
+          return NextResponse.json({
+            message: {
+              id: existingMessage.id,
+              content: existingMessage.content,
+              type: existingMessage.type,
+              senderId: existingMessage.senderId,
+              sender: existingMessage.sender,
+              fileUrl: existingMessage.fileUrl,
+              fileName: existingMessage.fileName,
+              fileSize: existingMessage.fileSize,
+              isRead: existingMessage.isRead,
+              isEdited: existingMessage.isEdited,
+              createdAt: existingMessage.createdAt,
+              updatedAt: existingMessage.updatedAt
+            },
+            success: true,
+            idempotent: true // Indicate this was a cached response
+          })
+        }
+      }
+    }
 
     // Validate request body
     const validation = validateRequest(sendMessageSchema, body)
@@ -209,6 +274,14 @@ export async function POST(req: NextRequest) {
       })
 
       message = createdMessage
+      
+      // FIX: Cache the message ID for idempotency
+      if (idempotencyKey) {
+        idempotencyCache.set(`${userId}:${idempotencyKey}`, {
+          messageId: message.id,
+          timestamp: Date.now()
+        })
+      }
 
       // Scan message content for moderation (non-blocking, outside transaction)
       scanMessageContent(
@@ -307,6 +380,14 @@ export async function POST(req: NextRequest) {
       })
 
       message = createdDMMessage
+      
+      // FIX: Cache the message ID for idempotency
+      if (idempotencyKey) {
+        idempotencyCache.set(`${userId}:${idempotencyKey}`, {
+          messageId: message.id,
+          timestamp: Date.now()
+        })
+      }
 
       // Scan message content for moderation (non-blocking, outside transaction)
       scanMessageContent(
@@ -321,7 +402,9 @@ export async function POST(req: NextRequest) {
       )
 
       // Send push notification (async, don't wait - outside transaction)
-      notifyNewMessage(userId, conversationId, content, 'partner').catch(console.error)
+      notifyNewMessage(userId, conversationId, content, 'partner').catch(err => {
+        logger.error('Failed to send push notification', err instanceof Error ? err : { error: err })
+      })
 
     } else {
       return NextResponse.json(

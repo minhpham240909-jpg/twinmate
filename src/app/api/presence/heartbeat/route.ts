@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { rateLimit } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
 
 // Request validation schema
 const HeartbeatSchema = z.object({
@@ -10,21 +11,74 @@ const HeartbeatSchema = z.object({
   userAgent: z.string().optional(),
 })
 
-// OPTIMIZATION: Per-user deduplication to prevent duplicate heartbeats
-// This prevents the same user from sending multiple heartbeats within 10 seconds
-const recentHeartbeats = new Map<string, number>()
+// FIX: Improved deduplication with atomic check-and-set to prevent race conditions
+interface HeartbeatEntry {
+  timestamp: number
+  processing: boolean // Lock to prevent concurrent processing
+}
+
+const recentHeartbeats = new Map<string, HeartbeatEntry>()
 const DEDUP_WINDOW_MS = 10000 // 10 seconds
+const MAX_CACHE_SIZE = 10000 // Prevent unbounded growth
 
 // Cleanup old entries every minute
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now()
-    for (const [key, timestamp] of recentHeartbeats.entries()) {
-      if (now - timestamp > DEDUP_WINDOW_MS) {
-        recentHeartbeats.delete(key)
+    const keysToDelete: string[] = []
+    
+    for (const [key, entry] of recentHeartbeats.entries()) {
+      // Only delete if not currently processing and past window
+      if (!entry.processing && now - entry.timestamp > DEDUP_WINDOW_MS * 2) {
+        keysToDelete.push(key)
       }
     }
+    
+    keysToDelete.forEach(key => recentHeartbeats.delete(key))
   }, 60000)
+}
+
+/**
+ * FIX: Atomic check-and-lock for heartbeat deduplication
+ * Returns true if this request should be processed, false if duplicate
+ */
+function tryAcquireHeartbeatLock(dedupKey: string): { shouldProcess: boolean; cachedTimestamp?: number } {
+  const now = Date.now()
+  const existing = recentHeartbeats.get(dedupKey)
+  
+  if (existing) {
+    // Check if within dedup window
+    if (now - existing.timestamp < DEDUP_WINDOW_MS) {
+      return { shouldProcess: false, cachedTimestamp: existing.timestamp }
+    }
+    
+    // Check if another request is processing
+    if (existing.processing) {
+      return { shouldProcess: false, cachedTimestamp: existing.timestamp }
+    }
+  }
+  
+  // Prevent unbounded cache growth
+  if (recentHeartbeats.size >= MAX_CACHE_SIZE && !existing) {
+    // Evict oldest entry
+    const oldestKey = recentHeartbeats.keys().next().value
+    if (oldestKey) recentHeartbeats.delete(oldestKey)
+  }
+  
+  // Acquire lock atomically
+  recentHeartbeats.set(dedupKey, { timestamp: now, processing: true })
+  return { shouldProcess: true }
+}
+
+/**
+ * Release heartbeat lock after processing
+ */
+function releaseHeartbeatLock(dedupKey: string): void {
+  const entry = recentHeartbeats.get(dedupKey)
+  if (entry) {
+    entry.processing = false
+    entry.timestamp = Date.now() // Update timestamp after successful processing
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -62,23 +116,23 @@ export async function POST(request: NextRequest) {
 
     const { deviceId, userAgent } = validation.data
 
-    // 2.5. OPTIMIZATION: Deduplicate rapid heartbeats from same user
+    // 2.5. FIX: Atomic deduplication with race condition protection
     const dedupKey = `${user.id}:${deviceId}`
-    const lastHeartbeat = recentHeartbeats.get(dedupKey)
-    const now = Date.now()
+    const lockResult = tryAcquireHeartbeatLock(dedupKey)
 
-    if (lastHeartbeat && now - lastHeartbeat < DEDUP_WINDOW_MS) {
+    if (!lockResult.shouldProcess) {
       // Skip duplicate heartbeat but return success
+      const cachedTime = lockResult.cachedTimestamp || Date.now()
       return NextResponse.json({
         success: true,
         message: 'Heartbeat deduplicated',
-        deviceSession: { id: 'cached', lastHeartbeatAt: new Date(lastHeartbeat).toISOString() },
-        presence: { status: 'online', lastSeenAt: new Date(lastHeartbeat).toISOString() },
+        deviceSession: { id: 'cached', lastHeartbeatAt: new Date(cachedTime).toISOString() },
+        presence: { status: 'online', lastSeenAt: new Date(cachedTime).toISOString() },
       })
     }
-
-    // Record this heartbeat for deduplication
-    recentHeartbeats.set(dedupKey, now)
+    
+    // We have the lock - proceed with processing
+    const now = Date.now()
 
     // 3. Get client IP address
     const ipAddress = request.headers.get('x-forwarded-for') ||
@@ -113,7 +167,7 @@ export async function POST(request: NextRequest) {
         },
       })
     } catch (error) {
-      console.error('[HEARTBEAT] Error upserting device session:', error)
+      logger.error('Error upserting device session', error instanceof Error ? error : { error })
       // Try to create if upsert fails (constraint might not exist)
       try {
         deviceSession = await prisma.deviceSession.findFirst({
@@ -146,7 +200,7 @@ export async function POST(request: NextRequest) {
           })
         }
       } catch (retryError) {
-        console.error('[HEARTBEAT] Error creating/updating device session:', retryError)
+        logger.error('Error creating/updating device session', retryError instanceof Error ? retryError : { error: retryError })
         throw retryError
       }
     }
@@ -173,7 +227,7 @@ export async function POST(request: NextRequest) {
         },
       })
     } catch (error) {
-      console.error('[HEARTBEAT] Error upserting user presence:', error)
+      logger.error('Error upserting user presence', error instanceof Error ? error : { error })
       // Try to create if upsert fails
       try {
         const existing = await prisma.userPresence.findUnique({
@@ -200,11 +254,14 @@ export async function POST(request: NextRequest) {
           })
         }
       } catch (retryError) {
-        console.error('[HEARTBEAT] Error creating/updating user presence:', retryError)
+        logger.error('Error creating/updating user presence', retryError instanceof Error ? retryError : { error: retryError })
         // Don't throw - presence is optional, continue with response
         userPresence = { status: 'online', lastSeenAt: nowDate }
       }
     }
+
+    // FIX: Release lock after successful processing
+    releaseHeartbeatLock(dedupKey)
 
     return NextResponse.json({
       success: true,
@@ -218,16 +275,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[HEARTBEAT ERROR]', error)
-    
-    // Log detailed error information
-    if (error instanceof Error) {
-      console.error('[HEARTBEAT ERROR DETAILS]', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      })
-    }
+    logger.error('Heartbeat error', error instanceof Error ? error : { error })
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

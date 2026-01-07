@@ -66,6 +66,9 @@ const searchSchema = z.object({
   locationCity: z.string().optional(),
   locationState: z.string().optional(),
   locationCountry: z.string().optional(),
+  // Strengths and Weaknesses filters (search in LearningProfile)
+  strengthsFilter: z.string().optional(),
+  weaknessesFilter: z.string().optional(),
   page: z.number().optional().default(1),
   limit: z.number().optional().default(20),
 })
@@ -124,6 +127,10 @@ export async function POST(request: NextRequest) {
     const locationState = sanitizeSearchQuery(rawData.locationState).sanitized || undefined
     const locationCountry = sanitizeSearchQuery(rawData.locationCountry).sanitized || undefined
 
+    // Sanitize strengths and weaknesses filters
+    const strengthsFilter = sanitizeSearchQuery(rawData.strengthsFilter).sanitized || undefined
+    const weaknessesFilter = sanitizeSearchQuery(rawData.weaknessesFilter).sanitized || undefined
+
     const page = rawData.page
     const limit = rawData.limit
     const useSemanticSearch = rawData.useSemanticSearch
@@ -140,7 +147,9 @@ export async function POST(request: NextRequest) {
       (locationCity && locationCity.trim().length > 0) ||
       (locationState && locationState.trim().length > 0) ||
       (locationCountry && locationCountry.trim().length > 0) ||
-      (rawData.school && rawData.school.trim().length > 0)
+      (rawData.school && rawData.school.trim().length > 0) ||
+      (strengthsFilter && strengthsFilter.trim().length > 0) ||
+      (weaknessesFilter && weaknessesFilter.trim().length > 0)
 
     if (!hasSearchCriteria) {
       return NextResponse.json(
@@ -186,6 +195,7 @@ export async function POST(request: NextRequest) {
     const cacheKey = `${CACHE_PREFIX.SEARCH_PARTNERS}:${user.id}:${JSON.stringify({
       searchQuery, subjects, skillLevel, studyStyle, interests, goals,
       ageRange: rawData.ageRange, locationCity, locationState, locationCountry,
+      strengthsFilter, weaknessesFilter,
       page, limit, useSemanticSearch
     })}`
 
@@ -206,6 +216,9 @@ export async function POST(request: NextRequest) {
           locationCity,
           locationState,
           locationCountry,
+          // Include strengths and weaknesses in semantic search
+          strengthsFilter,
+          weaknessesFilter,
         ].filter(Boolean).join(' ').trim()
 
         let profiles: Array<{
@@ -305,6 +318,8 @@ export async function POST(request: NextRequest) {
             locationCity,
             locationState,
             locationCountry,
+            strengthsFilter,
+            weaknessesFilter,
             limit: limit * 2,
             offset: 0
           })
@@ -470,6 +485,9 @@ interface TraditionalSearchParams {
   locationCity?: string | null
   locationState?: string | null
   locationCountry?: string | null
+  // Strengths and Weaknesses filters
+  strengthsFilter?: string | null
+  weaknessesFilter?: string | null
   limit: number
   offset: number
 }
@@ -488,6 +506,8 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
     locationCity,
     locationState,
     locationCountry,
+    strengthsFilter,
+    weaknessesFilter,
     limit,
     offset
   } = params
@@ -537,7 +557,7 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
     })
   }
 
-  // Text search - search in text fields
+  // Text search - search in text fields INCLUDING user name
   const searchTerms: string[] = []
   if (searchQuery && searchQuery.trim()) {
     const terms = searchQuery.toLowerCase().split(/\s+/).filter(t => t.length > 1)
@@ -551,6 +571,8 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
           { subjectCustomDescription: { contains: term, mode: 'insensitive' as const } },
           { location_city: { contains: term, mode: 'insensitive' as const } },
           { location_state: { contains: term, mode: 'insensitive' as const } },
+          // Search by user name - this allows searching by partner's name
+          { user: { name: { contains: term, mode: 'insensitive' as const } } },
         ]
       }))
       whereConditions.AND.push({ OR: searchConditions })
@@ -599,7 +621,7 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
       take: limit,
       orderBy: { updatedAt: 'desc' }
     }),
-    // Raw SQL for array field substring search
+    // Raw SQL for array field substring search AND user name search
     (async () => {
       if (searchTerms.length === 0) return []
 
@@ -613,12 +635,14 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
           Prisma.sql`
             SELECT DISTINCT p.id
             FROM "Profile" p
+            INNER JOIN "User" u ON p."userId" = u.id
             WHERE p."userId" != ${userId}
             ${excludeUserIds.length > 0 ? Prisma.sql`AND p."userId" NOT IN (${Prisma.join(excludeUserIds)})` : Prisma.empty}
             AND (
               LOWER(array_to_string(p.subjects, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
               OR LOWER(array_to_string(p.interests, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
               OR LOWER(array_to_string(p.goals, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+              OR LOWER(u.name) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
             )
             LIMIT ${limit}
           `
@@ -676,7 +700,92 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
     })
   }
 
-  const profiles = [...textMatchProfiles, ...additionalProfiles]
+  let profiles = [...textMatchProfiles, ...additionalProfiles]
+
+  // Filter by LearningProfile (strengths and weaknesses) if filters provided
+  // This queries the LearningProfile table separately and filters profiles
+  if (strengthsFilter || weaknessesFilter) {
+    const userIdsToCheck = profiles.map(p => p.userId)
+
+    if (userIdsToCheck.length > 0) {
+      // Build LearningProfile where conditions
+      const learningProfileConditions: Record<string, unknown>[] = []
+
+      // Split the filter text into search terms
+      if (strengthsFilter) {
+        const strengthTerms = strengthsFilter.toLowerCase().split(/[\s,]+/).filter(t => t.length > 1)
+        if (strengthTerms.length > 0) {
+          // Search for any term in the strengths array
+          learningProfileConditions.push({
+            strengths: {
+              hasSome: strengthTerms.map(t => t.charAt(0).toUpperCase() + t.slice(1)) // Try capitalized
+            }
+          })
+        }
+      }
+
+      if (weaknessesFilter) {
+        const weaknessTerms = weaknessesFilter.toLowerCase().split(/[\s,]+/).filter(t => t.length > 1)
+        if (weaknessTerms.length > 0) {
+          // Search for any term in the weaknesses array
+          learningProfileConditions.push({
+            weaknesses: {
+              hasSome: weaknessTerms.map(t => t.charAt(0).toUpperCase() + t.slice(1)) // Try capitalized
+            }
+          })
+        }
+      }
+
+      if (learningProfileConditions.length > 0) {
+        // Query LearningProfile to find matching user IDs
+        const matchingLearningProfiles = await prisma.learningProfile.findMany({
+          where: {
+            userId: { in: userIdsToCheck },
+            OR: learningProfileConditions,
+          },
+          select: {
+            userId: true,
+          },
+        })
+
+        const matchingUserIds = new Set(matchingLearningProfiles.map(lp => lp.userId))
+
+        // Also try raw SQL for case-insensitive array search
+        if (matchingUserIds.size === 0) {
+          try {
+            const { Prisma } = await import('@prisma/client')
+            const allTerms = [
+              ...(strengthsFilter?.toLowerCase().split(/[\s,]+/).filter(t => t.length > 1) || []),
+              ...(weaknessesFilter?.toLowerCase().split(/[\s,]+/).filter(t => t.length > 1) || []),
+            ]
+            const patterns = allTerms.map(t => `%${t}%`)
+
+            if (patterns.length > 0) {
+              const rawResults = await prisma.$queryRaw<Array<{ userId: string }>>(
+                Prisma.sql`
+                  SELECT DISTINCT lp."userId"
+                  FROM "LearningProfile" lp
+                  WHERE lp."userId" = ANY(ARRAY[${Prisma.join(userIdsToCheck)}]::text[])
+                  AND (
+                    LOWER(array_to_string(lp.strengths, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                    OR LOWER(array_to_string(lp.weaknesses, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                  )
+                `
+              )
+
+              rawResults.forEach(r => matchingUserIds.add(r.userId))
+            }
+          } catch (error) {
+            console.warn('LearningProfile array search failed, skipping:', error)
+          }
+        }
+
+        // Filter profiles to only include those with matching LearningProfile
+        profiles = profiles.filter(p => matchingUserIds.has(p.userId))
+      }
+    }
+  }
+
   const total = profiles.length
 
   // Transform to match semantic search result format

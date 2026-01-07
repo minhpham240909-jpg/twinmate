@@ -461,7 +461,7 @@ async function searchPartnersFallback(
     ]
   }
 
-  // Add text search conditions (OR across all terms)
+  // Add text search conditions (OR across all terms) INCLUDING user name
   if (uniqueTerms.length > 0) {
     // For each term, create OR conditions across all searchable fields
     // We flatten the conditions so ANY term matching ANY field is a match
@@ -479,6 +479,8 @@ async function searchPartnersFallback(
         { interestsCustomDescription: { contains: term, mode: 'insensitive' as const } },
         { location_city: { contains: term, mode: 'insensitive' as const } },
         { location_state: { contains: term, mode: 'insensitive' as const } },
+        // Search by user name - this allows searching by partner's name
+        { user: { name: { contains: term, mode: 'insensitive' as const } } },
       )
     }
 
@@ -554,8 +556,8 @@ async function searchPartnersFallback(
       take: limit * 3, // Fetch extra for scoring
       orderBy: { updatedAt: 'desc' }
     }),
-    // Raw SQL for array field substring search
-    // This finds profiles where any subject/interest contains the search term
+    // Raw SQL for array field substring search AND user name search
+    // This finds profiles where any subject/interest contains the search term OR user name matches
     (async () => {
       if (uniqueTerms.length === 0) return []
 
@@ -575,12 +577,14 @@ async function searchPartnersFallback(
             Prisma.sql`
               SELECT DISTINCT p.id
               FROM "Profile" p
+              INNER JOIN "User" u ON p."userId" = u.id
               WHERE p."userId" != ${excludeUserId}
               AND p."userId" NOT IN (${Prisma.join(excludeUserIds)})
               AND (
                 LOWER(array_to_string(p.subjects, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
                 OR LOWER(array_to_string(p.interests, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
                 OR LOWER(array_to_string(p.goals, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                OR LOWER(u.name) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
               )
               LIMIT ${limit * 3}
             `
@@ -590,11 +594,13 @@ async function searchPartnersFallback(
             Prisma.sql`
               SELECT DISTINCT p.id
               FROM "Profile" p
+              INNER JOIN "User" u ON p."userId" = u.id
               WHERE p."userId" != ${excludeUserId}
               AND (
                 LOWER(array_to_string(p.subjects, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
                 OR LOWER(array_to_string(p.interests, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
                 OR LOWER(array_to_string(p.goals, ' ')) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
+                OR LOWER(u.name) LIKE ANY(ARRAY[${Prisma.join(patterns)}]::text[])
               )
               LIMIT ${limit * 3}
             `

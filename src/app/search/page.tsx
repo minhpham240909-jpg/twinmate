@@ -12,6 +12,21 @@ import FadeInOptimized from '@/components/ui/FadeInOptimized'
 import BounceOptimized from '@/components/ui/BounceOptimized'
 import { AIPartnerSuggestionModal } from '@/components/ai-partner'
 
+// Cache key for instant display of random partners
+const CACHE_KEY_RANDOM_PARTNERS = 'random_partners_v1'
+
+// Helper to get cached random partners from localStorage for instant display
+const getCachedRandomPartners = (): Partner[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const cached = localStorage.getItem(CACHE_KEY_RANDOM_PARTNERS)
+    if (!cached) return []
+    return JSON.parse(cached)
+  } catch {
+    return []
+  }
+}
+
 interface Partner {
   id: string
   user: {
@@ -82,6 +97,11 @@ export default function SearchPage() {
   const [locationState, setLocationState] = useState('')
   const [locationCountry, setLocationCountry] = useState('')
   const [showLocationDescription, setShowLocationDescription] = useState(false)
+  // NEW: Strengths and Weaknesses filters
+  const [strengthsFilter, setStrengthsFilter] = useState('')
+  const [weaknessesFilter, setWeaknessesFilter] = useState('')
+  const [showStrengthsDescription, setShowStrengthsDescription] = useState(false)
+  const [showWeaknessesDescription, setShowWeaknessesDescription] = useState(false)
   const [showFilters, setShowFilters] = useState(() => {
     // Load filter visibility from localStorage
     if (typeof window !== 'undefined') {
@@ -90,11 +110,13 @@ export default function SearchPage() {
     }
     return true
   })
-  const [partners, setPartners] = useState<Partner[]>([])
+  // Initialize with cached data for instant display
+  const [partners, setPartners] = useState<Partner[]>(() => getCachedRandomPartners())
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [sendingRequest, setSendingRequest] = useState<string | null>(null)
-  const [isLoadingRandom, setIsLoadingRandom] = useState(true)
+  // Only show loading if no cached data
+  const [isLoadingRandom, setIsLoadingRandom] = useState(() => getCachedRandomPartners().length === 0)
   const [randomError, setRandomError] = useState('')
   const [currentUserProfileComplete, setCurrentUserProfileComplete] = useState(true)
   const [currentUserMissingFields, setCurrentUserMissingFields] = useState<string[]>([])
@@ -178,8 +200,18 @@ export default function SearchPage() {
       }
 
       const data = await response.json()
-      setPartners(data.partners || [])
-      
+      const fetchedPartners = data.partners || []
+      setPartners(fetchedPartners)
+
+      // Cache random partners to localStorage for instant display next time
+      if (typeof window !== 'undefined' && fetchedPartners.length > 0) {
+        try {
+          localStorage.setItem(CACHE_KEY_RANDOM_PARTNERS, JSON.stringify(fetchedPartners))
+        } catch (cacheError) {
+          console.error('Error caching random partners:', cacheError)
+        }
+      }
+
       // Update profile completeness info from API response
       if (data.currentUserProfileComplete !== undefined) {
         setCurrentUserProfileComplete(data.currentUserProfileComplete)
@@ -422,7 +454,9 @@ export default function SearchPage() {
       selectedGoals.length > 0 ||
       locationCity.trim() !== '' ||
       locationState.trim() !== '' ||
-      locationCountry.trim() !== ''
+      locationCountry.trim() !== '' ||
+      strengthsFilter.trim() !== '' ||
+      weaknessesFilter.trim() !== ''
 
     if (!hasFilters) {
       setSearchError("Let's add some information to find your partner!")
@@ -452,6 +486,9 @@ export default function SearchPage() {
           locationCity,
           locationState,
           locationCountry,
+          // Strengths and Weaknesses filters
+          strengthsFilter: strengthsFilter.trim() || undefined,
+          weaknessesFilter: weaknessesFilter.trim() || undefined,
         }),
       })
 
@@ -823,6 +860,62 @@ export default function SearchPage() {
                       </label>
                     ))}
                   </div>
+                </div>
+
+                {/* Strengths Filter - NEW */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
+                      Partner Strengths
+                    </label>
+                    <button
+                      onClick={() => setShowStrengthsDescription(!showStrengthsDescription)}
+                      className="text-xs text-blue-400 hover:underline"
+                    >
+                      {showStrengthsDescription ? t('hideInfo') : t('showInfo')}
+                    </button>
+                  </div>
+                  {showStrengthsDescription && (
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-green-500/10 rounded border border-green-500/20">
+                      Find partners who excel in specific topics. Search for skills you want to learn from others.
+                    </p>
+                  )}
+                  <input
+                    type="text"
+                    value={strengthsFilter}
+                    onChange={(e) => setStrengthsFilter(e.target.value)}
+                    placeholder="e.g., Calculus, Python, Essay Writing..."
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
+                  />
+                  <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Find partners strong in areas you want to improve</p>
+                </div>
+
+                {/* Weaknesses Filter - NEW */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">
+                      Partner Needs Help With
+                    </label>
+                    <button
+                      onClick={() => setShowWeaknessesDescription(!showWeaknessesDescription)}
+                      className="text-xs text-blue-400 hover:underline"
+                    >
+                      {showWeaknessesDescription ? t('hideInfo') : t('showInfo')}
+                    </button>
+                  </div>
+                  {showWeaknessesDescription && (
+                    <p className="text-xs text-gray-700 dark:text-slate-300 mb-2 p-2 bg-orange-500/10 rounded border border-orange-500/20">
+                      Find partners looking to improve in areas where you can help. Great for mutual learning!
+                    </p>
+                  )}
+                  <input
+                    type="text"
+                    value={weaknessesFilter}
+                    onChange={(e) => setWeaknessesFilter(e.target.value)}
+                    placeholder="e.g., Statistics, Grammar, Algorithms..."
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/50 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 backdrop-blur-sm"
+                  />
+                  <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Find partners you can help in your strong areas</p>
                 </div>
 
                 {/* Age Range Filter - NEW */}

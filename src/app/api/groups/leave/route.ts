@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
 import { NotificationType } from '@prisma/client'
+import logger from '@/lib/logger'
 
 const leaveSchema = z.object({
   groupId: z.string().min(1, 'Group ID is required'),
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      console.log(`[LEAVE GROUP] Owner ${user.id} left group ${groupId}, transferred to ${newOwnerId}`)
+      logger.info('Group owner left, ownership transferred', { userId: user.id, groupId, newOwnerId })
 
       return NextResponse.json({
         success: true,
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
         })
       })
 
-      console.log(`[LEAVE GROUP] Owner ${user.id} left empty group ${groupId}, group deleted`)
+      logger.info('Owner left empty group, group deleted', { userId: user.id, groupId })
 
       return NextResponse.json({
         success: true,
@@ -214,14 +215,14 @@ export async function POST(request: NextRequest) {
       where: { id: membership.id },
     })
 
-    console.log(`[LEAVE GROUP] Member ${user.id} left group ${groupId}`)
+    logger.info('Member left group', { userId: user.id, groupId })
 
     return NextResponse.json({
       success: true,
       message: 'Successfully left group',
     })
   } catch (error) {
-    console.error('Leave group error:', error)
+    logger.error('Leave group error', error instanceof Error ? error : { error })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

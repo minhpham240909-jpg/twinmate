@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
+import { invalidateSessionCache } from '@/lib/cache'
+import logger from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   // SECURITY: Rate limiting to prevent session spam (10 sessions per minute)
@@ -113,7 +115,7 @@ export async function POST(request: NextRequest) {
           // SECURITY: Verify invitee is an accepted partner
           if (!acceptedPartnerIds.has(inviteeId)) {
             inviteErrors.push(`User ${inviteeId}: Not an accepted partner`)
-            console.warn(`[Study Session] User ${user.id} attempted to invite non-partner ${inviteeId}`)
+            logger.warn('User attempted to invite non-partner to study session', { userId: user.id, inviteeId })
             continue
           }
 
@@ -146,11 +148,17 @@ export async function POST(request: NextRequest) {
 
           invitesSent++
         } catch (error) {
-          console.error('Error inviting user:', error)
+          logger.error('Error inviting user to session', error instanceof Error ? error : { error, inviteeId })
           inviteErrors.push(`User ${inviteeId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
       }
     }
+
+    // FIX: Invalidate session caches for creator and all invited users
+    const allUserIds = [user.id, ...(inviteUserIds || [])]
+    await Promise.all(
+      allUserIds.map(userId => invalidateSessionCache(session.id, userId))
+    )
 
     return NextResponse.json({
       success: true,
@@ -165,7 +173,7 @@ export async function POST(request: NextRequest) {
       inviteErrors: inviteErrors.length > 0 ? inviteErrors : undefined,
     })
   } catch (error) {
-    console.error('Error creating session:', error)
+    logger.error('Error creating session', error instanceof Error ? error : { error })
     return NextResponse.json(
       { error: 'Failed to create session' },
       { status: 500 }

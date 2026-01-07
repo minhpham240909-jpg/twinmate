@@ -30,6 +30,11 @@ export function usePresence() {
   // Track user activity for adaptive heartbeat
   const lastActivityRef = useRef<number>(Date.now())
   const isIdleRef = useRef<boolean>(false)
+  
+  // FIX: Track if heartbeat loop is active to prevent multiple loops
+  const heartbeatLoopActiveRef = useRef<boolean>(false)
+  // FIX: Track user ID to detect user changes
+  const currentUserIdRef = useRef<string | null>(null)
 
   // Initialize device ID (persists across page refreshes)
   useEffect(() => {
@@ -54,15 +59,16 @@ export function usePresence() {
   }, [])
 
   // Send heartbeat to server with retry logic (memoized to prevent unnecessary re-renders)
+  // FIX: Using refs for user check to avoid dependency changes causing loop restarts
   const sendHeartbeat = useCallback(async (isRetry = false) => {
     // Don't send heartbeat if offline
     if (!isOnline) {
-      console.log('[HEARTBEAT] Skipping - offline')
+      // Removed console.log - use logger instead
       return
     }
 
     // Only send heartbeat if user is authenticated
-    if (!deviceIdRef.current || !user) return
+    if (!deviceIdRef.current || !currentUserIdRef.current) return
 
     try {
       const response = await fetch('/api/presence/heartbeat', {
@@ -75,13 +81,15 @@ export function usePresence() {
       })
 
       if (!response.ok) {
-        console.error('[HEARTBEAT] Failed:', response.statusText)
+        // FIX: Use logger instead of console.error
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[HEARTBEAT] Failed:', response.statusText)
+        }
         
         // Retry with exponential backoff if not already retrying
         if (!isRetry && retryCountRef.current < MAX_RETRY_ATTEMPTS) {
           retryCountRef.current += 1
           const retryDelay = INITIAL_RETRY_DELAY * Math.pow(2, retryCountRef.current - 1)
-          console.log(`[HEARTBEAT] Scheduling retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS} in ${retryDelay}ms`)
           
           retryTimeoutRef.current = setTimeout(() => {
             sendHeartbeat(true)
@@ -96,22 +104,22 @@ export function usePresence() {
         }
       }
     } catch (error) {
-      console.error('[HEARTBEAT] Error:', error)
+      // FIX: Use logger instead of console.error
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[HEARTBEAT] Error:', error)
+      }
       
       // Retry with exponential backoff if not already retrying
       if (!isRetry && retryCountRef.current < MAX_RETRY_ATTEMPTS) {
         retryCountRef.current += 1
         const retryDelay = INITIAL_RETRY_DELAY * Math.pow(2, retryCountRef.current - 1)
-        console.log(`[HEARTBEAT] Scheduling retry ${retryCountRef.current}/${MAX_RETRY_ATTEMPTS} in ${retryDelay}ms`)
         
         retryTimeoutRef.current = setTimeout(() => {
           sendHeartbeat(true)
         }, retryDelay)
-      } else if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
-        console.error('[HEARTBEAT] Max retries reached, giving up')
       }
     }
-  }, [user, isOnline])
+  }, [isOnline]) // FIX: Removed user from dependencies to prevent loop restarts
 
   // Disconnect device session (memoized to prevent unnecessary re-renders)
   const disconnect = useCallback(async () => {
@@ -148,7 +156,7 @@ export function usePresence() {
     
     if (isIdle !== isIdleRef.current) {
       isIdleRef.current = isIdle
-      console.log(`[HEARTBEAT] User is now ${isIdle ? 'idle' : 'active'}, adjusting interval`)
+      // FIX: Removed console.log
     }
     
     return isIdle ? HEARTBEAT_INTERVAL_IDLE : HEARTBEAT_INTERVAL_ACTIVE
@@ -175,14 +183,21 @@ export function usePresence() {
     }
   }, [isInitialized, user])
 
+  // FIX: Update currentUserIdRef when user changes
+  useEffect(() => {
+    currentUserIdRef.current = user?.id || null
+  }, [user?.id])
+
   // Start heartbeat interval (only when user is authenticated and online)
   // Uses adaptive interval based on user activity
+  // FIX: Separated into stable effect that won't restart unnecessarily
   useEffect(() => {
     if (!isInitialized || loading) return
     if (!user) {
-      // User logged out - clear any existing interval
+      // User logged out - clear any existing interval and stop loop
+      heartbeatLoopActiveRef.current = false
       if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
+        clearTimeout(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
       }
       return
@@ -190,21 +205,35 @@ export function usePresence() {
 
     // Don't start heartbeat if offline
     if (!isOnline) {
-      console.log('[HEARTBEAT] User offline, pausing heartbeat')
+      // FIX: Pause heartbeat but don't completely stop the loop flag
       if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
+        clearTimeout(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
       }
       return
     }
 
+    // FIX: Prevent multiple heartbeat loops from running simultaneously
+    if (heartbeatLoopActiveRef.current) {
+      return
+    }
+
+    heartbeatLoopActiveRef.current = true
+
     // Send initial heartbeat immediately
     sendHeartbeat()
 
-    // Set up adaptive interval - re-evaluate interval on each tick
+    // FIX: Set up adaptive interval with proper loop tracking
     const scheduleNextHeartbeat = () => {
+      // Check if loop should continue
+      if (!heartbeatLoopActiveRef.current) return
+      if (!currentUserIdRef.current) return
+      
       const interval = getHeartbeatInterval()
       heartbeatIntervalRef.current = setTimeout(() => {
+        // Double-check before sending
+        if (!heartbeatLoopActiveRef.current || !currentUserIdRef.current) return
+        
         sendHeartbeat()
         scheduleNextHeartbeat() // Schedule next with potentially different interval
       }, interval)
@@ -214,6 +243,7 @@ export function usePresence() {
 
     // Cleanup on unmount or when user logs out
     return () => {
+      heartbeatLoopActiveRef.current = false
       if (heartbeatIntervalRef.current) {
         clearTimeout(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
@@ -223,23 +253,39 @@ export function usePresence() {
         retryTimeoutRef.current = null
       }
       // Disconnect when component unmounts or user logs out
-      if (user) {
+      if (currentUserIdRef.current) {
         disconnect()
       }
     }
-  }, [isInitialized, user, loading, isOnline, sendHeartbeat, disconnect, getHeartbeatInterval])
+  // FIX: Minimized dependencies to prevent unnecessary restarts
+  // Using user?.id instead of user object for stable reference
+  }, [isInitialized, user?.id, loading, isOnline, sendHeartbeat, disconnect, getHeartbeatInterval])
 
   // Handle network recovery - send immediate heartbeat when coming back online
   useEffect(() => {
     if (!isInitialized || !user) return
 
     if (wasOffline && isOnline) {
-      console.log('[HEARTBEAT] Network restored, sending immediate heartbeat')
-      // Reset retry count on network recovery
+      // FIX: Reset retry count on network recovery
       retryCountRef.current = 0
       sendHeartbeat()
+      
+      // FIX: Restart heartbeat loop if it was stopped
+      if (!heartbeatLoopActiveRef.current && currentUserIdRef.current) {
+        heartbeatLoopActiveRef.current = true
+        const scheduleNextHeartbeat = () => {
+          if (!heartbeatLoopActiveRef.current || !currentUserIdRef.current) return
+          const interval = getHeartbeatInterval()
+          heartbeatIntervalRef.current = setTimeout(() => {
+            if (!heartbeatLoopActiveRef.current || !currentUserIdRef.current) return
+            sendHeartbeat()
+            scheduleNextHeartbeat()
+          }, interval)
+        }
+        scheduleNextHeartbeat()
+      }
     }
-  }, [isInitialized, user, wasOffline, isOnline, sendHeartbeat])
+  }, [isInitialized, user, wasOffline, isOnline, sendHeartbeat, getHeartbeatInterval])
 
   // Handle page visibility changes (tab focus/blur)
   useEffect(() => {

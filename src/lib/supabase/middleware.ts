@@ -37,8 +37,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Fast auth check with cookie fallback for edge performance
-  // The callback already sets cookies properly, so this should work immediately
+  // SECURITY: Verify auth with Supabase - NEVER trust cookies alone
+  // Cookies can be manipulated; only trust verified sessions
   let user: { id: string } | null = null
 
   // First, check if auth cookies exist (fast check - no network call)
@@ -49,21 +49,21 @@ export async function updateSession(request: NextRequest) {
   )
 
   if (hasAuthCookies) {
-    // Auth cookies exist - try to verify with Supabase
+    // Auth cookies exist - MUST verify with Supabase
     try {
       const { data: { user: authUser }, error } = await supabase.auth.getUser()
       if (!error && authUser) {
+        // SECURITY: Only trust verified users from Supabase
         user = { id: authUser.id }
-      } else if (hasAuthCookies) {
-        // Cookies exist but getUser failed (timing issue on edge)
-        // Trust the cookies - redirect to dashboard, it will re-verify there
-        user = { id: 'pending-verification' }
       }
+      // SECURITY FIX: If getUser fails, treat as unauthenticated
+      // Do NOT trust cookies alone - they could be forged or expired
+      // The user will be redirected to login where they can re-authenticate
     } catch {
-      // Auth check failed but cookies exist - trust cookies
-      if (hasAuthCookies) {
-        user = { id: 'pending-verification' }
-      }
+      // SECURITY FIX: Auth verification failed - treat as unauthenticated
+      // This could be a network error, but it's safer to require re-login
+      // than to trust unverified cookies
+      user = null
     }
   }
 

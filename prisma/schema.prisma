@@ -796,6 +796,9 @@ model Notification {
   relatedUserId  String? // ID of the user who triggered the notification
   relatedMatchId String? // ID of the match/connection request
 
+  // Flexible metadata for different notification types (e.g., call details)
+  metadata Json? // Stores callType, messageId, callerName, callerAvatar, etc.
+
   createdAt DateTime @default(now())
 
   @@index([userId, isRead])
@@ -1323,6 +1326,8 @@ model DeviceSession {
   @@unique([userId, deviceId])
   @@index([userId, isActive])
   @@index([lastHeartbeatAt])
+  @@index([isActive, lastHeartbeatAt]) // PERF: For cleanup queries finding stale active sessions
+  @@index([userId, updatedAt]) // PERF: For fetching user's recent sessions
   @@map("device_sessions")
 }
 
@@ -1360,6 +1365,7 @@ model TypingIndicator {
   @@unique([userId, conversationId])
   @@index([conversationId, expiresAt])
   @@index([userId]) // PERF: Clear typing indicators when user disconnects
+  @@index([expiresAt]) // PERF: For cleanup cron jobs deleting expired indicators
   @@map("typing_indicators")
 }
 

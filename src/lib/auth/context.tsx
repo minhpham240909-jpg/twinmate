@@ -63,6 +63,9 @@ export interface UserProfile {
   lastStudyDate?: Date | string | null
   // Other profile fields
   age?: number | null
+  // Strengths and Weaknesses from LearningProfile
+  strengths?: string[]
+  weaknesses?: string[]
 }
 
 interface AuthContextType {

@@ -6,6 +6,7 @@ import { CONTENT_LIMITS, STUDY_SESSION } from '@/lib/constants'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { enforceUserAccess } from '@/lib/security/checkUserBan'
 import { updateGroupEmbedding } from '@/lib/embeddings'
+import logger from '@/lib/logger'
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(CONTENT_LIMITS.GROUP_NAME_MAX),
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.error('[groups/create] Auth error:', authError?.message || 'No user')
+      logger.warn('Group create auth error', { error: authError?.message || 'No user' })
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
     try {
       accessCheck = await enforceUserAccess(user.id)
     } catch (accessError) {
-      console.error('[groups/create] Access check error:', accessError)
+      logger.error('Group create access check error', accessError instanceof Error ? accessError : { error: accessError })
       return NextResponse.json(
         { error: 'Database connection failed during access check', details: accessError instanceof Error ? accessError.message : 'Unknown error' },
         { status: 503 }
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
         },
       })
     } catch (dbError) {
-      console.error('[groups/create] Database error:', dbError)
+      logger.error('Group create database error', dbError instanceof Error ? dbError : { error: dbError })
 
       // If group was created but member wasn't, try to clean up
       if (group?.id) {
@@ -170,13 +171,8 @@ export async function POST(request: NextRequest) {
     // Update group embedding for semantic search (async, non-blocking)
     // This generates OpenAI embeddings for vector search
     updateGroupEmbedding(group.id).catch(err => {
-      // Log error in all environments for monitoring
-      console.error('[groups/create] Failed to update embedding:', err)
-      // In production, also log to error tracking service if available
-      if (process.env.NODE_ENV === 'production') {
-        // Error is non-critical - group creation succeeded, embedding can be retried later
-        // Consider adding to a retry queue for background processing
-      }
+      // Log error for monitoring - non-critical, group creation succeeded
+      logger.error('Failed to update group embedding', err instanceof Error ? err : { error: err })
     })
 
     return NextResponse.json({
@@ -189,7 +185,7 @@ export async function POST(request: NextRequest) {
       invitesSent: invitedUsernames.length,
     })
   } catch (error) {
-    console.error('Group creation error:', error)
+    logger.error('Group creation error', error instanceof Error ? error : { error })
     // Return detailed error for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(

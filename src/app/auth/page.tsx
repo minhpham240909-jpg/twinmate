@@ -1,10 +1,32 @@
 'use client'
 
-import { useState, useMemo, Suspense } from 'react'
+import { useState, useMemo, Suspense, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+
+// Hook to fetch pre-auth CSRF token
+function usePreAuthCsrfToken() {
+  const [csrfToken, setCsrfToken] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchToken() {
+      try {
+        const response = await fetch('/api/csrf/pre-auth')
+        if (response.ok) {
+          const data = await response.json()
+          setCsrfToken(data.csrfToken)
+        }
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error)
+      }
+    }
+    fetchToken()
+  }, [])
+
+  return csrfToken
+}
 
 // Password strength calculation
 interface PasswordStrength {
@@ -69,6 +91,7 @@ function AuthPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClient()
+  const csrfToken = usePreAuthCsrfToken()
 
   const initialTab = searchParams.get('tab') === 'signup' ? 'signup' : 'signin'
   const registered = searchParams.get('registered')
@@ -106,7 +129,10 @@ function AuthPageContent() {
     try {
       const apiResponse = await fetch('/api/auth/signin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'x-csrf-token': csrfToken }),
+        },
         body: JSON.stringify({
           email: signInData.email,
           password: signInData.password,
@@ -193,7 +219,10 @@ function AuthPageContent() {
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'x-csrf-token': csrfToken }),
+        },
         body: JSON.stringify({
           name: signUpData.name,
           email: signUpData.email,

@@ -10,9 +10,11 @@ export type ConnectionStatusCallback = (status: ConnectionStatus) => void
 export type { ConnectionStatus } from './realtime-client'
 
 /**
- * Subscribe to real-time messages in a channel
- * @param channelName - Unique channel identifier (e.g., "chat:123" or "dm:user1-user2")
- * @param onMessage - Callback when new message arrives
+ * Subscribe to real-time messages in a group channel
+ * Enhanced to fetch complete message with sender info for instant display
+ *
+ * @param channelName - Unique channel identifier (format: "group:groupId")
+ * @param onMessage - Callback when new message arrives (receives complete message with sender)
  * @returns Cleanup function to unsubscribe
  */
 export function subscribeToMessages(
@@ -29,6 +31,25 @@ export function subscribeToMessages(
     return () => {} // Return empty cleanup function
   }
 
+  let isCleanedUp = false
+
+  // Fetch complete message with sender info
+  const fetchCompleteMessage = async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/messages/by-id/${messageId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.message) {
+          return data.message
+        }
+      }
+      return null
+    } catch (error) {
+      console.error('[Group Realtime] Error fetching message:', error)
+      return null
+    }
+  }
+
   const channel = supabase
     .channel(channelName)
     .on(
@@ -39,11 +60,28 @@ export function subscribeToMessages(
         table: 'Message',
         filter: `groupId=eq.${groupId}`,
       },
-      (payload) => {
-        onMessage(payload.new)
+      async (payload) => {
+        if (isCleanedUp) return
+
+        const rawMessage = payload.new as Record<string, unknown>
+        console.log(`📨 [Group Realtime] Received message event:`, {
+          messageId: rawMessage.id,
+          senderId: rawMessage.senderId,
+          groupId: rawMessage.groupId
+        })
+
+        // Fetch complete message with sender info for instant display
+        console.log(`🔄 [Group Realtime] Fetching complete message...`)
+        const completeMessage = await fetchCompleteMessage(rawMessage.id as string)
+        if (completeMessage && !isCleanedUp) {
+          console.log(`✅ [Group Realtime] Delivering message to UI:`, completeMessage.content?.substring(0, 50))
+          onMessage(completeMessage)
+        }
       }
     )
     .subscribe((status) => {
+      if (isCleanedUp) return
+
       if (status === 'SUBSCRIBED') {
         console.log(`✅ Group channel subscribed: ${groupId}`)
       } else if (status === 'CHANNEL_ERROR') {
@@ -53,17 +91,21 @@ export function subscribeToMessages(
 
   // Return cleanup function
   return () => {
+    isCleanedUp = true
     supabase.removeChannel(channel)
   }
 }
 
 /**
  * Subscribe to DM (Direct Messages) between two users
- * Enhanced with automatic reconnection and error handling
+ * Enhanced with automatic reconnection, error handling, and proper message fetching
+ *
+ * IMPORTANT: This function now fetches the complete message with sender info
+ * when realtime triggers, ensuring the receiver gets all message details instantly.
  */
 export function subscribeToDM(
-  userId1: string,
-  userId2: string,
+  myUserId: string,
+  partnerId: string,
   onMessage: MessageHandler,
   onStatusChange?: ConnectionStatusCallback
 ): () => void {
@@ -79,9 +121,28 @@ export function subscribeToDM(
     realtimeConnection.onStatusChange(onStatusChange)
   }
 
-  // Use a single channel with multiple event listeners
-  const channelName = `dm:${userId1}-${userId2}`
+  // Use a consistent channel name (sorted IDs to ensure uniqueness)
+  const sortedIds = [myUserId, partnerId].sort()
+  const channelName = `dm:${sortedIds[0]}-${sortedIds[1]}`
   let channel: RealtimeChannel | null = null
+  let isCleanedUp = false
+
+  // Fetch complete message with sender info
+  const fetchCompleteMessage = async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/messages/by-id/${messageId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.message) {
+          return data.message
+        }
+      }
+      return null
+    } catch (error) {
+      console.error('[DM Realtime] Error fetching message:', error)
+      return null
+    }
+  }
 
   const setupChannel = () => {
     // Clean up existing channel
@@ -96,52 +157,81 @@ export function subscribeToDM(
           presence: { key: '' },
         },
       })
+      // Listen for messages where I am the RECIPIENT (messages sent TO me)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'Message',
-          // Listen for messages FROM user1 TO user2
-          filter: `senderId=eq.${userId1}`,
+          filter: `recipientId=eq.${myUserId}`,
         },
-        (payload) => {
-          // Only process if recipientId matches
-          const message = payload.new as Record<string, unknown>
-          if (message.recipientId === userId2 && message.groupId === null) {
-            onMessage(payload.new)
+        async (payload) => {
+          if (isCleanedUp) return
+
+          const rawMessage = payload.new as Record<string, unknown>
+          console.log(`📨 [DM Realtime] Received message event:`, {
+            messageId: rawMessage.id,
+            senderId: rawMessage.senderId,
+            recipientId: rawMessage.recipientId,
+            expectedPartnerId: partnerId
+          })
+
+          // Only process if it's from our partner (not from a group or other DM)
+          if (rawMessage.senderId !== partnerId || rawMessage.groupId !== null) {
+            console.log(`⏭️ [DM Realtime] Skipping - not from current partner`)
+            return
+          }
+
+          // Fetch complete message with sender info for instant display
+          console.log(`🔄 [DM Realtime] Fetching complete message...`)
+          const completeMessage = await fetchCompleteMessage(rawMessage.id as string)
+          if (completeMessage && !isCleanedUp) {
+            console.log(`✅ [DM Realtime] Delivering message to UI:`, completeMessage.content?.substring(0, 50))
+            onMessage(completeMessage)
           }
         }
       )
+      // Also listen for messages I SEND (for multi-device sync)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'Message',
-          // Listen for messages FROM user2 TO user1
-          filter: `senderId=eq.${userId2}`,
+          filter: `senderId=eq.${myUserId}`,
         },
-        (payload) => {
-          // Only process if recipientId matches
-          const message = payload.new as Record<string, unknown>
-          if (message.recipientId === userId1 && message.groupId === null) {
-            onMessage(payload.new)
+        async (payload) => {
+          if (isCleanedUp) return
+
+          const rawMessage = payload.new as Record<string, unknown>
+
+          // Only process if it's to our partner (not to a group or other DM)
+          if (rawMessage.recipientId !== partnerId || rawMessage.groupId !== null) {
+            return
+          }
+
+          // Fetch complete message with sender info
+          const completeMessage = await fetchCompleteMessage(rawMessage.id as string)
+          if (completeMessage && !isCleanedUp) {
+            onMessage(completeMessage)
           }
         }
       )
       .subscribe((status, err) => {
+        if (isCleanedUp) return
+
         if (status === 'SUBSCRIBED') {
-          console.log(`✅ DM channel subscribed: ${userId1}-${userId2}`)
+          console.log(`✅ DM channel subscribed: ${myUserId} <-> ${partnerId}`)
           if (onStatusChange) onStatusChange('connected')
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`❌ DM channel error: ${userId1}-${userId2}`, err)
+          console.error(`❌ DM channel error: ${myUserId} <-> ${partnerId}`, err)
           if (onStatusChange) onStatusChange('error')
         } else if (status === 'TIMED_OUT') {
-          console.warn(`⏱️ DM channel timeout: ${userId1}-${userId2}`)
+          console.warn(`⏱️ DM channel timeout: ${myUserId} <-> ${partnerId}`)
           if (onStatusChange) onStatusChange('disconnected')
         } else if (status === 'CLOSED') {
-          console.warn(`🔒 DM channel closed: ${userId1}-${userId2}`)
+          console.warn(`🔒 DM channel closed: ${myUserId} <-> ${partnerId}`)
           if (onStatusChange) onStatusChange('disconnected')
         }
       })
@@ -152,6 +242,7 @@ export function subscribeToDM(
 
   // Return cleanup function
   return () => {
+    isCleanedUp = true
     if (channel) {
       supabase.removeChannel(channel)
       channel = null

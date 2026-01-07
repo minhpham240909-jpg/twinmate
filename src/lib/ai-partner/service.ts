@@ -35,6 +35,8 @@ import {
   SessionState,
   SmartChatResult,
 } from './openai'
+import { uploadBase64Image } from './image-storage'
+import logger from '@/lib/logger'
 
 // Intelligence System
 import { INTELLIGENCE_VERSION, INITIAL_ADAPTIVE_STATE } from './intelligence'
@@ -108,7 +110,7 @@ function isDuplicateRequest(userId: string, sessionId: string, content: string):
     const timeSinceLastRequest = Date.now() - cached.timestamp
     // Check if same content within grace period
     if (timeSinceLastRequest < REQUEST_GRACE_PERIOD_MS && cached.content === content) {
-      console.log(`[AI Partner] Duplicate request detected within ${timeSinceLastRequest}ms, blocking`)
+      logger.debug('Duplicate request detected, blocking', { timeSinceLastRequest })
       return true
     }
   }
@@ -555,7 +557,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     throw new Error('Search criteria is required')
   }
 
-  console.log('[AI Partner] Creating session from search criteria:', {
+  logger.info('Creating AI session from search criteria', {
     userId,
     hasSubjects: !!searchCriteria.subjects?.length,
     hasSchool: !!searchCriteria.school,
@@ -599,11 +601,11 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
   const learningProfile = user?.learningProfile
 
   // Get user memory for personalization
-  console.log('[AI Partner] Getting user memory...')
+  logger.debug('Getting user memory')
   let userMemory
   try {
     userMemory = await getOrCreateUserMemory(userId)
-    console.log('[AI Partner] User memory retrieved')
+    logger.debug('User memory retrieved')
   } catch (memoryError) {
     console.error('[AI Partner] Failed to get user memory:', memoryError)
     // Use default memory if failed
@@ -625,11 +627,11 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
   const subject = searchCriteria.subjects?.join(', ') || searchCriteria.subjectDescription || null
 
   // Build memory context with subject for enhanced personalization
-  console.log('[AI Partner] Building memory context...')
+  logger.debug('Building memory context')
   let memoryContext = ''
   try {
     memoryContext = await buildMemoryContext(userId, subject || undefined)
-    console.log('[AI Partner] Memory context built')
+    logger.debug('Memory context built')
   } catch (contextError) {
     console.error('[AI Partner] Failed to build memory context:', contextError)
     // Continue without memory context
@@ -651,7 +653,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
     : 'Study Partner'
 
   // Create study session
-  console.log('[AI Partner] Creating study session...')
+  logger.debug('Creating study session')
   let studySession
   try {
     studySession = await prisma.studySession.create({
@@ -667,7 +669,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
         startedAt: new Date(),
       },
     })
-    console.log('[AI Partner] Study session created:', studySession.id)
+    logger.info('Study session created', { studySessionId: studySession.id })
   } catch (dbError) {
     console.error('[AI Partner] Failed to create study session:', dbError)
     throw new Error(`Database error creating study session: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`)
@@ -684,7 +686,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
 
   // Create AI session with Intelligence System v2.0 enabled
   // Save full searchCriteria for "Continue Previous Topic" feature
-  console.log('[AI Partner] Creating AI session...')
+  logger.debug('Creating AI session')
   let aiSession
   try {
     aiSession = await prisma.aIPartnerSession.create({
@@ -703,7 +705,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
         fallbackCallCount: 0,
       },
     })
-    console.log('[AI Partner] AI session created:', aiSession.id)
+    logger.info('AI session created', { aiSessionId: aiSession.id })
   } catch (dbError) {
     console.error('[AI Partner] Failed to create AI session:', dbError)
     throw new Error(`Database error creating AI session: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`)
@@ -744,7 +746,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
   })
 
   // Generate welcome message with dynamic persona
-  console.log('[AI Partner] Generating welcome message with OpenAI...')
+  logger.debug('Generating welcome message with OpenAI')
   let welcomeResult
   try {
     welcomeResult = await sendChatMessage(
@@ -757,7 +759,7 @@ export async function createAISessionFromSearch(params: CreateAISessionFromSearc
         maxTokens: 300,
       }
     )
-    console.log('[AI Partner] Welcome message generated successfully')
+    logger.debug('Welcome message generated successfully')
   } catch (openAIError) {
     console.error('[AI Partner] OpenAI error generating welcome message:', openAIError)
     throw new Error(`OpenAI error: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
@@ -1124,7 +1126,7 @@ export async function sendMessage(params: SendMessageParams): Promise<{
   const imageRequest = detectImageGenerationRequest(content)
 
   if (imageRequest.isImageRequest && imageRequest.prompt) {
-    console.log('[AI Partner] Image generation request detected:', imageRequest)
+    logger.info('Image generation request detected', { imageRequest })
 
     try {
       // Generate the image using DALL-E
@@ -1248,7 +1250,7 @@ export async function sendMessage(params: SendMessageParams): Promise<{
 
       // Log routing decision for monitoring
       if (SMART_ROUTING_CONFIG.logDecisions) {
-        console.log('[Smart Routing] Decision:', {
+        logger.debug('Smart routing decision', {
           model: modelUsed,
           cached: wasCacheHit,
           complexity: smartResult.queryAnalysis?.complexity,
@@ -1259,7 +1261,7 @@ export async function sendMessage(params: SendMessageParams): Promise<{
       }
     } catch (smartError) {
       // Fallback to legacy sendChatMessage on error
-      console.error('[Smart Routing] Error, falling back to legacy:', smartError)
+      logger.error('Smart routing error, falling back to legacy', { error: smartError instanceof Error ? smartError.message : String(smartError) })
 
       if (SMART_ROUTING_CONFIG.fallbackOnError) {
         aiResponse = await sendChatMessage(messages, {
@@ -2384,7 +2386,34 @@ export async function sendMessageWithImage(params: {
     content: msg.content,
   }))
 
-  // Save user message with image
+  // Upload image to Supabase Storage instead of storing base64 in database
+  // FIX: Base64 images in database are expensive and slow
+  let imageUrl: string | undefined
+  try {
+    const uploadResult = await uploadBase64Image(
+      imageBase64,
+      userId,
+      sessionId,
+      'uploaded'
+    )
+    if (uploadResult.success && uploadResult.url) {
+      imageUrl = uploadResult.url
+      logger.debug('Image uploaded to storage', { sessionId, imageUrl })
+    } else {
+      logger.warn('Image upload failed, storing reference only', { 
+        sessionId, 
+        error: uploadResult.error 
+      })
+    }
+  } catch (uploadError) {
+    // Non-blocking: continue even if upload fails
+    logger.error('Image upload exception', { 
+      sessionId, 
+      error: uploadError instanceof Error ? uploadError.message : 'Unknown error' 
+    })
+  }
+
+  // Save user message with image URL (not base64)
   const userMsg = await prisma.aIPartnerMessage.create({
     data: {
       sessionId: session.id,
@@ -2392,7 +2421,7 @@ export async function sendMessageWithImage(params: {
       role: 'USER',
       content: content || 'Uploaded an image',
       messageType: 'IMAGE',
-      imageBase64: imageBase64,
+      imageUrl: imageUrl, // Store URL from Supabase Storage
       imageMimeType: imageMimeType,
       imageType: 'uploaded',
       wasModerated: false,
@@ -2454,6 +2483,7 @@ export async function sendMessageWithImage(params: {
     userMessage: {
       id: userMsg.id,
       content: userMsg.content,
+      imageUrl: imageUrl, // Return the storage URL
     },
     aiMessage: {
       id: aiMsg.id,

@@ -35,6 +35,7 @@ interface ConnectionOptions {
   heartbeatInterval?: number;
   reconnectDelay?: number;
   maxReconnectAttempts?: number;
+  maxQueueSize?: number; // FIX: Add max queue size to prevent OOM
 }
 
 export class WebSocketManager {
@@ -55,6 +56,7 @@ export class WebSocketManager {
       heartbeatInterval: options.heartbeatInterval ?? 30000, // 30 seconds
       reconnectDelay: options.reconnectDelay ?? 1000, // 1 second
       maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
+      maxQueueSize: options.maxQueueSize ?? 100, // FIX: Default max 100 queued messages to prevent OOM
       ...options,
     };
 
@@ -139,6 +141,7 @@ export class WebSocketManager {
 
   /**
    * Send message through WebSocket
+   * FIX: Added queue bounds to prevent OOM
    */
   send(event: WebSocketEvent, data: any): void {
     const message: WebSocketMessage = {
@@ -150,9 +153,20 @@ export class WebSocketManager {
     if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
+      // FIX: Check queue size before adding to prevent OOM
+      if (this.messageQueue.length >= this.options.maxQueueSize) {
+        // Drop oldest messages when queue is full (FIFO eviction)
+        const dropped = this.messageQueue.shift();
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[WebSocket] Queue full, dropped oldest message:', dropped?.event);
+        }
+      }
+      
       // Queue message for later
       this.messageQueue.push(message);
-      console.warn('[WebSocket] Message queued (not connected)');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[WebSocket] Message queued (not connected). Queue size: ${this.messageQueue.length}/${this.options.maxQueueSize}`);
+      }
     }
   }
 

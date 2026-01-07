@@ -10,6 +10,7 @@ import CompletedSessionFAB from "@/components/ai-partner/CompletedSessionFAB";
 import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import IncomingCallModal from "@/components/IncomingCallModal";
+import { IncomingCallProvider } from "@/contexts/IncomingCallContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { IntlProvider } from "@/contexts/IntlContext";
@@ -79,13 +80,14 @@ export default function RootLayout({
                       <IntlProvider>
                         <PresenceProvider>
                           <BackgroundSessionProvider>
-                            <BannedUserOverlay>
-                              <OfflineIndicator />
-                              {children}
-                              <FloatingSessionButton />
-                              <PausedSessionFAB />
-                              <CompletedSessionFAB />
-                              <IncomingCallModal />
+                            <IncomingCallProvider>
+                              <BannedUserOverlay>
+                                <OfflineIndicator />
+                                {children}
+                                <FloatingSessionButton />
+                                <PausedSessionFAB />
+                                <CompletedSessionFAB />
+                                <IncomingCallModal />
                               <Toaster
                                 position="top-right"
                                 toastOptions={{
@@ -110,7 +112,8 @@ export default function RootLayout({
                                   },
                                 }}
                               />
-                            </BannedUserOverlay>
+                              </BannedUserOverlay>
+                            </IncomingCallProvider>
                           </BackgroundSessionProvider>
                         </PresenceProvider>
                       </IntlProvider>

@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { passwordSchema } from '@/lib/password-validation'
+import { withPreAuthCsrfProtection } from '@/lib/csrf'
 
 const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -27,11 +28,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let createdAuthUser: { id: string } | null = null
-  const supabase = await createClient()
+  // CSRF protection for pre-auth routes
+  return withPreAuthCsrfProtection(request, async () => {
+    let createdAuthUser: { id: string } | null = null
+    const supabase = await createClient()
 
-  try {
-    const body = await request.json()
+    try {
+      const body = await request.json()
 
     // Validate input
     const validation = signUpSchema.safeParse(body)
@@ -191,5 +194,6 @@ export async function POST(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
-  }
+    }
+  })
 }

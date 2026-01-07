@@ -357,19 +357,158 @@ export async function invalidateCache(pattern: string): Promise<void> {
   }
 }
 
+// ============================================================================
+// Cache Stampede Prevention
+// ============================================================================
+
+// In-flight requests map to prevent cache stampede
+// Key -> Promise that resolves when the request completes
+const inFlightRequests = new Map<string, Promise<unknown>>()
+
+// Lock TTL for distributed locking (in seconds)
+const LOCK_TTL = 10
+
 /**
- * Get or set cached data (cache-aside pattern)
+ * Acquire a distributed lock using Redis SETNX
+ * Returns true if lock acquired, false otherwise
+ */
+async function acquireLock(lockKey: string): Promise<boolean> {
+  if (!isRedisConfigured()) {
+    // In-memory: use the inFlightRequests map
+    return !inFlightRequests.has(lockKey)
+  }
+
+  try {
+    const url = process.env.UPSTASH_REDIS_REST_URL!
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+    // SETNX with expiry - atomic operation
+    const response = await fetch(`${url}/set/${lockKey}/1/ex/${LOCK_TTL}/nx`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      return result.result === 'OK'
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Release a distributed lock
+ */
+async function releaseLock(lockKey: string): Promise<void> {
+  if (!isRedisConfigured()) return
+
+  try {
+    const url = process.env.UPSTASH_REDIS_REST_URL!
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN!
+
+    await fetch(`${url}/del/${lockKey}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch {
+    // Ignore errors - lock will expire anyway
+  }
+}
+
+/**
+ * Get or set cached data with cache stampede prevention
+ *
+ * Uses a combination of:
+ * 1. Distributed locking (Redis SETNX) to prevent multiple fetches
+ * 2. In-flight request deduplication for concurrent requests
+ * 3. Stale-while-revalidate pattern for better UX
  */
 export async function getOrSetCached<T>(
   key: string,
   ttl: number,
   fetchFn: () => Promise<T>
 ): Promise<T> {
+  // 1. Try to get from cache first
   const cached = await getCached<T>(key)
   if (cached !== null) return cached
 
-  const data = await fetchFn()
-  await setCached(key, data, ttl)
+  // 2. Check if there's already an in-flight request for this key
+  const inFlight = inFlightRequests.get(key)
+  if (inFlight) {
+    // Wait for the existing request to complete
+    return inFlight as Promise<T>
+  }
+
+  // 3. Try to acquire lock to prevent stampede
+  const lockKey = `lock:${key}`
+  const lockAcquired = await acquireLock(lockKey)
+
+  if (!lockAcquired) {
+    // Another instance is fetching - wait briefly then check cache again
+    await new Promise(resolve => setTimeout(resolve, 100))
+    const retryCache = await getCached<T>(key)
+    if (retryCache !== null) return retryCache
+
+    // Still no cache - wait a bit more and retry
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const finalRetry = await getCached<T>(key)
+    if (finalRetry !== null) return finalRetry
+
+    // Fallback: fetch anyway (should be rare)
+    const fallbackData = await fetchFn()
+    await setCached(key, fallbackData, ttl)
+    return fallbackData
+  }
+
+  // 4. We have the lock - create the fetch promise
+  const fetchPromise = (async (): Promise<T> => {
+    try {
+      const data = await fetchFn()
+      await setCached(key, data, ttl)
+      return data
+    } finally {
+      // Clean up
+      inFlightRequests.delete(key)
+      await releaseLock(lockKey)
+    }
+  })()
+
+  // Store the promise for other concurrent requests
+  inFlightRequests.set(key, fetchPromise)
+
+  return fetchPromise
+}
+
+/**
+ * Get or set cached data with stale-while-revalidate pattern
+ * Returns stale data immediately while refreshing in background
+ */
+export async function getOrSetCachedWithStale<T>(
+  key: string,
+  ttl: number,
+  staleTtl: number, // How long to keep stale data
+  fetchFn: () => Promise<T>
+): Promise<T> {
+  // Check cache including stale data
+  const cached = await getCached<T>(key)
+  if (cached !== null) return cached
+
+  // Check stale cache
+  const staleKey = `stale:${key}`
+  const stale = await getCached<T>(staleKey)
+
+  if (stale !== null) {
+    // Return stale data and refresh in background
+    getOrSetCached(key, ttl, fetchFn).catch(console.error)
+    return stale
+  }
+
+  // No cached data - fetch synchronously
+  const data = await getOrSetCached(key, ttl, fetchFn)
+
+  // Also store in stale cache with longer TTL
+  await setCached(staleKey, data, staleTtl)
+
   return data
 }
 

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { isBlocked } from '@/lib/blocked-users'
 import { notifyConnectionRequest } from '@/lib/notifications/send'
+import logger from '@/lib/logger'
 
 const sendRequestSchema = z.object({
   receiverId: z.string(),
@@ -38,11 +39,11 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    console.log('Send connection request body:', body)
+    logger.debug('Send connection request', { receiverId: body?.receiverId })
     const validation = sendRequestSchema.safeParse(body)
 
     if (!validation.success) {
-      console.error('Validation error:', validation.error.issues)
+      logger.warn('Validation error in send connection request', { issues: validation.error.issues })
       return NextResponse.json(
         { error: 'Invalid data', details: validation.error.issues },
         { status: 400 }
@@ -81,10 +82,10 @@ export async function POST(request: NextRequest) {
             }
           }
         })
-        console.log('Existing match check result:', existingMatch ? 'FOUND' : 'NOT FOUND')
+        logger.debug('Existing match check', { found: !!existingMatch })
 
         if (existingMatch) {
-          console.log('Existing match found:', existingMatch.id, 'status:', existingMatch.status)
+          logger.debug('Existing match found', { matchId: existingMatch.id, status: existingMatch.status })
 
           // If there's a PENDING request, don't allow duplicate
           if (existingMatch.status === 'PENDING') {
@@ -117,10 +118,10 @@ export async function POST(request: NextRequest) {
             }
           }
         })
-        console.log('Reverse match check result:', reverseMatch ? 'FOUND' : 'NOT FOUND')
+        logger.debug('Reverse match check', { found: !!reverseMatch })
 
         if (reverseMatch) {
-          console.log('Reverse match found:', reverseMatch.id, 'status:', reverseMatch.status)
+          logger.debug('Reverse match found', { matchId: reverseMatch.id, status: reverseMatch.status })
 
           // Only block if there's a PENDING request from the other user
           if (reverseMatch.status === 'PENDING') {
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Send push notification (async, don't wait)
-    notifyConnectionRequest(user.id, receiverId, match.id).catch(console.error)
+    notifyConnectionRequest(user.id, receiverId, match.id).catch((err) => logger.error('Failed to send connection notification', err))
 
     return NextResponse.json({
       success: true,
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
       message: 'Connection request sent successfully'
     })
   } catch (error) {
-    console.error('Send connection request error:', error)
+    logger.error('Send connection request error', error instanceof Error ? error : { error })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -8,6 +8,7 @@ import { authenticator } from 'otplib'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { isAccountLocked, recordFailedAttempt, clearLockout, formatLockoutMessage } from '@/lib/account-lockout'
+import { withPreAuthCsrfProtection } from '@/lib/csrf'
 
 // Encryption helpers for decrypting 2FA secret
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
@@ -56,8 +57,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  try {
-    const body = await request.json()
+  // CSRF protection for pre-auth routes
+  return withPreAuthCsrfProtection(request, async () => {
+    try {
+      const body = await request.json()
 
     // Validate input
     const validation = signInSchema.safeParse(body)
@@ -265,11 +268,12 @@ export async function POST(request: NextRequest) {
       message: 'Signed in successfully',
       user,
     })
-  } catch (error) {
-    console.error('Sign in error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+    } catch (error) {
+      console.error('Sign in error:', error)
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
+  })
 }
