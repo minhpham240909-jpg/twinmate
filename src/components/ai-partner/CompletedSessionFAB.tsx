@@ -61,6 +61,13 @@ export default function CompletedSessionFAB() {
     try {
       const res = await fetch('/api/ai-partner/completed-session')
 
+      // Check if response is JSON before parsing
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        // Response is not JSON (likely HTML redirect), user not authenticated
+        return
+      }
+
       if (!res.ok) {
         return
       }
@@ -80,7 +87,7 @@ export default function CompletedSessionFAB() {
         setCompletedSession(null)
       }
     } catch (err) {
-      console.error('Failed to check completed session:', err)
+      // Silently ignore errors (e.g., user not logged in)
     }
   }, [getDismissedSessions])
 

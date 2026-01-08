@@ -30,6 +30,13 @@ export default function PausedSessionFAB() {
     try {
       const res = await fetch('/api/ai-partner/paused-session')
 
+      // Check if response is JSON before parsing
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        // Response is not JSON (likely HTML redirect), user not authenticated
+        return
+      }
+
       if (!res.ok) {
         // User not logged in or other auth issue - silently ignore
         return
@@ -45,7 +52,6 @@ export default function PausedSessionFAB() {
       }
     } catch (err) {
       // Silently ignore errors (e.g., user not logged in)
-      console.error('Failed to check paused session:', err)
     }
   }, [])
 

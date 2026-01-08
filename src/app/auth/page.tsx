@@ -14,12 +14,14 @@ function usePreAuthCsrfToken() {
     async function fetchToken() {
       try {
         const response = await fetch('/api/csrf/pre-auth')
-        if (response.ok) {
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type')
+        if (response.ok && contentType?.includes('application/json')) {
           const data = await response.json()
           setCsrfToken(data.csrfToken)
         }
-      } catch (error) {
-        console.error('Failed to fetch CSRF token:', error)
+      } catch {
+        // Silently handle - likely a redirect or auth issue
       }
     }
     fetchToken()

@@ -33,6 +33,13 @@ export function useCsrf() {
     const fetchToken = async () => {
       try {
         const response = await fetch('/api/csrf')
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type')
+        if (!contentType?.includes('application/json')) {
+          // Response is not JSON (likely HTML redirect), user not authenticated
+          setCsrfToken(null)
+          return
+        }
         if (response.ok) {
           const data = await response.json()
           setCsrfToken(data.csrfToken)
@@ -43,7 +50,8 @@ export function useCsrf() {
           setError('Failed to fetch CSRF token')
         }
       } catch (err) {
-        setError('Failed to fetch CSRF token')
+        // Silently handle - user likely not authenticated
+        setCsrfToken(null)
       } finally {
         setLoading(false)
       }
@@ -57,13 +65,19 @@ export function useCsrf() {
     setLoading(true)
     try {
       const response = await fetch('/api/csrf')
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        setCsrfToken(null)
+        return
+      }
       if (response.ok) {
         const data = await response.json()
         setCsrfToken(data.csrfToken)
         setError(null)
       }
     } catch (err) {
-      setError('Failed to refresh CSRF token')
+      // Silently handle
+      setCsrfToken(null)
     } finally {
       setLoading(false)
     }
@@ -117,7 +131,8 @@ export async function fetchWithCsrf(
   if (!cachedCsrfToken) {
     try {
       const response = await fetch('/api/csrf')
-      if (response.ok) {
+      const contentType = response.headers.get('content-type')
+      if (response.ok && contentType?.includes('application/json')) {
         const data = await response.json()
         cachedCsrfToken = data.csrfToken
       }

@@ -24,21 +24,31 @@ export function useCsrfToken() {
       try {
         setLoading(true)
         setError(null)
-        
+
         const response = await fetch('/api/csrf')
-        
+
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type')
+        if (!contentType?.includes('application/json')) {
+          // Response is not JSON (likely HTML redirect), user not authenticated
+          if (mounted) {
+            setCsrfToken(null)
+          }
+          return
+        }
+
         if (!response.ok) {
           throw new Error('Failed to fetch CSRF token')
         }
-        
+
         const data = await response.json()
-        
+
         if (mounted) {
           setCsrfToken(data.csrfToken)
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Unknown error')
+          // Silently handle - user likely not authenticated
           setCsrfToken(null)
         }
       } finally {
