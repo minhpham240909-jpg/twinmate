@@ -3,6 +3,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useAuth } from '@/lib/auth/context'
 
+// Check if we're in production (disable verbose logging)
+const isProduction = process.env.NODE_ENV === 'production'
+
 // Settings interface matching the database schema
 export interface UserSettings {
   // Account & Profile
@@ -199,7 +202,6 @@ function sanitizeSettings(rawSettings: Partial<UserSettings>): UserSettings {
       if (!isNaN(numValue) && isFinite(numValue)) {
         sanitized[key] = numValue
       } else {
-        console.warn(`[Settings] Invalid number for ${key}: ${value}, using default: ${defaultValue}`)
         sanitized[key] = defaultValue
       }
       return
@@ -251,11 +253,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         const sanitizedSettings = sanitizeSettings(data.settings || {})
         setSettings(sanitizedSettings)
       } else {
-        console.error('Failed to load settings, using defaults')
         setSettings(defaultSettings)
       }
     } catch (error) {
-      console.error('Error fetching settings:', error)
+      if (!isProduction) {
+        console.error('Error fetching settings:', error)
+      }
       setSettings(defaultSettings)
     } finally {
       setLoading(false)

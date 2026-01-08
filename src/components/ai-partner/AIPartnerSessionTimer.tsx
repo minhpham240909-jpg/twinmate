@@ -1,14 +1,25 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Pause, Coffee, Clock, Zap } from 'lucide-react'
 
 // Timer state type exported for use in parent components
 export type TimerState = 'idle' | 'study' | 'break' | 'paused'
 
+// Interface for persisted timer data
+interface PersistedTimerState {
+  timerState: TimerState
+  timeRemaining: number
+  cycle: number
+  totalStudyTime: number
+  lastUpdatedAt: number // Timestamp when state was saved
+  sessionId: string
+}
+
 interface AIPartnerSessionTimerProps {
   sessionStartedAt: Date | string
+  sessionId: string // Required for persisting timer state per session
   onTimerComplete?: (isBreak: boolean) => void
   onStudyTimerComplete?: () => void // Callback when study timer ends (for showing feedback modal)
   onFocusTimeUpdate?: (focusTime: number) => void // Callback to report focus time in seconds
@@ -16,8 +27,12 @@ interface AIPartnerSessionTimerProps {
   externalStartTrigger?: number // Increment to trigger timer start externally
 }
 
+// Storage key for timer persistence
+const getStorageKey = (sessionId: string) => `ai-timer-state-${sessionId}`
+
 export default function AIPartnerSessionTimer({
   sessionStartedAt,
+  sessionId,
   onTimerComplete,
   onStudyTimerComplete,
   onFocusTimeUpdate,
@@ -32,6 +47,120 @@ export default function AIPartnerSessionTimer({
   const [timeRemaining, setTimeRemaining] = useState(STUDY_DURATION)
   const [cycle, setCycle] = useState(1)
   const [totalStudyTime, setTotalStudyTime] = useState(0)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const hasRestoredRef = useRef(false)
+
+  // Restore timer state from localStorage on mount
+  useEffect(() => {
+    if (hasRestoredRef.current || !sessionId) return
+    hasRestoredRef.current = true
+
+    try {
+      const storageKey = getStorageKey(sessionId)
+      const savedState = localStorage.getItem(storageKey)
+
+      if (savedState) {
+        const parsed: PersistedTimerState = JSON.parse(savedState)
+
+        // Only restore if it's for the same session
+        if (parsed.sessionId === sessionId) {
+          const now = Date.now()
+          const elapsedSinceLastUpdate = Math.floor((now - parsed.lastUpdatedAt) / 1000)
+
+          // If timer was running (study or break), calculate time elapsed while away
+          if (parsed.timerState === 'study' || parsed.timerState === 'break') {
+            let newTimeRemaining = parsed.timeRemaining - elapsedSinceLastUpdate
+            let newTimerState = parsed.timerState
+            let newCycle = parsed.cycle
+            let additionalStudyTime = 0
+
+            // Handle timer completion while away
+            while (newTimeRemaining <= 0) {
+              if (newTimerState === 'study') {
+                // Study timer completed - track the remaining study time
+                additionalStudyTime += parsed.timeRemaining
+                newTimerState = 'break'
+                newTimeRemaining += BREAK_DURATION
+              } else {
+                // Break completed
+                newTimerState = 'study'
+                newCycle += 1
+                newTimeRemaining += STUDY_DURATION
+              }
+            }
+
+            // If was studying, add elapsed time to total study time
+            if (parsed.timerState === 'study' && newTimerState !== 'study') {
+              additionalStudyTime = parsed.timeRemaining // Full study duration completed
+            } else if (parsed.timerState === 'study' && newTimerState === 'study') {
+              additionalStudyTime = elapsedSinceLastUpdate // Partial time
+            }
+
+            setTimerState(newTimerState)
+            setTimeRemaining(Math.max(0, newTimeRemaining))
+            setCycle(newCycle)
+            setTotalStudyTime(parsed.totalStudyTime + additionalStudyTime)
+          } else {
+            // Timer was paused or idle - restore exactly as saved
+            setTimerState(parsed.timerState)
+            setTimeRemaining(parsed.timeRemaining)
+            setCycle(parsed.cycle)
+            setTotalStudyTime(parsed.totalStudyTime)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Timer] Failed to restore state:', error)
+    }
+
+    setIsInitialized(true)
+  }, [sessionId, STUDY_DURATION, BREAK_DURATION])
+
+  // Save timer state to localStorage whenever it changes
+  useEffect(() => {
+    if (!isInitialized || !sessionId) return
+
+    const stateToSave: PersistedTimerState = {
+      timerState,
+      timeRemaining,
+      cycle,
+      totalStudyTime,
+      lastUpdatedAt: Date.now(),
+      sessionId,
+    }
+
+    try {
+      const storageKey = getStorageKey(sessionId)
+      localStorage.setItem(storageKey, JSON.stringify(stateToSave))
+    } catch (error) {
+      console.error('[Timer] Failed to save state:', error)
+    }
+  }, [timerState, timeRemaining, cycle, totalStudyTime, sessionId, isInitialized])
+
+  // Clean up old timer states (keep only last 10 sessions)
+  useEffect(() => {
+    if (!isInitialized) return
+
+    try {
+      const allKeys = Object.keys(localStorage).filter(k => k.startsWith('ai-timer-state-'))
+      if (allKeys.length > 10) {
+        // Sort by last updated and remove oldest
+        const states = allKeys.map(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}')
+            return { key, lastUpdatedAt: data.lastUpdatedAt || 0 }
+          } catch {
+            return { key, lastUpdatedAt: 0 }
+          }
+        }).sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt)
+
+        // Remove oldest entries beyond 10
+        states.slice(10).forEach(({ key }) => localStorage.removeItem(key))
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+  }, [isInitialized])
 
   // Notify parent when timer state changes
   useEffect(() => {

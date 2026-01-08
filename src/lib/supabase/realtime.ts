@@ -11,7 +11,10 @@ export type { ConnectionStatus } from './realtime-client'
 
 /**
  * Subscribe to real-time messages in a group channel
- * Enhanced to fetch complete message with sender info for instant display
+ * Uses dual strategy: Supabase Broadcast (instant) + postgres_changes (backup)
+ * 
+ * IMPORTANT: For postgres_changes to work, run the migration:
+ * supabase/migrations/20250107_enable_realtime_messages.sql
  *
  * @param channelName - Unique channel identifier (format: "group:groupId")
  * @param onMessage - Callback when new message arrives (receives complete message with sender)
@@ -32,6 +35,7 @@ export function subscribeToMessages(
   }
 
   let isCleanedUp = false
+  const processedMessageIds = new Set<string>() // Prevent duplicates
 
   // Fetch complete message with sender info
   const fetchCompleteMessage = async (messageId: string) => {
@@ -50,8 +54,44 @@ export function subscribeToMessages(
     }
   }
 
+  // Handle incoming message (from either broadcast or postgres_changes)
+  const handleNewMessage = async (messageId: string, source: string) => {
+    if (isCleanedUp) return
+    
+    // Prevent duplicate processing
+    if (processedMessageIds.has(messageId)) {
+      console.log(`⏭️ [Group Realtime] Skipping duplicate: ${messageId}`)
+      return
+    }
+    processedMessageIds.add(messageId)
+    
+    // Limit set size to prevent memory leak
+    if (processedMessageIds.size > 100) {
+      const oldestId = processedMessageIds.values().next().value
+      if (oldestId) processedMessageIds.delete(oldestId)
+    }
+
+    console.log(`📨 [Group Realtime] Processing message from ${source}: ${messageId}`)
+    const completeMessage = await fetchCompleteMessage(messageId)
+    if (completeMessage && !isCleanedUp) {
+      console.log(`✅ [Group Realtime] Delivering to UI: ${completeMessage.content?.substring(0, 50)}`)
+      onMessage(completeMessage)
+    }
+  }
+
   const channel = supabase
-    .channel(channelName)
+    .channel(channelName, {
+      config: { broadcast: { self: false } }
+    })
+    // PRIMARY: Listen for broadcast events (instant, no table publication needed)
+    .on('broadcast', { event: 'new_message' }, async (payload) => {
+      if (isCleanedUp) return
+      const { messageId } = payload.payload as { messageId: string }
+      if (messageId) {
+        await handleNewMessage(messageId, 'broadcast')
+      }
+    })
+    // BACKUP: Listen for postgres_changes (requires table in publication)
     .on(
       'postgres_changes',
       {
@@ -62,21 +102,8 @@ export function subscribeToMessages(
       },
       async (payload) => {
         if (isCleanedUp) return
-
         const rawMessage = payload.new as Record<string, unknown>
-        console.log(`📨 [Group Realtime] Received message event:`, {
-          messageId: rawMessage.id,
-          senderId: rawMessage.senderId,
-          groupId: rawMessage.groupId
-        })
-
-        // Fetch complete message with sender info for instant display
-        console.log(`🔄 [Group Realtime] Fetching complete message...`)
-        const completeMessage = await fetchCompleteMessage(rawMessage.id as string)
-        if (completeMessage && !isCleanedUp) {
-          console.log(`✅ [Group Realtime] Delivering message to UI:`, completeMessage.content?.substring(0, 50))
-          onMessage(completeMessage)
-        }
+        await handleNewMessage(rawMessage.id as string, 'postgres_changes')
       }
     )
     .subscribe((status) => {
@@ -92,16 +119,33 @@ export function subscribeToMessages(
   // Return cleanup function
   return () => {
     isCleanedUp = true
+    processedMessageIds.clear()
     supabase.removeChannel(channel)
   }
 }
 
 /**
+ * Broadcast a new message to a group channel
+ * Called by the sender to notify other group members instantly
+ */
+export function broadcastGroupMessage(groupId: string, messageId: string): void {
+  const supabase = createClient()
+  const channelName = `group:${groupId}`
+  
+  // Send broadcast event (fire and forget)
+  supabase.channel(channelName).send({
+    type: 'broadcast',
+    event: 'new_message',
+    payload: { messageId, groupId }
+  }).catch(err => console.error('[Group Broadcast] Failed:', err))
+}
+
+/**
  * Subscribe to DM (Direct Messages) between two users
- * Enhanced with automatic reconnection, error handling, and proper message fetching
+ * Uses dual strategy: Supabase Broadcast (instant) + postgres_changes (backup)
  *
- * IMPORTANT: This function now fetches the complete message with sender info
- * when realtime triggers, ensuring the receiver gets all message details instantly.
+ * IMPORTANT: For postgres_changes to work, run the migration:
+ * supabase/migrations/20250107_enable_realtime_messages.sql
  */
 export function subscribeToDM(
   myUserId: string,
@@ -126,6 +170,7 @@ export function subscribeToDM(
   const channelName = `dm:${sortedIds[0]}-${sortedIds[1]}`
   let channel: RealtimeChannel | null = null
   let isCleanedUp = false
+  const processedMessageIds = new Set<string>() // Prevent duplicates
 
   // Fetch complete message with sender info
   const fetchCompleteMessage = async (messageId: string) => {
@@ -144,6 +189,37 @@ export function subscribeToDM(
     }
   }
 
+  // Handle incoming message (from either broadcast or postgres_changes)
+  const handleNewMessage = async (messageId: string, senderId: string, source: string) => {
+    if (isCleanedUp) return
+    
+    // Only process messages from our partner
+    if (senderId !== partnerId && senderId !== myUserId) {
+      console.log(`⏭️ [DM Realtime] Skipping - not from current conversation`)
+      return
+    }
+    
+    // Prevent duplicate processing
+    if (processedMessageIds.has(messageId)) {
+      console.log(`⏭️ [DM Realtime] Skipping duplicate: ${messageId}`)
+      return
+    }
+    processedMessageIds.add(messageId)
+    
+    // Limit set size to prevent memory leak
+    if (processedMessageIds.size > 100) {
+      const oldestId = processedMessageIds.values().next().value
+      if (oldestId) processedMessageIds.delete(oldestId)
+    }
+
+    console.log(`📨 [DM Realtime] Processing message from ${source}: ${messageId}`)
+    const completeMessage = await fetchCompleteMessage(messageId)
+    if (completeMessage && !isCleanedUp) {
+      console.log(`✅ [DM Realtime] Delivering to UI: ${completeMessage.content?.substring(0, 50)}`)
+      onMessage(completeMessage)
+    }
+  }
+
   const setupChannel = () => {
     // Clean up existing channel
     if (channel) {
@@ -157,7 +233,15 @@ export function subscribeToDM(
           presence: { key: '' },
         },
       })
-      // Listen for messages where I am the RECIPIENT (messages sent TO me)
+      // PRIMARY: Listen for broadcast events (instant, no table publication needed)
+      .on('broadcast', { event: 'new_message' }, async (payload) => {
+        if (isCleanedUp) return
+        const { messageId, senderId } = payload.payload as { messageId: string; senderId: string }
+        if (messageId && senderId) {
+          await handleNewMessage(messageId, senderId, 'broadcast')
+        }
+      })
+      // BACKUP: Listen for messages where I am the RECIPIENT
       .on(
         'postgres_changes',
         {
@@ -168,31 +252,19 @@ export function subscribeToDM(
         },
         async (payload) => {
           if (isCleanedUp) return
-
           const rawMessage = payload.new as Record<string, unknown>
-          console.log(`📨 [DM Realtime] Received message event:`, {
-            messageId: rawMessage.id,
-            senderId: rawMessage.senderId,
-            recipientId: rawMessage.recipientId,
-            expectedPartnerId: partnerId
-          })
-
-          // Only process if it's from our partner (not from a group or other DM)
-          if (rawMessage.senderId !== partnerId || rawMessage.groupId !== null) {
-            console.log(`⏭️ [DM Realtime] Skipping - not from current partner`)
-            return
-          }
-
-          // Fetch complete message with sender info for instant display
-          console.log(`🔄 [DM Realtime] Fetching complete message...`)
-          const completeMessage = await fetchCompleteMessage(rawMessage.id as string)
-          if (completeMessage && !isCleanedUp) {
-            console.log(`✅ [DM Realtime] Delivering message to UI:`, completeMessage.content?.substring(0, 50))
-            onMessage(completeMessage)
-          }
+          
+          // Only process if it's a DM (no groupId)
+          if (rawMessage.groupId !== null) return
+          
+          await handleNewMessage(
+            rawMessage.id as string,
+            rawMessage.senderId as string,
+            'postgres_changes'
+          )
         }
       )
-      // Also listen for messages I SEND (for multi-device sync)
+      // BACKUP: Also listen for messages I SEND (for multi-device sync)
       .on(
         'postgres_changes',
         {
@@ -203,19 +275,16 @@ export function subscribeToDM(
         },
         async (payload) => {
           if (isCleanedUp) return
-
           const rawMessage = payload.new as Record<string, unknown>
 
-          // Only process if it's to our partner (not to a group or other DM)
-          if (rawMessage.recipientId !== partnerId || rawMessage.groupId !== null) {
-            return
-          }
+          // Only process DMs to our partner
+          if (rawMessage.recipientId !== partnerId || rawMessage.groupId !== null) return
 
-          // Fetch complete message with sender info
-          const completeMessage = await fetchCompleteMessage(rawMessage.id as string)
-          if (completeMessage && !isCleanedUp) {
-            onMessage(completeMessage)
-          }
+          await handleNewMessage(
+            rawMessage.id as string,
+            rawMessage.senderId as string,
+            'postgres_changes_self'
+          )
         }
       )
       .subscribe((status, err) => {
@@ -243,12 +312,30 @@ export function subscribeToDM(
   // Return cleanup function
   return () => {
     isCleanedUp = true
+    processedMessageIds.clear()
     if (channel) {
       supabase.removeChannel(channel)
       channel = null
     }
     realtimeConnection.cleanup()
   }
+}
+
+/**
+ * Broadcast a new DM message to the conversation channel
+ * Called by the sender to notify the recipient instantly
+ */
+export function broadcastDMMessage(senderId: string, recipientId: string, messageId: string): void {
+  const supabase = createClient()
+  const sortedIds = [senderId, recipientId].sort()
+  const channelName = `dm:${sortedIds[0]}-${sortedIds[1]}`
+  
+  // Send broadcast event (fire and forget)
+  supabase.channel(channelName).send({
+    type: 'broadcast',
+    event: 'new_message',
+    payload: { messageId, senderId, recipientId }
+  }).catch(err => console.error('[DM Broadcast] Failed:', err))
 }
 
 /**

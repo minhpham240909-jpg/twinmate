@@ -18,6 +18,7 @@ import {
   Timer,
 } from 'lucide-react'
 import QuizModal from './QuizModal'
+import MathRenderer from '@/components/MathRenderer'
 
 interface Message {
   id: string
@@ -325,7 +326,12 @@ export default function AIPartnerChat({
             </div>
           ) : (
             <>
-              {message.content}
+              {/* Render math equations for AI responses, plain text for user messages */}
+              {message.role === 'ASSISTANT' ? (
+                <MathRenderer content={message.content} />
+              ) : (
+                message.content
+              )}
               {/* Show blinking cursor for streaming AI messages */}
               {message.role === 'ASSISTANT' && message.id.startsWith('temp-') && message.content && (
                 <span className="inline-block w-2 h-4 bg-blue-400 ml-0.5 animate-pulse" />

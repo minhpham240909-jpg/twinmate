@@ -16,6 +16,7 @@ import {
   Send,
   Loader2,
 } from 'lucide-react'
+import MathRenderer from '@/components/MathRenderer'
 
 export interface QuizQuestion {
   id: string
@@ -374,14 +375,14 @@ export default function InteractiveQuiz({
                           key={idx}
                           className="bg-slate-900/50 rounded-xl p-4 border border-slate-700"
                         >
-                          <p className="text-white font-medium mb-3">{wa.question}</p>
+                          <div className="text-white font-medium mb-3"><MathRenderer content={wa.question} /></div>
 
                           <div className="space-y-2 text-sm">
                             <div className="flex items-start gap-2">
                               <XCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
                               <div>
                                 <span className="text-red-400">Your answer: </span>
-                                <span className="text-slate-300">{wa.userAnswer}</span>
+                                <span className="text-slate-300"><MathRenderer content={wa.userAnswer} /></span>
                               </div>
                             </div>
 
@@ -389,13 +390,13 @@ export default function InteractiveQuiz({
                               <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                               <div>
                                 <span className="text-green-400">Correct answer: </span>
-                                <span className="text-slate-300">{wa.correctAnswer}</span>
+                                <span className="text-slate-300"><MathRenderer content={wa.correctAnswer} /></span>
                               </div>
                             </div>
 
                             <div className="flex items-start gap-2 mt-2 pt-2 border-t border-slate-700">
                               <Lightbulb className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                              <p className="text-slate-400">{wa.explanation}</p>
+                              <div className="text-slate-400"><MathRenderer content={wa.explanation} /></div>
                             </div>
                           </div>
                         </div>
@@ -510,9 +511,9 @@ export default function InteractiveQuiz({
 
         {/* Question */}
         <div className="mb-6">
-          <p className="text-lg text-white leading-relaxed">
-            {currentQuestion.question}
-          </p>
+          <div className="text-lg text-white leading-relaxed">
+            <MathRenderer content={currentQuestion.question} />
+          </div>
         </div>
 
         {/* Answer Options */}
@@ -575,7 +576,7 @@ export default function InteractiveQuiz({
                     >
                       {String.fromCharCode(65 + index)}
                     </span>
-                    <span className="flex-1">{option}</span>
+                    <span className="flex-1"><MathRenderer content={option} /></span>
                     {showResult && isCorrectOption && (
                       <CheckCircle2 className="w-5 h-5 text-green-400" />
                     )}
@@ -619,9 +620,9 @@ export default function InteractiveQuiz({
                   {!isCorrect && (
                     <div className="p-4 rounded-xl bg-green-500/10 border-2 border-green-500/50">
                       <p className="text-sm text-slate-400 mb-1">Correct answer:</p>
-                      <p className="text-green-300">
-                        {currentQuestion.correctAnswerText}
-                      </p>
+                      <div className="text-green-300">
+                        <MathRenderer content={currentQuestion.correctAnswerText || ''} />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -659,7 +660,7 @@ export default function InteractiveQuiz({
                   </p>
                   <div className="flex items-start gap-2 text-sm text-slate-300">
                     <Lightbulb className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                    <p>{currentQuestion.explanation}</p>
+                    <div><MathRenderer content={currentQuestion.explanation} /></div>
                   </div>
                 </div>
               </div>

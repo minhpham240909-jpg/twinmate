@@ -409,3 +409,77 @@ html {
     hue-rotate(90deg)
     contrast(1.05);
 }
+
+/* ============================================
+   MATH RENDERING STYLES (KaTeX)
+   Professional textbook-quality equation display
+   ============================================ */
+
+/* Math content container */
+.math-content {
+  line-height: 1.6;
+}
+
+/* Display math (block equations) - centered */
+.math-display {
+  display: block;
+  text-align: center;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+.math-display .katex-display {
+  margin: 0;
+  padding: 0;
+}
+
+/* KaTeX color adjustments for dark theme */
+.dark .katex,
+.dark .katex .katex-html {
+  color: inherit;
+}
+
+/* Make equations readable in both themes */
+.katex {
+  font-size: 1.1em;
+}
+
+.math-display .katex {
+  font-size: 1.2em;
+}
+
+/* Ensure proper wrapping for long equations */
+.katex-display > .katex {
+  white-space: normal;
+  max-width: 100%;
+}
+
+/* Scrollable for very wide equations */
+.math-display::-webkit-scrollbar {
+  height: 4px;
+}
+
+.math-display::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.math-display::-webkit-scrollbar-thumb {
+  background: var(--mono-400);
+  border-radius: 2px;
+}
+
+.dark .math-display::-webkit-scrollbar-thumb {
+  background: var(--mono-600);
+}
+
+/* Inline math styling */
+.katex:not(.katex-display .katex) {
+  padding: 0 0.1em;
+}
+
+/* Fix KaTeX vertical alignment in inline context */
+.math-content .katex {
+  vertical-align: middle;
+}

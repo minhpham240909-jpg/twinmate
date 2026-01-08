@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+// Check if we're in production (disable verbose logging)
+const isProduction = process.env.NODE_ENV === 'production'
+
 export interface NetworkStatus {
   isOnline: boolean
   isSlowConnection: boolean
@@ -71,13 +74,14 @@ export function useNetworkStatus(): UseNetworkStatusReturn {
         })
       }
     } catch (error) {
-      console.error('[Network Status] Error reading connection info:', error)
+      if (!isProduction) {
+        console.error('[Network Status] Error reading connection info:', error)
+      }
     }
   }, [])
 
   // Handle online event
   const handleOnline = useCallback(() => {
-    console.log('[Network Status] 🟢 Connection restored')
     setIsOnline(true)
     setWasOffline(true) // Mark that we recovered from offline
     updateConnectionInfo()
@@ -90,7 +94,6 @@ export function useNetworkStatus(): UseNetworkStatusReturn {
 
   // Handle offline event
   const handleOffline = useCallback(() => {
-    console.log('[Network Status] 🔴 Connection lost')
     setIsOnline(false)
     setConnectionInfo(prev => ({
       ...prev,
@@ -120,7 +123,9 @@ export function useNetworkStatus(): UseNetworkStatusReturn {
           connection.addEventListener('change', updateConnectionInfo)
         }
       } catch (error) {
-        console.error('[Network Status] Error setting up connection listener:', error)
+        if (!isProduction) {
+          console.error('[Network Status] Error setting up connection listener:', error)
+        }
       }
     }
 
@@ -157,18 +162,18 @@ export function useNetworkStatus(): UseNetworkStatusReturn {
   }, [handleOnline, handleOffline, updateConnectionInfo])
 
   // Periodic online check (fallback for browsers that don't fire events reliably)
+  // OPTIMIZATION: Increased interval to reduce CPU usage
   useEffect(() => {
     const interval = setInterval(() => {
       const currentOnlineStatus = navigator.onLine
       if (currentOnlineStatus !== isOnline) {
-        console.log('[Network Status] Detected status change via polling:', currentOnlineStatus)
         if (currentOnlineStatus) {
           handleOnline()
         } else {
           handleOffline()
         }
       }
-    }, 5000) // Check every 5 seconds
+    }, 10000) // Check every 10 seconds (reduced from 5s)
 
     return () => clearInterval(interval)
   }, [isOnline, handleOnline, handleOffline])

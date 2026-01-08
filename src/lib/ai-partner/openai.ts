@@ -552,7 +552,22 @@ CORE RULES:
 5. Be encouraging but honest about areas that need improvement.
 6. If you don't know something, admit it and suggest resources.
 7. NEVER use quotation marks around subjects, topics, or names.
-8. Always display equations, formulas, and expressions in plain readable text - never use LaTeX or code markup. Write them naturally as you would see in a textbook or on paper.
+8. MATH AND EQUATIONS: When writing mathematical equations, formulas, chemical formulas, or expressions, use LaTeX notation with proper delimiters:
+   - For inline math (within text), use single dollar signs: $x^2 + y^2 = z^2$
+   - For display/centered equations, use double dollar signs: $$\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$
+   Examples:
+   - Fractions: $\\frac{a}{b}$, $$\\frac{dy}{dx}$$
+   - Square roots: $\\sqrt{x}$, $\\sqrt[3]{27}$
+   - Exponents: $x^2$, $e^{i\\pi}$
+   - Subscripts: $x_1$, $a_{n+1}$
+   - Greek letters: $\\alpha$, $\\beta$, $\\theta$, $\\Delta$
+   - Integrals: $$\\int_0^\\infty e^{-x^2} dx$$
+   - Summations: $$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$
+   - Limits: $$\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1$$
+   - Chemistry: $H_2O$, $CO_2$, $C_6H_{12}O_6$
+   - Physics: $E = mc^2$, $F = ma$, $$\\vec{F} = q(\\vec{E} + \\vec{v} \\times \\vec{B})$$
+   - Economics: $$P = \\frac{MR}{1 + \\frac{1}{\\epsilon}}$$
+   - Statistics: $$\\bar{x} = \\frac{1}{n}\\sum_{i=1}^n x_i$$, $$\\sigma = \\sqrt{\\frac{\\sum(x_i - \\mu)^2}{N}}$$
 ${conversationRules}
 YOUR CAPABILITIES:
 - Explain concepts clearly at the appropriate level
@@ -1084,30 +1099,11 @@ export async function generateQuizQuestion(params: {
     'EXPERT': 'The student is at an EXPERT level. Generate sophisticated questions testing nuanced understanding, edge cases, advanced applications, and require critical thinking.'
   }[skillLevel] : ''
 
-  const systemPrompt = `You are a quiz generator for students. Generate a multiple-choice quiz question.
+  // OPTIMIZED: Shorter system prompt for faster generation
+  const systemPrompt = `Quiz generator. ${skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''}
+Return JSON: {"question":"text","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}`
 
-${skillLevelGuidance}
-
-RULES:
-- Create educational, age-appropriate questions
-- Provide 4 options (A, B, C, D)
-- Only one correct answer
-- Include a brief explanation for the correct answer
-- Make questions challenging but fair for the difficulty level
-- Tailor complexity to the student's skill level if specified
-
-RESPOND IN THIS EXACT JSON FORMAT:
-{
-  "question": "The question text",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correctAnswer": 0,
-  "explanation": "Brief explanation of why this is correct"
-}
-
-Note: correctAnswer is the index (0-3) of the correct option.`
-
-  const userPrompt = `Generate a ${difficulty} difficulty question about ${subject}${topic ? ` (topic: ${topic})` : ''}${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''}.
-${previousQuestions.length > 0 ? `\nAvoid these already-asked questions:\n${previousQuestions.slice(-5).join('\n')}` : ''}`
+  const userPrompt = `${difficulty} quiz on ${subject}${topic ? `: ${topic}` : ''}${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}.${previousQuestions.length > 0 ? ` Avoid: ${previousQuestions.slice(-3).map(q => q.slice(0, 50)).join('; ')}` : ''}`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -1117,7 +1113,7 @@ ${previousQuestions.length > 0 ? `\nAvoid these already-asked questions:\n${prev
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.8,
-      max_tokens: 500,
+      max_tokens: 350, // OPTIMIZED: Reduced from 500
       response_format: { type: 'json_object' },
     })
 
@@ -1269,39 +1265,18 @@ export async function generateFlashcards(params: {
 - Test critical thinking and deep domain expertise`
   }[skillLevel] : ''
 
-  // Build subject-specific guidance
-  const subjectGuidance = getSubjectSpecificGuidance(subject)
+  // OPTIMIZED: Shorter prompt for faster generation
+  const levelHint = skillLevel && skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''
+  const diffHint = difficultyGuidance.split('\n')[0]
 
-  const systemPrompt = `You are a flashcard generator for students. Create effective flashcards for studying.
+  const systemPrompt = `Flashcard generator. ${levelHint} ${diffHint}
+Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
-${difficultyGuidance}
-
-${skillLevelGuidance}
-
-${subjectGuidance}
-
-RULES:
-- Front: A clear question, term, or concept prompt
-- Back: A complete, accurate answer or definition
-- Keep content concise but comprehensive enough to be useful
-- Focus on key concepts that are worth memorizing
-- Use active recall techniques (questions, not just terms)
-- Make each flashcard self-contained and testable
-- Adjust complexity based on the difficulty level specified
-
-RESPOND IN THIS EXACT JSON FORMAT:
-{
-  "flashcards": [
-    {"front": "Question or term", "back": "Answer or definition"},
-    ...
-  ]
-}`
-
-  const userPrompt = `Generate ${count} high-quality ${difficulty} difficulty flashcards for studying ${subject} - specifically about "${topic}"${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''}.`
+  const userPrompt = `${count} ${difficulty} flashcards on ${subject}: "${topic}"${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}`
 
   try {
-    // Scale max_tokens based on count (approx 80 tokens per flashcard)
-    const maxTokens = Math.min(800 + (count * 80), 2000)
+    // OPTIMIZED: Reduced token allocation (60 tokens per card)
+    const maxTokens = Math.min(400 + (count * 60), 1200)
 
     const completion = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
@@ -1376,44 +1351,23 @@ export async function generateFlashcardsFromChat(params: {
 - Cover complex relationships and edge cases mentioned`
   }[skillLevel] : ''
 
-  // Build subject-specific guidance if subject is provided
-  const subjectGuidance = subject ? getSubjectSpecificGuidance(subject) : ''
+  // OPTIMIZED: Shorter prompt for faster generation
+  const levelHint = skillLevel && skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''
+  const diffHint = difficultyGuidance.split('\n')[0]
 
-  const systemPrompt = `You are a flashcard generator that creates study cards based on conversation context.
+  const systemPrompt = `Create flashcards from conversation. ${levelHint} ${diffHint}
+Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
-${difficultyGuidance}
+  // OPTIMIZED: Truncate conversation to key parts
+  const truncatedConversation = conversationSummary.length > 2000
+    ? conversationSummary.slice(-2000)
+    : conversationSummary
 
-${skillLevelGuidance}
-
-${subjectGuidance}
-
-RULES:
-- Analyze the conversation to identify key concepts, facts, and terms discussed
-- Front: A clear question or term about something discussed in the conversation
-- Back: A complete answer or definition based on what was covered
-- Focus on the most important learning points from the discussion
-- Make cards that reinforce what the student was learning about
-- Keep content concise but comprehensive enough to be useful
-- Use active recall techniques (questions, not just terms)
-- Adjust complexity based on the difficulty level specified
-
-RESPOND IN THIS EXACT JSON FORMAT:
-{
-  "flashcards": [
-    {"front": "Question or term from conversation", "back": "Answer based on discussion"},
-    ...
-  ]
-}`
-
-  const userPrompt = `Generate ${count} high-quality ${difficulty} difficulty flashcards${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''} based on this study conversation${subject ? ` about ${subject}` : ''}:
-
-${conversationSummary}
-
-Create flashcards that capture the key concepts and facts that were discussed or explained in this conversation, appropriate for the student's level and the specified difficulty.`
+  const userPrompt = `${count} ${difficulty} flashcards${subject ? ` on ${subject}` : ''} from:\n${truncatedConversation}`
 
   try {
-    // Scale max_tokens based on count (approx 80 tokens per flashcard)
-    const maxTokens = Math.min(1000 + (count * 80), 2500)
+    // OPTIMIZED: Reduced token allocation (60 tokens per card)
+    const maxTokens = Math.min(400 + (count * 60), 1200)
 
     const completion = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
@@ -1582,54 +1536,24 @@ export async function generateWhiteboardSuggestions(params: {
     ? `Tailor suggestions for a ${skillLevel.toLowerCase()} level student.`
     : 'Provide suggestions appropriate for any level.'
 
-  const systemPrompt = `You are an expert study coach helping a student decide what to draw on their whiteboard to enhance their learning.
-
-${subjectContext}
-${skillGuidance}
-
-Your role:
-1. **Suggest Drawing Ideas**: Recommend diagrams, charts, mind maps, or visual representations that will help them understand and remember concepts better.
-2. **Provide Step-by-Step Guidance**: For each drawing idea, explain what to draw and how to organize it.
-3. **Visualization Tips**: Share tips on effective visual learning techniques.
-
-${userQuestion ? `The student specifically asked: "${userQuestion}"` : 'The student is starting with a blank canvas and wants drawing ideas.'}
-
-Be creative, practical, and educational. Focus on ${subject || 'general study techniques'}.
-
-RESPOND IN THIS EXACT JSON FORMAT:
-{
-  "suggestions": [
-    "Quick actionable suggestion 1",
-    "Quick actionable suggestion 2",
-    "Quick actionable suggestion 3"
-  ],
-  "drawingIdeas": [
-    {
-      "title": "Name of the diagram/visualization",
-      "description": "What this visualization helps with and why it's effective",
-      "steps": ["Step 1: Start by...", "Step 2: Then add...", "Step 3: Connect..."]
-    }
-  ],
-  "visualizationTips": [
-    "Tip for effective visual learning",
-    "Another helpful tip"
-  ]
-}`
+  // OPTIMIZED: Shorter prompt for faster generation
+  const systemPrompt = `Whiteboard drawing coach${subject ? ` for ${subject}` : ''}. ${skillGuidance ? skillGuidance.split('\n')[0] : ''}
+Return JSON: {"suggestions":["idea1","idea2"],"drawingIdeas":[{"title":"name","description":"why","steps":["1","2"]}],"visualizationTips":["tip1"]}`
 
   try {
     const completion = await openai.chat.completions.create({
-      model: DEFAULT_MODEL, // Using faster model for suggestions
+      model: DEFAULT_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         {
           role: 'user',
           content: userQuestion
-            ? `I need help with: ${userQuestion}`
-            : `Give me ideas for what to draw on my whiteboard to help me study${subject ? ` ${subject}` : ''}.`,
+            ? `Drawing ideas for: ${userQuestion}`
+            : `Whiteboard drawing ideas${subject ? ` for ${subject}` : ''}`,
         },
       ],
-      temperature: 0.8, // Higher creativity for suggestions
-      max_tokens: 1000,
+      temperature: 0.8,
+      max_tokens: 600, // OPTIMIZED: Reduced from 1000
       response_format: { type: 'json_object' },
     })
 
@@ -1684,39 +1608,17 @@ export async function generateQuizFromChat(params: {
     'EXPERT': 'The student is at an EXPERT level. Generate sophisticated questions testing nuanced understanding and critical thinking about the discussed material.'
   }[skillLevel] : ''
 
-  const systemPrompt = `You are a quiz generator that creates questions based on study conversation context.
+  // OPTIMIZED: Shorter prompt for faster generation
+  const levelHint = skillLevel && skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''
+  const systemPrompt = `Quiz from conversation. ${levelHint}
+Return JSON: {"questions":[{"question":"Q","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}]}`
 
-${skillLevelGuidance}
+  // OPTIMIZED: Truncate conversation
+  const truncatedConversation = conversationSummary.length > 2000
+    ? conversationSummary.slice(-2000)
+    : conversationSummary
 
-RULES:
-- Create questions about topics that were actually discussed in the conversation
-- Each question has 4 options (A, B, C, D)
-- Only one correct answer per question
-- Include a brief explanation for each correct answer
-- Match the difficulty level requested
-- Focus on testing understanding of key concepts from the discussion
-- Tailor question complexity to the student's skill level if specified
-
-RESPOND IN THIS EXACT JSON FORMAT:
-{
-  "questions": [
-    {
-      "question": "Question based on conversation",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": 0,
-      "explanation": "Why this is correct"
-    },
-    ...
-  ]
-}
-
-Note: correctAnswer is the index (0-3) of the correct option.`
-
-  const userPrompt = `Generate ${count} ${difficulty} difficulty quiz questions${skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''} based on this study conversation${subject ? ` about ${subject}` : ''}:
-
-${conversationSummary}
-
-Create questions that test understanding of the concepts discussed, appropriate for the student's level.`
+  const userPrompt = `${count} ${difficulty} quiz questions${subject ? ` on ${subject}` : ''} from:\n${truncatedConversation}`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -1726,7 +1628,7 @@ Create questions that test understanding of the concepts discussed, appropriate 
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 800, // OPTIMIZED: Reduced from 1500
       response_format: { type: 'json_object' },
     })
 
@@ -2866,59 +2768,20 @@ export async function generateMixedQuizFromChat(params: {
     typeInstruction = `Generate a MIX of question types - approximately half multiple choice and half open-ended.`
   }
 
-  // Build exclusion instruction if there are questions to exclude
-  const exclusionInstruction = excludeQuestions.length > 0
-    ? `\nIMPORTANT - DO NOT REPEAT THESE QUESTIONS (generate NEW different questions on similar concepts):
-${excludeQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')}\n`
-    : ''
+  // OPTIMIZED: Shorter prompts for faster generation
+  const levelHint = skillLevelGuidance ? skillLevelGuidance.split('.')[0] : ''
+  const typeHint = questionType === 'multiple_choice' ? 'MC only' : questionType === 'open_ended' ? 'Open-ended only' : 'Mix MC+open-ended'
+  const excludeHint = excludeQuestions.length > 0 ? ` Avoid: ${excludeQuestions.slice(0, 3).map(q => q.slice(0, 30)).join('; ')}` : ''
 
-  const systemPrompt = `You are a quiz generator that creates questions based on study conversation context.
+  const systemPrompt = `Interactive quiz from conversation. ${levelHint}. ${typeHint}.${excludeHint}
+Return JSON: {"questions":[{"question":"Q","type":"multiple_choice|open_ended","options":["A","B","C","D"],"correctAnswer":0-3,"correctAnswerText":"for open","explanation":"why"}]}`
 
-${skillLevelGuidance}
+  // OPTIMIZED: Truncate conversation
+  const truncatedConversation = conversationSummary.length > 2000
+    ? conversationSummary.slice(-2000)
+    : conversationSummary
 
-${typeInstruction}
-${exclusionInstruction}
-RULES:
-- Create questions about topics that were actually discussed in the conversation
-- For multiple choice: provide 4 options (A, B, C, D), only one correct answer
-- For open-ended: provide a clear question and the expected answer text
-- Include a brief explanation for each correct answer
-- Match the difficulty level requested
-- Focus on testing understanding of key concepts from the discussion
-- Tailor question complexity to the student's skill level if specified
-- Generate NEW questions that are DIFFERENT from any previously asked questions
-- Questions should test similar concepts but be worded differently and ask about different aspects
-
-RESPOND IN THIS EXACT JSON FORMAT:
-{
-  "questions": [
-    {
-      "question": "The question text",
-      "type": "multiple_choice",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": 0,
-      "explanation": "Why this is correct"
-    },
-    {
-      "question": "An open-ended question?",
-      "type": "open_ended",
-      "correctAnswerText": "The expected answer or key points",
-      "explanation": "Explanation of the answer"
-    }
-  ]
-}
-
-Notes:
-- For multiple_choice: include "options" array and "correctAnswer" (index 0-3)
-- For open_ended: include "correctAnswerText" (the expected answer)`
-
-  const userPrompt = `Generate ${count} ${difficulty} difficulty quiz questions${
-    skillLevel ? ` for a ${skillLevel.toLowerCase()} level student` : ''
-  } based on this study conversation${subject ? ` about ${subject}` : ''}:
-
-${conversationSummary}
-
-Create questions that test understanding of the concepts discussed, appropriate for the student's level.`
+  const userPrompt = `${count} ${difficulty} quiz${subject ? ` on ${subject}` : ''} from:\n${truncatedConversation}`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -2928,7 +2791,7 @@ Create questions that test understanding of the concepts discussed, appropriate 
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 1000, // OPTIMIZED: Reduced from 2000
       response_format: { type: 'json_object' },
     })
 

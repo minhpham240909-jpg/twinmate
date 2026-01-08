@@ -4,24 +4,18 @@ import "./globals.css";
 import { Suspense } from "react";
 import { AuthProvider } from "@/lib/auth/context";
 import { Toaster } from "react-hot-toast";
-import FloatingSessionButton from "@/components/FloatingSessionButton";
-import PausedSessionFAB from "@/components/ai-partner/PausedSessionFAB";
-import CompletedSessionFAB from "@/components/ai-partner/CompletedSessionFAB";
-import { BackgroundSessionProvider } from "@/lib/session/BackgroundSessionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import IncomingCallModal from "@/components/IncomingCallModal";
-import { IncomingCallProvider } from "@/contexts/IncomingCallContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { IntlProvider } from "@/contexts/IntlContext";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
-import { PresenceProvider } from "@/components/presence/PresenceProvider";
 import { NetworkProvider } from "@/contexts/NetworkContext";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import BannedUserOverlay from "@/components/BannedUserOverlay";
 import AnalyticsProvider from "@/components/providers/AnalyticsProvider";
+import DeferredProviders from "@/components/providers/DeferredProviders";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -78,44 +72,38 @@ export default function RootLayout({
                   <AuthProvider>
                     <SettingsProvider>
                       <IntlProvider>
-                        <PresenceProvider>
-                          <BackgroundSessionProvider>
-                            <IncomingCallProvider>
-                              <BannedUserOverlay>
-                                <OfflineIndicator />
-                                {children}
-                                <FloatingSessionButton />
-                                <PausedSessionFAB />
-                                <CompletedSessionFAB />
-                                <IncomingCallModal />
-                              <Toaster
-                                position="top-right"
-                                toastOptions={{
+                        {/* DeferredProviders loads Presence, BackgroundSession, IncomingCall
+                            AFTER first paint to improve initial load time */}
+                        <DeferredProviders>
+                          <BannedUserOverlay>
+                            <OfflineIndicator />
+                            {children}
+                            <Toaster
+                              position="top-right"
+                              toastOptions={{
+                                duration: 4000,
+                                style: {
+                                  background: '#363636',
+                                  color: '#fff',
+                                },
+                                success: {
+                                  duration: 3000,
+                                  iconTheme: {
+                                    primary: '#10b981',
+                                    secondary: '#fff',
+                                  },
+                                },
+                                error: {
                                   duration: 4000,
-                                  style: {
-                                    background: '#363636',
-                                    color: '#fff',
+                                  iconTheme: {
+                                    primary: '#ef4444',
+                                    secondary: '#fff',
                                   },
-                                  success: {
-                                    duration: 3000,
-                                    iconTheme: {
-                                      primary: '#10b981',
-                                      secondary: '#fff',
-                                    },
-                                  },
-                                  error: {
-                                    duration: 4000,
-                                    iconTheme: {
-                                      primary: '#ef4444',
-                                      secondary: '#fff',
-                                    },
-                                  },
-                                }}
-                              />
-                              </BannedUserOverlay>
-                            </IncomingCallProvider>
-                          </BackgroundSessionProvider>
-                        </PresenceProvider>
+                                },
+                              }}
+                            />
+                          </BannedUserOverlay>
+                        </DeferredProviders>
                       </IntlProvider>
                     </SettingsProvider>
                   </AuthProvider>

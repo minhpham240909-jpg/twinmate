@@ -13,8 +13,11 @@ const isSupabaseConfigured = () => {
   return url && key && !url.includes('placeholder') && url.startsWith('https://')
 }
 
+// Check if we're in production (disable verbose logging)
+const isProduction = process.env.NODE_ENV === 'production'
+
 // Fetch with timeout to prevent infinite loading
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> => {
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<Response> => {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -101,18 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: {
           'Cache-Control': 'no-cache',
         },
-      }, 15000) // 15 second timeout
+      }, 8000) // 8 second timeout (reduced from 15s)
       if (response.ok) {
         const data = await response.json()
-        // Debug logging to diagnose production issue
-        console.log('[AuthContext] API response:', {
-          hasUser: !!data.user,
-          hasProfile: !!data.profile,
-          userRole: data.user?.role,
-          profileRole: data.profile?.role,
-          profileBio: data.profile?.bio ? 'has bio' : 'no bio',
-          profileSubjects: data.profile?.subjects?.length || 0,
-        })
 
         // Merge user data with profile data
         // Ensure we have at least basic user info even if profile is null
@@ -130,21 +124,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             profileRole,
           }
 
-          console.log('[AuthContext] Merged profile:', {
-            role: mergedProfile.role,
-            profileRole: mergedProfile.profileRole,
-          })
-
           setProfile(mergedProfile)
         }
       } else {
         // Log error but don't throw - let the UI handle it
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('Error fetching profile:', response.status, errorData)
+        if (!isProduction) {
+          console.error('Error fetching profile:', response.status, errorData)
+        }
         setProfileError(`Failed to load profile: ${errorData.error || 'Server error'}`)
       }
     } catch (error) {
-      console.error('Error fetching profile:', error)
+      if (!isProduction) {
+        console.error('Error fetching profile:', error)
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       if (errorMessage.includes('timed out')) {
         setProfileError('Connection timed out. Please check your internet connection.')
@@ -169,7 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       // Check if Supabase is properly configured
       if (!isSupabaseConfigured()) {
-        console.error('[AuthContext] Supabase is not configured. Check environment variables.')
+        if (!isProduction) {
+          console.error('[AuthContext] Supabase is not configured. Check environment variables.')
+        }
         setConfigError(true)
         setLoading(false)
         return
@@ -177,25 +172,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Helper function to get user with retry logic
       // This helps handle race conditions after OAuth callback
-      const getUserWithRetry = async (retries = 3, delayMs = 500): Promise<{ user: any; error: any }> => {
+      // OPTIMIZED: Reduced retries and delay for faster initial load
+      const getUserWithRetry = async (retries = 2, delayMs = 300): Promise<{ user: any; error: any }> => {
         for (let attempt = 0; attempt < retries; attempt++) {
           try {
             const { data: { user }, error } = await supabase.auth.getUser()
-            
+
             // If we got a user or a definitive "no session" response, return
             if (user || (!error && !user)) {
               return { user, error: null }
             }
-            
+
             // If there's an error but we have cookies, retry after a short delay
             // This handles the cookie sync race condition
             const hasCookies = document.cookie.includes('-auth-token')
             if (error && hasCookies && attempt < retries - 1) {
-              console.log(`[AuthContext] Auth check failed, retrying in ${delayMs}ms (attempt ${attempt + 1}/${retries})`)
               await new Promise(resolve => setTimeout(resolve, delayMs))
               continue
             }
-            
+
             return { user: null, error }
           } catch (err) {
             if (attempt < retries - 1) {
@@ -208,9 +203,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { user: null, error: new Error('Max retries exceeded') }
       }
 
-      // Create a timeout promise that rejects after 10 seconds
+      // Create a timeout promise that rejects after 5 seconds (reduced from 10s)
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Auth initialization timed out')), 10000)
+        setTimeout(() => reject(new Error('Auth initialization timed out')), 5000)
       })
 
       try {
@@ -221,16 +216,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]) as { user: any, error: any }
 
         const { user, error } = result
-        if (error) {
+        if (error && !isProduction) {
           console.error('[AuthContext] Error getting user:', error.message || error)
-          // Don't set configError for auth errors (user just not logged in)
         }
         setUser(user)
         if (user) {
           await fetchProfile(user.id)
         }
       } catch (err) {
-        console.error('[AuthContext] Failed to initialize auth:', err)
+        if (!isProduction) {
+          console.error('[AuthContext] Failed to initialize auth:', err)
+        }
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
         if (errorMessage.includes('timed out')) {
           setProfileError('Connection timed out. Please refresh the page.')
@@ -283,7 +279,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // This ensures all cached auth state is cleared
       window.location.href = '/auth'
     } catch (error) {
-      console.error('Error signing out:', error)
+      if (!isProduction) {
+        console.error('Error signing out:', error)
+      }
       // Still try to redirect even if there's an error
       window.location.href = '/auth'
     }

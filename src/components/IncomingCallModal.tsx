@@ -14,7 +14,6 @@
  */
 
 import { useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
@@ -22,7 +21,6 @@ import Bounce from '@/components/ui/Bounce'
 import { useIncomingCall } from '@/contexts/IncomingCallContext'
 
 export default function IncomingCallModal() {
-  const router = useRouter()
   const { incomingCall, isRinging, acceptCall, declineCall } = useIncomingCall()
 
   // Ringtone audio effect
@@ -127,19 +125,27 @@ export default function IncomingCallModal() {
     }
   }, [incomingCall, isRinging])
 
-  // Handle accept - navigate to call
+  // Handle accept - navigate to call page
   const handleAccept = useCallback(async () => {
     if (!incomingCall) return
 
-    // Store call info before clearing
-    const { conversationId, conversationType } = incomingCall
+    // Store call info before clearing (acceptCall will clear incomingCall state)
+    const { conversationId, conversationType, callType, messageId } = incomingCall
 
-    // Call the accept handler from context
+    // Call the accept handler from context (marks notification as read, updates call status)
     await acceptCall()
 
-    // Navigate to the call
-    router.push(`/chat?conversation=${conversationId}&type=${conversationType}`)
-  }, [incomingCall, acceptCall, router])
+    // Build call URL with all necessary params
+    const callUrl = new URL(`/call/${conversationType}/${conversationId}`, window.location.origin)
+    callUrl.searchParams.set('callType', callType || 'VIDEO')
+    if (messageId) {
+      callUrl.searchParams.set('messageId', messageId)
+    }
+
+    // Navigate to the dedicated call page
+    // Use window.location.href for full page navigation to ensure clean state
+    window.location.href = callUrl.toString()
+  }, [incomingCall, acceptCall])
 
   // Handle decline
   const handleDecline = useCallback(async () => {

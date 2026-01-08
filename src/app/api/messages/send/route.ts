@@ -9,6 +9,7 @@ import { enforceUserAccess } from '@/lib/security/checkUserBan'
 import { notifyNewMessage } from '@/lib/notifications/send'
 import { getAppUrl } from '@/lib/env'
 import logger from '@/lib/logger'
+import { broadcastNewMessage } from '@/lib/realtime/broadcast'
 
 // FIX: Idempotency key cache to prevent duplicate message creation
 // Maps idempotency key -> { messageId, timestamp }
@@ -294,6 +295,11 @@ export async function POST(req: NextRequest) {
         conversationId,
         'group'
       )
+      
+      // REALTIME: Broadcast message to all group members for instant delivery
+      broadcastNewMessage(message.id, userId, 'group', conversationId).catch(err => {
+        logger.error('Failed to broadcast group message', err instanceof Error ? err : { error: err })
+      })
 
     } else if (conversationType === 'partner') {
       // SECURITY: Check if either user has blocked the other
@@ -404,6 +410,11 @@ export async function POST(req: NextRequest) {
       // Send push notification (async, don't wait - outside transaction)
       notifyNewMessage(userId, conversationId, content, 'partner').catch(err => {
         logger.error('Failed to send push notification', err instanceof Error ? err : { error: err })
+      })
+      
+      // REALTIME: Broadcast message to partner for instant delivery
+      broadcastNewMessage(message.id, userId, 'partner', conversationId).catch(err => {
+        logger.error('Failed to broadcast DM message', err instanceof Error ? err : { error: err })
       })
 
     } else {

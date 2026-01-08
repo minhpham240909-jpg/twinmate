@@ -20,6 +20,7 @@ import {
   FileText,
   Timer,
 } from 'lucide-react'
+import MathRenderer from '@/components/MathRenderer'
 
 interface Flashcard {
   id: string
@@ -142,8 +143,8 @@ My question about this: ${userQuestion}`
 
           <div className="p-4 bg-slate-900/50 border-b border-slate-700">
             <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Flashcard</div>
-            <div className="text-sm text-white font-medium mb-1">{card.front}</div>
-            <div className="text-sm text-slate-300">Answer: {card.back}</div>
+            <div className="text-sm text-white font-medium mb-1"><MathRenderer content={card.front} /></div>
+            <div className="text-sm text-slate-300">Answer: <MathRenderer content={card.back} /></div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[200px]">
@@ -166,7 +167,13 @@ My question about this: ${userQuestion}`
                         : 'bg-slate-700 text-slate-100'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <div className="text-sm whitespace-pre-wrap">
+                      {msg.role === 'assistant' ? (
+                        <MathRenderer content={msg.content} />
+                      ) : (
+                        msg.content
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -678,11 +685,11 @@ export default function AIPartnerFlashcards({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
                           <div className="text-sm">
                             <span className="font-medium text-slate-400">Q:</span>{' '}
-                            <span className="text-white">{card.front}</span>
+                            <span className="text-white"><MathRenderer content={card.front} /></span>
                           </div>
                           <div className="text-sm">
                             <span className="font-medium text-slate-400">A:</span>{' '}
-                            <span className="text-white">{card.back}</span>
+                            <span className="text-white"><MathRenderer content={card.back} /></span>
                           </div>
                         </div>
                       </div>
@@ -862,7 +869,7 @@ export default function AIPartnerFlashcards({
                 Question
               </h3>
               <div className="text-2xl md:text-3xl font-medium text-white leading-relaxed max-w-xl">
-                {currentCard.front}
+                <MathRenderer content={currentCard.front} />
               </div>
 
               <button
@@ -885,7 +892,7 @@ export default function AIPartnerFlashcards({
                   Answer
                 </h3>
                 <div className="text-2xl md:text-3xl font-bold leading-relaxed max-w-xl">
-                  {currentCard.back}
+                  <MathRenderer content={currentCard.back} />
                 </div>
               </div>
 
@@ -895,7 +902,7 @@ export default function AIPartnerFlashcards({
                 <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">
                   Question Was
                 </h3>
-                <div className="text-lg text-slate-300">{currentCard.front}</div>
+                <div className="text-lg text-slate-300"><MathRenderer content={currentCard.front} /></div>
               </div>
 
               {/* AI Explain button */}

@@ -1010,6 +1010,7 @@ export default function AIPartnerSessionPage({
         {/* Sidebar - Timer & Tools */}
         <div className="w-80 p-4 border-l border-slate-700/50 hidden lg:block overflow-y-auto">
           <AIPartnerSessionTimer
+            sessionId={session.id}
             sessionStartedAt={session.startedAt}
             onTimerComplete={(isBreak) => {
               console.log(isBreak ? 'Break complete!' : 'Study session complete!')
