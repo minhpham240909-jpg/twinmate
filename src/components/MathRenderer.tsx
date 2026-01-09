@@ -41,6 +41,35 @@ export default function MathRenderer({ content, className = '' }: MathRendererPr
 }
 
 /**
+ * Strip pre-rendered KaTeX HTML that AI might accidentally output
+ * Converts HTML back to a placeholder or removes it entirely
+ * This is a safety fallback - AI should output LaTeX source, not rendered HTML
+ */
+function stripPreRenderedKatex(text: string): string {
+  // Pattern to match pre-rendered KaTeX HTML blocks
+  // Matches: katex><span class=katex-mathml>...KATEX_END or similar patterns
+  // Also matches: <span class="katex">...</span> and <span class="katex-display">...</span>
+
+  // Remove KATEX_SAFE...KATEX_END markers with KaTeX HTML inside
+  let result = text.replace(/KATEX_SAFE\s*<(?:span|div)[^>]*class="?katex[^>]*>[\s\S]*?KATEX_END/gi, '[equation]')
+
+  // Remove standalone KaTeX HTML (without markers) - these are malformed AI outputs
+  // Match patterns like: katex><span class=katex-mathml>...</span></span>
+  result = result.replace(/katex>\s*<span[^>]*class="?katex-mathml[^>]*>[\s\S]*?<\/span>\s*<\/span>/gi, '[equation]')
+
+  // Remove any remaining <span class="katex...">...</span> blocks
+  result = result.replace(/<span[^>]*class="?katex(?:-mathml|-html)?[^>]*>[\s\S]*?<\/span>/gi, '[equation]')
+
+  // Remove orphaned KATEX_SAFE and KATEX_END markers
+  result = result.replace(/KATEX_SAFE|KATEX_END/g, '')
+
+  // Clean up multiple [equation] placeholders
+  result = result.replace(/\[equation\]\s*\[equation\]/g, '[equation]')
+
+  return result
+}
+
+/**
  * Escape HTML special characters to prevent XSS
  */
 function escapeHtml(text: string): string {
@@ -61,6 +90,10 @@ function escapeHtml(text: string): string {
 function renderMathContent(text: string): string {
   // Process the text in multiple passes for different math delimiters
   let result = text
+
+  // SAFETY: Strip any pre-rendered KaTeX HTML that AI might accidentally output
+  // This handles cases where AI outputs HTML instead of LaTeX source code
+  result = stripPreRenderedKatex(result)
 
   // Fix escaped backslashes from JSON responses (\\frac -> \frac, \\{ -> \{)
   result = result.replace(/\\\\([a-zA-Z{}\[\]()])/g, '\\$1')

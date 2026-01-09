@@ -552,7 +552,7 @@ CORE RULES:
 5. Be encouraging but honest about areas that need improvement.
 6. If you don't know something, admit it and suggest resources.
 7. NEVER use quotation marks around subjects, topics, or names.
-8. EQUATIONS (MANDATORY): ANY equation, formula, or expression from ANY field MUST be rendered in standard visual form using LaTeX. Use $...$ for inline, $$...$$ for display. NEVER write equations as plain text. Always render professionally like a textbook.
+8. EQUATIONS (MANDATORY): ANY equation, formula, or expression from ANY field MUST use LaTeX SOURCE CODE syntax wrapped in dollar signs. Use $...$ for inline math (e.g., $E = mc^2$), $$...$$ for display math. NEVER output HTML tags, NEVER output rendered KaTeX/MathML. Output ONLY the raw LaTeX text like "$\\frac{dy}{dx}$" - the frontend handles rendering.
 ${conversationRules}
 YOUR CAPABILITIES:
 - Explain concepts clearly at the appropriate level
@@ -1086,7 +1086,7 @@ export async function generateQuizQuestion(params: {
 
   // OPTIMIZED: Shorter system prompt for faster generation
   const systemPrompt = `Quiz generator. ${skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''}
-EQUATION RULE: Any equation, formula, or expression from ANY field must use LaTeX ($...$ inline, $$...$$ display). Be smart - detect and format all formulas automatically.
+EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display.
 Return JSON: {"question":"text","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}`
 
   const userPrompt = `${difficulty} quiz on ${subject}${topic ? `: ${topic}` : ''}${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}.${previousQuestions.length > 0 ? ` Avoid: ${previousQuestions.slice(-3).map(q => q.slice(0, 50)).join('; ')}` : ''}`
@@ -1256,7 +1256,7 @@ export async function generateFlashcards(params: {
   const diffHint = difficultyGuidance.split('\n')[0]
 
   const systemPrompt = `Flashcard generator. ${levelHint} ${diffHint}
-EQUATION RULE: Any equation, formula, or mathematical expression from ANY field must use LaTeX. Use $...$ for inline, $$...$$ for display. Be smart - detect and format all formulas automatically.
+EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display. Frontend renders the LaTeX.
 Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
   const userPrompt = `${count} ${difficulty} flashcards on ${subject}: "${topic}"${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}`
@@ -1343,7 +1343,7 @@ export async function generateFlashcardsFromChat(params: {
   const diffHint = difficultyGuidance.split('\n')[0]
 
   const systemPrompt = `Create flashcards from conversation. ${levelHint} ${diffHint}
-EQUATION RULE: Any equation, formula, or mathematical expression from ANY field must use LaTeX. Use $...$ for inline, $$...$$ for display. Be smart - detect and format all formulas automatically.
+EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display. Frontend renders the LaTeX.
 Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
   // OPTIMIZED: Truncate conversation to key parts
@@ -1599,7 +1599,7 @@ export async function generateQuizFromChat(params: {
   // OPTIMIZED: Shorter prompt for faster generation
   const levelHint = skillLevel && skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''
   const systemPrompt = `Quiz from conversation. ${levelHint}
-EQUATION RULE: Any equation, formula, or expression from ANY field must use LaTeX ($...$ inline, $$...$$ display). Be smart - detect and format all formulas automatically.
+EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display.
 Return JSON: {"questions":[{"question":"Q","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}]}`
 
   // OPTIMIZED: Truncate conversation
@@ -2763,7 +2763,7 @@ export async function generateMixedQuizFromChat(params: {
   const excludeHint = excludeQuestions.length > 0 ? ` Avoid: ${excludeQuestions.slice(0, 3).map(q => q.slice(0, 30)).join('; ')}` : ''
 
   const systemPrompt = `Interactive quiz from conversation. ${levelHint}. ${typeHint}.${excludeHint}
-EQUATION RULE: Any equation, formula, or expression from ANY field must use LaTeX ($...$ inline, $$...$$ display). Be smart - detect and format all formulas automatically.
+EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display.
 Return JSON: {"questions":[{"question":"Q","type":"multiple_choice|open_ended","options":["A","B","C","D"],"correctAnswer":0-3,"correctAnswerText":"for open","explanation":"why"}]}`
 
   // OPTIMIZED: Truncate conversation
