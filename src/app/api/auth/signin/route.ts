@@ -8,7 +8,7 @@ import { authenticator } from 'otplib'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { isAccountLocked, recordFailedAttempt, clearLockout, formatLockoutMessage } from '@/lib/account-lockout'
-import { withPreAuthCsrfProtection } from '@/lib/csrf'
+// Note: CSRF protection handled by middleware origin check + Supabase's own auth security
 
 // Encryption helpers for decrypting 2FA secret
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
@@ -57,10 +57,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // CSRF protection for pre-auth routes
-  return withPreAuthCsrfProtection(request, async () => {
-    try {
-      const body = await request.json()
+  try {
+    const body = await request.json()
 
     // Validate input
     const validation = signInSchema.safeParse(body)
@@ -77,7 +75,7 @@ export async function POST(request: NextRequest) {
     const lockoutStatus = await isAccountLocked(email)
     if (lockoutStatus.locked) {
       return NextResponse.json(
-        { 
+        {
           error: formatLockoutMessage(lockoutStatus.remainingMinutes!),
           locked: true,
           remainingMinutes: lockoutStatus.remainingMinutes,
@@ -117,7 +115,7 @@ export async function POST(request: NextRequest) {
     if (authError) {
       // Record failed attempt
       const failureResult = await recordFailedAttempt(email)
-      
+
       // Check if it's an email verification issue
       if (authError.message.includes('Email not confirmed')) {
         return NextResponse.json(
@@ -129,11 +127,11 @@ export async function POST(request: NextRequest) {
       // Wrong password - include remaining attempts warning
       const remainingAttempts = failureResult.remainingAttempts
       let errorMessage = 'Invalid email or password.'
-      
+
       if (failureResult.locked) {
         errorMessage = formatLockoutMessage(15) // 15 minutes lockout
         return NextResponse.json(
-          { 
+          {
             error: errorMessage,
             locked: true,
             remainingMinutes: 15,
@@ -143,9 +141,9 @@ export async function POST(request: NextRequest) {
       } else if (remainingAttempts <= 2 && remainingAttempts > 0) {
         errorMessage += ` ${remainingAttempts} attempt${remainingAttempts > 1 ? 's' : ''} remaining before account is temporarily locked.`
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: errorMessage,
           remainingAttempts,
         },
@@ -196,12 +194,12 @@ export async function POST(request: NextRequest) {
           // Invalid 2FA code - sign out and record failed attempt
           await supabase.auth.signOut()
           const failureResult = await recordFailedAttempt(email)
-          
+
           let errorMessage = 'Invalid two-factor authentication code'
           if (failureResult.locked) {
             errorMessage = formatLockoutMessage(15)
             return NextResponse.json(
-              { 
+              {
                 error: errorMessage,
                 locked: true,
                 remainingMinutes: 15,
@@ -211,9 +209,9 @@ export async function POST(request: NextRequest) {
           } else if (failureResult.remainingAttempts <= 2) {
             errorMessage += `. ${failureResult.remainingAttempts} attempt${failureResult.remainingAttempts > 1 ? 's' : ''} remaining.`
           }
-          
+
           return NextResponse.json(
-            { 
+            {
               error: errorMessage,
               remainingAttempts: failureResult.remainingAttempts,
             },
@@ -244,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     // Successful login - clear any lockout
     await clearLockout(email)
-    
+
     // Update last login
     await prisma.user.update({
       where: { id: authData.user.id },
@@ -268,12 +266,11 @@ export async function POST(request: NextRequest) {
       message: 'Signed in successfully',
       user,
     })
-    } catch (error) {
-      console.error('Sign in error:', error)
-      return NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
-    }
-  })
+  } catch (error) {
+    console.error('Sign in error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
 }

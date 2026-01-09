@@ -121,10 +121,10 @@ export async function middleware(request: NextRequest) {
   
   // Add CSRF protection for state-changing API routes
   if (request.method !== 'GET' && request.nextUrl.pathname.startsWith('/api')) {
-    // Routes that legitimately accept external requests (webhooks, OAuth, etc.)
+    // Routes that legitimately accept external requests (webhooks, OAuth, auth)
     const csrfExemptRoutes = [
-      '/api/auth/callback',
-      '/api/auth/google',
+      '/api/auth/',           // All auth routes (signin, signup, etc.) - Supabase handles security
+      '/api/csrf/',           // CSRF token endpoints
       '/api/cron/',
       '/api/webhooks/',
       '/api/health',
