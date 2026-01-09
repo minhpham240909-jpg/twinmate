@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
+import { withCsrfProtection } from '@/lib/csrf'
 
 // GET - Fetch messages with filters
 export async function GET(request: NextRequest) {
@@ -28,14 +29,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
-    // Parse query parameters
+    // Parse query parameters with validation
     const { searchParams } = new URL(request.url)
-    const type = searchParams.get('type') || 'all' // all, dm, group, session, flagged, images
+    const type = searchParams.get('type') || 'dm' // dm, group, session, flagged, images (removed 'all' to fix memory issues)
     const search = searchParams.get('search') || ''
     const userId = searchParams.get('userId') || ''
     const status = searchParams.get('status') || '' // For flagged: pending, approved, removed
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    // SCALABILITY: Cap limit to prevent large data fetches (max 100)
+    const rawLimit = parseInt(searchParams.get('limit') || '50') || 50
+    const limit = Math.min(100, Math.max(1, rawLimit))
     const skip = (page - 1) * limit
 
     let messages: any[] = []
@@ -305,12 +308,14 @@ export async function GET(request: NextRequest) {
         if (type === 'session') totalCount = sessionCount
       }
 
-      // Sort combined messages by date
+      // FIX: Removed 'all' type handling that caused unbounded memory usage
+      // The 'all' type was sorting all messages in memory which doesn't scale
+      // Frontend should use specific types (dm, group, session) with proper pagination
+      // If type is 'all' (legacy), default to 'dm' behavior
       if (type === 'all') {
-        messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        messages = messages.slice(0, limit)
-        // For 'all', we can't easily get total count, so estimate
-        totalCount = messages.length >= limit ? limit * 10 : messages.length
+        // Legacy support: just use dm messages already fetched
+        // The frontend should be updated to use specific types
+        totalCount = await prisma.message.count({ where: { groupId: null, recipientId: { not: null } } })
       }
     }
 
@@ -346,239 +351,247 @@ export async function GET(request: NextRequest) {
 }
 
 // DELETE - Permanently delete a message (hard delete - cannot be undone)
+// SECURITY: Protected with CSRF token validation
 export async function DELETE(request: NextRequest) {
-  try {
-    // Apply rate limiting
-    const rateLimitResult = await adminRateLimit(request, 'userActions')
-    if (rateLimitResult) return rateLimitResult
+  // Apply rate limiting
+  const rateLimitResult = await adminRateLimit(request, 'userActions')
+  if (rateLimitResult) return rateLimitResult
 
-    // Verify admin access
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // SECURITY: Wrap dangerous delete action with CSRF protection
+  return withCsrfProtection(request, async () => {
+    try {
+      // Verify admin access
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    })
-
-    if (!dbUser?.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
-    const body = await request.json()
-    const { messageId, messageType } = body
-
-    if (!messageId || !messageType) {
-      return NextResponse.json(
-        { error: 'messageId and messageType are required' },
-        { status: 400 }
-      )
-    }
-
-    // Permanently delete based on message type
-    if (messageType === 'DIRECT_MESSAGE' || messageType === 'GROUP_MESSAGE') {
-      await prisma.message.delete({
-        where: { id: messageId },
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true },
       })
-    } else if (messageType === 'SESSION_MESSAGE') {
-      await prisma.sessionMessage.delete({
-        where: { id: messageId },
-      })
-    } else {
-      return NextResponse.json(
-        { error: 'Invalid message type' },
-        { status: 400 }
-      )
-    }
 
-    // Log the audit action
-    await prisma.adminAuditLog.create({
-      data: {
-        adminId: user.id,
-        action: 'MESSAGE_PERMANENT_DELETE',
-        targetType: 'Message',
-        targetId: messageId,
-        details: {
-          messageType,
-          deletedAt: new Date().toISOString(),
+      if (!dbUser?.isAdmin) {
+        return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+      }
+
+      const body = await request.json()
+      const { messageId, messageType } = body
+
+      if (!messageId || !messageType) {
+        return NextResponse.json(
+          { error: 'messageId and messageType are required' },
+          { status: 400 }
+        )
+      }
+
+      // Permanently delete based on message type
+      if (messageType === 'DIRECT_MESSAGE' || messageType === 'GROUP_MESSAGE') {
+        await prisma.message.delete({
+          where: { id: messageId },
+        })
+      } else if (messageType === 'SESSION_MESSAGE') {
+        await prisma.sessionMessage.delete({
+          where: { id: messageId },
+        })
+      } else {
+        return NextResponse.json(
+          { error: 'Invalid message type' },
+          { status: 400 }
+        )
+      }
+
+      // Log the audit action
+      await prisma.adminAuditLog.create({
+        data: {
+          adminId: user.id,
+          action: 'MESSAGE_PERMANENT_DELETE',
+          targetType: 'Message',
+          targetId: messageId,
+          details: {
+            messageType,
+            deletedAt: new Date().toISOString(),
+          },
         },
-      },
-    })
+      })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Message permanently deleted',
-    })
-  } catch (error) {
-    console.error('Permanent delete error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+      return NextResponse.json({
+        success: true,
+        message: 'Message permanently deleted',
+      })
+    } catch (error) {
+      console.error('Permanent delete error:', error)
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
+  })
 }
 
 // POST - Moderate a message (approve, remove, warn)
+// SECURITY: Protected with CSRF token validation
 export async function POST(request: NextRequest) {
-  try {
-    // Apply rate limiting (userActions preset: 30 actions/minute)
-    const rateLimitResult = await adminRateLimit(request, 'userActions')
-    if (rateLimitResult) return rateLimitResult
+  // Apply rate limiting (userActions preset: 30 actions/minute)
+  const rateLimitResult = await adminRateLimit(request, 'userActions')
+  if (rateLimitResult) return rateLimitResult
 
-    // Verify admin access
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // SECURITY: Wrap moderation actions with CSRF protection
+  return withCsrfProtection(request, async () => {
+    try {
+      // Verify admin access
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    })
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true },
+      })
 
-    if (!dbUser?.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
+      if (!dbUser?.isAdmin) {
+        return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+      }
 
-    const body = await request.json()
-    const { flaggedId, action, notes } = body
+      const body = await request.json()
+      const { flaggedId, action, notes } = body
 
-    if (!flaggedId || !action) {
+      if (!flaggedId || !action) {
+        return NextResponse.json(
+          { error: 'flaggedId and action are required' },
+          { status: 400 }
+        )
+      }
+
+      // Get the flagged content
+      const flagged = await prisma.flaggedContent.findUnique({
+        where: { id: flaggedId },
+      })
+
+      if (!flagged) {
+        return NextResponse.json({ error: 'Flagged content not found' }, { status: 404 })
+      }
+
+      // Perform action
+      let newStatus: 'APPROVED' | 'REMOVED' | 'WARNING' = 'APPROVED'
+      let actionTaken = action
+
+      if (action === 'approve') {
+        newStatus = 'APPROVED'
+        actionTaken = 'none'
+      } else if (action === 'remove') {
+        newStatus = 'REMOVED'
+        actionTaken = 'deleted'
+
+        // Delete the actual message based on type
+        if (flagged.contentType === 'DIRECT_MESSAGE' || flagged.contentType === 'GROUP_MESSAGE') {
+          await prisma.message.update({
+            where: { id: flagged.contentId },
+            data: { isDeleted: true, deletedAt: new Date() },
+          })
+        } else if (flagged.contentType === 'SESSION_MESSAGE') {
+          await prisma.sessionMessage.update({
+            where: { id: flagged.contentId },
+            data: { deletedAt: new Date() },
+          })
+        } else if (flagged.contentType === 'POST') {
+          await prisma.post.update({
+            where: { id: flagged.contentId },
+            data: { isDeleted: true, deletedAt: new Date() },
+          })
+        }
+      } else if (action === 'warn') {
+        newStatus = 'WARNING'
+        actionTaken = 'warned'
+
+        // Create a warning for the user
+        await prisma.userWarning.create({
+          data: {
+            userId: flagged.senderId,
+            issuedById: user.id,
+            reason: notes || 'Inappropriate content detected',
+            severity: 1,
+          },
+        })
+      } else if (action === 'ban') {
+        newStatus = 'REMOVED'
+        actionTaken = 'banned'
+
+        // Delete the message and ban the user
+        if (flagged.contentType === 'DIRECT_MESSAGE' || flagged.contentType === 'GROUP_MESSAGE') {
+          await prisma.message.update({
+            where: { id: flagged.contentId },
+            data: { isDeleted: true, deletedAt: new Date() },
+          })
+        }
+
+        // Ban the user
+        await prisma.userBan.upsert({
+          where: { userId: flagged.senderId },
+          create: {
+            userId: flagged.senderId,
+            issuedById: user.id,
+            type: 'PERMANENT',
+            reason: notes || 'Severe violation of community guidelines',
+          },
+          update: {
+            issuedById: user.id,
+            type: 'PERMANENT',
+            reason: notes || 'Severe violation of community guidelines',
+          },
+        })
+
+        // Deactivate the user
+        await prisma.user.update({
+          where: { id: flagged.senderId },
+          data: { deactivatedAt: new Date() },
+        })
+      }
+
+      // Update the flagged content
+      const updated = await prisma.flaggedContent.update({
+        where: { id: flaggedId },
+        data: {
+          status: newStatus,
+          reviewedById: user.id,
+          reviewedAt: new Date(),
+          reviewNotes: notes,
+          actionTaken,
+        },
+      })
+
+      // Log the audit action
+      await prisma.adminAuditLog.create({
+        data: {
+          adminId: user.id,
+          action: `MODERATION_${action.toUpperCase()}`,
+          targetType: 'FlaggedContent',
+          targetId: flaggedId,
+          details: {
+            contentType: flagged.contentType,
+            contentId: flagged.contentId,
+            senderId: flagged.senderId,
+            action: actionTaken,
+            notes,
+          },
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: updated,
+      })
+    } catch (error) {
+      console.error('Moderation action error:', error)
       return NextResponse.json(
-        { error: 'flaggedId and action are required' },
-        { status: 400 }
+        { error: 'Internal server error' },
+        { status: 500 }
       )
     }
-
-    // Get the flagged content
-    const flagged = await prisma.flaggedContent.findUnique({
-      where: { id: flaggedId },
-    })
-
-    if (!flagged) {
-      return NextResponse.json({ error: 'Flagged content not found' }, { status: 404 })
-    }
-
-    // Perform action
-    let newStatus: 'APPROVED' | 'REMOVED' | 'WARNING' = 'APPROVED'
-    let actionTaken = action
-
-    if (action === 'approve') {
-      newStatus = 'APPROVED'
-      actionTaken = 'none'
-    } else if (action === 'remove') {
-      newStatus = 'REMOVED'
-      actionTaken = 'deleted'
-
-      // Delete the actual message based on type
-      if (flagged.contentType === 'DIRECT_MESSAGE' || flagged.contentType === 'GROUP_MESSAGE') {
-        await prisma.message.update({
-          where: { id: flagged.contentId },
-          data: { isDeleted: true, deletedAt: new Date() },
-        })
-      } else if (flagged.contentType === 'SESSION_MESSAGE') {
-        await prisma.sessionMessage.update({
-          where: { id: flagged.contentId },
-          data: { deletedAt: new Date() },
-        })
-      } else if (flagged.contentType === 'POST') {
-        await prisma.post.update({
-          where: { id: flagged.contentId },
-          data: { isDeleted: true, deletedAt: new Date() },
-        })
-      }
-    } else if (action === 'warn') {
-      newStatus = 'WARNING'
-      actionTaken = 'warned'
-
-      // Create a warning for the user
-      await prisma.userWarning.create({
-        data: {
-          userId: flagged.senderId,
-          issuedById: user.id,
-          reason: notes || 'Inappropriate content detected',
-          severity: 1,
-        },
-      })
-    } else if (action === 'ban') {
-      newStatus = 'REMOVED'
-      actionTaken = 'banned'
-
-      // Delete the message and ban the user
-      if (flagged.contentType === 'DIRECT_MESSAGE' || flagged.contentType === 'GROUP_MESSAGE') {
-        await prisma.message.update({
-          where: { id: flagged.contentId },
-          data: { isDeleted: true, deletedAt: new Date() },
-        })
-      }
-
-      // Ban the user
-      await prisma.userBan.upsert({
-        where: { userId: flagged.senderId },
-        create: {
-          userId: flagged.senderId,
-          issuedById: user.id,
-          type: 'PERMANENT',
-          reason: notes || 'Severe violation of community guidelines',
-        },
-        update: {
-          issuedById: user.id,
-          type: 'PERMANENT',
-          reason: notes || 'Severe violation of community guidelines',
-        },
-      })
-
-      // Deactivate the user
-      await prisma.user.update({
-        where: { id: flagged.senderId },
-        data: { deactivatedAt: new Date() },
-      })
-    }
-
-    // Update the flagged content
-    const updated = await prisma.flaggedContent.update({
-      where: { id: flaggedId },
-      data: {
-        status: newStatus,
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-        reviewNotes: notes,
-        actionTaken,
-      },
-    })
-
-    // Log the audit action
-    await prisma.adminAuditLog.create({
-      data: {
-        adminId: user.id,
-        action: `MODERATION_${action.toUpperCase()}`,
-        targetType: 'FlaggedContent',
-        targetId: flaggedId,
-        details: {
-          contentType: flagged.contentType,
-          contentId: flagged.contentId,
-          senderId: flagged.senderId,
-          action: actionTaken,
-          notes,
-        },
-      },
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: updated,
-    })
-  } catch (error) {
-    console.error('Moderation action error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+  })
 }

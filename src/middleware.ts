@@ -3,9 +3,80 @@ import { type NextRequest, NextResponse } from 'next/server'
 import logger from '@/lib/logger'
 import { validateContentType } from '@/lib/security/content-type'
 
+// SECURITY: Production check for HTTPS enforcement
+const isProduction = process.env.NODE_ENV === 'production'
+
+/**
+ * Check if request is secure (HTTPS)
+ * Handles proxy headers from load balancers
+ */
+function isSecureRequest(request: NextRequest): boolean {
+  if (!isProduction) return true
+
+  // Check X-Forwarded-Proto (most common with proxies/load balancers)
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  if (forwardedProto === 'https') return true
+
+  // Check URL protocol
+  const url = new URL(request.url)
+  if (url.protocol === 'https:') return true
+
+  // Check Cloudflare header
+  const cfVisitor = request.headers.get('cf-visitor')
+  if (cfVisitor) {
+    try {
+      const parsed = JSON.parse(cfVisitor)
+      if (parsed.scheme === 'https') return true
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  return false
+}
+
+/**
+ * Get security headers for responses
+ */
+function getSecurityHeaders(): Record<string, string> {
+  return {
+    // HSTS: Force HTTPS for 1 year
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    // Prevent MIME sniffing
+    'X-Content-Type-Options': 'nosniff',
+    // Prevent clickjacking
+    'X-Frame-Options': 'DENY',
+    // XSS filter
+    'X-XSS-Protection': '1; mode=block',
+    // Referrer policy
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  }
+}
+
 export async function middleware(request: NextRequest) {
   // NOTE: www to non-www redirect should be configured in Vercel Dashboard
   // Do NOT add it here - it causes redirect loops with Vercel's edge redirects
+
+  // SECURITY: Enforce HTTPS in production for sensitive API endpoints
+  if (isProduction && request.nextUrl.pathname.startsWith('/api')) {
+    // Check if request has sensitive headers (API keys, auth tokens)
+    const hasSensitiveData =
+      request.headers.has('authorization') ||
+      request.headers.has('x-api-key') ||
+      request.headers.has('x-csrf-token') ||
+      request.method !== 'GET' // All state-changing requests need HTTPS
+
+    if (hasSensitiveData && !isSecureRequest(request)) {
+      logger.warn('Blocked insecure API request', {
+        path: request.nextUrl.pathname,
+        method: request.method,
+      })
+      return NextResponse.json(
+        { error: 'HTTPS required for this endpoint' },
+        { status: 403 }
+      )
+    }
+  }
 
   // Security: Check for suspicious patterns in URL
   const url = request.nextUrl.pathname
@@ -83,6 +154,12 @@ export async function middleware(request: NextRequest) {
       }
     }
   }
+
+  // SECURITY: Add security headers to all responses
+  const securityHeaders = getSecurityHeaders()
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
 
   return response
 }

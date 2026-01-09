@@ -38,7 +38,6 @@ export async function GET() {
                 select: {
                   id: true,
                   name: true,
-                  email: true,
                   avatarUrl: true,
                   profile: {
                     select: {
@@ -65,7 +64,6 @@ export async function GET() {
                 select: {
                   id: true,
                   name: true,
-                  email: true,
                   avatarUrl: true,
                   profile: {
                     select: {
@@ -159,7 +157,6 @@ export async function GET() {
             matchId: match.id,
             id: partner.id,
             name: partner.name,
-            email: partner.email,
             avatarUrl: partner.avatarUrl,
             onlineStatus,
             profile: partner.profile ? {

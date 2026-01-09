@@ -7,6 +7,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
+import { sanitizeSearchQuery } from '@/lib/security/search-sanitization'
+
+// SECURITY: Content limits for analytics data
+const MAX_PATH_LENGTH = 500
+const MAX_PAGE_NAME_LENGTH = 200
+const MAX_FEATURE_LENGTH = 100
+const MAX_CATEGORY_LENGTH = 100
+const MAX_ACTION_LENGTH = 100
+const MAX_SEARCH_TYPE_LENGTH = 50
 
 // Rate limiting maps (in-memory for simplicity)
 const rateLimits = new Map<string, { count: number; resetAt: number }>()
@@ -28,6 +37,12 @@ function checkRateLimit(userId: string, limit: number = 100, windowMs: number = 
   return true
 }
 
+// SECURITY: Sanitize string with max length
+function sanitizeString(str: string | undefined | null, maxLength: number): string | undefined {
+  if (!str || typeof str !== 'string') return undefined
+  return str.trim().slice(0, maxLength) || undefined
+}
+
 // Track page visit
 async function trackPageVisit(userId: string, data: {
   path: string
@@ -40,18 +55,19 @@ async function trackPageVisit(userId: string, data: {
   exitedAt?: string
   duration?: number
 }) {
+  // SECURITY: Sanitize all string inputs
   return prisma.userPageVisit.create({
     data: {
       userId,
-      path: data.path,
-      pageName: data.pageName,
-      referrer: data.referrer,
-      sessionId: data.sessionId,
-      deviceId: data.deviceId,
-      query: data.query,
+      path: sanitizeString(data.path, MAX_PATH_LENGTH) || '/',
+      pageName: sanitizeString(data.pageName, MAX_PAGE_NAME_LENGTH),
+      referrer: sanitizeString(data.referrer, MAX_PATH_LENGTH),
+      sessionId: sanitizeString(data.sessionId, 100),
+      deviceId: sanitizeString(data.deviceId, 100),
+      query: sanitizeString(data.query, 200),
       enteredAt: data.enteredAt ? new Date(data.enteredAt) : new Date(),
       exitedAt: data.exitedAt ? new Date(data.exitedAt) : null,
-      duration: data.duration,
+      duration: typeof data.duration === 'number' ? Math.min(data.duration, 86400000) : undefined, // Max 24 hours
     }
   })
 }
@@ -65,14 +81,15 @@ async function trackFeatureUsage(userId: string, data: {
   targetId?: string
   metadata?: Record<string, unknown>
 }) {
+  // SECURITY: Sanitize all string inputs
   return prisma.userFeatureUsage.create({
     data: {
       userId,
-      feature: data.feature,
-      category: data.category,
-      action: data.action,
-      targetType: data.targetType,
-      targetId: data.targetId,
+      feature: sanitizeString(data.feature, MAX_FEATURE_LENGTH) || 'unknown',
+      category: sanitizeString(data.category, MAX_CATEGORY_LENGTH) || 'unknown',
+      action: sanitizeString(data.action, MAX_ACTION_LENGTH) || 'unknown',
+      targetType: sanitizeString(data.targetType, MAX_CATEGORY_LENGTH),
+      targetId: sanitizeString(data.targetId, 100),
       metadata: data.metadata as Prisma.InputJsonValue | undefined,
     }
   })
@@ -87,15 +104,24 @@ async function trackSearchQuery(userId: string, data: {
   clickedResults?: string[]
   pagePath?: string
 }) {
+  // SECURITY: Sanitize search query using dedicated sanitization
+  const sanitizedQuery = sanitizeSearchQuery(data.query)
+
+  // SECURITY: Sanitize clicked results (limit count and length)
+  const sanitizedClickedResults = (data.clickedResults || [])
+    .filter((r): r is string => typeof r === 'string')
+    .slice(0, 20) // Max 20 clicked results
+    .map(r => r.trim().slice(0, 100)) // Max 100 chars each
+
   return prisma.userSearchQuery.create({
     data: {
       userId,
-      query: data.query,
-      searchType: data.searchType,
+      query: sanitizedQuery.sanitized || data.query?.slice(0, 200) || '',
+      searchType: sanitizeString(data.searchType, MAX_SEARCH_TYPE_LENGTH) || 'unknown',
       filters: data.filters as Prisma.InputJsonValue | undefined,
-      resultCount: data.resultCount,
-      clickedResults: data.clickedResults || [],
-      pagePath: data.pagePath,
+      resultCount: typeof data.resultCount === 'number' ? Math.min(data.resultCount, 10000) : undefined,
+      clickedResults: sanitizedClickedResults,
+      pagePath: sanitizeString(data.pagePath, MAX_PATH_LENGTH),
     }
   })
 }
@@ -162,27 +188,30 @@ export async function POST(request: NextRequest) {
 
       case 'batch':
         // PERF: Handle batch tracking with createMany for efficiency (avoids N+1)
-        const events = data.events as Array<{ type: string; data: Record<string, unknown> }>
+        // SECURITY: Limit batch size to prevent abuse
+        const MAX_BATCH_SIZE = 50
+        const rawEvents = data.events as Array<{ type: string; data: Record<string, unknown> }>
+        const events = rawEvents?.slice(0, MAX_BATCH_SIZE) || []
 
         // Group events by type for batch insertion
         const pageVisitEvents = events.filter(e => e.type === 'page_visit')
         const featureUsageEvents = events.filter(e => e.type === 'feature_usage')
         const searchQueryEvents = events.filter(e => e.type === 'search_query')
 
-        // Prepare batch data
+        // SECURITY: Prepare batch data with sanitization
         const pageVisitData = pageVisitEvents.map(event => {
           const d = event.data as Parameters<typeof trackPageVisit>[1]
           return {
             userId: user.id,
-            path: d.path,
-            pageName: d.pageName,
-            referrer: d.referrer,
-            sessionId: d.sessionId,
-            deviceId: d.deviceId,
-            query: d.query,
+            path: sanitizeString(d.path, MAX_PATH_LENGTH) || '/',
+            pageName: sanitizeString(d.pageName, MAX_PAGE_NAME_LENGTH),
+            referrer: sanitizeString(d.referrer, MAX_PATH_LENGTH),
+            sessionId: sanitizeString(d.sessionId, 100),
+            deviceId: sanitizeString(d.deviceId, 100),
+            query: sanitizeString(d.query, 200),
             enteredAt: d.enteredAt ? new Date(d.enteredAt) : new Date(),
             exitedAt: d.exitedAt ? new Date(d.exitedAt) : null,
-            duration: d.duration,
+            duration: typeof d.duration === 'number' ? Math.min(d.duration, 86400000) : undefined,
           }
         })
 
@@ -190,25 +219,30 @@ export async function POST(request: NextRequest) {
           const d = event.data as Parameters<typeof trackFeatureUsage>[1]
           return {
             userId: user.id,
-            feature: d.feature,
-            category: d.category,
-            action: d.action,
-            targetType: d.targetType,
-            targetId: d.targetId,
+            feature: sanitizeString(d.feature, MAX_FEATURE_LENGTH) || 'unknown',
+            category: sanitizeString(d.category, MAX_CATEGORY_LENGTH) || 'unknown',
+            action: sanitizeString(d.action, MAX_ACTION_LENGTH) || 'unknown',
+            targetType: sanitizeString(d.targetType, MAX_CATEGORY_LENGTH),
+            targetId: sanitizeString(d.targetId, 100),
             metadata: d.metadata as Prisma.InputJsonValue | undefined,
           }
         })
 
         const searchQueryData = searchQueryEvents.map(event => {
           const d = event.data as Parameters<typeof trackSearchQuery>[1]
+          const sanitizedQ = sanitizeSearchQuery(d.query)
+          const sanitizedClicked = (d.clickedResults || [])
+            .filter((r): r is string => typeof r === 'string')
+            .slice(0, 20)
+            .map(r => r.trim().slice(0, 100))
           return {
             userId: user.id,
-            query: d.query,
-            searchType: d.searchType,
+            query: sanitizedQ.sanitized || d.query?.slice(0, 200) || '',
+            searchType: sanitizeString(d.searchType, MAX_SEARCH_TYPE_LENGTH) || 'unknown',
             filters: d.filters as Prisma.InputJsonValue | undefined,
-            resultCount: d.resultCount,
-            clickedResults: d.clickedResults || [],
-            pagePath: d.pagePath,
+            resultCount: typeof d.resultCount === 'number' ? Math.min(d.resultCount, 10000) : undefined,
+            clickedResults: sanitizedClicked,
+            pagePath: sanitizeString(d.pagePath, MAX_PATH_LENGTH),
           }
         })
 

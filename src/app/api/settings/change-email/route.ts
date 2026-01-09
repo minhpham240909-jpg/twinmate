@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
-import crypto from 'crypto'
+import { rateLimit } from '@/lib/rate-limit'
 
+// SECURITY: Email validation with additional checks
 const changeEmailSchema = z.object({
-  newEmail: z.string().email('Invalid email address'),
+  newEmail: z.string()
+    .email('Invalid email address')
+    .max(254, 'Email address too long') // RFC 5321 max length
+    .transform(email => email.toLowerCase().trim()),
   password: z.string().min(1, 'Current password is required'),
 })
 
-// Token expiration: 24 hours
+// Token expiration: 24 hours (used by Supabase's built-in flow)
 const TOKEN_EXPIRATION_HOURS = 24
 
 export async function POST(request: NextRequest) {
@@ -58,7 +61,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { newEmail, password } = validation.data
-    const normalizedEmail = newEmail.toLowerCase().trim()
+    // newEmail is already normalized by the schema transform
+    const normalizedEmail = newEmail
 
     // SECURITY: Verify current password before allowing email change
     // This prevents email hijacking if someone has session access
@@ -98,24 +102,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SECURITY: Generate verification token and send to NEW email
-    // User must verify ownership of new email before change completes
-    const verificationToken = crypto.randomBytes(32).toString('hex')
-    const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex')
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRATION_HOURS * 60 * 60 * 1000)
-
-    // Store pending email change with hashed token
-    // Using user metadata since we don't have a dedicated table
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        // Store pending email change info in a way that's secure
-        // Note: In production, use a dedicated PendingEmailChange table
-      },
-    })
-
-    // Use Supabase's built-in email change flow with both email confirmations
+    // SECURITY: Use Supabase's built-in email change flow
     // This requires user to confirm from BOTH old and new email addresses
+    // Supabase handles token generation, storage, and validation securely
     const { error: updateError } = await supabase.auth.updateUser({
       email: normalizedEmail,
     }, {

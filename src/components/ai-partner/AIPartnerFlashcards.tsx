@@ -234,6 +234,7 @@ export default function AIPartnerFlashcards({
   // Study State
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
+  const [userAnswer, setUserAnswer] = useState('')
 
   // Management State
   const [viewMode, setViewMode] = useState<'study' | 'manage' | 'results'>('manage')
@@ -410,6 +411,7 @@ export default function AIPartnerFlashcards({
     }
 
     setIsFlipped(false)
+    setUserAnswer('') // Clear user answer for next card
 
     if (currentIndex < flashcards.length - 1) {
       setCurrentIndex((prev) => prev + 1)
@@ -860,9 +862,8 @@ export default function AIPartnerFlashcards({
         >
           {/* FRONT - Always shows question first */}
           <div
-            className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col cursor-pointer"
+            className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col"
             style={{ backfaceVisibility: 'hidden' }}
-            onClick={!isFlipped ? handleFlipCard : undefined}
           >
             <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
               <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">
@@ -872,29 +873,65 @@ export default function AIPartnerFlashcards({
                 <MathRenderer content={currentCard.front} />
               </div>
 
+              {/* Answer Input Box */}
+              <div className="w-full max-w-md space-y-3">
+                <label className="block text-sm text-slate-400 text-left">
+                  Type your answer (optional):
+                </label>
+                <textarea
+                  value={userAnswer}
+                  onChange={(e) => setUserAnswer(e.target.value)}
+                  placeholder="Enter your answer here before checking..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-slate-900/70 border border-slate-600 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                      handleFlipCard()
+                    }
+                  }}
+                />
+                <p className="text-xs text-slate-500">Press Ctrl+Enter or click the button to check your answer</p>
+              </div>
+
               <button
                 onClick={handleFlipCard}
-                className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all"
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all"
               >
-                Show Answer
+                Check Answer
               </button>
             </div>
           </div>
 
           {/* BACK - Shows answer */}
           <div
-            className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-xl border border-slate-700/50 p-8 flex flex-col text-white"
+            className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-xl border border-slate-700/50 p-6 flex flex-col text-white overflow-y-auto"
             style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
           >
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+              {/* Correct Answer */}
               <div className="space-y-2">
                 <h3 className="text-green-300 text-sm font-semibold uppercase tracking-wider">
-                  Answer
+                  Correct Answer
                 </h3>
-                <div className="text-2xl md:text-3xl font-bold leading-relaxed max-w-xl">
+                <div className="text-xl md:text-2xl font-bold leading-relaxed max-w-xl">
                   <MathRenderer content={currentCard.back} />
                 </div>
               </div>
+
+              {/* User's Answer (if provided) */}
+              {userAnswer.trim() && (
+                <>
+                  <div className="w-full h-px bg-slate-700/50" />
+                  <div className="space-y-2 w-full max-w-md">
+                    <h3 className="text-blue-300 text-sm font-semibold uppercase tracking-wider">
+                      Your Answer
+                    </h3>
+                    <div className="text-base text-slate-200 bg-slate-800/50 rounded-lg px-4 py-3 border border-slate-600/50">
+                      {userAnswer}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="w-full h-px bg-slate-700/50" />
 
@@ -902,7 +939,7 @@ export default function AIPartnerFlashcards({
                 <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">
                   Question Was
                 </h3>
-                <div className="text-lg text-slate-300"><MathRenderer content={currentCard.front} /></div>
+                <div className="text-base text-slate-300"><MathRenderer content={currentCard.front} /></div>
               </div>
 
               {/* AI Explain button */}

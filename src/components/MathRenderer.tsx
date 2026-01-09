@@ -62,6 +62,9 @@ function renderMathContent(text: string): string {
   // Process the text in multiple passes for different math delimiters
   let result = text
 
+  // Fix escaped backslashes from JSON responses (\\frac -> \frac, \\{ -> \{)
+  result = result.replace(/\\\\([a-zA-Z{}\[\]()])/g, '\\$1')
+
   // Pass 1: Handle display math with $$ ... $$
   result = processDisplayMath(result, /\$\$([\s\S]*?)\$\$/g)
 
@@ -75,10 +78,49 @@ function renderMathContent(text: string): string {
   // Pass 4: Handle inline math with \( ... \)
   result = processInlineMath(result, /\\\((.+?)\\\)/g)
 
+  // Pass 5: Convert quoted text to highlighted text (before HTML escaping)
+  result = processQuotedText(result)
+
   // Escape remaining HTML that isn't part of KaTeX output
   result = escapeNonMathHtml(result)
 
   return result
+}
+
+/**
+ * Convert quoted text "..." to highlighted styled text
+ */
+function processQuotedText(text: string): string {
+  // Match text in double quotes (but not inside KATEX_SAFE markers)
+  return text.replace(/"([^"]+)"/g, (match, content) => {
+    // Skip if inside a KATEX block
+    if (match.includes('KATEX_SAFE') || match.includes('KATEX_END')) {
+      return match
+    }
+    // Return highlighted span
+    return `KATEX_SAFE<span class="text-highlight">${escapeHtml(content)}</span>KATEX_END`
+  })
+}
+
+// SECURITY: Safe KaTeX options - prevents XSS via LaTeX commands
+const SAFE_KATEX_OPTIONS = {
+  throwOnError: false,
+  // SECURITY: strict mode catches dangerous commands
+  strict: 'warn' as const,
+  // SECURITY: trust=false prevents dangerous commands like \url, \href with javascript:
+  trust: false,
+  // SECURITY: Disable URL commands entirely to prevent XSS
+  maxSize: 500, // Prevent DoS via extremely large expressions
+  maxExpand: 1000, // Limit macro expansion depth
+  macros: {
+    // Safe macros for various subjects (no URLs or external resources)
+    '\\R': '\\mathbb{R}',
+    '\\N': '\\mathbb{N}',
+    '\\Z': '\\mathbb{Z}',
+    '\\Q': '\\mathbb{Q}',
+    '\\C': '\\mathbb{C}',
+    '\\deg': '^\\circ',
+  },
 }
 
 /**
@@ -88,22 +130,11 @@ function processDisplayMath(text: string, pattern: RegExp): string {
   return text.replace(pattern, (match, latex) => {
     try {
       const html = katex.renderToString(latex.trim(), {
+        ...SAFE_KATEX_OPTIONS,
         displayMode: true,
-        throwOnError: false,
-        strict: false,
-        trust: true,
-        macros: {
-          // Common macros for various subjects
-          '\\R': '\\mathbb{R}',
-          '\\N': '\\mathbb{N}',
-          '\\Z': '\\mathbb{Z}',
-          '\\Q': '\\mathbb{Q}',
-          '\\C': '\\mathbb{C}',
-          '\\deg': '^\\circ',
-        },
       })
       // Wrap in a div for block display with marker to skip HTML escaping
-      return `<div class="math-display my-3">KATEX_SAFE${html}KATEX_END</div>`
+      return `KATEX_SAFE<div class="math-display my-3">${html}</div>KATEX_END`
     } catch (error) {
       console.error('[MathRenderer] Display math error:', error)
       return match // Return original on error
@@ -123,18 +154,8 @@ function processInlineMath(text: string, pattern: RegExp): string {
 
     try {
       const html = katex.renderToString(latex.trim(), {
+        ...SAFE_KATEX_OPTIONS,
         displayMode: false,
-        throwOnError: false,
-        strict: false,
-        trust: true,
-        macros: {
-          '\\R': '\\mathbb{R}',
-          '\\N': '\\mathbb{N}',
-          '\\Z': '\\mathbb{Z}',
-          '\\Q': '\\mathbb{Q}',
-          '\\C': '\\mathbb{C}',
-          '\\deg': '^\\circ',
-        },
       })
       // Mark as safe to skip HTML escaping
       return `KATEX_SAFE${html}KATEX_END`

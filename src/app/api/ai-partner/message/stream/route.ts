@@ -26,6 +26,11 @@ import {
 } from '@/lib/ai-partner/openai'
 import { rateLimit } from '@/lib/rate-limit'
 import { enforceQuota } from '@/lib/ai-partner/quota'
+import {
+  sanitizePromptInput,
+  getInjectionErrorMessage,
+  wrapUserContent,
+} from '@/lib/ai-partner/prompt-security'
 
 // Intelligence System imports
 import {
@@ -283,12 +288,57 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get session
+    // SECURITY: Check for prompt injection attempts
+    const injectionCheck = sanitizePromptInput(content, {
+      maxLength: 5000,
+      stripPatterns: false, // Reject instead of strip
+      logDetections: true,
+      userId: user.id,
+    })
+
+    if (!injectionCheck.isSafe) {
+      console.warn('[AI Partner Stream] Prompt injection detected', {
+        userId: user.id,
+        riskLevel: injectionCheck.riskLevel,
+        patterns: injectionCheck.detectedPatterns.map(p => p.description),
+      })
+
+      return new Response(JSON.stringify({
+        error: getInjectionErrorMessage(injectionCheck.riskLevel),
+        type: 'injection_blocked',
+        riskLevel: injectionCheck.riskLevel,
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Use sanitized content for further processing
+    const sanitizedContent = injectionCheck.sanitizedContent || content
+
+    // N+1 FIX: Fetch session with optimized query - only select fields we need
+    // This reduces data transfer and prevents loading unnecessary relations
     const session = await prisma.aIPartnerSession.findUnique({
       where: { id: sessionId },
-      include: {
-        persona: true,
-        studySession: true,
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        subject: true,
+        skillLevel: true,
+        studySessionId: true,
+        messageCount: true,
+        totalTokensUsed: true,
+        fallbackCallCount: true,
+        startedAt: true,
+        intelligenceVersion: true,
+        adaptiveState: true,
+        persona: {
+          select: {
+            temperature: true,
+            maxTokens: true,
+          },
+        },
       },
     })
 
@@ -313,17 +363,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check content safety first
-    const safetyCheck = await checkContentSafety(content)
-    const moderation = await moderateContent(content)
+    // N+1 FIX: Run content safety and moderation checks in parallel
+    // These are independent operations that can run concurrently
+    const [safetyCheck, moderation] = await Promise.all([
+      checkContentSafety(sanitizedContent),
+      moderateContent(sanitizedContent),
+    ])
 
-    // Save user message
+    // Save user message (store sanitized content)
     const userMsg = await prisma.aIPartnerMessage.create({
       data: {
         sessionId: session.id,
         studySessionId: session.studySessionId,
         role: 'USER',
-        content,
+        content: sanitizedContent,
         messageType,
         wasModerated: true,
         moderationResult: moderation as unknown as Prisma.InputJsonValue,
@@ -373,8 +426,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // IMAGE GENERATION: Check if user is asking for an image
-    const imageRequest = detectImageGenerationRequest(content)
+    // IMAGE GENERATION: Check if user is asking for an image (using sanitized content)
+    const imageRequest = detectImageGenerationRequest(sanitizedContent)
 
     if (imageRequest.isImageRequest && imageRequest.prompt) {
       console.log('[AI Partner Stream] Image generation request detected:', imageRequest)
@@ -435,17 +488,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get pinned system/persona prompts (keep all) and latest user/assistant messages
-    const systemMessages = await prisma.aIPartnerMessage.findMany({
-      where: { sessionId: session.id, role: 'SYSTEM' },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    const conversationMessages = await prisma.aIPartnerMessage.findMany({
-      where: { sessionId: session.id, role: { in: ['USER', 'ASSISTANT'] } },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    })
+    // N+1 FIX: Fetch system and conversation messages in parallel
+    // These are independent queries that can run concurrently
+    const [systemMessages, conversationMessages] = await Promise.all([
+      prisma.aIPartnerMessage.findMany({
+        where: { sessionId: session.id, role: 'SYSTEM' },
+        orderBy: { createdAt: 'asc' },
+        select: { role: true, content: true }, // Only select needed fields
+      }),
+      prisma.aIPartnerMessage.findMany({
+        where: { sessionId: session.id, role: { in: ['USER', 'ASSISTANT'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { role: true, content: true }, // Only select needed fields
+      }),
+    ])
 
     const limitedHistory = [
       ...systemMessages,
@@ -458,8 +515,8 @@ export async function POST(request: NextRequest) {
       content: msg.content,
     }))
 
-    // Add the new user message
-    messages.push({ role: 'user', content })
+    // Add the new user message (use sanitized content)
+    messages.push({ role: 'user', content: sanitizedContent })
 
     // If content is off-topic, add redirect hint
     if (!safetyCheck.isStudyRelated && safetyCheck.redirectMessage) {
@@ -485,8 +542,8 @@ export async function POST(request: NextRequest) {
           session.adaptiveState ? JSON.stringify(session.adaptiveState) : null
         )
 
-        // Process user message for adaptive signals
-        adaptiveTracker.processUserMessage(content, Date.now())
+        // Process user message for adaptive signals (use sanitized content)
+        adaptiveTracker.processUserMessage(sanitizedContent, Date.now())
 
         // Build session context for decision making
         const sessionContext: SessionContext = {
@@ -509,9 +566,9 @@ export async function POST(request: NextRequest) {
         // Get memory context (simplified - can be enhanced with full memory system)
         const memoryContext: MemoryContext = DEFAULT_MEMORY_CONTEXT
 
-        // Make intelligent decision about how to respond
+        // Make intelligent decision about how to respond (use sanitized content)
         decision = await makeDecision(
-          content,
+          sanitizedContent,
           sessionContext,
           memoryContext,
           adaptiveTracker.getState()

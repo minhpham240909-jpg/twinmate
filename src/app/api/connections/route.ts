@@ -13,13 +13,11 @@ type MatchWithRelations = {
   sender: {
     id: string
     name: string
-    email: string
     avatarUrl: string | null
   }
   receiver: {
     id: string
     name: string
-    email: string
     avatarUrl: string | null
   }
 }
@@ -69,7 +67,6 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
               avatarUrl: true
             }
           },
@@ -77,7 +74,6 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
               avatarUrl: true
             }
           }
@@ -100,7 +96,6 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
               avatarUrl: true
             }
           },
@@ -108,7 +103,6 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
               avatarUrl: true
             }
           }

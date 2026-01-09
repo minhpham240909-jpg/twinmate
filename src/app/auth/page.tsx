@@ -13,7 +13,9 @@ function usePreAuthCsrfToken() {
   useEffect(() => {
     async function fetchToken() {
       try {
-        const response = await fetch('/api/csrf/pre-auth')
+        const response = await fetch('/api/csrf/pre-auth', {
+          credentials: 'include', // Ensure cookies are sent and received
+        })
         // Check if response is JSON before parsing
         const contentType = response.headers.get('content-type')
         if (response.ok && contentType?.includes('application/json')) {
@@ -132,6 +134,7 @@ function AuthPageContent() {
       // Step 1: Call API for rate limiting, lockout check, and 2FA verification
       const apiResponse = await fetch('/api/auth/signin', {
         method: 'POST',
+        credentials: 'include', // Ensure cookies are sent (needed for CSRF)
         headers: {
           'Content-Type': 'application/json',
           ...(csrfToken && { 'x-csrf-token': csrfToken }),
@@ -238,6 +241,7 @@ function AuthPageContent() {
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
+        credentials: 'include', // Ensure cookies are sent (needed for CSRF)
         headers: {
           'Content-Type': 'application/json',
           ...(csrfToken && { 'x-csrf-token': csrfToken }),

@@ -241,218 +241,128 @@ export async function GET(request: NextRequest) {
     const last30Days = new Date(today)
     last30Days.setDate(today.getDate() - 30)
 
-    // Run all queries in parallel for real-time performance
-    // Each query wrapped with .catch() for graceful error handling if tables don't exist
+    // FIX: Track query errors instead of silently catching them
+    const queryErrors: string[] = []
+    const safeQuery = async <T>(name: string, query: Promise<T>, fallback: T): Promise<T> => {
+      try {
+        return await query
+      } catch (error) {
+        queryErrors.push(`${name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        console.warn(`[AI Analytics] Query failed: ${name}`, error)
+        return fallback
+      }
+    }
+
+    // Run queries in batches to prevent database overload (max 15 parallel per batch)
+    // Batch 1: Core counts (15 queries)
     const [
-      // Core stats
       totalSessions,
       totalMessages,
       totalUniqueUsers,
-
-      // Time-based stats
       sessionsToday,
       sessionsThisWeek,
       sessionsThisMonth,
-
-      // Status breakdown
       activeSessions,
       pausedSessions,
       completedSessions,
       blockedSessions,
-
-      // Message stats
       userMessages,
       aiMessages,
-
-      // Moderation stats
       flaggedMessages,
       flaggedSessions,
       safetyBlockedSessions,
+    ] = await Promise.all([
+      safeQuery('totalSessions', prisma.aIPartnerSession.count(), 0),
+      safeQuery('totalMessages', prisma.aIPartnerMessage.count(), 0),
+      safeQuery('totalUniqueUsers', prisma.aIPartnerSession.findMany({
+        select: { userId: true },
+        distinct: ['userId'],
+      }).then(r => r.length), 0),
+      safeQuery('sessionsToday', prisma.aIPartnerSession.count({ where: { createdAt: { gte: today } } }), 0),
+      safeQuery('sessionsThisWeek', prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisWeekStart } } }), 0),
+      safeQuery('sessionsThisMonth', prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisMonthStart } } }), 0),
+      safeQuery('activeSessions', prisma.aIPartnerSession.count({ where: { status: 'ACTIVE' } }), 0),
+      safeQuery('pausedSessions', prisma.aIPartnerSession.count({ where: { status: 'PAUSED' } }), 0),
+      safeQuery('completedSessions', prisma.aIPartnerSession.count({ where: { status: 'COMPLETED' } }), 0),
+      safeQuery('blockedSessions', prisma.aIPartnerSession.count({ where: { status: 'BLOCKED' } }), 0),
+      safeQuery('userMessages', prisma.aIPartnerMessage.count({ where: { role: 'USER' } }), 0),
+      safeQuery('aiMessages', prisma.aIPartnerMessage.count({ where: { role: 'ASSISTANT' } }), 0),
+      safeQuery('flaggedMessages', prisma.aIPartnerMessage.count({ where: { wasFlagged: true } }), 0),
+      safeQuery('flaggedSessions', prisma.aIPartnerSession.count({ where: { flaggedCount: { gt: 0 } } }), 0),
+      safeQuery('safetyBlockedSessions', prisma.aIPartnerSession.count({ where: { wasSafetyBlocked: true } }), 0),
+    ])
 
-      // Feature usage
+    // Batch 2: Feature usage and aggregates (12 queries)
+    const [
       totalQuizzes,
       totalFlashcards,
       whiteboardMessages,
-
-      // Image generation stats
       totalGeneratedImages,
       totalUploadedImages,
       recentGeneratedImages,
-
-      // Token usage (cost tracking)
       tokenStats,
-
-      // Ratings
       ratedSessions,
-
-      // Recent feedback
       recentFeedback,
-
-      // Growth data (last 30 days)
       dailyGrowth,
-
-      // Top subjects
       subjectDistribution,
-
-      // Recent flagged content
       recentFlaggedMessages,
-
-      // Active users with sessions
-      activeAIUsers,
     ] = await Promise.all([
-      // Total counts
-      prisma.aIPartnerSession.count().catch(() => 0),
-      prisma.aIPartnerMessage.count().catch(() => 0),
-      prisma.aIPartnerSession.findMany({
-        select: { userId: true },
-        distinct: ['userId'],
-      }).then(r => r.length).catch(() => 0),
-
-      // Time-based
-      prisma.aIPartnerSession.count({ where: { createdAt: { gte: today } } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisWeekStart } } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { createdAt: { gte: thisMonthStart } } }).catch(() => 0),
-
-      // Status
-      prisma.aIPartnerSession.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { status: 'PAUSED' } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { status: 'COMPLETED' } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { status: 'BLOCKED' } }).catch(() => 0),
-
-      // Messages by role
-      prisma.aIPartnerMessage.count({ where: { role: 'USER' } }).catch(() => 0),
-      prisma.aIPartnerMessage.count({ where: { role: 'ASSISTANT' } }).catch(() => 0),
-
-      // Moderation
-      prisma.aIPartnerMessage.count({ where: { wasFlagged: true } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { flaggedCount: { gt: 0 } } }).catch(() => 0),
-      prisma.aIPartnerSession.count({ where: { wasSafetyBlocked: true } }).catch(() => 0),
-
-      // Feature usage
-      prisma.aIPartnerSession.aggregate({ _sum: { quizCount: true } }).catch(() => ({ _sum: { quizCount: null } })),
-      prisma.aIPartnerSession.aggregate({ _sum: { flashcardCount: true } }).catch(() => ({ _sum: { flashcardCount: null } })),
-      prisma.aIPartnerMessage.count({ where: { messageType: 'WHITEBOARD' } }).catch(() => 0),
-
-      // Image generation stats - count by imageType
-      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'generated' } }).catch(() => 0),
-      prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'uploaded' } }).catch(() => 0),
-      // Recent generated images with session and user info
-      prisma.aIPartnerMessage.findMany({
-        where: {
-          messageType: 'IMAGE',
-          imageType: 'generated',
-          imageUrl: { not: null },
-        },
+      safeQuery('totalQuizzes', prisma.aIPartnerSession.aggregate({ _sum: { quizCount: true } }), { _sum: { quizCount: null } }),
+      safeQuery('totalFlashcards', prisma.aIPartnerSession.aggregate({ _sum: { flashcardCount: true } }), { _sum: { flashcardCount: null } }),
+      safeQuery('whiteboardMessages', prisma.aIPartnerMessage.count({ where: { messageType: 'WHITEBOARD' } }), 0),
+      safeQuery('totalGeneratedImages', prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'generated' } }), 0),
+      safeQuery('totalUploadedImages', prisma.aIPartnerMessage.count({ where: { messageType: 'IMAGE', imageType: 'uploaded' } }), 0),
+      safeQuery('recentGeneratedImages', prisma.aIPartnerMessage.findMany({
+        where: { messageType: 'IMAGE', imageType: 'generated', imageUrl: { not: null } },
         orderBy: { createdAt: 'desc' },
         take: 10,
         select: {
-          id: true,
-          imageUrl: true,
-          imagePrompt: true,
-          createdAt: true,
-          session: {
-            select: {
-              id: true,
-              userId: true,
-              subject: true,
-            },
-          },
+          id: true, imageUrl: true, imagePrompt: true, createdAt: true,
+          session: { select: { id: true, userId: true, subject: true } },
         },
-      }).catch(() => []),
-
-      // Tokens
-      prisma.aIPartnerMessage.aggregate({
-        _sum: {
-          promptTokens: true,
-          completionTokens: true,
-          totalTokens: true,
-        },
-      }).catch(() => ({ _sum: { promptTokens: null, completionTokens: null, totalTokens: null } })),
-
-      // Ratings
-      prisma.aIPartnerSession.aggregate({
+      }), []),
+      safeQuery('tokenStats', prisma.aIPartnerMessage.aggregate({
+        _sum: { promptTokens: true, completionTokens: true, totalTokens: true },
+      }), { _sum: { promptTokens: null, completionTokens: null, totalTokens: null } }),
+      safeQuery('ratedSessions', prisma.aIPartnerSession.aggregate({
         where: { rating: { not: null } },
         _count: true,
         _avg: { rating: true },
-      }).catch(() => ({ _count: 0, _avg: { rating: null } })),
-
-      // Recent feedback with text (for admin review)
-      prisma.aIPartnerSession.findMany({
-        where: {
-          OR: [
-            { rating: { not: null } },
-            { feedback: { not: null } },
-          ],
-        },
+      }), { _count: 0, _avg: { rating: null } }),
+      safeQuery('recentFeedback', prisma.aIPartnerSession.findMany({
+        where: { OR: [{ rating: { not: null } }, { feedback: { not: null } }] },
         orderBy: { endedAt: 'desc' },
         take: 20,
-        select: {
-          id: true,
-          userId: true,
-          subject: true,
-          rating: true,
-          feedback: true,
-          endedAt: true,
-          totalDuration: true,
-          messageCount: true,
-        },
-      }).catch(() => []),
-
-      // Daily growth for chart
-      prisma.$queryRaw<Array<{ date: string; sessions: bigint; messages: bigint; users: bigint }>>`
-        SELECT
-          DATE("createdAt") as date,
-          COUNT(*) as sessions,
-          SUM("messageCount") as messages,
-          COUNT(DISTINCT "userId") as users
-        FROM "AIPartnerSession"
-        WHERE "createdAt" >= ${last30Days}
-        GROUP BY DATE("createdAt")
-        ORDER BY date ASC
-      `.catch(() => []),
-
-      // Subject distribution - fetch ALL subjects to normalize and merge similar ones
-      prisma.aIPartnerSession.groupBy({
+        select: { id: true, userId: true, subject: true, rating: true, feedback: true, endedAt: true, totalDuration: true, messageCount: true },
+      }), []),
+      safeQuery('dailyGrowth', prisma.$queryRaw<Array<{ date: string; sessions: bigint; messages: bigint; users: bigint }>>`
+        SELECT DATE("createdAt") as date, COUNT(*) as sessions, SUM("messageCount") as messages, COUNT(DISTINCT "userId") as users
+        FROM "AIPartnerSession" WHERE "createdAt" >= ${last30Days}
+        GROUP BY DATE("createdAt") ORDER BY date ASC
+      `, []),
+      safeQuery('subjectDistribution', prisma.aIPartnerSession.groupBy({
         by: ['subject'],
         where: { subject: { not: null } },
         _count: true,
-      }).catch(() => []),
-
-      // Recent flagged messages (for alerts)
-      prisma.aIPartnerMessage.findMany({
+      }), []),
+      safeQuery('recentFlaggedMessages', prisma.aIPartnerMessage.findMany({
         where: { wasFlagged: true },
         orderBy: { createdAt: 'desc' },
         take: 20,
         select: {
-          id: true,
-          content: true,
-          role: true,
-          flagCategories: true,
-          createdAt: true,
-          session: {
-            select: {
-              id: true,
-              userId: true,
-              subject: true,
-            }
-          }
+          id: true, content: true, role: true, flagCategories: true, createdAt: true,
+          session: { select: { id: true, userId: true, subject: true } }
         }
-      }).catch(() => []),
-
-      // Active AI users (currently in session)
-      prisma.aIPartnerSession.findMany({
-        where: { status: 'ACTIVE' },
-        select: {
-          id: true,
-          userId: true,
-          subject: true,
-          messageCount: true,
-          startedAt: true,
-        },
-        orderBy: { startedAt: 'desc' },
-        take: 10,
-      }).catch(() => []),
+      }), []),
     ])
+
+    // Batch 3: Active users (1 query)
+    const activeAIUsers = await safeQuery('activeAIUsers', prisma.aIPartnerSession.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, userId: true, subject: true, messageCount: true, startedAt: true },
+      orderBy: { startedAt: 'desc' },
+      take: 10,
+    }), [])
 
     // Max focus time to consider realistic (4 hours)
     const MAX_FOCUS_TIME = 4 * 60 * 60 // 4 hours = 14400 seconds
@@ -460,23 +370,23 @@ export async function GET(request: NextRequest) {
     // Calculate average FOCUS TIME (Pomodoro timer time) - NOT total session duration
     // focusTime is only counted when user explicitly clicks Start Timer during the session
     // If user never starts the timer, focusTime is null (not counted in analytics)
-    const avgFocusTime = await prisma.aIPartnerSession.aggregate({
+    const avgFocusTime = await safeQuery('avgFocusTime', prisma.aIPartnerSession.aggregate({
       where: {
         focusTime: { not: null, gt: 0, lte: MAX_FOCUS_TIME }, // Only sessions where timer was used
         status: 'COMPLETED',
       },
       _avg: { focusTime: true },
-    }).catch(() => ({ _avg: { focusTime: null } }))
+    }), { _avg: { focusTime: null } })
 
     // Also get total focus time across all sessions for overview
-    const totalFocusTime = await prisma.aIPartnerSession.aggregate({
+    const totalFocusTime = await safeQuery('totalFocusTime', prisma.aIPartnerSession.aggregate({
       where: {
         focusTime: { not: null, gt: 0 },
         status: 'COMPLETED',
       },
       _sum: { focusTime: true },
       _count: true,
-    }).catch(() => ({ _sum: { focusTime: null }, _count: 0 }))
+    }), { _sum: { focusTime: null }, _count: 0 })
 
     // Calculate token costs (approximate - GPT-4o-mini pricing)
     // Input: $0.15/1M tokens, Output: $0.60/1M tokens
@@ -526,15 +436,15 @@ export async function GET(request: NextRequest) {
     // This is acceptable since the list is small (20 users max)
     const feedbackUserIds = [...new Set(recentFeedback.map(f => f.userId))]
     const feedbackUsers = feedbackUserIds.length > 0
-      ? await prisma.user.findMany({
+      ? await safeQuery('feedbackUsers', prisma.user.findMany({
           where: { id: { in: feedbackUserIds } },
           select: { id: true, name: true, email: true, avatarUrl: true },
-        }).catch(() => [])
+        }), [])
       : []
     const userMap = new Map(feedbackUsers.map(u => [u.id, u]))
 
-    // Log admin view (gracefully handle if table doesn't exist)
-    await prisma.adminAuditLog.create({
+    // Log admin view (don't block response on audit log failure)
+    safeQuery('auditLog', prisma.adminAuditLog.create({
       data: {
         adminId: user.id,
         action: 'VIEW_AI_PARTNER_ANALYTICS',
@@ -542,7 +452,7 @@ export async function GET(request: NextRequest) {
         targetId: 'ai-partner-analytics',
         details: { timestamp: now.toISOString() },
       }
-    }).catch(() => { /* Audit log table may not exist */ })
+    }), null)
 
     return NextResponse.json({
       success: true,
@@ -661,6 +571,10 @@ export async function GET(request: NextRequest) {
 
         // Timestamps
         lastUpdated: now.toISOString(),
+
+        // FIX: Include query errors so admins know if data is incomplete
+        _queryErrors: queryErrors.length > 0 ? queryErrors : undefined,
+        _dataComplete: queryErrors.length === 0,
       }
     })
 

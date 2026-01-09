@@ -552,22 +552,7 @@ CORE RULES:
 5. Be encouraging but honest about areas that need improvement.
 6. If you don't know something, admit it and suggest resources.
 7. NEVER use quotation marks around subjects, topics, or names.
-8. MATH AND EQUATIONS: When writing mathematical equations, formulas, chemical formulas, or expressions, use LaTeX notation with proper delimiters:
-   - For inline math (within text), use single dollar signs: $x^2 + y^2 = z^2$
-   - For display/centered equations, use double dollar signs: $$\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$
-   Examples:
-   - Fractions: $\\frac{a}{b}$, $$\\frac{dy}{dx}$$
-   - Square roots: $\\sqrt{x}$, $\\sqrt[3]{27}$
-   - Exponents: $x^2$, $e^{i\\pi}$
-   - Subscripts: $x_1$, $a_{n+1}$
-   - Greek letters: $\\alpha$, $\\beta$, $\\theta$, $\\Delta$
-   - Integrals: $$\\int_0^\\infty e^{-x^2} dx$$
-   - Summations: $$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$
-   - Limits: $$\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1$$
-   - Chemistry: $H_2O$, $CO_2$, $C_6H_{12}O_6$
-   - Physics: $E = mc^2$, $F = ma$, $$\\vec{F} = q(\\vec{E} + \\vec{v} \\times \\vec{B})$$
-   - Economics: $$P = \\frac{MR}{1 + \\frac{1}{\\epsilon}}$$
-   - Statistics: $$\\bar{x} = \\frac{1}{n}\\sum_{i=1}^n x_i$$, $$\\sigma = \\sqrt{\\frac{\\sum(x_i - \\mu)^2}{N}}$$
+8. EQUATIONS (MANDATORY): ANY equation, formula, or expression from ANY field MUST be rendered in standard visual form using LaTeX. Use $...$ for inline, $$...$$ for display. NEVER write equations as plain text. Always render professionally like a textbook.
 ${conversationRules}
 YOUR CAPABILITIES:
 - Explain concepts clearly at the appropriate level
@@ -1101,6 +1086,7 @@ export async function generateQuizQuestion(params: {
 
   // OPTIMIZED: Shorter system prompt for faster generation
   const systemPrompt = `Quiz generator. ${skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''}
+EQUATION RULE: Any equation, formula, or expression from ANY field must use LaTeX ($...$ inline, $$...$$ display). Be smart - detect and format all formulas automatically.
 Return JSON: {"question":"text","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}`
 
   const userPrompt = `${difficulty} quiz on ${subject}${topic ? `: ${topic}` : ''}${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}.${previousQuestions.length > 0 ? ` Avoid: ${previousQuestions.slice(-3).map(q => q.slice(0, 50)).join('; ')}` : ''}`
@@ -1270,6 +1256,7 @@ export async function generateFlashcards(params: {
   const diffHint = difficultyGuidance.split('\n')[0]
 
   const systemPrompt = `Flashcard generator. ${levelHint} ${diffHint}
+EQUATION RULE: Any equation, formula, or mathematical expression from ANY field must use LaTeX. Use $...$ for inline, $$...$$ for display. Be smart - detect and format all formulas automatically.
 Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
   const userPrompt = `${count} ${difficulty} flashcards on ${subject}: "${topic}"${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}`
@@ -1356,6 +1343,7 @@ export async function generateFlashcardsFromChat(params: {
   const diffHint = difficultyGuidance.split('\n')[0]
 
   const systemPrompt = `Create flashcards from conversation. ${levelHint} ${diffHint}
+EQUATION RULE: Any equation, formula, or mathematical expression from ANY field must use LaTeX. Use $...$ for inline, $$...$$ for display. Be smart - detect and format all formulas automatically.
 Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
   // OPTIMIZED: Truncate conversation to key parts
@@ -1611,6 +1599,7 @@ export async function generateQuizFromChat(params: {
   // OPTIMIZED: Shorter prompt for faster generation
   const levelHint = skillLevel && skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''
   const systemPrompt = `Quiz from conversation. ${levelHint}
+EQUATION RULE: Any equation, formula, or expression from ANY field must use LaTeX ($...$ inline, $$...$$ display). Be smart - detect and format all formulas automatically.
 Return JSON: {"questions":[{"question":"Q","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}]}`
 
   // OPTIMIZED: Truncate conversation
@@ -2774,6 +2763,7 @@ export async function generateMixedQuizFromChat(params: {
   const excludeHint = excludeQuestions.length > 0 ? ` Avoid: ${excludeQuestions.slice(0, 3).map(q => q.slice(0, 30)).join('; ')}` : ''
 
   const systemPrompt = `Interactive quiz from conversation. ${levelHint}. ${typeHint}.${excludeHint}
+EQUATION RULE: Any equation, formula, or expression from ANY field must use LaTeX ($...$ inline, $$...$$ display). Be smart - detect and format all formulas automatically.
 Return JSON: {"questions":[{"question":"Q","type":"multiple_choice|open_ended","options":["A","B","C","D"],"correctAnswer":0-3,"correctAnswerText":"for open","explanation":"why"}]}`
 
   // OPTIMIZED: Truncate conversation

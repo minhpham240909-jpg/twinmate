@@ -9,9 +9,11 @@
  * Features:
  * - In-flight request tracking with atomic operations
  * - Grace period for duplicate detection
- * - Automatic cleanup
+ * - Automatic cleanup with memory bounds
  * - Per-user and global deduplication
  * - FIX: Race condition prevention using atomic check-and-set
+ * - FIX: Memory leak prevention with bounded caches
+ * - Message content deduplication for chat
  */
 
 import { SCALABILITY_CONFIG } from './config'
@@ -23,6 +25,12 @@ interface InFlightRequest<T> {
   userId?: string
 }
 
+// Memory bounds to prevent leaks
+const MAX_IN_FLIGHT_REQUESTS = 10000
+const MAX_RECENT_COMPLETED = 50000
+const MAX_MESSAGE_HASHES = 100000
+const MAX_PENDING_LOCKS = 1000
+
 // In-flight request cache
 const inFlightRequests = new Map<string, InFlightRequest<unknown>>()
 
@@ -31,6 +39,10 @@ const recentCompleted = new Map<string, { timestamp: number; result: unknown }>(
 
 // FIX: Lock set to prevent race conditions during check-and-set operations
 const pendingLocks = new Set<string>()
+
+// Message deduplication cache (for chat messages)
+// Stores hash -> { timestamp, messageId } for detecting duplicate messages
+const messageHashCache = new Map<string, { timestamp: number; messageId: string }>()
 
 /**
  * Generate a deduplication key from request parameters
@@ -216,6 +228,7 @@ export async function withDeduplication<T>(
 
 /**
  * Cleanup old entries from caches
+ * FIX: Added memory bounds enforcement to prevent memory leaks
  */
 export function cleanup(): void {
   const now = Date.now()
@@ -237,9 +250,68 @@ export function cleanup(): void {
     }
   }
 
+  // Cleanup message hash cache (older than 1 hour)
+  const messageGracePeriod = 60 * 60 * 1000 // 1 hour
+  for (const [hash, data] of messageHashCache.entries()) {
+    if (now - data.timestamp > messageGracePeriod) {
+      messageHashCache.delete(hash)
+    }
+  }
+
   // FIX: Also cleanup any stale pending locks (shouldn't happen, but safety measure)
   // Pending locks should be very short-lived, if any exist for > 5 seconds, clear them
   pendingLocks.clear()
+
+  // FIX: Enforce memory bounds - remove oldest entries if over limit
+  enforceMemoryBounds()
+}
+
+/**
+ * FIX: Enforce memory bounds to prevent memory leaks
+ * Removes oldest entries when caches exceed their maximum size
+ */
+function enforceMemoryBounds(): void {
+  // Enforce in-flight requests limit
+  if (inFlightRequests.size > MAX_IN_FLIGHT_REQUESTS) {
+    const entriesToRemove = inFlightRequests.size - MAX_IN_FLIGHT_REQUESTS
+    const entries = Array.from(inFlightRequests.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    
+    for (let i = 0; i < entriesToRemove && i < entries.length; i++) {
+      inFlightRequests.delete(entries[i][0])
+    }
+    logger.warn(`Removed ${entriesToRemove} old in-flight requests due to memory bounds`)
+  }
+
+  // Enforce recent completed limit
+  if (recentCompleted.size > MAX_RECENT_COMPLETED) {
+    const entriesToRemove = recentCompleted.size - MAX_RECENT_COMPLETED
+    const entries = Array.from(recentCompleted.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    
+    for (let i = 0; i < entriesToRemove && i < entries.length; i++) {
+      recentCompleted.delete(entries[i][0])
+    }
+    logger.warn(`Removed ${entriesToRemove} old completed requests due to memory bounds`)
+  }
+
+  // Enforce message hash cache limit
+  if (messageHashCache.size > MAX_MESSAGE_HASHES) {
+    const entriesToRemove = messageHashCache.size - MAX_MESSAGE_HASHES
+    const entries = Array.from(messageHashCache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    
+    for (let i = 0; i < entriesToRemove && i < entries.length; i++) {
+      messageHashCache.delete(entries[i][0])
+    }
+    logger.debug(`Removed ${entriesToRemove} old message hashes due to memory bounds`)
+  }
+
+  // Enforce pending locks limit
+  if (pendingLocks.size > MAX_PENDING_LOCKS) {
+    logger.warn(`Clearing ${pendingLocks.size} pending locks due to memory bounds`)
+    pendingLocks.clear()
+  }
 }
 
 /**
@@ -249,11 +321,13 @@ export function getStats(): {
   inFlightCount: number
   recentCompletedCount: number
   pendingLocksCount: number
+  messageHashCount: number
 } {
   return {
     inFlightCount: inFlightRequests.size,
     recentCompletedCount: recentCompleted.size,
     pendingLocksCount: pendingLocks.size,
+    messageHashCount: messageHashCache.size,
   }
 }
 
@@ -264,6 +338,153 @@ export function clearAll(): void {
   inFlightRequests.clear()
   recentCompleted.clear()
   pendingLocks.clear()
+  messageHashCache.clear()
+}
+
+// =============================================================================
+// MESSAGE DEDUPLICATION
+// =============================================================================
+
+/**
+ * Generate a hash for message content
+ * Used to detect duplicate messages in chat
+ */
+export function hashMessageContent(params: {
+  senderId: string
+  recipientId?: string
+  groupId?: string
+  content: string
+}): string {
+  const { senderId, recipientId, groupId, content } = params
+  
+  // Normalize content (trim, lowercase for comparison)
+  const normalizedContent = content.trim().toLowerCase().slice(0, 500) // Limit to first 500 chars
+  
+  // Create composite key
+  const composite = `${senderId}:${recipientId || ''}:${groupId || ''}:${normalizedContent}`
+  
+  // Simple hash using FNV-1a
+  let hash = 2166136261 // FNV offset basis
+  for (let i = 0; i < composite.length; i++) {
+    hash ^= composite.charCodeAt(i)
+    hash = (hash * 16777619) >>> 0 // FNV prime, unsigned
+  }
+  
+  return hash.toString(16)
+}
+
+/**
+ * Check if a message is a duplicate
+ * Returns the existing message ID if duplicate, null if new
+ */
+export function checkMessageDuplicate(params: {
+  senderId: string
+  recipientId?: string
+  groupId?: string
+  content: string
+  windowMs?: number // Time window for duplicate detection (default: 5 seconds)
+}): { isDuplicate: boolean; existingMessageId?: string } {
+  const { senderId, recipientId, groupId, content, windowMs = 5000 } = params
+  
+  const hash = hashMessageContent({ senderId, recipientId, groupId, content })
+  const cached = messageHashCache.get(hash)
+  
+  if (cached) {
+    const age = Date.now() - cached.timestamp
+    if (age < windowMs) {
+      logger.debug('Duplicate message detected', { hash, age, existingId: cached.messageId })
+      return { isDuplicate: true, existingMessageId: cached.messageId }
+    }
+  }
+  
+  return { isDuplicate: false }
+}
+
+/**
+ * Register a message for deduplication
+ * Call this after successfully creating a message
+ */
+export function registerMessage(params: {
+  senderId: string
+  recipientId?: string
+  groupId?: string
+  content: string
+  messageId: string
+}): void {
+  const { senderId, recipientId, groupId, content, messageId } = params
+  
+  const hash = hashMessageContent({ senderId, recipientId, groupId, content })
+  
+  messageHashCache.set(hash, {
+    timestamp: Date.now(),
+    messageId,
+  })
+  
+  // Enforce memory bounds if needed
+  if (messageHashCache.size > MAX_MESSAGE_HASHES) {
+    enforceMemoryBounds()
+  }
+}
+
+/**
+ * Idempotency key support for API requests
+ * Allows clients to retry requests safely
+ */
+const idempotencyKeys = new Map<string, { timestamp: number; result: unknown; status: number }>()
+const MAX_IDEMPOTENCY_KEYS = 50000
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+/**
+ * Check and register an idempotency key
+ * Returns cached result if key was already processed
+ */
+export function checkIdempotencyKey(key: string): {
+  isDuplicate: boolean
+  cachedResult?: unknown
+  cachedStatus?: number
+} {
+  const cached = idempotencyKeys.get(key)
+  
+  if (cached) {
+    const age = Date.now() - cached.timestamp
+    if (age < IDEMPOTENCY_TTL_MS) {
+      return {
+        isDuplicate: true,
+        cachedResult: cached.result,
+        cachedStatus: cached.status,
+      }
+    }
+    // Expired, remove it
+    idempotencyKeys.delete(key)
+  }
+  
+  return { isDuplicate: false }
+}
+
+/**
+ * Register idempotency key result
+ */
+export function registerIdempotencyResult(
+  key: string,
+  result: unknown,
+  status: number
+): void {
+  idempotencyKeys.set(key, {
+    timestamp: Date.now(),
+    result,
+    status,
+  })
+  
+  // Cleanup old keys if over limit
+  if (idempotencyKeys.size > MAX_IDEMPOTENCY_KEYS) {
+    const entriesToRemove = idempotencyKeys.size - MAX_IDEMPOTENCY_KEYS
+    const entries = Array.from(idempotencyKeys.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    
+    for (let i = 0; i < entriesToRemove && i < entries.length; i++) {
+      idempotencyKeys.delete(entries[i][0])
+    }
+  }
 }
 
 // Start cleanup interval
@@ -279,4 +500,11 @@ export default {
   cleanup,
   getStats,
   clearAll,
+  // Message deduplication
+  hashMessageContent,
+  checkMessageDuplicate,
+  registerMessage,
+  // Idempotency
+  checkIdempotencyKey,
+  registerIdempotencyResult,
 }

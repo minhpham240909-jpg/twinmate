@@ -20,11 +20,12 @@ type WebSocketEvent =
   | 'subscribe'
   | 'unsubscribe';
 
-type MessageHandler = (data: any) => void;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MessageHandler = (data: unknown) => void;
 
 interface WebSocketMessage {
   event: WebSocketEvent;
-  data: any;
+  data: unknown;
   timestamp: number;
 }
 
@@ -46,8 +47,10 @@ export class WebSocketManager {
   private messageQueue: WebSocketMessage[];
   private reconnectAttempts: number;
   private heartbeatTimer: NodeJS.Timeout | null;
+  private reconnectTimer: NodeJS.Timeout | null; // FIX: Track reconnect timer for cleanup
   private isConnected: boolean;
   private isReconnecting: boolean;
+  private isDestroyed: boolean; // FIX: Track if manager is destroyed to prevent leaks
 
   constructor(url: string, options: ConnectionOptions) {
     this.url = url;
@@ -64,8 +67,10 @@ export class WebSocketManager {
     this.messageQueue = [];
     this.reconnectAttempts = 0;
     this.heartbeatTimer = null;
+    this.reconnectTimer = null;
     this.isConnected = false;
     this.isReconnecting = false;
+    this.isDestroyed = false;
   }
 
   /**
@@ -126,24 +131,52 @@ export class WebSocketManager {
 
   /**
    * Disconnect from WebSocket server
+   * FIX: Comprehensive cleanup to prevent memory leaks
    */
   disconnect(): void {
     this.options.autoReconnect = false; // Disable auto-reconnect
+    this.isDestroyed = true;
+    
+    // FIX: Clear all timers to prevent leaks
     this.stopHeartbeat();
+    this.stopReconnectTimer();
 
     if (this.ws) {
+      // Remove all event listeners before closing
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
+      
       this.ws.close();
       this.ws = null;
     }
 
+    // FIX: Clear handlers to prevent memory leaks from retained callbacks
+    this.handlers.clear();
+    
+    // FIX: Clear message queue
+    this.messageQueue = [];
+
     this.isConnected = false;
+    this.isReconnecting = false;
+  }
+
+  /**
+   * FIX: Stop reconnect timer
+   */
+  private stopReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   /**
    * Send message through WebSocket
    * FIX: Added queue bounds to prevent OOM
    */
-  send(event: WebSocketEvent, data: any): void {
+  send(event: WebSocketEvent, data: unknown): void {
     const message: WebSocketMessage = {
       event,
       data,
@@ -172,8 +205,15 @@ export class WebSocketManager {
 
   /**
    * Subscribe to WebSocket events
+   * FIX: Return cleanup function that checks for destroyed state
    */
   on(event: WebSocketEvent, handler: MessageHandler): () => void {
+    // FIX: Don't add handlers if destroyed
+    if (this.isDestroyed) {
+      console.warn('[WebSocket] Cannot add handler - manager is destroyed');
+      return () => {}; // No-op cleanup
+    }
+    
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());
     }
@@ -182,7 +222,15 @@ export class WebSocketManager {
 
     // Return unsubscribe function
     return () => {
-      this.handlers.get(event)?.delete(handler);
+      // FIX: Safe cleanup even if manager is destroyed
+      const handlers = this.handlers.get(event);
+      if (handlers) {
+        handlers.delete(handler);
+        // FIX: Clean up empty sets to prevent memory leaks
+        if (handlers.size === 0) {
+          this.handlers.delete(event);
+        }
+      }
     };
   }
 
@@ -212,8 +260,14 @@ export class WebSocketManager {
 
   /**
    * Reconnect with exponential backoff
+   * FIX: Track timer and check destroyed state
    */
   private reconnect(): void {
+    // FIX: Don't reconnect if destroyed
+    if (this.isDestroyed) {
+      return;
+    }
+    
     if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
       console.error('[WebSocket] Max reconnect attempts reached');
       return;
@@ -222,12 +276,22 @@ export class WebSocketManager {
     this.isReconnecting = true;
     this.reconnectAttempts++;
 
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-    const delay = this.options.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at 30s)
+    const delay = Math.min(
+      this.options.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      30000 // Max 30 second delay
+    );
 
     console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.options.maxReconnectAttempts})`);
 
-    setTimeout(() => {
+    // FIX: Track the timer so we can cancel it
+    this.stopReconnectTimer(); // Clear any existing timer
+    this.reconnectTimer = setTimeout(() => {
+      // FIX: Check destroyed state again before reconnecting
+      if (this.isDestroyed) {
+        return;
+      }
+      
       this.connect().catch((error) => {
         console.error('[WebSocket] Reconnect failed:', error);
       });

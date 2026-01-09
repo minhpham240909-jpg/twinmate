@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit } from '@/lib/rate-limit'
 
 // POST /api/posts/[postId]/repost - Repost a post
 export async function POST(
@@ -8,6 +9,15 @@ export async function POST(
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
+    // Rate limit: 10 reposts per minute (stricter than likes as reposts create content)
+    const rateLimitResult = await rateLimit(req, { max: 10, windowMs: 60000, keyPrefix: 'reposts' })
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

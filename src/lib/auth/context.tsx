@@ -172,8 +172,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Helper function to get user with retry logic
       // This helps handle race conditions after OAuth callback
-      // OPTIMIZED: Reduced retries and delay for faster initial load
-      const getUserWithRetry = async (retries = 2, delayMs = 300): Promise<{ user: any; error: any }> => {
+      // Check if we're coming from auth callback - need more retries
+      const urlParams = new URLSearchParams(window.location.search)
+      const isFromAuthCallback = urlParams.get('auth_callback') === 'true'
+
+      // Use more retries and longer delay if coming from auth callback
+      const maxRetries = isFromAuthCallback ? 5 : 2
+      const retryDelay = isFromAuthCallback ? 500 : 300
+
+      const getUserWithRetry = async (retries = maxRetries, delayMs = retryDelay): Promise<{ user: any; error: any }> => {
         for (let attempt = 0; attempt < retries; attempt++) {
           try {
             const { data: { user }, error } = await supabase.auth.getUser()
@@ -187,6 +194,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // This handles the cookie sync race condition
             const hasCookies = document.cookie.includes('-auth-token')
             if (error && hasCookies && attempt < retries - 1) {
+              if (!isProduction) {
+                console.log(`[AuthContext] Retry ${attempt + 1}/${retries} - waiting for cookie sync...`)
+              }
+              await new Promise(resolve => setTimeout(resolve, delayMs))
+              continue
+            }
+
+            // If from auth callback and no user yet, keep trying
+            if (isFromAuthCallback && !user && attempt < retries - 1) {
               await new Promise(resolve => setTimeout(resolve, delayMs))
               continue
             }
@@ -203,9 +219,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { user: null, error: new Error('Max retries exceeded') }
       }
 
-      // Create a timeout promise that rejects after 5 seconds (reduced from 10s)
+      // Create a timeout promise - longer timeout for auth callback
+      const timeoutMs = isFromAuthCallback ? 8000 : 5000
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Auth initialization timed out')), 5000)
+        setTimeout(() => reject(new Error('Auth initialization timed out')), timeoutMs)
       })
 
       try {

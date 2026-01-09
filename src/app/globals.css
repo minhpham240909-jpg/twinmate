@@ -483,3 +483,12 @@ html {
 .math-content .katex {
   vertical-align: middle;
 }
+
+/* Highlighted text - replaces quoted text in AI responses */
+.text-highlight {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
+  color: #93c5fd;
+  padding: 0.1em 0.4em;
+  border-radius: 0.25em;
+  font-weight: 600;
+}

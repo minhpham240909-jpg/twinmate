@@ -25,15 +25,53 @@ const PRE_AUTH_CSRF_COOKIE = 'pre_auth_csrf'
 const PRE_AUTH_CSRF_TTL = 60 * 15 // 15 minutes
 const isProduction = process.env.NODE_ENV === 'production'
 
-// Validate CSRF_SECRET is configured - CRITICAL in production
-if (!CSRF_SECRET || CSRF_SECRET.length < 32) {
+// SECURITY FIX: Secure secret management with proper signing
+// - Production: MUST have CSRF_SECRET configured (fails hard if not)
+// - Development: Uses runtime-generated secret per server instance
+let runtimeSecret: string | null = null
+let secretValidationLogged = false
+
+/**
+ * Get the effective CSRF secret with proper security guarantees
+ * - In production: Throws if CSRF_SECRET not configured
+ * - In development: Generates a unique runtime secret if not configured
+ */
+function getEffectiveSecret(): string {
+  // Production: MUST have proper CSRF_SECRET configured
   if (isProduction) {
-    console.error('🔴 CRITICAL: CSRF_SECRET not configured or too short!')
-    console.error('   CSRF protection is DISABLED. Application is vulnerable to CSRF attacks.')
-    console.error('   Set CSRF_SECRET in environment variables (min 32 characters)')
-  } else {
-    console.warn('[CSRF] Warning: CSRF_SECRET not configured. Using fallback (dev only).')
+    if (!CSRF_SECRET || CSRF_SECRET.length < 32) {
+      throw new Error(
+        'CSRF_SECRET must be configured in production (min 32 characters). ' +
+        'Set CSRF_SECRET environment variable to enable CSRF protection.'
+      )
+    }
+    return CSRF_SECRET
   }
+
+  // Development: Use CSRF_SECRET if available, otherwise generate runtime secret
+  if (CSRF_SECRET && CSRF_SECRET.length >= 32) {
+    return CSRF_SECRET
+  }
+
+  // Generate a unique runtime secret for this server instance (dev only)
+  if (!runtimeSecret) {
+    const randomBytes = new Uint8Array(32)
+    crypto.getRandomValues(randomBytes)
+    runtimeSecret = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+    if (!secretValidationLogged) {
+      console.warn('[CSRF] Development mode: Using generated runtime secret. Configure CSRF_SECRET for persistent tokens.')
+      secretValidationLogged = true
+    }
+  }
+
+  return runtimeSecret
+}
+
+// Log warning once at startup if production is misconfigured
+if (isProduction && (!CSRF_SECRET || CSRF_SECRET.length < 32)) {
+  console.error('🔴 CRITICAL: CSRF_SECRET not configured or too short!')
+  console.error('   Application will throw errors on CSRF operations.')
+  console.error('   Set CSRF_SECRET in environment variables (min 32 characters)')
 }
 
 /**
@@ -53,7 +91,7 @@ export async function generateCsrfToken(): Promise<string | null> {
     // 1. Session token is cryptographically secure
     // 2. Secret is server-side only
     // 3. Token changes when session changes
-    const secret = CSRF_SECRET || 'fallback-secret-not-for-production'
+    const secret = getEffectiveSecret()
     const token = await hashToken(session.access_token + secret)
     return token
   } catch (error) {
@@ -82,7 +120,7 @@ export async function validateCsrfToken(req: NextRequest): Promise<boolean> {
     }
 
     // Generate expected token
-    const secret = CSRF_SECRET || 'fallback-secret-not-for-production'
+    const secret = getEffectiveSecret()
     const expectedToken = await hashToken(session.access_token + secret)
     
     // Compare tokens (timing-safe comparison)
@@ -154,7 +192,7 @@ function timingSafeEqual(a: string, b: string): boolean {
  * Returns the token and sets it in an httpOnly cookie
  */
 export async function generatePreAuthCsrfToken(): Promise<{ token: string; cookieValue: string }> {
-  const secret = CSRF_SECRET || 'fallback-secret-not-for-production'
+  const secret = getEffectiveSecret()
 
   // Generate a random token
   const randomBytes = new Uint8Array(32)
@@ -178,18 +216,22 @@ export async function validatePreAuthCsrfToken(request: NextRequest): Promise<bo
     // Get token from request body or header
     const clientToken = request.headers.get(CSRF_HEADER)
     if (!clientToken) {
+      console.warn('[CSRF] Pre-auth validation failed: No client token in header')
       return false
     }
 
     // Get signed token from cookie
     const cookieValue = request.cookies.get(PRE_AUTH_CSRF_COOKIE)?.value
     if (!cookieValue) {
+      console.warn('[CSRF] Pre-auth validation failed: No cookie found. Cookie name:', PRE_AUTH_CSRF_COOKIE)
+      console.warn('[CSRF] Available cookies:', request.cookies.getAll().map(c => c.name).join(', '))
       return false
     }
 
     // Parse the cookie value: token:timestamp:signature
     const parts = cookieValue.split(':')
     if (parts.length !== 3) {
+      console.warn('[CSRF] Pre-auth validation failed: Invalid cookie format, parts:', parts.length)
       return false
     }
 
@@ -198,18 +240,24 @@ export async function validatePreAuthCsrfToken(request: NextRequest): Promise<bo
     // Verify timestamp is not expired (15 minutes)
     const tokenAge = Date.now() - parseInt(timestamp, 10)
     if (isNaN(tokenAge) || tokenAge > PRE_AUTH_CSRF_TTL * 1000 || tokenAge < 0) {
+      console.warn('[CSRF] Pre-auth validation failed: Token expired or invalid timestamp. Age:', tokenAge, 'ms, Max:', PRE_AUTH_CSRF_TTL * 1000, 'ms')
       return false
     }
 
     // Verify signature
-    const secret = CSRF_SECRET || 'fallback-secret-not-for-production'
+    const secret = getEffectiveSecret()
     const expectedSignature = await hashToken(`${storedToken}:${timestamp}` + secret)
     if (!timingSafeEqual(signature, expectedSignature)) {
+      console.warn('[CSRF] Pre-auth validation failed: Signature mismatch')
       return false
     }
 
     // Verify client token matches stored token
-    return timingSafeEqual(clientToken, storedToken)
+    const tokensMatch = timingSafeEqual(clientToken, storedToken)
+    if (!tokensMatch) {
+      console.warn('[CSRF] Pre-auth validation failed: Client token does not match stored token')
+    }
+    return tokensMatch
   } catch (error) {
     console.error('Error validating pre-auth CSRF token:', error)
     return false
@@ -243,19 +291,18 @@ export async function withPreAuthCsrfProtection(
   req: NextRequest,
   handler: () => Promise<NextResponse>
 ): Promise<NextResponse> {
-  // TEMPORARY: Skip CSRF validation if CSRF_SECRET is not properly configured
-  // This allows signin to work while we debug environment variable issues
-  if (!CSRF_SECRET || CSRF_SECRET.length < 32) {
-    console.warn('[CSRF] Skipping pre-auth CSRF validation - CSRF_SECRET not configured')
+  // In development without CSRF_SECRET, allow requests but log warning
+  // In production, getEffectiveSecret() will throw if not configured
+  if (!isProduction && (!CSRF_SECRET || CSRF_SECRET.length < 32)) {
+    console.warn('[CSRF] Development mode: Skipping pre-auth CSRF validation - CSRF_SECRET not configured')
     return handler()
   }
 
   const isValid = await validatePreAuthCsrfToken(req)
 
   if (!isValid) {
-    if (isProduction) {
-      console.warn(`[CSRF] Invalid pre-auth token attempt: ${req.method} ${new URL(req.url).pathname}`)
-    }
+    // Log security event
+    console.warn(`[CSRF] Invalid pre-auth token attempt: ${req.method} ${new URL(req.url).pathname}`)
 
     return NextResponse.json(
       { error: 'Invalid or missing CSRF token. Please refresh the page and try again.' },

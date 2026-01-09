@@ -23,6 +23,7 @@ import {
   MessageSquare,
   RefreshCw,
   Bot,
+  Clock,
 } from 'lucide-react'
 
 // Fetch with timeout to prevent infinite loading
@@ -52,6 +53,16 @@ interface AdminUser {
   email: string
   avatarUrl: string | null
   adminGrantedAt: string | null
+  twoFactorEnabled?: boolean
+}
+
+interface AdminCheckResponse {
+  isAdmin: boolean
+  user?: AdminUser | null
+  requires2FASetup?: boolean
+  sessionExpired?: boolean
+  sessionTimeout?: number
+  error?: string
 }
 
 const navItems = [
@@ -126,14 +137,33 @@ export default function AdminLayout({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [requires2FA, setRequires2FA] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   // Verify admin access on mount
   const checkAdminAccess = async () => {
     setIsLoading(true)
     setError(null)
+    setRequires2FA(false)
+    setSessionExpired(false)
     try {
       const response = await fetchWithTimeout('/api/admin/check', {}, 15000)
-      const data = await response.json()
+      const data: AdminCheckResponse = await response.json()
+
+      // Handle 2FA requirement
+      if (data.requires2FASetup) {
+        setRequires2FA(true)
+        setAdminUser(data.user || null)
+        setIsAdmin(false)
+        return
+      }
+
+      // Handle session expiration
+      if (data.sessionExpired) {
+        setSessionExpired(true)
+        setIsAdmin(false)
+        return
+      }
 
       if (!data.isAdmin) {
         // Not an admin, redirect to home
@@ -142,7 +172,7 @@ export default function AdminLayout({
       }
 
       setIsAdmin(true)
-      setAdminUser(data.user)
+      setAdminUser(data.user || null)
     } catch (error) {
       console.error('Error checking admin access:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to verify admin access'
@@ -159,6 +189,23 @@ export default function AdminLayout({
   useEffect(() => {
     checkAdminAccess()
   }, [router])
+
+  // SECURITY: Refresh admin session periodically to prevent timeout during active use
+  useEffect(() => {
+    if (!isAdmin) return
+
+    // Refresh session every 5 minutes while admin is active
+    const interval = setInterval(() => {
+      // Only refresh if the page is visible (user is actively using it)
+      if (document.visibilityState === 'visible') {
+        fetchWithTimeout('/api/admin/check', {}, 5000).catch(() => {
+          // Silent fail - next user action will trigger full check
+        })
+      }
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(interval)
+  }, [isAdmin])
 
   // Handle logout with confirmation
   const handleLogoutClick = () => {
@@ -224,6 +271,104 @@ export default function AdminLayout({
           >
             Return to Home
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // 2FA required state - admin must enable 2FA first
+  if (requires2FA) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6 max-w-md text-center px-4">
+          <div className="w-20 h-20 rounded-full bg-yellow-500/20 flex items-center justify-center">
+            <svg
+              className="w-10 h-10 text-yellow-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Two-Factor Authentication Required
+            </h2>
+            <p className="text-gray-400">
+              For security purposes, all administrators must have two-factor authentication enabled
+              to access the admin panel.
+            </p>
+          </div>
+          {adminUser && (
+            <p className="text-sm text-gray-500">
+              Logged in as: {adminUser.email}
+            </p>
+          )}
+          <div className="flex flex-col gap-3 w-full">
+            <Link
+              href="/settings?tab=security"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+              Enable 2FA in Settings
+            </Link>
+            <button
+              onClick={checkAdminAccess}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              I&apos;ve enabled 2FA - Check again
+            </button>
+            <button
+              onClick={() => router.replace('/dashboard')}
+              className="text-gray-400 hover:text-white text-sm transition-colors"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Session expired state - admin needs to refresh
+  if (sessionExpired) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6 max-w-md text-center px-4">
+          <div className="w-20 h-20 rounded-full bg-orange-500/20 flex items-center justify-center">
+            <Clock className="w-10 h-10 text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Session Expired
+            </h2>
+            <p className="text-gray-400">
+              Your admin session has expired due to inactivity. For security purposes, admin
+              sessions automatically expire after 30 minutes of inactivity.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 w-full">
+            <button
+              onClick={checkAdminAccess}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Continue Session
+            </button>
+            <button
+              onClick={() => router.replace('/dashboard')}
+              className="text-gray-400 hover:text-white text-sm transition-colors"
+            >
+              Return to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     )

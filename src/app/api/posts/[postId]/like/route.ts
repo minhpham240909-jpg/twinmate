@@ -106,8 +106,9 @@ export async function POST(
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
-    // Rate limit: 100 likes per minute (lenient for quick interactions)
-    const rateLimitResult = await rateLimit(req, { ...RateLimitPresets.lenient, keyPrefix: 'likes' })
+    // Rate limit: 30 likes per minute (reduced to prevent abuse while allowing normal usage)
+    // This allows ~1 like every 2 seconds, which is reasonable for scrolling through content
+    const rateLimitResult = await rateLimit(req, { max: 30, windowMs: 60000, keyPrefix: 'likes' })
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait a moment.' },

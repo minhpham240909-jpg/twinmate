@@ -6,6 +6,41 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getWebSocketManager } from './websocket-manager';
 
+// Type definitions for WebSocket event data
+interface MessageEventData {
+  sessionId?: string;
+  message?: Record<string, unknown>;
+}
+
+interface PresenceEventData {
+  status?: 'online' | 'offline';
+  userId?: string;
+}
+
+interface TypingEventData {
+  sessionId?: string;
+  userId?: string;
+  isTyping?: boolean;
+}
+
+interface NotificationEventData {
+  id?: string;
+  title?: string;
+  message?: string;
+  isRead?: boolean;
+}
+
+interface SessionUpdateEventData {
+  sessionId?: string;
+  status?: string;
+  participants?: Record<string, unknown>[];
+}
+
+// Helper to safely cast unknown data
+function asEventData<T>(data: unknown): T {
+  return data as T;
+}
+
 /**
  * Hook for real-time chat messages
  */
@@ -28,8 +63,9 @@ export function useRealtimeMessages(sessionId: string, userId: string, token: st
     });
 
     // Listen for new messages
-    const unsubscribe = ws.on('message', (data) => {
-      if (data.sessionId === sessionId) {
+    const unsubscribe = ws.on('message', (rawData: unknown) => {
+      const data = asEventData<MessageEventData>(rawData);
+      if (data.sessionId === sessionId && data.message) {
         setMessages(prev => [...prev, data.message]);
       }
     });
@@ -78,12 +114,13 @@ export function usePresence(userId: string, token: string) {
     });
 
     // Listen for presence updates
-    const unsubscribe = ws.on('presence', (data) => {
+    const unsubscribe = ws.on('presence', (rawData: unknown) => {
+      const data = asEventData<PresenceEventData>(rawData);
       setOnlineUsers(prev => {
         const updated = new Set(prev);
-        if (data.status === 'online') {
+        if (data.status === 'online' && data.userId) {
           updated.add(data.userId);
-        } else {
+        } else if (data.userId) {
           updated.delete(data.userId);
         }
         return updated;
@@ -111,23 +148,25 @@ export function useTypingIndicator(sessionId: string, userId: string, token: str
   useEffect(() => {
     const ws = wsRef.current;
 
-    const unsubscribe = ws.on('typing', (data) => {
-      if (data.sessionId === sessionId && data.userId !== userId) {
+    const unsubscribe = ws.on('typing', (rawData: unknown) => {
+      const data = asEventData<TypingEventData>(rawData);
+      if (data.sessionId === sessionId && data.userId && data.userId !== userId) {
+        const typingUserId = data.userId;
         setTypingUsers(prev => {
           const updated = new Set(prev);
           if (data.isTyping) {
-            updated.add(data.userId);
+            updated.add(typingUserId);
 
             // Auto-remove after 3 seconds
             setTimeout(() => {
               setTypingUsers(current => {
                 const newSet = new Set(current);
-                newSet.delete(data.userId);
+                newSet.delete(typingUserId);
                 return newSet;
               });
             }, 3000);
           } else {
-            updated.delete(data.userId);
+            updated.delete(typingUserId);
           }
           return updated;
         });
@@ -171,14 +210,15 @@ export function useRealtimeNotifications(userId: string, token: string) {
 
     ws.connect();
 
-    const unsubscribe = ws.on('notification', (data) => {
+    const unsubscribe = ws.on('notification', (rawData: unknown) => {
+      const data = asEventData<NotificationEventData>(rawData);
       setNotifications(prev => [data, ...prev]);
       setUnreadCount(prev => prev + 1);
 
       // Show browser notification if permitted
-      if ('Notification' in window && Notification.permission === 'granted') {
+      if ('Notification' in window && Notification.permission === 'granted' && data.title) {
         new Notification(data.title, {
-          body: data.message,
+          body: data.message || '',
           icon: '/icon.png',
         });
       }
@@ -215,7 +255,8 @@ export function useSessionStatus(sessionId: string, userId: string, token: strin
 
     ws.connect();
 
-    const unsubscribe = ws.on('session_update', (data) => {
+    const unsubscribe = ws.on('session_update', (rawData: unknown) => {
+      const data = asEventData<SessionUpdateEventData>(rawData);
       if (data.sessionId === sessionId) {
         if (data.status) setStatus(data.status);
         if (data.participants) setParticipants(data.participants);

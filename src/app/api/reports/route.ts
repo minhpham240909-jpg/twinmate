@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { ReportType } from '@prisma/client'
 
+// SECURITY: Content limits for report submissions
+const MAX_DESCRIPTION_LENGTH = 2000 // Reasonable limit for report descriptions
+
 // POST /api/reports - Create a new report
 export async function POST(request: NextRequest) {
   try {
@@ -42,6 +45,25 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Invalid report type' },
         { status: 400 }
       )
+    }
+
+    // SECURITY: Validate and sanitize description
+    let sanitizedDescription: string | null = null
+    if (description) {
+      if (typeof description !== 'string') {
+        return NextResponse.json(
+          { success: false, error: 'Description must be a string' },
+          { status: 400 }
+        )
+      }
+      const trimmedDescription = description.trim()
+      if (trimmedDescription.length > MAX_DESCRIPTION_LENGTH) {
+        return NextResponse.json(
+          { success: false, error: `Description too long (max ${MAX_DESCRIPTION_LENGTH} characters)` },
+          { status: 400 }
+        )
+      }
+      sanitizedDescription = trimmedDescription.length > 0 ? trimmedDescription : null
     }
 
     // Get the database user
@@ -143,7 +165,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the report
+    // Create the report (use sanitized description)
     const report = await prisma.report.create({
       data: {
         reporterId: dbUser.id,
@@ -151,7 +173,7 @@ export async function POST(request: NextRequest) {
         contentType,
         contentId,
         type: type as ReportType,
-        description: description || null,
+        description: sanitizedDescription,
       },
     })
 

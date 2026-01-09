@@ -47,7 +47,6 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              email: true,
               avatarUrl: true
             }
           },
@@ -55,7 +54,6 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              email: true,
               avatarUrl: true
             }
           }

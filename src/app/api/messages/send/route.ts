@@ -113,7 +113,6 @@ export async function POST(req: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                email: true,
                 avatarUrl: true
               }
             }
@@ -173,7 +172,6 @@ export async function POST(req: NextRequest) {
       sender: {
         id: string
         name: string
-        email: string
         avatarUrl: string | null
       } | null // Nullable in schema but always set for new messages
     }
@@ -223,7 +221,6 @@ export async function POST(req: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                email: true,
                 avatarUrl: true
               }
             }
@@ -364,7 +361,6 @@ export async function POST(req: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                email: true,
                 avatarUrl: true
               }
             }

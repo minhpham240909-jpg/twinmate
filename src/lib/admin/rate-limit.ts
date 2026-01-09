@@ -18,7 +18,7 @@ interface RateLimitConfig {
   skipSuccessfulRequests?: boolean // Don't count successful requests
 }
 
-interface RateLimitResult {
+export interface RateLimitResult {
   allowed: boolean
   remaining: number
   resetTime: number
@@ -332,12 +332,32 @@ export async function adminRateLimit(
 }
 
 /**
- * Create rate limit headers to add to successful responses
+ * Create rate limit headers from an existing result
+ * FIX: Don't call checkLimit again as it would double-count the request
+ * Use this with the result from adminRateLimit() if you need headers
+ */
+export function getRateLimitHeadersFromResult(
+  result: RateLimitResult,
+  preset: keyof typeof ADMIN_RATE_LIMITS = 'default'
+): Record<string, string> {
+  const config = ADMIN_RATE_LIMITS[preset]
+  return {
+    'X-RateLimit-Limit': config.maxRequests.toString(),
+    'X-RateLimit-Remaining': result.remaining.toString(),
+    'X-RateLimit-Reset': result.resetTime.toString(),
+    ...(result.retryAfter && { 'Retry-After': result.retryAfter.toString() }),
+  }
+}
+
+/**
+ * @deprecated Use getRateLimitHeadersFromResult instead to avoid double-counting
+ * This function calls checkLimit which increments the counter again
  */
 export async function getRateLimitHeaders(
   req: NextRequest,
   preset: keyof typeof ADMIN_RATE_LIMITS = 'default'
 ): Promise<Record<string, string>> {
+  console.warn('[DEPRECATED] getRateLimitHeaders increments rate limit counter. Use getRateLimitHeadersFromResult instead.')
   const config = ADMIN_RATE_LIMITS[preset]
   const limiter = new RateLimiter(config)
 

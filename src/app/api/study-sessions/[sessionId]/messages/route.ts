@@ -109,7 +109,6 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            email: true,
             avatarUrl: true,
           },
         },
@@ -205,7 +204,13 @@ export async function POST(
       return NextResponse.json({ error: 'Not a participant' }, { status: 403 })
     }
 
-    // Create message with sender info included
+    // Get sender email for moderation (separate query, not returned to client)
+    const senderForModeration = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { email: true }
+    })
+
+    // Create message with sender info included (no email in response)
     const message = await prisma.sessionMessage.create({
       data: {
         sessionId,
@@ -218,7 +223,6 @@ export async function POST(
           select: {
             id: true,
             name: true,
-            email: true,
             avatarUrl: true,
           },
         },
@@ -230,7 +234,7 @@ export async function POST(
       message.id,
       content.trim(),
       user.id,
-      message.sender.email || undefined,
+      senderForModeration?.email || undefined,
       message.sender.name || undefined,
       sessionId
     )
@@ -249,7 +253,7 @@ export async function POST(
 
     // Create notifications in parallel (fire-and-forget with proper void operator)
     if (otherParticipants.length > 0) {
-      const senderName = message.sender.name || message.sender.email || 'Someone'
+      const senderName = message.sender.name || 'Someone'
       const contentPreview = content.trim().length > 50
         ? content.trim().substring(0, 50) + '...'
         : content.trim()

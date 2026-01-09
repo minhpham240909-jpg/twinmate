@@ -29,10 +29,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    // Parse query parameters
+    // Parse query parameters with validation
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    // SCALABILITY: Cap limit to prevent large data fetches (max 100)
+    const rawLimit = parseInt(searchParams.get('limit') || '20') || 20
+    const limit = Math.min(100, Math.max(1, rawLimit))
     const status = searchParams.get('status') || ''
     const type = searchParams.get('type') || ''
     const sortBy = searchParams.get('sortBy') || 'createdAt'

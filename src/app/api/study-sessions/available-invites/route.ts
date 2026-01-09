@@ -36,7 +36,6 @@ export async function GET() {
       select: {
         id: true,
         name: true,
-        email: true,
         avatarUrl: true,
         presence: {
           select: {
@@ -50,7 +49,6 @@ export async function GET() {
     const partnersWithStatus = partnerUsers.map((p) => ({
       id: p.id,
       name: p.name,
-      email: p.email,
       avatarUrl: p.avatarUrl,
       onlineStatus: p.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
     }))
@@ -75,7 +73,6 @@ export async function GET() {
               select: {
                 id: true,
                 name: true,
-                email: true,
                 avatarUrl: true,
                 presence: {
                   select: {
@@ -104,7 +101,6 @@ export async function GET() {
     const uniqueGroupMembers = Array.from(uniqueGroupMembersMap.values()).map(u => ({
       id: u.id,
       name: u.name,
-      email: u.email,
       avatarUrl: u.avatarUrl,
       onlineStatus: u.onlineStatus,
     }))

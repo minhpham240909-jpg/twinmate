@@ -239,12 +239,11 @@ export default function AdminDashboard() {
     fetchAIPartnerStats()
   }, [fetchDashboardData, fetchOnlineUsersDetails, fetchAIPartnerStats])
 
-  // Refresh online users details when realtime count changes significantly
-  useEffect(() => {
-    if (realtimeOnlineCount > 0) {
-      fetchOnlineUsersDetails()
-    }
-  }, [realtimeOnlineCount, fetchOnlineUsersDetails])
+  // FIX: Removed redundant refetch on every realtimeOnlineCount change
+  // The realtime count is updated via WebSocket and we don't need to refetch
+  // the full online users details every time the count changes
+  // This was causing double-fetching and unnecessary API calls
+  // The onlineUsersData is refreshed on initial load and manual refresh only
 
   // Handle manual refresh
   const handleRefresh = useCallback(async () => {

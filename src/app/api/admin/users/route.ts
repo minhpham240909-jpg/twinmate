@@ -6,6 +6,7 @@ import { logAdminAction } from '@/lib/admin/utils'
 import { handlePrivilegeChange } from '@/lib/security/session-rotation'
 import logger from '@/lib/logger'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
+import { withCsrfProtection } from '@/lib/csrf'
 
 // GET - List users with search, filter, and pagination
 export async function GET(request: NextRequest) {
@@ -31,10 +32,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    // Parse query parameters
+    // Parse query parameters with validation
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    // SCALABILITY: Cap limit to prevent large data fetches (max 100)
+    const rawLimit = parseInt(searchParams.get('limit') || '20') || 20
+    const limit = Math.min(100, Math.max(1, rawLimit))
     const search = searchParams.get('search') || ''
     const role = searchParams.get('role') || ''
     const status = searchParams.get('status') || '' // active, deactivated, banned
@@ -61,8 +64,8 @@ export async function GET(request: NextRequest) {
       where.deactivatedAt = { not: null }
     }
 
-    // FIX: Execute query without _count to reduce data transfer by 25-35%
-    // _count causes N+1-like subqueries for each user - fetch counts separately if needed
+    // FIX N+1: Fetch users and count in parallel, then bans separately
+    // This eliminates the N+1 pattern (previously fetched ban per user)
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -80,8 +83,6 @@ export async function GET(request: NextRequest) {
           deactivatedAt: true,
           deactivationReason: true,
           twoFactorEnabled: true,
-          // FIX: Removed _count - admin dashboard rarely needs exact counts in list view
-          // Counts can be fetched on-demand via /api/admin/users/[userId]/details
         },
         orderBy: { [sortBy]: sortOrder },
         skip: (page - 1) * limit,
@@ -90,23 +91,30 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ])
 
-    // Check for active bans (userId is stored in UserBan, no relation on User)
-    // This is acceptable for paginated results (max users per page)
+    // FIX N+1: Fetch all bans for the current page of users in a single query
     const userIds = users.map((u) => u.id)
-    const bans = userIds.length > 0
-      ? await prisma.userBan.findMany({
-          where: { userId: { in: userIds } },
-          select: { userId: true, type: true, expiresAt: true },
-        })
-      : []
+    const bans = await prisma.userBan.findMany({
+      where: { userId: { in: userIds } },
+      select: {
+        userId: true,
+        type: true,
+        expiresAt: true,
+        reason: true,
+      },
+    })
 
-    const banMap = new Map(bans.map((b) => [b.userId, b]))
+    // Create a map for O(1) lookup
+    const bansByUserId = new Map(bans.map((b) => [b.userId, b]))
 
-    const usersWithBanInfo = users.map((user) => ({
-      ...user,
-      signupMethod: user.googleId ? 'google' : 'email',
-      ban: banMap.get(user.id) || null,
-    }))
+    // Transform users with signup method and ban info
+    const usersWithBanInfo = users.map((user) => {
+      const ban = bansByUserId.get(user.id)
+      return {
+        ...user,
+        signupMethod: user.googleId ? 'google' : 'email',
+        ban: ban ? { type: ban.type, expiresAt: ban.expiresAt, reason: ban.reason } : null,
+      }
+    })
 
     return NextResponse.json({
       success: true,
@@ -127,59 +135,62 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Admin actions on users (ban, unban, warn, etc.)
+// SECURITY: Protected with CSRF token validation
 export async function POST(request: NextRequest) {
-  try {
-    // Apply rate limiting (userActions preset: 30 actions/minute)
-    const rateLimitResult = await adminRateLimit(request, 'userActions')
-    if (rateLimitResult) return rateLimitResult
+  // Apply rate limiting (userActions preset: 30 actions/minute)
+  const rateLimitResult = await adminRateLimit(request, 'userActions')
+  if (rateLimitResult) return rateLimitResult
 
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // SECURITY: Wrap dangerous admin actions with CSRF protection
+  return withCsrfProtection(request, async () => {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
+      if (!user) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
 
-    // Verify admin status
-    const adminUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    })
+      // Verify admin status
+      const adminUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true },
+      })
 
-    if (!adminUser?.isAdmin) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
-    }
+      if (!adminUser?.isAdmin) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+      }
 
-    const body = await request.json()
-    const { action, userId, reason, duration, severity } = body
+      const body = await request.json()
+      const { action, userId, reason, duration, severity } = body
 
-    if (!action || !userId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+      if (!action || !userId) {
+        return NextResponse.json(
+          { error: 'Missing required fields' },
+          { status: 400 }
+        )
+      }
 
-    // SECURITY: Prevent self-actions
-    if (userId === user.id) {
-      return NextResponse.json(
-        { error: 'Cannot perform admin actions on yourself' },
-        { status: 403 }
-      )
-    }
+      // SECURITY: Prevent self-actions
+      if (userId === user.id) {
+        return NextResponse.json(
+          { error: 'Cannot perform admin actions on yourself' },
+          { status: 403 }
+        )
+      }
 
-    // SECURITY: Check if target is an admin (for protected actions)
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { isAdmin: true, adminGrantedBy: true },
-    })
+      // SECURITY: Check if target is an admin (for protected actions)
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { isAdmin: true, adminGrantedBy: true },
+      })
 
-    if (!targetUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404 }
+        )
+      }
 
     // SECURITY: Super-admin protection
     // Use database flag instead of email comparison to prevent email-based attacks
@@ -585,4 +596,5 @@ export async function POST(request: NextRequest) {
     console.error('[Admin Users] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+  })
 }

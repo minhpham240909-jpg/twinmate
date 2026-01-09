@@ -308,6 +308,8 @@ function rateLimitWithMemory(
 /**
  * Preset rate limit configurations
  * Optimized for 3,000+ concurrent users
+ * 
+ * SCALABILITY: These limits balance user experience with abuse prevention
  */
 export const RateLimitPresets = {
   /** 5 requests per minute - for signup/auth (prevent brute force) */
@@ -336,4 +338,19 @@ export const RateLimitPresets = {
 
   /** 10 requests per minute - for expensive searches (partner/group search processing 100+ records) */
   expensiveSearch: { max: 10, windowMs: 60 * 1000, keyPrefix: 'search' },
+
+  /** 30 requests per minute - for likes (reduced to prevent spam while allowing normal usage) */
+  likes: { max: 30, windowMs: 60 * 1000, keyPrefix: 'likes' },
+
+  /** 10 requests per minute - for reposts (stricter as they create visible content) */
+  reposts: { max: 10, windowMs: 60 * 1000, keyPrefix: 'reposts' },
+
+  /** 20 requests per minute - for comments (balance between engagement and spam) */
+  comments: { max: 20, windowMs: 60 * 1000, keyPrefix: 'comments' },
+
+  /** 15 requests per minute - for connection requests (prevent mass-friending) */
+  connections: { max: 15, windowMs: 60 * 1000, keyPrefix: 'connections' },
+
+  /** 30 requests per minute - for AI streaming (per-session throttling) */
+  aiStream: { max: 30, windowMs: 60 * 1000, keyPrefix: 'ai-stream' },
 }

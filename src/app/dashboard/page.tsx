@@ -443,6 +443,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !user) {
+      // Check if we just came from auth callback - give more time for cookies to sync
+      const urlParams = new URLSearchParams(window.location.search)
+      const isFromAuthCallback = urlParams.get('auth_callback') === 'true'
+
+      if (isFromAuthCallback) {
+        // Don't redirect immediately - wait for auth to sync
+        // The middleware should have already verified auth
+        console.log('[Dashboard] From auth callback, waiting for auth sync...')
+        return
+      }
+
       router.push('/auth')
     }
   }, [user, loading, router])
