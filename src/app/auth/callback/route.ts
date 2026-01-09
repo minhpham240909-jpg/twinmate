@@ -12,39 +12,119 @@ const sanitizeEnvVar = (value: string | undefined): string => {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const token_hash = requestUrl.searchParams.get('token_hash')
+  const type = requestUrl.searchParams.get('type')
   const cookieStore = await cookies()
 
-  // Note: Supabase handles OAuth CSRF protection internally with its own state parameter
-  // We don't need custom state validation - Supabase validates it during code exchange
+  const url = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL) || 'https://placeholder.supabase.co'
+  const key = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'placeholder'
 
-  if (code) {
+  // Track cookies that need to be set on the redirect response
+  const cookiesToSetOnResponse: Array<{ name: string; value: string; options: any }> = []
+
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
+      setAll(cookiesToSet) {
+        // Store cookies to set on the redirect response
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookiesToSetOnResponse.push({ name, value, options })
+          // Also set on cookieStore for immediate use
+          try {
+            cookieStore.set(name, value, options)
+          } catch {
+            // Ignore errors in server components
+          }
+        })
+      },
+    },
+  })
+
+  // Handle email confirmation (signup, email change, etc.)
+  // Supabase sends token_hash and type parameters for email verification
+  if (token_hash && type) {
     try {
-      const url = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_URL) || 'https://placeholder.supabase.co'
-      const key = sanitizeEnvVar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'placeholder'
-
-      // Track cookies that need to be set on the redirect response
-      const cookiesToSetOnResponse: Array<{ name: string; value: string; options: any }> = []
-
-      const supabase = createServerClient(url, key, {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            // Store cookies to set on the redirect response
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookiesToSetOnResponse.push({ name, value, options })
-              // Also set on cookieStore for immediate use
-              try {
-                cookieStore.set(name, value, options)
-              } catch {
-                // Ignore errors in server components
-              }
-            })
-          },
-        },
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: type as 'signup' | 'email' | 'recovery' | 'invite' | 'email_change',
       })
 
+      if (error) {
+        console.error('Email verification error:', error)
+        return NextResponse.redirect(
+          new URL('/auth/error?message=' + encodeURIComponent(error.message), requestUrl.origin)
+        )
+      }
+
+      if (data.user && data.session) {
+        // Email confirmed and user is now logged in!
+        console.log('[Auth Callback] Email verified for user:', data.user.email)
+
+        // Update database to mark email as verified
+        try {
+          await prisma.user.update({
+            where: { id: data.user.id },
+            data: {
+              emailVerified: true,
+              lastLoginAt: new Date(),
+            },
+          })
+        } catch (dbError) {
+          console.error('Database update error:', dbError)
+          // Continue anyway - user is authenticated
+        }
+
+        // Redirect to dashboard (user is now logged in automatically!)
+        const redirectUrl = new URL('/dashboard', requestUrl.origin)
+        redirectUrl.searchParams.set('auth_callback', 'true')
+        redirectUrl.searchParams.set('email_verified', 'true')
+
+        const response = NextResponse.redirect(redirectUrl)
+
+        // Set all session cookies on the redirect response
+        cookiesToSetOnResponse.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, {
+            ...options,
+            path: '/',
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+          })
+        })
+
+        // Set verification success cookie
+        response.cookies.set('auth_verified', 'true', {
+          path: '/',
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 30,
+          httpOnly: true,
+        })
+
+        return response
+      }
+
+      // If type is recovery (password reset), redirect to reset password page
+      if (type === 'recovery') {
+        return NextResponse.redirect(new URL('/auth/reset-password', requestUrl.origin))
+      }
+
+      // Email verified but no session - redirect to sign in
+      return NextResponse.redirect(
+        new URL('/auth?message=' + encodeURIComponent('Email verified! Please sign in.'), requestUrl.origin)
+      )
+    } catch (err) {
+      console.error('Email verification error:', err)
+      return NextResponse.redirect(
+        new URL('/auth/error?message=Email+verification+failed', requestUrl.origin)
+      )
+    }
+  }
+
+  // Handle OAuth callback (code exchange)
+  if (code) {
+    try {
       // Exchange the code for a session - this triggers setAll with session cookies
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
@@ -126,7 +206,7 @@ export async function GET(request: Request) {
         // since we JUST authenticated and cookies are fresh
         const redirectUrl = new URL(redirectPath, requestUrl.origin)
         redirectUrl.searchParams.set('auth_callback', 'true')
-        
+
         const response = NextResponse.redirect(redirectUrl)
 
         // CRITICAL: Set all session cookies on the redirect response
@@ -162,6 +242,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // No code present, redirect to sign in
+  // No code or token_hash present, redirect to sign in
   return NextResponse.redirect(new URL('/auth', requestUrl.origin))
 }
