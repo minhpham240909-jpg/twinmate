@@ -42,31 +42,48 @@ export default function MathRenderer({ content, className = '' }: MathRendererPr
 
 /**
  * Strip pre-rendered KaTeX HTML that AI might accidentally output
- * Converts HTML back to a placeholder or removes it entirely
- * This is a safety fallback - AI should output LaTeX source, not rendered HTML
+ * The AI should output LaTeX source code (e.g., $E = mc^2$), but sometimes
+ * it outputs pre-rendered KaTeX HTML alongside or instead of the LaTeX.
+ * This function removes all such HTML artifacts.
  */
 function stripPreRenderedKatex(text: string): string {
-  // Pattern to match pre-rendered KaTeX HTML blocks
-  // Matches: katex><span class=katex-mathml>...KATEX_END or similar patterns
-  // Also matches: <span class="katex">...</span> and <span class="katex-display">...</span>
+  let result = text
 
-  // Remove KATEX_SAFE...KATEX_END markers with KaTeX HTML inside
-  let result = text.replace(/KATEX_SAFE\s*<(?:span|div)[^>]*class="?katex[^>]*>[\s\S]*?KATEX_END/gi, '[equation]')
+  // Pattern 1: Remove "katex>...KATEX_END" blocks entirely
+  // The AI sometimes outputs LaTeX AND the rendered HTML, so we just remove the HTML
+  // Example: "$F = ma$ katex><span class=katex-mathml>...</span>KATEX_END"
+  result = result.replace(/katex>[\s\S]*?KATEX_END/gi, '')
 
-  // Remove standalone KaTeX HTML (without markers) - these are malformed AI outputs
-  // Match patterns like: katex><span class=katex-mathml>...</span></span>
-  result = result.replace(/katex>\s*<span[^>]*class="?katex-mathml[^>]*>[\s\S]*?<\/span>\s*<\/span>/gi, '[equation]')
+  // Pattern 2: Remove KATEX_SAFE...KATEX_END markers with any content inside
+  result = result.replace(/KATEX_SAFE[\s\S]*?KATEX_END/gi, '')
 
-  // Remove any remaining <span class="katex...">...</span> blocks
-  result = result.replace(/<span[^>]*class="?katex(?:-mathml|-html)?[^>]*>[\s\S]*?<\/span>/gi, '[equation]')
+  // Pattern 3: Remove any <span class="katex...">...</span> blocks (handle nested spans)
+  // Using a loop to handle nested structures
+  let prevResult = ''
+  while (prevResult !== result) {
+    prevResult = result
+    result = result.replace(/<span[^>]*class=["']?katex[^"']*["']?[^>]*>[\s\S]*?<\/span>/gi, '')
+  }
+
+  // Pattern 4: Remove <math xmlns=...>...</math> MathML blocks
+  result = result.replace(/<math[^>]*>[\s\S]*?<\/math>/gi, '')
+
+  // Pattern 5: Remove orphaned HTML tags that might be left over
+  result = result.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
+  result = result.replace(/<semantics[^>]*>[\s\S]*?<\/semantics>/gi, '')
+  result = result.replace(/<mrow[^>]*>[\s\S]*?<\/mrow>/gi, '')
 
   // Remove orphaned KATEX_SAFE and KATEX_END markers
   result = result.replace(/KATEX_SAFE|KATEX_END/g, '')
 
-  // Clean up multiple [equation] placeholders
-  result = result.replace(/\[equation\]\s*\[equation\]/g, '[equation]')
+  // Remove orphaned "katex>" without matching KATEX_END
+  result = result.replace(/katex>/gi, '')
 
-  return result
+  // Clean up: multiple spaces, leading/trailing whitespace
+  result = result.replace(/\s{2,}/g, ' ')
+  result = result.replace(/\s+([,.])/g, '$1') // Remove space before punctuation
+
+  return result.trim()
 }
 
 /**
