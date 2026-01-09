@@ -46,27 +46,35 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Also dismiss all active announcements
+      // Also dismiss all active announcements - OPTIMIZED: batch operation instead of N+1 loop
       const activeAnnouncements = await prisma.announcement.findMany({
         where: { status: 'ACTIVE' },
         select: { id: true }
       })
 
-      // Create dismissals for announcements not yet dismissed
-      for (const announcement of activeAnnouncements) {
-        await prisma.announcementDismissal.upsert({
+      if (activeAnnouncements.length > 0) {
+        // Get already dismissed announcements to avoid duplicates
+        const alreadyDismissed = await prisma.announcementDismissal.findMany({
           where: {
-            announcementId_userId: {
-              announcementId: announcement.id,
-              userId: user.id
-            }
+            userId: user.id,
+            announcementId: { in: activeAnnouncements.map(a => a.id) }
           },
-          update: {},
-          create: {
-            announcementId: announcement.id,
-            userId: user.id
-          }
+          select: { announcementId: true }
         })
+        const dismissedIds = new Set(alreadyDismissed.map(d => d.announcementId))
+
+        // Filter to only new dismissals needed
+        const newDismissals = activeAnnouncements
+          .filter(a => !dismissedIds.has(a.id))
+          .map(a => ({ announcementId: a.id, userId: user.id }))
+
+        // Batch create all dismissals in single query (no N+1)
+        if (newDismissals.length > 0) {
+          await prisma.announcementDismissal.createMany({
+            data: newDismissals,
+            skipDuplicates: true // Safety net for race conditions
+          })
+        }
       }
 
       return NextResponse.json({

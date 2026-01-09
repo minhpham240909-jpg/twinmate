@@ -84,26 +84,19 @@ export async function POST(request: NextRequest) {
       })
 
       if (existingAnnouncements.length > 0) {
-        // Create dismissal records for each announcement (skip duplicates)
-        for (const announcement of existingAnnouncements) {
-          try {
-            await prisma.announcementDismissal.create({
-              data: {
-                userId: user.id,
-                announcementId: announcement.id,
-              },
-            })
-            dismissedCount++
-          } catch (e: any) {
-            // Ignore unique constraint errors (already dismissed)
-            if (e?.code !== 'P2002') {
-              console.error('Error dismissing announcement:', e)
-            } else {
-              // Already dismissed, count it as success
-              dismissedCount++
-            }
-          }
-        }
+        // OPTIMIZED: Batch create dismissal records instead of N+1 loop
+        const dismissalData = existingAnnouncements.map(a => ({
+          userId: user.id,
+          announcementId: a.id,
+        }))
+
+        // Use createMany with skipDuplicates to handle already dismissed announcements
+        const result = await prisma.announcementDismissal.createMany({
+          data: dismissalData,
+          skipDuplicates: true, // Silently skip if already dismissed
+        })
+
+        dismissedCount = result.count
       }
     }
 
