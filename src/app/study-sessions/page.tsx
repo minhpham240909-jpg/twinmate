@@ -2,12 +2,13 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
 import SessionHistoryModal from '@/components/SessionHistoryModal'
 import { useTranslations } from 'next-intl'
 import PartnerAvatar from '@/components/PartnerAvatar'
+import { subscribeToSessionInvites } from '@/lib/supabase/realtime'
 
 interface Session {
   id: string
@@ -113,25 +114,51 @@ export default function StudySessionsPage() {
     fetchSessions()
   }, [user])
 
-  // Fetch pending invites
+  // Fetch pending invites - wrapped in useCallback for real-time subscription
+  const fetchPendingInvites = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const res = await fetch('/api/study-sessions/pending-invites')
+      const data = await res.json()
+
+      if (data.success) {
+        setPendingInvites(data.invites)
+      }
+    } catch (error) {
+      console.error('Error fetching pending invites:', error)
+    }
+  }, [user])
+
+  // Initial fetch of pending invites
+  useEffect(() => {
+    if (!user) return
+    fetchPendingInvites()
+  }, [user, fetchPendingInvites])
+
+  // FIX: Real-time subscription for new session invites
+  // This ensures invites appear immediately without page refresh
   useEffect(() => {
     if (!user) return
 
-    const fetchPendingInvites = async () => {
-      try {
-        const res = await fetch('/api/study-sessions/pending-invites')
-        const data = await res.json()
-
-        if (data.success) {
-          setPendingInvites(data.invites)
-        }
-      } catch (error) {
-        console.error('Error fetching pending invites:', error)
+    // Subscribe to real-time invite updates
+    const cleanup = subscribeToSessionInvites(
+      user.id,
+      () => {
+        // New invite received - refresh the invites list
+        console.log('[Study Sessions] New invite received - refreshing list')
+        toast.success(t('newInviteReceived'))
+        fetchPendingInvites()
+      },
+      () => {
+        // Invite status updated (accepted/declined) - refresh the list
+        console.log('[Study Sessions] Invite updated - refreshing list')
+        fetchPendingInvites()
       }
-    }
+    )
 
-    fetchPendingInvites()
-  }, [user])
+    return cleanup
+  }, [user, fetchPendingInvites, t])
 
   const handleAcceptInvite = async (sessionId: string) => {
     try {

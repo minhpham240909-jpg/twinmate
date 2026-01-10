@@ -744,6 +744,86 @@ export function subscribeToPresence(
 }
 
 /**
+ * Subscribe to study session invites for real-time updates
+ * Triggers callback when user receives new session invitations
+ * This ensures the invites list updates without requiring page refresh
+ */
+export function subscribeToSessionInvites(
+  userId: string,
+  onNewInvite: () => void,
+  onInviteUpdate?: () => void
+): () => void {
+  const supabase = createClient()
+  let isCleanedUp = false
+
+  const channel = supabase
+    .channel(`session-invites:${userId}`)
+    // Listen for new invitations (INSERT)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'SessionParticipant',
+        filter: `userId=eq.${userId}`,
+      },
+      (payload) => {
+        if (isCleanedUp) return
+        const newRecord = payload.new as { status?: string }
+        // Only trigger for INVITED status (new invitations)
+        if (newRecord.status === 'INVITED') {
+          console.log(`📨 [Session Invites] New invitation received for user: ${userId}`)
+          onNewInvite()
+        }
+      }
+    )
+    // Listen for invitation status changes (UPDATE - e.g., INVITED -> JOINED)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'SessionParticipant',
+        filter: `userId=eq.${userId}`,
+      },
+      () => {
+        if (isCleanedUp) return
+        console.log(`🔄 [Session Invites] Invitation updated for user: ${userId}`)
+        onInviteUpdate?.()
+      }
+    )
+    // Listen for invitation removals (DELETE)
+    .on(
+      'postgres_changes',
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'SessionParticipant',
+        filter: `userId=eq.${userId}`,
+      },
+      () => {
+        if (isCleanedUp) return
+        console.log(`🗑️ [Session Invites] Invitation removed for user: ${userId}`)
+        onInviteUpdate?.()
+      }
+    )
+    .subscribe((status) => {
+      if (isCleanedUp) return
+
+      if (status === 'SUBSCRIBED') {
+        console.log(`✅ Session invites channel subscribed for user: ${userId}`)
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error(`❌ Session invites channel error for user: ${userId}`)
+      }
+    })
+
+  return () => {
+    isCleanedUp = true
+    supabase.removeChannel(channel)
+  }
+}
+
+/**
  * H6 FIX: Subscribe to new messages for unread count updates
  * Listens to DM messages where user is the recipient and group messages
  * Includes polling fallback for reliability during brief disconnections

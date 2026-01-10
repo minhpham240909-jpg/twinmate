@@ -594,6 +594,7 @@
     "end": "Finalizar Sesión",
     "invitationDeclinedSuccess": "Invitación rechazada",
     "failedToDeclineInvitation": "Error al rechazar invitación",
+    "newInviteReceived": "¡Tienes una nueva invitación a sesión de estudio!",
     "invitationAccepted": "¡Invitación aceptada! Redirigiendo a la sesión...",
     "failedToAcceptInvitation": "Error al aceptar invitación",
     "confirmDeleteSession": "¿Estás seguro de que quieres eliminar permanentemente esta sesión de tu historial?",
