@@ -54,6 +54,17 @@ interface Session {
   goals: Goal[]
 }
 
+// Helper function to generate a hash code from a string (for matching Agora UID to userId)
+function hashCode(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return hash
+}
+
 export default function StudyCallPage() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
@@ -505,16 +516,31 @@ export default function StudyCallPage() {
                 </FadeIn>
 
                 {/* Remote users (actually connected via Agora) */}
-                {Array.from(remoteUsers.values()).map((remoteUser, index) => (
-                  <FadeIn key={remoteUser.uid} delay={0.2 + index * 0.1}>
-                    <VideoTile
-                      videoTrack={remoteUser.videoTrack}
-                      hasVideo={remoteUser.hasVideo}
-                      hasAudio={remoteUser.hasAudio}
-                      name={`User ${remoteUser.uid}`}
-                    />
-                  </FadeIn>
-                ))}
+                {Array.from(remoteUsers.values()).map((remoteUser, index) => {
+                  // FIX: Map Agora UID to actual participant name
+                  // Agora UID is a number, we need to find the matching participant
+                  const uidStr = String(remoteUser.uid)
+                  const matchedParticipant = session.participants.find(p =>
+                    // Try to match by partial userId (first 8 chars) since Agora UID might be derived from userId
+                    uidStr.includes(p.userId.substring(0, 8).replace(/-/g, '')) ||
+                    p.userId.includes(uidStr) ||
+                    // Also check if the UID matches any numeric hash of the userId
+                    Math.abs(hashCode(p.userId)) === Number(remoteUser.uid) ||
+                    Math.abs(hashCode(p.userId) % 1000000000) === Number(remoteUser.uid)
+                  )
+                  const displayName = matchedParticipant?.name || `Participant ${index + 1}`
+
+                  return (
+                    <FadeIn key={remoteUser.uid} delay={0.2 + index * 0.1}>
+                      <VideoTile
+                        videoTrack={remoteUser.videoTrack}
+                        hasVideo={remoteUser.hasVideo}
+                        hasAudio={remoteUser.hasAudio}
+                        name={displayName}
+                      />
+                    </FadeIn>
+                  )
+                })}
               </div>
             </FadeIn>
           )}

@@ -176,8 +176,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate UID if not provided
-    const userUid = uid || Math.floor(Math.random() * 100000)
+    // Generate UID from userId for consistent mapping
+    // This allows us to map Agora UID back to the actual user
+    // We use a hash of the userId to create a consistent numeric UID
+    const generateConsistentUid = (userId: string): number => {
+      let hash = 0
+      for (let i = 0; i < userId.length; i++) {
+        const char = userId.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+      }
+      // Ensure positive number and within Agora's UID range (0 to 2^32-1)
+      return Math.abs(hash) % 1000000000
+    }
+
+    const userUid = uid || generateConsistentUid(user.id)
 
     // Token expiration (24 hours)
     const expirationTimeInSeconds = 86400
