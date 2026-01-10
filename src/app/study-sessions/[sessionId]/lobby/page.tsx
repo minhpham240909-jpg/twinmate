@@ -175,10 +175,28 @@ export default function WaitingLobbyPage() {
   }, [session?.waitingExpiresAt, router])
 
   // Real-time: Listen for session status changes
+  // Also includes polling fallback in case realtime subscription fails
   useEffect(() => {
     if (!sessionId) return
 
     console.log('[Lobby RT] Setting up session status listener for:', sessionId)
+    let realtimeWorking = false
+    let pollInterval: NodeJS.Timeout | null = null
+
+    // Function to check session status via API
+    const checkSessionStatus = async () => {
+      try {
+        const res = await fetch(`/api/study-sessions/${sessionId}`)
+        const data = await res.json()
+        if (data.success && data.session?.status === 'ACTIVE') {
+          console.log('[Lobby RT] Polling detected session is ACTIVE - redirecting')
+          toast.success(t('sessionIsStarting'))
+          router.push(`/study-sessions/${sessionId}/call`)
+        }
+      } catch (error) {
+        console.error('[Lobby RT] Error checking session status:', error)
+      }
+    }
 
     const channel = supabase
       .channel(`lobby-status-${sessionId}`)
@@ -192,6 +210,7 @@ export default function WaitingLobbyPage() {
         },
         (payload) => {
           console.log('[Lobby RT] Session UPDATE received:', payload)
+          realtimeWorking = true
           const newStatus = (payload.new as { status?: string }).status
           if (newStatus === 'ACTIVE') {
             console.log('[Lobby RT] Session is now ACTIVE - redirecting to call page')
@@ -206,21 +225,40 @@ export default function WaitingLobbyPage() {
           console.log('[Lobby RT] Successfully subscribed to session status changes')
         }
         if (status === 'CHANNEL_ERROR') {
-          console.error('[Lobby RT] Failed to subscribe to session status - check if StudySession table is in supabase_realtime publication')
+          console.error('[Lobby RT] Failed to subscribe - starting polling fallback for session status')
+          // Start polling as fallback
+          if (!pollInterval) {
+            pollInterval = setInterval(checkSessionStatus, 3000) // Poll every 3 seconds
+          }
         }
       })
 
+    // FALLBACK: Start polling after 3 seconds if realtime hasn't received any events
+    const fallbackTimeout = setTimeout(() => {
+      if (!realtimeWorking && !pollInterval) {
+        console.log('[Lobby RT] No realtime events received - starting polling fallback for session status')
+        pollInterval = setInterval(checkSessionStatus, 3000) // Poll every 3 seconds
+      }
+    }, 3000)
+
     return () => {
       console.log('[Lobby RT] Cleaning up session status listener')
+      clearTimeout(fallbackTimeout)
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, router, t])
 
   // Real-time: Listen for participant changes (joins/leaves)
+  // Also includes polling fallback in case realtime subscription fails
   useEffect(() => {
     if (!sessionId) return
 
     console.log('[Lobby RT] Setting up participant listener for session:', sessionId)
+    let realtimeWorking = false
+    let pollInterval: NodeJS.Timeout | null = null
 
     const channel = supabase
       .channel(`lobby-participants-${sessionId}`)
@@ -234,6 +272,7 @@ export default function WaitingLobbyPage() {
         },
         (payload) => {
           console.log('[Lobby RT] Participant INSERT received:', payload)
+          realtimeWorking = true
           toast.success(t('someoneJoinedSession'))
           fetchSession() // Refresh to get new participant list
         }
@@ -248,6 +287,7 @@ export default function WaitingLobbyPage() {
         },
         (payload) => {
           console.log('[Lobby RT] Participant UPDATE received:', payload)
+          realtimeWorking = true
           fetchSession() // Refresh to get updated participant data
         }
       )
@@ -261,6 +301,7 @@ export default function WaitingLobbyPage() {
         },
         (payload) => {
           console.log('[Lobby RT] Participant DELETE received:', payload)
+          realtimeWorking = true
           toast('Someone left the session', { icon: '👋' })
           fetchSession() // Refresh to get updated participant list
         }
@@ -271,12 +312,34 @@ export default function WaitingLobbyPage() {
           console.log('[Lobby RT] Successfully subscribed to participant changes')
         }
         if (status === 'CHANNEL_ERROR') {
-          console.error('[Lobby RT] Failed to subscribe to participant changes - check if SessionParticipant table is in supabase_realtime publication')
+          console.error('[Lobby RT] Failed to subscribe - starting polling fallback')
+          // Start polling as fallback
+          if (!pollInterval) {
+            pollInterval = setInterval(() => {
+              console.log('[Lobby RT] Polling for participant changes...')
+              fetchSession()
+            }, 5000) // Poll every 5 seconds
+          }
         }
       })
 
+    // FALLBACK: Start polling after 3 seconds if realtime hasn't received any events
+    // This ensures the host sees updates even if realtime isn't working
+    const fallbackTimeout = setTimeout(() => {
+      if (!realtimeWorking && !pollInterval) {
+        console.log('[Lobby RT] No realtime events received - starting polling fallback')
+        pollInterval = setInterval(() => {
+          fetchSession()
+        }, 5000) // Poll every 5 seconds
+      }
+    }, 3000)
+
     return () => {
       console.log('[Lobby RT] Cleaning up participant listener')
+      clearTimeout(fallbackTimeout)
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, fetchSession, t])
