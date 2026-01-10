@@ -42,6 +42,7 @@ export async function POST() {
       },
       include: {
         members: {
+          take: 100, // Limit members to prevent unbounded queries
           where: {
             userId: { not: user.id }, // Exclude owner from notifications
           },

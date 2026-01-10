@@ -12,6 +12,7 @@ export async function GET() {
     }
 
     // Get pending invitations for the user
+    // SCALABILITY: Limit to prevent unbounded queries
     const pendingInvites = await prisma.sessionParticipant.findMany({
       where: {
         userId: user.id,
@@ -40,6 +41,7 @@ export async function GET() {
       orderBy: {
         createdAt: 'desc',
       },
+      take: 100,
     })
 
     // Get inviter details for each invitation (no more async/await needed!)

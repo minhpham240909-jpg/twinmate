@@ -124,6 +124,9 @@ export default function CallPage() {
       console.error('[CallPage] Error ending call:', err)
     }
 
+    // FIX: Dispatch event to refresh dashboard online partners immediately
+    window.dispatchEvent(new CustomEvent('call-ended'))
+    
     // Navigate back to chat
     router.push(`/chat?conversation=${conversationId}&type=${type}`)
   }, [messageId, conversationId, type, callType, router])

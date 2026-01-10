@@ -272,23 +272,34 @@ export default function AdminAIPartnerSessionDetailPage() {
           {user ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                {user.avatarUrl ? (
-                  <Image
-                    src={user.avatarUrl}
-                    alt={user.name || 'User'}
-                    width={48}
-                    height={48}
-                    className="rounded-full"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center">
-                    <span className="text-lg font-medium text-white">
-                      {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+                <Link
+                  href={`/admin/users/${user.id}`}
+                  className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                  title="View user profile"
+                >
+                  {user.avatarUrl ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt={user.name || 'User'}
+                      width={48}
+                      height={48}
+                      className="rounded-full ring-2 ring-transparent hover:ring-blue-500 transition-all"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center ring-2 ring-transparent hover:ring-blue-500 transition-all">
+                      <span className="text-lg font-medium text-white">
+                        {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </Link>
                 <div>
-                  <p className="font-medium text-white">{user.name || 'No name'}</p>
+                  <Link
+                    href={`/admin/users/${user.id}`}
+                    className="font-medium text-white hover:text-blue-400 transition-colors"
+                  >
+                    {user.name || 'No name'}
+                  </Link>
                   <p className="text-sm text-gray-400">{user.email}</p>
                 </div>
               </div>

@@ -40,6 +40,7 @@ export async function GET(request: Request) {
             createdAt: true,
             updatedAt: true,
             members: {
+              take: 100, // Limit members to prevent unbounded queries
               select: {
                 id: true,
                 userId: true,
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
       } as any,
       include: {
         members: {
+          take: 100, // Limit members to prevent unbounded queries
           select: {
             id: true,
             userId: true,

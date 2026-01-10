@@ -53,6 +53,50 @@ export function estimateTokenCount(text: string): number {
 }
 
 /**
+ * Sanitize AI response to remove any pre-rendered KaTeX/MathML HTML
+ * that the AI might accidentally output instead of LaTeX source code.
+ * This is a server-side defense-in-depth measure.
+ */
+export function sanitizeAIResponse(content: string): string {
+  if (!content) return content
+
+  let result = content
+
+  // Remove malformed KaTeX output (e.g., "math-display my-3><span class= katex-display >...")
+  result = result.replace(/math-display[^>]*>[\s\S]*?(?=\n\n|\$\$?|$)/gi, '')
+
+  // Remove <div class="math-display...">...</div> blocks
+  result = result.replace(/<div[^>]*class=["']?math-display[^"']*["']?[^>]*>[\s\S]*?<\/div>/gi, '')
+
+  // Remove <span class="katex...">...</span> blocks (including malformed with spaces)
+  let prevResult = ''
+  let iterations = 0
+  while (prevResult !== result && iterations < 30) {
+    prevResult = result
+    iterations++
+    result = result.replace(/<span[^>]*class=["']?katex[^"']*["']?[^>]*>[\s\S]*?<\/span>/gi, '')
+    result = result.replace(/<span[^>]*class=\s*katex[^>]*>[\s\S]*?<\/span>/gi, '')
+  }
+
+  // Remove malformed fragments like "katex-display >", "span class= katex >"
+  result = result.replace(/katex-(?:display|mathml|html|error)[^>]*>/gi, '')
+  result = result.replace(/span\s+class=\s*["']?katex[^>]*>/gi, '')
+  result = result.replace(/katex>/gi, '')
+
+  // Remove MathML elements
+  result = result.replace(/<math[^>]*>[\s\S]*?<\/math>/gi, '')
+  result = result.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
+  result = result.replace(/<semantics[^>]*>[\s\S]*?<\/semantics>/gi, '')
+  result = result.replace(/<m(?:row|i|o|n|sup|frac|sqrt)[^>]*>[\s\S]*?<\/m(?:row|i|o|n|sup|frac|sqrt)>/gi, '')
+
+  // Clean up extra whitespace
+  result = result.replace(/\s{3,}/g, ' ')
+  result = result.replace(/\n{3,}/g, '\n\n')
+
+  return result.trim()
+}
+
+/**
  * H7 FIX: Estimate total tokens for an array of messages
  */
 export function estimateMessagesTokenCount(messages: AIMessage[]): number {
@@ -623,26 +667,30 @@ export async function sendChatMessage(
     const choice = completion.choices[0]
     const usage = completion.usage
 
+    // Sanitize response to remove any pre-rendered KaTeX HTML the AI might output
+    const rawContent = choice?.message?.content || 'I apologize, but I could not generate a response. Please try again.'
+    const sanitizedContent = sanitizeAIResponse(rawContent)
+
     return {
-      content: choice?.message?.content || 'I apologize, but I could not generate a response. Please try again.',
+      content: sanitizedContent,
       promptTokens: usage?.prompt_tokens || 0,
       completionTokens: usage?.completion_tokens || 0,
       totalTokens: usage?.total_tokens || 0,
     }
   } catch (error) {
     console.error('[AI Partner] OpenAI chat error:', error)
-    
+
     // H7 FIX: Handle token limit errors specifically
     if (error instanceof Error && error.message.includes('maximum context length')) {
       console.error('[AI Partner] Token limit exceeded despite management, retrying with aggressive pruning')
-      
+
       // Aggressive retry: keep only last 5 messages
       const prunedMessages = messages.slice(-5)
       const systemMsg = messages.find(m => m.role === 'system')
       if (systemMsg && !prunedMessages.includes(systemMsg)) {
         prunedMessages.unshift(systemMsg)
       }
-      
+
       try {
         const retryCompletion = await openai.chat.completions.create({
           model,
@@ -652,9 +700,13 @@ export async function sendChatMessage(
           presence_penalty: 0.1,
           frequency_penalty: 0.1,
         })
-        
+
+        // Sanitize retry response too
+        const retryRawContent = retryCompletion.choices[0]?.message?.content || 'I apologize, but I could not generate a response.'
+        const retrySanitizedContent = sanitizeAIResponse(retryRawContent)
+
         return {
-          content: retryCompletion.choices[0]?.message?.content || 'I apologize, but I could not generate a response.',
+          content: retrySanitizedContent,
           promptTokens: retryCompletion.usage?.prompt_tokens || 0,
           completionTokens: retryCompletion.usage?.completion_tokens || 0,
           totalTokens: retryCompletion.usage?.total_tokens || 0,
@@ -1805,7 +1857,10 @@ export async function sendChatMessageStream(
       completionTokens = Math.ceil(fullContent.length / 4)
     }
 
-    callbacks.onComplete(fullContent, {
+    // Sanitize the complete content before storing/returning
+    const sanitizedContent = sanitizeAIResponse(fullContent)
+
+    callbacks.onComplete(sanitizedContent, {
       promptTokens,
       completionTokens,
       totalTokens: promptTokens + completionTokens,
@@ -2057,8 +2112,12 @@ CONVERSATION STYLE:
     const choice = completion.choices[0]
     const usage = completion.usage
 
+    // Sanitize response to remove any pre-rendered KaTeX HTML
+    const rawContent = choice?.message?.content || 'I can see your image, but I had trouble analyzing it. Could you provide more context or try uploading again?'
+    const sanitizedContent = sanitizeAIResponse(rawContent)
+
     return {
-      content: choice?.message?.content || 'I can see your image, but I had trouble analyzing it. Could you provide more context or try uploading again?',
+      content: sanitizedContent,
       promptTokens: usage?.prompt_tokens || 0,
       completionTokens: usage?.completion_tokens || 0,
       totalTokens: usage?.total_tokens || 0,

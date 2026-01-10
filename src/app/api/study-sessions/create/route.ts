@@ -90,19 +90,25 @@ export async function POST(request: NextRequest) {
     const inviteErrors: string[] = []
 
     if (inviteUserIds && Array.isArray(inviteUserIds) && inviteUserIds.length > 0) {
-      // Get all accepted partners for the current user
-      const acceptedMatches = await prisma.match.findMany({
-        where: {
-          OR: [
-            { senderId: user.id, status: 'ACCEPTED' },
-            { receiverId: user.id, status: 'ACCEPTED' }
-          ]
-        },
-        select: {
-          senderId: true,
-          receiverId: true
-        }
-      })
+      // SCALABILITY: Batch fetch accepted partners and inviter info in parallel
+      const [acceptedMatches, inviter] = await Promise.all([
+        prisma.match.findMany({
+          where: {
+            OR: [
+              { senderId: user.id, status: 'ACCEPTED' },
+              { receiverId: user.id, status: 'ACCEPTED' }
+            ]
+          },
+          select: {
+            senderId: true,
+            receiverId: true
+          }
+        }),
+        prisma.user.findUnique({
+          where: { id: user.id },
+          select: { name: true },
+        })
+      ])
 
       const acceptedPartnerIds = new Set(
         acceptedMatches.map(match =>
@@ -110,46 +116,47 @@ export async function POST(request: NextRequest) {
         )
       )
 
+      // Filter valid invitees first
+      const validInvitees: string[] = []
       for (const inviteeId of inviteUserIds) {
-        try {
-          // SECURITY: Verify invitee is an accepted partner
-          if (!acceptedPartnerIds.has(inviteeId)) {
-            inviteErrors.push(`User ${inviteeId}: Not an accepted partner`)
-            logger.warn('User attempted to invite non-partner to study session', { userId: user.id, inviteeId })
-            continue
-          }
+        if (!acceptedPartnerIds.has(inviteeId)) {
+          inviteErrors.push(`User ${inviteeId}: Not an accepted partner`)
+          logger.warn('User attempted to invite non-partner to study session', { userId: user.id, inviteeId })
+        } else {
+          validInvitees.push(inviteeId)
+        }
+      }
 
-          await prisma.sessionParticipant.create({
-            data: {
+      // SCALABILITY: Batch create participants and notifications
+      if (validInvitees.length > 0) {
+        try {
+          // Batch create all participants at once
+          await prisma.sessionParticipant.createMany({
+            data: validInvitees.map(inviteeId => ({
               sessionId: session.id,
               userId: inviteeId,
               role: 'PARTICIPANT',
               status: 'INVITED',
-            },
+            })),
+            skipDuplicates: true,
           })
 
-          // Get inviter info
-          const inviter = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { name: true },
-          })
-
-          // Create notification
-          await prisma.notification.create({
-            data: {
+          // Batch create all notifications at once
+          await prisma.notification.createMany({
+            data: validInvitees.map(inviteeId => ({
               userId: inviteeId,
               type: 'SESSION_INVITE',
               title: 'Study Session Invite',
               message: `${inviter?.name || 'Someone'} invited you to "${session.title}"`,
               actionUrl: `/study-sessions`,
               relatedUserId: user.id,
-            },
+            })),
           })
 
-          invitesSent++
+          invitesSent = validInvitees.length
         } catch (error) {
-          logger.error('Error inviting user to session', error instanceof Error ? error : { error, inviteeId })
-          inviteErrors.push(`User ${inviteeId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          logger.error('Error batch creating invites', error instanceof Error ? error : { error })
+          inviteErrors.push('Some invites may have failed')
         }
       }
     }

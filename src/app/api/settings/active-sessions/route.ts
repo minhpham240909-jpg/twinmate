@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all active device sessions for the user
+    // SCALABILITY: Limit to prevent unbounded queries
     const sessions = await prisma.deviceSession.findMany({
       where: {
         userId: user.id,
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         lastHeartbeatAt: 'desc',
       },
+      take: 50,
     })
 
     // Get current device ID from request headers or generate one

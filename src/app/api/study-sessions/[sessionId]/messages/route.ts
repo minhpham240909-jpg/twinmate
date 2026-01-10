@@ -239,7 +239,7 @@ export async function POST(
       sessionId
     )
 
-    // Create notifications for other participants (async, don't wait)
+    // Create notifications for other participants (async, don't wait) - bounded
     const otherParticipants = await prisma.sessionParticipant.findMany({
       where: {
         sessionId,
@@ -249,6 +249,7 @@ export async function POST(
       select: {
         userId: true,
       },
+      take: 100, // SCALABILITY: Limit to prevent unbounded notifications
     })
 
     // Create notifications in parallel (fire-and-forget with proper void operator)

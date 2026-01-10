@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { contentType, contentId, reportedUserId, type, description } = body
+    const { contentType, contentId, reportedUserId, type, types, description } = body
 
     // Validate required fields
-    if (!contentType || !contentId || !type) {
+    if (!contentType || !contentId || (!type && !types)) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields: contentType, contentId, type' },
         { status: 400 }
@@ -38,14 +38,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate report type
+    // Validate report type - handle both single type and multiple types (from frontend)
     const validTypes: ReportType[] = ['SPAM', 'HARASSMENT', 'INAPPROPRIATE_CONTENT', 'FAKE_ACCOUNT', 'SCAM', 'HATE_SPEECH', 'VIOLENCE', 'OTHER']
-    if (!validTypes.includes(type)) {
+
+    // Handle multiple types: use array if provided, otherwise parse comma-separated string
+    let reportTypes: string[] = []
+    if (Array.isArray(types) && types.length > 0) {
+      reportTypes = types
+    } else if (typeof type === 'string') {
+      reportTypes = type.includes(',') ? type.split(',').map(t => t.trim()) : [type]
+    }
+
+    // Validate all types
+    const invalidTypes = reportTypes.filter(t => !validTypes.includes(t as ReportType))
+    if (reportTypes.length === 0 || invalidTypes.length > 0) {
       return NextResponse.json(
         { success: false, error: 'Invalid report type' },
         { status: 400 }
       )
     }
+
+    // Use the first type as the primary type (database stores single type)
+    // Store all types in description for reference
+    const primaryType = reportTypes[0] as ReportType
 
     // SECURITY: Validate and sanitize description
     let sanitizedDescription: string | null = null
@@ -166,14 +181,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the report (use sanitized description)
+    // If multiple types were selected, append them to the description for reference
+    let finalDescription = sanitizedDescription
+    if (reportTypes.length > 1) {
+      const additionalTypes = reportTypes.slice(1).join(', ')
+      finalDescription = sanitizedDescription
+        ? `${sanitizedDescription}\n\n[Additional report reasons: ${additionalTypes}]`
+        : `[Report reasons: ${reportTypes.join(', ')}]`
+    }
+
     const report = await prisma.report.create({
       data: {
         reporterId: dbUser.id,
         reportedUserId: actualReportedUserId,
         contentType,
         contentId,
-        type: type as ReportType,
-        description: sanitizedDescription,
+        type: primaryType,
+        description: finalDescription,
       },
     })
 

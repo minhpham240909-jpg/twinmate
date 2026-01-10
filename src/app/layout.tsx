@@ -45,9 +45,44 @@ export const metadata: Metadata = {
     title: 'Clerva',
   },
   icons: {
-    icon: '/favicon.png',
+    // Primary favicon for all browsers
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    // Shortcut icon (legacy support)
     shortcut: '/favicon.png',
-    apple: '/icon-192.png',
+    // Apple touch icons for iOS
+    apple: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    // Additional icons for various contexts
+    other: [
+      { rel: 'mask-icon', url: '/favicon.png' },
+    ],
+  },
+  // Open Graph image for social sharing
+  openGraph: {
+    title: 'Clerva - Social Learning & Study Partners',
+    description: 'Find study partners, collaborate in real-time, and supercharge your learning',
+    siteName: 'Clerva',
+    images: [
+      {
+        url: '/icon-512.png',
+        width: 512,
+        height: 512,
+        alt: 'Clerva Logo',
+      },
+    ],
+    type: 'website',
+  },
+  // Twitter card
+  twitter: {
+    card: 'summary',
+    title: 'Clerva - Social Learning & Study Partners',
+    description: 'Find study partners, collaborate in real-time, and supercharge your learning',
+    images: ['/icon-512.png'],
   },
 };
 

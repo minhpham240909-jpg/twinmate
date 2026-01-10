@@ -39,11 +39,13 @@ export async function GET(
     }
 
     // Get all flashcards for this user in this session
+    // SCALABILITY: Limit to prevent unbounded queries
     const flashcards = await prisma.sessionFlashcard.findMany({
       where: {
         sessionId,
         userId: user.id,
       },
+      take: 1000,
     })
 
     const now = new Date()

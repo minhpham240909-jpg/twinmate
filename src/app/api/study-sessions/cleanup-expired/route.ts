@@ -8,6 +8,7 @@ export async function POST() {
     const now = new Date()
 
     // Find all expired waiting sessions
+    // SCALABILITY: Limit to prevent unbounded cleanup operations
     const expiredSessions = await prisma.studySession.findMany({
       where: {
         status: 'WAITING',
@@ -20,6 +21,7 @@ export async function POST() {
         title: true,
         waitingExpiresAt: true,
       },
+      take: 1000,
     })
 
     if (expiredSessions.length === 0) {

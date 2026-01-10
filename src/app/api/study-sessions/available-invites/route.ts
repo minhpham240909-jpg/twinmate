@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+// SCALABILITY: Bounds to prevent unbounded queries
+const MAX_PARTNERS = 100
+const MAX_GROUPS = 50
+const MAX_GROUP_MEMBERS = 200
+
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -11,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get active study partners (ACCEPTED matches)
+    // Get active study partners (ACCEPTED matches) - bounded
     const matches = await prisma.match.findMany({
       where: {
         OR: [
@@ -19,6 +24,7 @@ export async function GET() {
           { receiverId: user.id, status: 'ACCEPTED' },
         ],
       },
+      take: MAX_PARTNERS,
     })
 
     // Get user details for partners with presence status
@@ -53,15 +59,17 @@ export async function GET() {
       onlineStatus: p.presence?.status === 'online' ? 'ONLINE' : 'OFFLINE',
     }))
 
-    // Get all group IDs the user belongs to first (single query)
+    // Get all group IDs the user belongs to first (single query) - bounded
     const userGroupMemberships = await prisma.groupMember.findMany({
       where: { userId: user.id },
       select: { groupId: true },
+      take: MAX_GROUPS,
+      orderBy: { joinedAt: 'desc' },
     })
 
     const groupIds = userGroupMemberships.map(gm => gm.groupId)
 
-    // Get all members from those groups in a single query (excluding current user)
+    // Get all members from those groups in a single query (excluding current user) - bounded
     const allGroupMembers = groupIds.length > 0
       ? await prisma.groupMember.findMany({
           where: {
@@ -82,6 +90,7 @@ export async function GET() {
               },
             },
           },
+          take: MAX_GROUP_MEMBERS,
         })
       : []
 

@@ -580,7 +580,11 @@
     "postMovedToHistory": "Publicación movida al historial. Puedes restaurarla dentro de 30 días.",
     "failedToDeletePostAlert": "Error al eliminar publicación",
     "failedToSendConnectionRequest": "Error al enviar solicitud de conexión",
-    "userAlreadySentRequest": "¡Este usuario ya te envió una solicitud de conexión! Revisa tus notificaciones."
+    "userAlreadySentRequest": "¡Este usuario ya te envió una solicitud de conexión! Revisa tus notificaciones.",
+    "likedBy": "Le gusta a",
+    "noLikesYet": "Aún no hay me gustas",
+    "reportPost": "Reportar Publicación",
+    "reportComment": "Reportar Comentario"
   },
   "studySessions": {
     "title": "Sesiones de Estudio",
@@ -856,7 +860,9 @@
     "noMembers": "No se encontraron miembros",
     "owner": "Propietario",
     "admin": "Administrador",
-    "members": "Miembros"
+    "members": "Miembros",
+    "findMorePartners": "Buscar Más Compañeros",
+    "findMoreGroups": "Buscar Más Grupos"
   },
   "connections": {
     "title": "Solicitudes de Conexión",

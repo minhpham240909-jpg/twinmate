@@ -3,7 +3,8 @@
 import React from 'react'
 import { useAuth } from '@/lib/auth/context'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
 import { useVideoCall } from '@/lib/hooks/useVideoCall'
 import SessionChat from '@/components/SessionChat'
@@ -90,6 +91,10 @@ export default function StudyCallPage() {
     sharedBy: { id: string; name: string; avatarUrl?: string | null }
   } | null>(null)
   const [isSharingWhiteboard, setIsSharingWhiteboard] = useState(false)
+
+  // FIX: Use ref to store channel for reuse and prevent memory leaks
+  // This prevents creating new channel instances on every broadcast
+  const sharedNotesChannelRef = useRef<RealtimeChannel | null>(null)
 
   const fetchSession = useCallback(async () => {
     if (!user || !sessionId) return
@@ -284,17 +289,21 @@ export default function StudyCallPage() {
       })
       .subscribe()
 
+    // FIX: Store channel ref for reuse in handlers
+    sharedNotesChannelRef.current = channel
+
     return () => {
       supabase.removeChannel(channel)
+      sharedNotesChannelRef.current = null
     }
   }, [sessionId, user, supabase, sharedNotes?.sharedBy.id, sharedFlashcards?.sharedBy.id, sharedWhiteboard?.sharedBy.id])
 
-  // Handler: Share notes to all participants
+  // FIX: Handler: Share notes to all participants
+  // Uses channelRef to reuse existing channel instead of creating new ones (prevents memory leak)
   const handleShareNotes = useCallback(async (content: string, title: string) => {
-    if (!user || !profile) return
+    if (!user || !profile || !sharedNotesChannelRef.current) return
 
-    const channel = supabase.channel(`shared-notes-${sessionId}`)
-    await channel.send({
+    await sharedNotesChannelRef.current.send({
       type: 'broadcast',
       event: 'share-notes',
       payload: {
@@ -310,33 +319,31 @@ export default function StudyCallPage() {
 
     setIsSharingNotes(true)
     toast.success('Notes shared with all participants')
-  }, [user, profile, sessionId, supabase])
+  }, [user, profile])
 
-  // Handler: Stop sharing notes
+  // FIX: Handler: Stop sharing notes
   const handleStopSharingNotes = useCallback(async () => {
-    if (!user) return
+    if (!user || !sharedNotesChannelRef.current) return
 
-    const channel = supabase.channel(`shared-notes-${sessionId}`)
-    await channel.send({
+    await sharedNotesChannelRef.current.send({
       type: 'broadcast',
       event: 'stop-share-notes',
       payload: { userId: user.id },
     })
 
     setIsSharingNotes(false)
-  }, [user, sessionId, supabase])
+  }, [user])
 
-  // Handler: Share flashcards to all participants
+  // FIX: Handler: Share flashcards to all participants
   const handleShareFlashcards = useCallback(async (data: {
     flashcards: Array<{ id: string; front: string; back: string; difficulty: number; userId: string }>
     currentIndex: number
     isFlipped: boolean
     sharedBy: { id: string; name: string; avatarUrl?: string | null }
   }) => {
-    if (!user || !profile) return
+    if (!user || !profile || !sharedNotesChannelRef.current) return
 
-    const channel = supabase.channel(`shared-notes-${sessionId}`)
-    await channel.send({
+    await sharedNotesChannelRef.current.send({
       type: 'broadcast',
       event: 'share-flashcards',
       payload: {
@@ -350,31 +357,29 @@ export default function StudyCallPage() {
     })
 
     setIsSharingFlashcards(true)
-  }, [user, profile, sessionId, supabase])
+  }, [user, profile])
 
-  // Handler: Stop sharing flashcards
+  // FIX: Handler: Stop sharing flashcards
   const handleStopSharingFlashcards = useCallback(async () => {
-    if (!user) return
+    if (!user || !sharedNotesChannelRef.current) return
 
-    const channel = supabase.channel(`shared-notes-${sessionId}`)
-    await channel.send({
+    await sharedNotesChannelRef.current.send({
       type: 'broadcast',
       event: 'stop-share-flashcards',
       payload: { userId: user.id },
     })
 
     setIsSharingFlashcards(false)
-  }, [user, sessionId, supabase])
+  }, [user])
 
-  // Handler: Share whiteboard to all participants
+  // FIX: Handler: Share whiteboard to all participants
   const handleShareWhiteboard = useCallback(async (data: {
     imageData: string
     sharedBy: { id: string; name: string; avatarUrl?: string | null }
   }) => {
-    if (!user || !profile) return
+    if (!user || !profile || !sharedNotesChannelRef.current) return
 
-    const channel = supabase.channel(`shared-notes-${sessionId}`)
-    await channel.send({
+    await sharedNotesChannelRef.current.send({
       type: 'broadcast',
       event: 'share-whiteboard',
       payload: {
@@ -388,21 +393,20 @@ export default function StudyCallPage() {
     })
 
     setIsSharingWhiteboard(true)
-  }, [user, profile, sessionId, supabase])
+  }, [user, profile])
 
-  // Handler: Stop sharing whiteboard
+  // FIX: Handler: Stop sharing whiteboard
   const handleStopSharingWhiteboard = useCallback(async () => {
-    if (!user) return
+    if (!user || !sharedNotesChannelRef.current) return
 
-    const channel = supabase.channel(`shared-notes-${sessionId}`)
-    await channel.send({
+    await sharedNotesChannelRef.current.send({
       type: 'broadcast',
       event: 'stop-share-whiteboard',
       payload: { userId: user.id },
     })
 
     setIsSharingWhiteboard(false)
-  }, [user, sessionId, supabase])
+  }, [user])
 
   const handleEndCall = async () => {
     if (!confirm(t('confirmLeaveCall'))) return

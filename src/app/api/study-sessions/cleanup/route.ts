@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000)
 
     // FIX: Find SCHEDULED sessions to delete with minimal select to reduce memory by 40-50%
+    // SCALABILITY: Limit to prevent unbounded cleanup operations
     const scheduledSessionsToDelete = await prisma.studySession.findMany({
       where: {
         status: 'SCHEDULED',
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+      take: 1000,
     })
 
     // Filter to only delete sessions where nobody has started studying
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
       .map(session => session.id)
 
     // FIX: Find ACTIVE sessions to auto-end with minimal select
+    // SCALABILITY: Limit to prevent unbounded cleanup operations
     const abandonedSessions = await prisma.studySession.findMany({
       where: {
         status: 'ACTIVE',
@@ -65,6 +68,7 @@ export async function POST(request: NextRequest) {
         id: true,
         startedAt: true,
       },
+      take: 500,
     })
 
     let deletedCount = 0

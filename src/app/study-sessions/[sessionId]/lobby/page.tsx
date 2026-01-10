@@ -316,65 +316,60 @@ export default function WaitingLobbyPage() {
     }
   }, [sessionId])
 
-  // Real-time messages with fast polling for instant updates
+  // FIX: Real-time messages via Supabase with fallback polling
+  // REMOVED: 200ms polling that was creating 500 req/sec per session
+  // Now uses Supabase real-time as primary with 10s fallback polling
   useEffect(() => {
     if (!sessionId) return
 
     let isSubscribed = true
-    let pollingInterval: NodeJS.Timeout | null = null
-    let consecutiveErrors = 0
+    let fallbackPollingInterval: NodeJS.Timeout | null = null
+    // Store last known message time for efficient polling
+    const lastMessageTimeRef = { current: new Date(0).toISOString() }
 
-    // Fast polling (500ms) for instant message updates
-    const startFastPolling = () => {
-      if (pollingInterval) return
-
-      pollingInterval = setInterval(async () => {
-        if (!isSubscribed) return
-
-        try {
-          const lastMessageTime = messages.length > 0
-            ? new Date(messages[messages.length - 1].createdAt).toISOString()
-            : new Date(0).toISOString()
-
-          const res = await fetch(`/api/study-sessions/${sessionId}/messages?after=${encodeURIComponent(lastMessageTime)}`)
-          const data = await res.json()
-
-          // Reset error counter on success
-          consecutiveErrors = 0
-
-          if (data.success && data.messages && data.messages.length > 0) {
-            setMessages((prev) => {
-              const existingIds = new Set(prev.map(m => m.id))
-              const newMessages = data.messages
-                .filter((m: any) => !existingIds.has(m.id))
-                .map((m: any) => ({
-                  id: m.id,
-                  content: m.content,
-                  senderId: m.sender.id,
-                  senderName: m.sender.name,
-                  senderAvatar: m.sender.avatarUrl,
-                  createdAt: m.createdAt,
-                }))
-
-              return newMessages.length > 0 ? [...prev, ...newMessages] : prev
-            })
-          }
-        } catch (error) {
-          // Track consecutive errors but don't spam console
-          consecutiveErrors++
-          // Only log if we have multiple consecutive failures
-          if (consecutiveErrors >= 5) {
-            console.warn('Message polling experiencing issues:', error)
-            consecutiveErrors = 0 // Reset to avoid repeated warnings
-          }
-        }
-      }, 200) // 200ms for fast message updates
+    // Update last message time whenever messages change
+    if (messages.length > 0) {
+      lastMessageTimeRef.current = new Date(messages[messages.length - 1].createdAt).toISOString()
     }
 
-    // Start fast polling immediately
-    startFastPolling()
+    // Fallback polling function - only called at longer intervals (10s)
+    // This is a backup in case real-time fails, NOT the primary mechanism
+    const fetchNewMessages = async () => {
+      if (!isSubscribed) return
 
-    // Also try Supabase realtime as enhancement
+      try {
+        const res = await fetch(`/api/study-sessions/${sessionId}/messages?after=${encodeURIComponent(lastMessageTimeRef.current)}`)
+        const data = await res.json()
+
+        if (data.success && data.messages && data.messages.length > 0) {
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map(m => m.id))
+            const newMessages = data.messages
+              .filter((m: { id: string }) => !existingIds.has(m.id))
+              .map((m: { id: string; content: string; createdAt: string; sender: { id: string; name: string; avatarUrl: string | null } }) => ({
+                id: m.id,
+                content: m.content,
+                senderId: m.sender.id,
+                senderName: m.sender.name,
+                senderAvatar: m.sender.avatarUrl,
+                createdAt: m.createdAt,
+              }))
+
+            if (newMessages.length > 0) {
+              // Update last message time for next poll
+              lastMessageTimeRef.current = newMessages[newMessages.length - 1].createdAt
+              return [...prev, ...newMessages]
+            }
+            return prev
+          })
+        }
+      } catch (error) {
+        // Silent fail for fallback polling - real-time is primary
+        console.warn('[Lobby] Fallback polling error:', error)
+      }
+    }
+
+    // Primary: Supabase real-time subscription for instant updates
     const channel = supabase
       .channel(`lobby-messages-${sessionId}`)
       .on(
@@ -397,6 +392,9 @@ export default function WaitingLobbyPage() {
                 const exists = prev.some(m => m.id === data.message.id)
                 if (exists) return prev
 
+                // Update last message time
+                lastMessageTimeRef.current = data.message.createdAt
+
                 return [
                   ...prev,
                   {
@@ -415,14 +413,31 @@ export default function WaitingLobbyPage() {
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        // Log real-time connection status
+        if (status === 'SUBSCRIBED') {
+          console.log('[Lobby] Real-time connected')
+        }
+        
+        // If real-time fails, start slower fallback polling (10 seconds)
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          if (!fallbackPollingInterval) {
+            console.warn('[Lobby] Real-time failed, starting fallback polling')
+            fallbackPollingInterval = setInterval(fetchNewMessages, 10000) // 10s fallback
+          }
+        }
+      })
+
+    // Start very slow fallback polling (10s) as safety net
+    // This catches any messages that might be missed
+    fallbackPollingInterval = setInterval(fetchNewMessages, 10000)
 
     return () => {
       isSubscribed = false
       supabase.removeChannel(channel)
-      if (pollingInterval) clearInterval(pollingInterval)
+      if (fallbackPollingInterval) clearInterval(fallbackPollingInterval)
     }
-  }, [sessionId, supabase, messages])
+  }, [sessionId, supabase]) // FIX: Removed 'messages' dependency to prevent re-subscription on every message
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return

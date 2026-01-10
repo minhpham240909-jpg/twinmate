@@ -275,6 +275,8 @@ export default function SessionRoomPage() {
         setActiveSessionId(null)
         // Clear cached session data
         localStorage.removeItem(`session_${sessionId}`)
+        // FIX: Dispatch event to refresh dashboard online partners immediately
+        window.dispatchEvent(new CustomEvent('study-session-ended'))
         router.push('/study-sessions')
       } else {
         toast.error(data.error || t('failedToEndSession'))

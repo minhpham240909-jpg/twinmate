@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
     partnerIds.push(user.id) // Include user's own posts
 
     // Fetch posts with engagement counts
+    // FIX: Order by likes count DESC as a proxy for engagement
+    // This ensures we get posts with high engagement first, not just recent posts
     const posts = await prisma.post.findMany({
       where: {
         isDeleted: false, // Exclude soft-deleted posts
@@ -124,6 +126,14 @@ export async function GET(req: NextRequest) {
           },
         },
       },
+      // FIX: Order by engagement metrics to ensure we get popular posts first
+      // Primary: likes (most common engagement), Secondary: comments, Tertiary: reposts
+      // This prevents the bug where only recent posts were shown in popular tab
+      orderBy: [
+        { likes: { _count: 'desc' } },
+        { comments: { _count: 'desc' } },
+        { reposts: { _count: 'desc' } },
+      ],
       take: PAGINATION.POPULAR_POSTS_FETCH, // Get more to calculate scores
     })
 

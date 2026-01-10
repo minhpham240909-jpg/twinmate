@@ -4,6 +4,11 @@
 import { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from './client'
 import { RealtimeConnection, ConnectionStatus } from './realtime-client'
+import { 
+  checkRealtimeRateLimit, 
+  RealtimeRateLimitPresets,
+  createTypingIndicatorSender 
+} from './realtime-rate-limit'
 
 export type MessageHandler<T = Record<string, unknown>> = (payload: T) => void
 export type ConnectionStatusCallback = (status: ConnectionStatus) => void
@@ -496,6 +501,7 @@ export type TypingCallback = (typingUsers: TypingUser[]) => void
 /**
  * Subscribe to typing indicators in a DM conversation
  * Uses Supabase Broadcast for real-time ephemeral events
+ * FIX: Added rate limiting to prevent abuse
  */
 export function subscribeToTypingDM(
   myUserId: string,
@@ -522,6 +528,11 @@ export function subscribeToTypingDM(
       // Ignore own typing events
       if (userId === myUserId) return
 
+      // FIX: Rate limit incoming typing events to prevent spam
+      if (!checkRealtimeRateLimit(`${channelName}:incoming`, 'typing', RealtimeRateLimitPresets.typing)) {
+        return // Drop if rate limited
+      }
+
       if (isTyping) {
         // Clear existing timeout for this user
         const existing = typingUsers.get(userId)
@@ -549,8 +560,25 @@ export function subscribeToTypingDM(
     })
     .subscribe()
 
-  // Function to broadcast typing state
+  // FIX: Create rate-limited typing sender
+  const typingIndicator = createTypingIndicatorSender(
+    (isTyping) => {
+      channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: myUserId, isTyping, user: { id: myUserId, name: '' } }
+      })
+    },
+    RealtimeRateLimitPresets.typing
+  )
+
+  // Function to broadcast typing state (with rate limiting)
   const sendTyping = (isTyping: boolean, user: TypingUser) => {
+    // FIX: Apply rate limiting to outgoing typing events
+    if (!checkRealtimeRateLimit(channelName, 'typing', RealtimeRateLimitPresets.typing)) {
+      return // Drop if rate limited
+    }
+    
     channel.send({
       type: 'broadcast',
       event: 'typing',
@@ -563,6 +591,7 @@ export function subscribeToTypingDM(
     // Clear all timeouts
     typingUsers.forEach(({ timeout }) => clearTimeout(timeout))
     typingUsers.clear()
+    typingIndicator.cleanup()
     supabase.removeChannel(channel)
   }
 
@@ -572,6 +601,7 @@ export function subscribeToTypingDM(
 /**
  * Subscribe to typing indicators in a group conversation
  * Uses Supabase Broadcast for real-time ephemeral events
+ * FIX: Added rate limiting to prevent abuse
  */
 export function subscribeToTypingGroup(
   myUserId: string,
@@ -598,6 +628,11 @@ export function subscribeToTypingGroup(
       // Ignore own typing events
       if (userId === myUserId) return
 
+      // FIX: Rate limit incoming typing events to prevent spam
+      if (!checkRealtimeRateLimit(`${channelName}:incoming`, 'typing', RealtimeRateLimitPresets.typing)) {
+        return // Drop if rate limited
+      }
+
       if (isTyping) {
         // Clear existing timeout for this user
         const existing = typingUsers.get(userId)
@@ -625,8 +660,13 @@ export function subscribeToTypingGroup(
     })
     .subscribe()
 
-  // Function to broadcast typing state
+  // Function to broadcast typing state (with rate limiting)
   const sendTyping = (isTyping: boolean, user: TypingUser) => {
+    // FIX: Apply rate limiting to outgoing typing events
+    if (!checkRealtimeRateLimit(channelName, 'typing', RealtimeRateLimitPresets.typing)) {
+      return // Drop if rate limited
+    }
+    
     channel.send({
       type: 'broadcast',
       event: 'typing',

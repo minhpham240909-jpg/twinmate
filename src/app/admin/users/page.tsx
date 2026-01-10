@@ -45,11 +45,10 @@ interface UserData {
     type: string
     expiresAt: string | null
   } | null
-  _count: {
-    sentMessages: number
-    posts: number
-    groupMemberships: number
-    studySessions: number
+  _count?: {
+    sentMessages?: number
+    posts?: number
+    groupMemberships?: number
   }
 }
 
@@ -427,9 +426,9 @@ export default function AdminUsersPage() {
                       {/* Activity */}
                       <td className="px-6 py-4">
                         <div className="text-xs text-gray-400 space-y-0.5">
-                          <p>{user._count.sentMessages} messages</p>
-                          <p>{user._count.groupMemberships} groups</p>
-                          <p>{user._count.studySessions} sessions</p>
+                          <p>{user._count?.sentMessages ?? 0} messages</p>
+                          <p>{user._count?.posts ?? 0} posts</p>
+                          <p>{user._count?.groupMemberships ?? 0} groups</p>
                         </div>
                       </td>
 

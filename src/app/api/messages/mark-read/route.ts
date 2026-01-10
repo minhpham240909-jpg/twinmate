@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       })
     } else if (conversationType === 'group') {
       // Get all unread messages in this group that the user hasn't read
+      // SCALABILITY: Limit to prevent unbounded queries
       const unreadMessages = await prisma.message.findMany({
         where: {
           groupId: conversationId,
@@ -56,6 +57,10 @@ export async function POST(request: NextRequest) {
         },
         select: {
           id: true,
+        },
+        take: 1000,
+        orderBy: {
+          createdAt: 'desc',
         },
       })
 

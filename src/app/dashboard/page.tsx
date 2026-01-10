@@ -296,6 +296,77 @@ export default function DashboardPage() {
     }
   }, [user, loading])
 
+  // FIX: Refresh online partners function for event-based updates
+  // This ensures the dashboard updates immediately when sessions/calls end
+  const refreshOnlinePartners = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      const response = await fetch('/api/partners/active')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.partners) {
+          const online = data.partners
+            ?.filter((p: { onlineStatus: string }) => p.onlineStatus === 'ONLINE')
+            .map((p: { id: string; name: string; avatarUrl: string | null; onlineStatus: string }) => ({
+              id: p.id,
+              name: p.name,
+              avatarUrl: p.avatarUrl,
+              onlineStatus: p.onlineStatus
+            })) || []
+          setOnlinePartners(online)
+          
+          // Update cache
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing online partners:', error)
+    }
+  }, [user])
+
+  // FIX: Listen for session/call end events to refresh online partners immediately
+  // This improves UX by updating the partner list as soon as a session ends
+  useEffect(() => {
+    if (!user) return
+
+    // Handler for session/call end events
+    const handleSessionEnd = () => {
+      // Small delay to allow presence updates to propagate
+      setTimeout(() => {
+        refreshOnlinePartners()
+      }, 1000)
+    }
+
+    // Listen for various session/call end events
+    window.addEventListener('ai-partner-session-ended', handleSessionEnd)
+    window.addEventListener('study-session-ended', handleSessionEnd)
+    window.addEventListener('call-ended', handleSessionEnd)
+
+    return () => {
+      window.removeEventListener('ai-partner-session-ended', handleSessionEnd)
+      window.removeEventListener('study-session-ended', handleSessionEnd)
+      window.removeEventListener('call-ended', handleSessionEnd)
+    }
+  }, [user, refreshOnlinePartners])
+
+  // FIX: More frequent polling for online partners (30 seconds)
+  // This ensures online status updates quickly without waiting for full 60s dashboard refresh
+  useEffect(() => {
+    if (!user) return
+
+    // Poll online partners more frequently for responsive online status
+    const onlinePartnersInterval = setInterval(() => {
+      refreshOnlinePartners()
+    }, 30000) // 30 seconds - faster than main dashboard poll
+
+    return () => {
+      clearInterval(onlinePartnersInterval)
+    }
+  }, [user, refreshOnlinePartners])
+
   // Fetch user's group IDs for real-time subscription
   useEffect(() => {
     if (!user) return

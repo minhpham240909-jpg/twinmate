@@ -70,6 +70,7 @@ export async function GET(
           group: {
             include: {
               members: {
+                take: 100, // Limit members to prevent unbounded queries
                 include: {
                   user: {
                     select: {

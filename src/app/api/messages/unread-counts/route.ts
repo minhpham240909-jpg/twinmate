@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+// SCALABILITY: Limit groups to check to prevent unbounded queries
+const MAX_GROUPS_TO_CHECK = 100
+
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -13,50 +16,62 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get unread partner (DM) conversations count
-    const unreadPartnerConversations = await prisma.message.groupBy({
-      by: ['senderId'],
-      where: {
-        recipientId: user.id,
-        groupId: null, // DMs only
-        isRead: false,
-        isDeleted: false,
-      },
-      _count: {
-        senderId: true,
-      },
-    })
+    // SCALABILITY: Run both queries in parallel for faster response
+    const [unreadPartnerConversations, userGroups] = await Promise.all([
+      // Get unread partner (DM) conversations count
+      prisma.message.groupBy({
+        by: ['senderId'],
+        where: {
+          recipientId: user.id,
+          groupId: null, // DMs only
+          isRead: false,
+          isDeleted: false,
+        },
+        _count: {
+          senderId: true,
+        },
+      }),
+      // Get all groups the user is a member of (bounded)
+      prisma.groupMember.findMany({
+        where: {
+          userId: user.id,
+        },
+        select: {
+          groupId: true,
+        },
+        take: MAX_GROUPS_TO_CHECK,
+        orderBy: {
+          joinedAt: 'desc',
+        },
+      }),
+    ])
 
     const partnerCount = unreadPartnerConversations.length
-
-    // Get unread group conversations count
-    // First, get all groups the user is a member of
-    const userGroups = await prisma.groupMember.findMany({
-      where: {
-        userId: user.id,
-      },
-      select: {
-        groupId: true,
-      },
-    })
-
     const groupIds = userGroups.map((gm) => gm.groupId)
 
-    // Get unread group messages (messages not in MessageReadStatus for this user)
+    // Early return if user has no groups
+    if (groupIds.length === 0) {
+      return NextResponse.json({
+        total: partnerCount,
+        partner: partnerCount,
+        group: 0,
+      })
+    }
+
+    // SCALABILITY: Optimized query using LEFT JOIN instead of NOT EXISTS
+    // This performs better with proper indexes and avoids correlated subquery
     const unreadGroupConversations = await prisma.$queryRaw<
       Array<{ groupId: string }>
     >`
       SELECT DISTINCT m."groupId"
       FROM "Message" m
+      LEFT JOIN "message_read_status" mrs
+        ON mrs."messageId" = m.id AND mrs."userId" = ${user.id}
       WHERE m."groupId" = ANY(${groupIds}::text[])
         AND m."senderId" != ${user.id}
         AND m."isDeleted" = false
-        AND NOT EXISTS (
-          SELECT 1
-          FROM "message_read_status" mrs
-          WHERE mrs."messageId" = m.id
-            AND mrs."userId" = ${user.id}
-        )
+        AND mrs."messageId" IS NULL
+      LIMIT 100
     `
 
     const groupCount = unreadGroupConversations.length

@@ -84,12 +84,14 @@ export async function GET(
     }
 
     // Get flashcards for this user in this session
+    // SCALABILITY: Limit to prevent unbounded queries
     const flashcards = await prisma.sessionFlashcard.findMany({
       where,
       orderBy: [
         { nextReviewDate: 'asc' },
         { createdAt: 'desc' },
       ],
+      take: 500,
     })
 
     return NextResponse.json({

@@ -365,8 +365,29 @@ export async function invalidateCache(pattern: string): Promise<void> {
 // Key -> Promise that resolves when the request completes
 const inFlightRequests = new Map<string, Promise<unknown>>()
 
+// SCALABILITY: Maximum in-flight requests to prevent memory bloat under high load
+const MAX_IN_FLIGHT_REQUESTS = 5000
+
 // Lock TTL for distributed locking (in seconds)
 const LOCK_TTL = 10
+
+/**
+ * SCALABILITY: Enforce bounds on in-flight requests map
+ * Prevents memory issues under high concurrency (3000+ users)
+ */
+function enforceInFlightBounds(): void {
+  if (inFlightRequests.size > MAX_IN_FLIGHT_REQUESTS) {
+    // Remove oldest entries (first added = first in map iteration)
+    const entriesToRemove = inFlightRequests.size - MAX_IN_FLIGHT_REQUESTS + 100 // Remove 100 extra for buffer
+    let removed = 0
+    for (const key of inFlightRequests.keys()) {
+      if (removed >= entriesToRemove) break
+      inFlightRequests.delete(key)
+      removed++
+    }
+    console.warn(`[Cache] Pruned ${removed} in-flight requests (was at ${inFlightRequests.size + removed})`)
+  }
+}
 
 /**
  * Acquire a distributed lock using Redis SETNX
@@ -475,6 +496,9 @@ export async function getOrSetCached<T>(
 
   // Store the promise for other concurrent requests
   inFlightRequests.set(key, fetchPromise)
+
+  // SCALABILITY: Enforce bounds to prevent memory bloat
+  enforceInFlightBounds()
 
   return fetchPromise
 }

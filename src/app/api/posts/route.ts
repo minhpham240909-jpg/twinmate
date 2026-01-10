@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
-import { PAGINATION, CONTENT_LIMITS, ENGAGEMENT_WEIGHTS } from '@/lib/constants'
+import { PAGINATION, CONTENT_LIMITS, ENGAGEMENT_WEIGHTS, UPLOAD_LIMITS } from '@/lib/constants'
 import { validatePaginationLimit, validateContent } from '@/lib/validation'
+import { moderateContent, flagContent } from '@/lib/moderation/content-moderator'
 
 // GET /api/posts - Get feed posts
 export async function GET(req: NextRequest) {
@@ -20,6 +21,10 @@ export async function GET(req: NextRequest) {
     const cursor = searchParams.get('cursor') // Format: "createdAt_id" or just "id" for backwards compat
     const limit = validatePaginationLimit(searchParams.get('limit'), PAGINATION.POSTS_LIMIT)
     
+    // FIX: Add sort parameter to force chronological sorting for "Recent" tab
+    // This ensures the Recent tab always shows latest posts by date, not engagement
+    const sortParam = searchParams.get('sort') // 'recent' | 'recommended' | 'trending'
+    
     // H11 FIX: Parse stable cursor
     let cursorId: string | null = null
     let cursorCreatedAt: Date | null = null
@@ -34,22 +39,36 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Get user's profile and settings
-    const [profile, settings] = await Promise.all([
-      prisma.profile.findUnique({
-        where: { userId: user.id },
-      }),
-      prisma.userSettings.findUnique({
-        where: { userId: user.id },
-      }),
-    ])
+    // PERF: Only fetch profile and settings if needed (not for 'recent' sort)
+    // For 'recent' sort, we don't need the user's feed algorithm preference
+    let feedAlgorithm: string = 'CHRONOLOGICAL'
+    
+    if (sortParam === 'recent') {
+      // Explicit recent sort - always chronological, skip settings fetch
+      feedAlgorithm = 'CHRONOLOGICAL'
+    } else if (sortParam === 'trending') {
+      feedAlgorithm = 'TRENDING'
+    } else if (sortParam === 'recommended') {
+      feedAlgorithm = 'RECOMMENDED'
+    } else {
+      // No explicit sort - use user's preference (requires settings fetch)
+      const [profile, settings] = await Promise.all([
+        prisma.profile.findUnique({
+          where: { userId: user.id },
+          select: { userId: true }, // Only need to check existence
+        }),
+        prisma.userSettings.findUnique({
+          where: { userId: user.id },
+          select: { feedAlgorithm: true }, // Only fetch what we need
+        }),
+      ])
 
-    if (!profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+      if (!profile) {
+        return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+      }
+
+      feedAlgorithm = settings?.feedAlgorithm || 'RECOMMENDED'
     }
-
-    // Get feed algorithm preference (default: RECOMMENDED)
-    const feedAlgorithm = settings?.feedAlgorithm || 'RECOMMENDED'
 
     // PERF: Get ALL user connections in one query (avoid duplicate match query later)
     // This query includes both ACCEPTED (for partner posts) and PENDING (for connection status)
@@ -353,6 +372,35 @@ export async function POST(req: NextRequest) {
     const hasLink = postUrl && typeof postUrl === 'string' && postUrl.trim().length > 0
     const hasContent = content && typeof content === 'string' && content.trim().length > 0
 
+    // FIX: Validate image array to prevent unbounded growth
+    // This prevents memory issues and potential abuse with large arrays
+    if (hasImages) {
+      // Limit number of images
+      if (imageUrls.length > UPLOAD_LIMITS.MAX_POST_IMAGES) {
+        return NextResponse.json(
+          { error: `Maximum ${UPLOAD_LIMITS.MAX_POST_IMAGES} images allowed per post` },
+          { status: 400 }
+        )
+      }
+      
+      // Validate each URL is a non-empty string and reasonable length
+      const MAX_URL_LENGTH = 2048 // Standard URL length limit
+      for (const url of imageUrls) {
+        if (typeof url !== 'string' || url.trim().length === 0) {
+          return NextResponse.json(
+            { error: 'Invalid image URL format' },
+            { status: 400 }
+          )
+        }
+        if (url.length > MAX_URL_LENGTH) {
+          return NextResponse.json(
+            { error: 'Image URL exceeds maximum length' },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // Must have at least one of: content, images, or link
     if (!hasContent && !hasImages && !hasLink) {
       return NextResponse.json(
@@ -369,6 +417,69 @@ export async function POST(req: NextRequest) {
           { error: contentValidation.error },
           { status: 400 }
         )
+      }
+    }
+
+    // CONTENT MODERATION: Check content, images URLs, and links for inappropriate content
+    // Combine all text content for moderation
+    const contentToModerate = [
+      hasContent ? content.trim() : '',
+      hasLink ? postUrl.trim() : '',
+      hasImages ? imageUrls.join(' ') : '',
+    ].filter(Boolean).join(' ')
+
+    if (contentToModerate.length > 0) {
+      const moderationResult = await moderateContent(contentToModerate, 'post')
+
+      // Block if content is dangerous, inappropriate, or harmful
+      if (moderationResult.action === 'block') {
+        // Get user info for logging
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { name: true, email: true },
+        })
+
+        // Flag the content for admin review
+        await flagContent({
+          contentType: 'post',
+          contentId: `pending-${Date.now()}`, // Temporary ID since post wasn't created
+          content: contentToModerate,
+          senderId: user.id,
+          senderEmail: dbUser?.email,
+          senderName: dbUser?.name,
+          moderationResult,
+        })
+
+        // Return user-friendly error based on category
+        const categoryMessages: Record<string, string> = {
+          harassment: 'Your post contains content that may be harmful to others. Please revise and try again.',
+          hate_speech: 'Your post contains content that violates our community guidelines. Please revise and try again.',
+          violence: 'Your post contains content that promotes violence. This is not allowed.',
+          sexual_content: 'Your post contains inappropriate content. Please keep posts safe for all users.',
+          self_harm: 'Your post contains concerning content. If you need support, please reach out to a trusted person or helpline.',
+          dangerous: 'Your post contains potentially dangerous content. Please revise and try again.',
+          spam: 'Your post appears to be spam. Please share genuine, meaningful content.',
+          illegal: 'Your post may contain content related to illegal activities. This is not allowed.',
+        }
+
+        const primaryCategory = moderationResult.categories.find(c => c !== 'safe') || 'dangerous'
+        const errorMessage = categoryMessages[primaryCategory] || 'Your post contains content that violates our community guidelines. Please revise and try again.'
+
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            code: 'CONTENT_MODERATION_BLOCKED',
+            category: primaryCategory,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Flag for review but allow posting (suspicious but not blocked)
+      if (moderationResult.action === 'flag' || moderationResult.action === 'escalate') {
+        // We'll flag the post after creation (below)
+        // Store the moderation result for later
+        (req as any).__moderationResult = moderationResult
       }
     }
 
@@ -416,6 +527,25 @@ export async function POST(req: NextRequest) {
         },
       },
     })
+
+    // If content was flagged for review (but not blocked), flag the created post
+    const moderationResult = (req as any).__moderationResult
+    if (moderationResult && (moderationResult.action === 'flag' || moderationResult.action === 'escalate')) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { name: true, email: true },
+      })
+
+      await flagContent({
+        contentType: 'post',
+        contentId: post.id,
+        content: finalContent,
+        senderId: user.id,
+        senderEmail: dbUser?.email,
+        senderName: dbUser?.name,
+        moderationResult,
+      })
+    }
 
     return NextResponse.json({ success: true, post }, { status: 201 })
   } catch (error) {

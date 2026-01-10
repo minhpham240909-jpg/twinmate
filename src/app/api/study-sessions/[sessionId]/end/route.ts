@@ -111,12 +111,14 @@ export async function POST(
       */
 
       // 4. Send completion notifications to participants
+      // SCALABILITY: Limit to prevent unbounded notifications
       const sessionParticipants = await tx.sessionParticipant.findMany({
         where: {
           sessionId,
           userId: { not: user.id },
         },
         select: { userId: true },
+        take: 100,
       })
 
       if (sessionParticipants.length > 0) {

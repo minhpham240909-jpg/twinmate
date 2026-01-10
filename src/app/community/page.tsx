@@ -202,7 +202,9 @@ export default function CommunityPage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('/api/posts')
+      // FIX: Add sort=recent to always get posts by latest date for Recent tab
+      // This ensures Recent tab shows chronological posts, not engagement-sorted
+      const response = await fetch('/api/posts?sort=recent')
       if (response.ok) {
         const data = await response.json()
         setPosts(data.posts)

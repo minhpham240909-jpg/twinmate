@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       where: { id: groupId },
       include: {
         members: {
+          take: 100, // Limit members to prevent unbounded queries
           include: {
             user: {
               select: {

@@ -30,35 +30,53 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get all notifications for user
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: user.id
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: PAGINATION.NOTIFICATIONS_LIMIT
-    })
-
-    // Try to get announcements (may fail if tables don't exist yet)
-    let announcementNotifications: any[] = []
-    try {
+    // FIX: Use Promise.all to parallelize independent queries
+    // This reduces response time from sequential (sum of all queries) to parallel (max of slowest query)
+    
+    // First batch: Get notifications, user subscription status, and dismissed announcements in parallel
+    const [notifications, userData, dismissedAnnouncementIds, regularUnreadCount] = await Promise.all([
+      // Get all notifications for user
+      prisma.notification.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: PAGINATION.NOTIFICATIONS_LIMIT
+      }),
       // Get user's subscription status for targeted announcements
-      const userData = await prisma.user.findUnique({
+      prisma.user.findUnique({
         where: { id: user.id },
         select: { subscriptionStatus: true }
-      })
-      // Determine user tier: PREMIUM if they have an active subscription, otherwise FREE
-      const userTier = userData?.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE'
-
-      // Get active announcements that user hasn't dismissed
-      const dismissedAnnouncementIds = await prisma.announcementDismissal.findMany({
+      }),
+      // Get dismissed announcement IDs
+      prisma.announcementDismissal.findMany({
         where: { userId: user.id },
         select: { announcementId: true }
+      }).catch(() => [] as { announcementId: string }[]), // Graceful fallback if table doesn't exist
+      // Get unread count in parallel
+      prisma.notification.count({
+        where: { userId: user.id, isRead: false }
       })
-      const dismissedIds = dismissedAnnouncementIds.map(d => d.announcementId)
+    ])
 
+    // Determine user tier
+    const userTier = userData?.subscriptionStatus === 'active' ? 'PREMIUM' : 'FREE'
+    const dismissedIds = dismissedAnnouncementIds.map(d => d.announcementId)
+
+    // Try to get announcements (may fail if tables don't exist yet)
+    let announcementNotifications: Array<{
+      id: string
+      type: string
+      title: string
+      message: string
+      isRead: boolean
+      actionUrl: null
+      relatedUserId: null
+      relatedMatchId: null
+      createdAt: string
+      priority: string
+      announcementId: string
+    }> = []
+    
+    try {
       // Fetch announcements that match targeting criteria
       const activeAnnouncements = await prisma.announcement.findMany({
         where: {
@@ -133,16 +151,11 @@ export async function GET(request: NextRequest) {
 
     const uniqueUserIds = [...new Set(relatedUserIds)]
 
+    // Only query if there are related users (avoid unnecessary DB call)
     const relatedUsers = uniqueUserIds.length > 0
       ? await prisma.user.findMany({
-          where: {
-            id: { in: uniqueUserIds }
-          },
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-          },
+          where: { id: { in: uniqueUserIds } },
+          select: { id: true, name: true, avatarUrl: true },
         })
       : []
 
@@ -158,13 +171,7 @@ export async function GET(request: NextRequest) {
     // Combine announcements with regular notifications, announcements first (they're important)
     const allNotifications = [...announcementNotifications, ...notificationsWithUsers]
 
-    // Get unread count (regular notifications + active announcements)
-    const regularUnreadCount = await prisma.notification.count({
-      where: {
-        userId: user.id,
-        isRead: false
-      }
-    })
+    // Calculate total unread count (already fetched in parallel)
     const unreadCount = regularUnreadCount + announcementNotifications.length
 
     return NextResponse.json({

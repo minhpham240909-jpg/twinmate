@@ -661,25 +661,34 @@ export default function UserBehaviorAnalyticsPage() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        {activity.user?.avatarUrl ? (
-                          <Image
-                            src={activity.user.avatarUrl}
-                            alt={activity.user.name}
-                            width={36}
-                            height={36}
-                            className="rounded-full"
-                          />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                            <span className="text-sm font-bold text-white">
-                              {activity.user?.name?.charAt(0) || '?'}
-                            </span>
-                          </div>
-                        )}
+                        <button
+                          onClick={() => router.push(`/admin/users/${activity.userId}`)}
+                          className="flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+                          title="View user profile"
+                        >
+                          {activity.user?.avatarUrl ? (
+                            <Image
+                              src={activity.user.avatarUrl}
+                              alt={activity.user.name}
+                              width={36}
+                              height={36}
+                              className="rounded-full ring-2 ring-transparent hover:ring-blue-500 transition-all"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center ring-2 ring-transparent hover:ring-blue-400 transition-all">
+                              <span className="text-sm font-bold text-white">
+                                {activity.user?.name?.charAt(0) || '?'}
+                              </span>
+                            </div>
+                          )}
+                        </button>
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
+                          <button
+                            onClick={() => router.push(`/admin/users/${activity.userId}`)}
+                            className="font-medium text-gray-900 dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors cursor-pointer text-left"
+                          >
                             {activity.user?.name || 'Unknown User'}
-                          </p>
+                          </button>
                           <p className="text-xs text-gray-500 dark:text-slate-400">
                             {activity.user?.email || activity.userId}
                           </p>

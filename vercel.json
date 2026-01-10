@@ -4,14 +4,60 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/ai-partner/**/*.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/admin/**/*.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/study-sessions/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
   "crons": [
+    {
+      "path": "/api/cron/warmup",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-sessions",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-presence",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-expired-bans",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-analytics",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/aggregate-stats",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-notifications",
+      "schedule": "0 4 * * *"
+    },
     {
       "path": "/api/study-sessions/cleanup",
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/cleanup-presence",
-      "schedule": "0 1 * * *"
+      "path": "/api/study-sessions/cleanup-expired",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/posts/cleanup-deleted",
+      "schedule": "0 6 * * *"
     }
   ]
 }

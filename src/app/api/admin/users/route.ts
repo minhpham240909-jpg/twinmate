@@ -83,6 +83,14 @@ export async function GET(request: NextRequest) {
           deactivatedAt: true,
           deactivationReason: true,
           twoFactorEnabled: true,
+          // Include counts for activity display (efficient single query with _count)
+          _count: {
+            select: {
+              sentMessages: true,
+              posts: true,
+              groupMemberships: true,
+            },
+          },
         },
         orderBy: { [sortBy]: sortOrder },
         skip: (page - 1) * limit,

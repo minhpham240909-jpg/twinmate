@@ -584,7 +584,9 @@
     "failedToSendConnectionRequest": "Failed to send connection request",
     "userAlreadySentRequest": "This user has already sent you a connection request! Check your notifications.",
     "likedBy": "Liked by",
-    "noLikesYet": "No likes yet"
+    "noLikesYet": "No likes yet",
+    "reportPost": "Report Post",
+    "reportComment": "Report Comment"
   },
   "studySessions": {
     "title": "Study Sessions",
@@ -863,7 +865,9 @@
     "noMembers": "No members found",
     "owner": "Owner",
     "admin": "Admin",
-    "members": "Members"
+    "members": "Members",
+    "findMorePartners": "Find More Partners",
+    "findMoreGroups": "Find More Groups"
   },
   "connections": {
     "title": "Connection Requests",

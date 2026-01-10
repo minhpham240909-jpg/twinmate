@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
 
         const [countsResult, dailyStats] = await Promise.all([
           // Single query with multiple counts using UNION ALL
+          // Note: Use actual PostgreSQL table names (from @@map), not Prisma model names
           prisma.$queryRaw<CountResult>`
             SELECT 'totalUsers' as name, COUNT(*)::bigint as count FROM "User"
             UNION ALL
@@ -91,9 +92,9 @@ export async function GET(request: NextRequest) {
             UNION ALL
             SELECT 'onlineUsersNow', COUNT(*)::bigint FROM "user_presence" WHERE status = 'online' AND "lastSeenAt" >= ${onlineThreshold}
             UNION ALL
-            SELECT 'totalSessions', COUNT(*)::bigint FROM "UserSessionAnalytics" WHERE "startedAt" >= ${startDate}
+            SELECT 'totalSessions', COUNT(*)::bigint FROM "user_session_analytics" WHERE "startedAt" >= ${startDate}
             UNION ALL
-            SELECT 'totalPageViews', COUNT(*)::bigint FROM "UserPageVisit" WHERE "createdAt" >= ${startDate}
+            SELECT 'totalPageViews', COUNT(*)::bigint FROM "user_page_visits" WHERE "createdAt" >= ${startDate}
             UNION ALL
             SELECT 'totalMessages', COUNT(*)::bigint FROM "Message" WHERE "createdAt" >= ${startDate}
             UNION ALL
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
             UNION ALL
             SELECT 'totalConnections', COUNT(*)::bigint FROM "Match" WHERE status = 'ACCEPTED' AND "updatedAt" >= ${startDate}
             UNION ALL
-            SELECT 'suspiciousActivities', COUNT(*)::bigint FROM "SuspiciousActivityLog" WHERE "createdAt" >= ${startDate} AND "isReviewed" = false
+            SELECT 'suspiciousActivities', COUNT(*)::bigint FROM "suspicious_activity_logs" WHERE "createdAt" >= ${startDate} AND "isReviewed" = false
           `,
 
           // Daily stats for chart (kept separate as it returns multiple rows)
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
         // Get active users count (requires DISTINCT, done separately)
         const activeUsersResult = await prisma.$queryRaw<[{ count: bigint }]>`
           SELECT COUNT(DISTINCT "userId")::bigint as count
-          FROM "UserSessionAnalytics"
+          FROM "user_session_analytics"
           WHERE "startedAt" >= ${startDate}
         `
         const activeUsersThisPeriod = Number(activeUsersResult[0]?.count || 0)
