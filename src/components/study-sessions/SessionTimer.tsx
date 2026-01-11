@@ -366,7 +366,7 @@ export default function SessionTimer({
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls - ALL participants can control timer (pause/resume/reset/stop) */}
       {!isSmall && !displayOnly && (
         <FastFadeIn delay={0.1}>
           <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -444,6 +444,7 @@ export default function SessionTimer({
               {t('timerStop')}
             </button>
 
+            {/* Settings and Delete - Host only */}
             {isHost && (
               <>
                 <button

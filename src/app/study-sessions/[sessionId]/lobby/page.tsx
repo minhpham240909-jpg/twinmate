@@ -175,20 +175,23 @@ export default function WaitingLobbyPage() {
   }, [session?.waitingExpiresAt, router])
 
   // Real-time: Listen for session status changes
-  // Also includes polling fallback in case realtime subscription fails
+  // Smart polling: only poll when realtime fails, stop polling when realtime works
   useEffect(() => {
     if (!sessionId) return
 
     console.log('[Lobby RT] Setting up session status listener for:', sessionId)
     let realtimeWorking = false
     let pollInterval: NodeJS.Timeout | null = null
+    let isCleanedUp = false
 
     // Function to check session status via API
     const checkSessionStatus = async () => {
+      if (isCleanedUp || realtimeWorking) return // Stop polling if realtime is working
+
       try {
         const res = await fetch(`/api/study-sessions/${sessionId}`)
         const data = await res.json()
-        if (data.success && data.session?.status === 'ACTIVE') {
+        if (!isCleanedUp && data.success && data.session?.status === 'ACTIVE') {
           console.log('[Lobby RT] Polling detected session is ACTIVE - redirecting')
           toast.success(t('sessionIsStarting'))
           router.push(`/study-sessions/${sessionId}/call`)
@@ -196,6 +199,23 @@ export default function WaitingLobbyPage() {
       } catch (error) {
         console.error('[Lobby RT] Error checking session status:', error)
       }
+    }
+
+    // Stop polling when realtime works
+    const stopPolling = () => {
+      if (pollInterval) {
+        console.log('[Lobby RT] Stopping session status polling (realtime working)')
+        clearInterval(pollInterval)
+        pollInterval = null
+      }
+    }
+
+    // Start polling fallback (slower rate to reduce server load)
+    const startPollingFallback = () => {
+      if (pollInterval || isCleanedUp || realtimeWorking) return
+
+      console.log('[Lobby RT] Starting session status polling fallback')
+      pollInterval = setInterval(checkSessionStatus, 5000) // Poll every 5 seconds (slower)
     }
 
     const channel = supabase
@@ -209,8 +229,12 @@ export default function WaitingLobbyPage() {
           filter: `id=eq.${sessionId}`,
         },
         (payload) => {
+          if (isCleanedUp) return
+
           console.log('[Lobby RT] Session UPDATE received:', payload)
           realtimeWorking = true
+          stopPolling() // Stop polling when realtime event received
+
           const newStatus = (payload.new as { status?: string }).status
           if (newStatus === 'ACTIVE') {
             console.log('[Lobby RT] Session is now ACTIVE - redirecting to call page')
@@ -220,45 +244,65 @@ export default function WaitingLobbyPage() {
         }
       )
       .subscribe((status) => {
+        if (isCleanedUp) return
+
         console.log('[Lobby RT] Session status subscription:', status)
         if (status === 'SUBSCRIBED') {
           console.log('[Lobby RT] Successfully subscribed to session status changes')
         }
-        if (status === 'CHANNEL_ERROR') {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error('[Lobby RT] Failed to subscribe - starting polling fallback for session status')
-          // Start polling as fallback
-          if (!pollInterval) {
-            pollInterval = setInterval(checkSessionStatus, 3000) // Poll every 3 seconds
-          }
+          realtimeWorking = false
+          startPollingFallback()
         }
       })
 
-    // FALLBACK: Start polling after 3 seconds if realtime hasn't received any events
+    // FALLBACK: Start polling after 5 seconds if no realtime events received
     const fallbackTimeout = setTimeout(() => {
-      if (!realtimeWorking && !pollInterval) {
-        console.log('[Lobby RT] No realtime events received - starting polling fallback for session status')
-        pollInterval = setInterval(checkSessionStatus, 3000) // Poll every 3 seconds
+      if (!realtimeWorking && !isCleanedUp) {
+        startPollingFallback()
       }
-    }, 3000)
+    }, 5000)
 
     return () => {
+      isCleanedUp = true
       console.log('[Lobby RT] Cleaning up session status listener')
       clearTimeout(fallbackTimeout)
-      if (pollInterval) {
-        clearInterval(pollInterval)
-      }
+      stopPolling()
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, router, t])
 
   // Real-time: Listen for participant changes (joins/leaves)
-  // Also includes polling fallback in case realtime subscription fails
+  // Smart polling: only poll when realtime fails, stop polling when realtime works
   useEffect(() => {
     if (!sessionId) return
 
     console.log('[Lobby RT] Setting up participant listener for session:', sessionId)
     let realtimeWorking = false
     let pollInterval: NodeJS.Timeout | null = null
+    let isCleanedUp = false
+
+    // Stop polling when realtime works
+    const stopPolling = () => {
+      if (pollInterval) {
+        console.log('[Lobby RT] Stopping participant polling (realtime working)')
+        clearInterval(pollInterval)
+        pollInterval = null
+      }
+    }
+
+    // Start polling fallback (slower rate to reduce server load)
+    const startPollingFallback = () => {
+      if (pollInterval || isCleanedUp || realtimeWorking) return
+
+      console.log('[Lobby RT] Starting participant polling fallback')
+      pollInterval = setInterval(() => {
+        if (!realtimeWorking && !isCleanedUp) {
+          fetchSession()
+        }
+      }, 5000) // Poll every 5 seconds (slower to reduce server load)
+    }
 
     const channel = supabase
       .channel(`lobby-participants-${sessionId}`)
@@ -271,8 +315,11 @@ export default function WaitingLobbyPage() {
           filter: `sessionId=eq.${sessionId}`,
         },
         (payload) => {
+          if (isCleanedUp) return
+
           console.log('[Lobby RT] Participant INSERT received:', payload)
           realtimeWorking = true
+          stopPolling() // Stop polling when realtime event received
           toast.success(t('someoneJoinedSession'))
           fetchSession() // Refresh to get new participant list
         }
@@ -286,8 +333,11 @@ export default function WaitingLobbyPage() {
           filter: `sessionId=eq.${sessionId}`,
         },
         (payload) => {
+          if (isCleanedUp) return
+
           console.log('[Lobby RT] Participant UPDATE received:', payload)
           realtimeWorking = true
+          stopPolling() // Stop polling when realtime event received
           fetchSession() // Refresh to get updated participant data
         }
       )
@@ -300,46 +350,41 @@ export default function WaitingLobbyPage() {
           filter: `sessionId=eq.${sessionId}`,
         },
         (payload) => {
+          if (isCleanedUp) return
+
           console.log('[Lobby RT] Participant DELETE received:', payload)
           realtimeWorking = true
+          stopPolling() // Stop polling when realtime event received
           toast('Someone left the session', { icon: '👋' })
           fetchSession() // Refresh to get updated participant list
         }
       )
       .subscribe((status) => {
+        if (isCleanedUp) return
+
         console.log('[Lobby RT] Participant subscription status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('[Lobby RT] Successfully subscribed to participant changes')
         }
-        if (status === 'CHANNEL_ERROR') {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error('[Lobby RT] Failed to subscribe - starting polling fallback')
-          // Start polling as fallback
-          if (!pollInterval) {
-            pollInterval = setInterval(() => {
-              console.log('[Lobby RT] Polling for participant changes...')
-              fetchSession()
-            }, 5000) // Poll every 5 seconds
-          }
+          realtimeWorking = false
+          startPollingFallback()
         }
       })
 
-    // FALLBACK: Start polling after 3 seconds if realtime hasn't received any events
-    // This ensures the host sees updates even if realtime isn't working
+    // FALLBACK: Start polling after 5 seconds if no realtime events received
     const fallbackTimeout = setTimeout(() => {
-      if (!realtimeWorking && !pollInterval) {
-        console.log('[Lobby RT] No realtime events received - starting polling fallback')
-        pollInterval = setInterval(() => {
-          fetchSession()
-        }, 5000) // Poll every 5 seconds
+      if (!realtimeWorking && !isCleanedUp) {
+        startPollingFallback()
       }
-    }, 3000)
+    }, 5000)
 
     return () => {
+      isCleanedUp = true
       console.log('[Lobby RT] Cleaning up participant listener')
       clearTimeout(fallbackTimeout)
-      if (pollInterval) {
-        clearInterval(pollInterval)
-      }
+      stopPolling()
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase, fetchSession, t])

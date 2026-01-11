@@ -40,11 +40,13 @@ export async function POST(
     const body = await request.json()
     const { action, expectedVersion } = body // start, pause, resume, stop, reset, skip + version for optimistic lock
 
-    // SECURITY: Only HOST can control the timer
+    // SECURITY: Any JOINED participant can control the timer (pause/resume/reset/stop)
+    // This allows collaborative timer control for all participants in the session
     const participant = await prisma.sessionParticipant.findFirst({
       where: {
         sessionId,
         userId: user.id,
+        status: 'JOINED', // Must be actively joined (not just invited)
       },
       select: {
         role: true,
@@ -54,21 +56,15 @@ export async function POST(
 
     if (!participant) {
       return NextResponse.json(
-        { error: 'Not a participant of this session' },
+        { error: 'Not a joined participant of this session' },
         { status: 403 }
       )
     }
 
-    // SECURITY: Only HOST can control timer
-    if (participant.role !== 'HOST') {
-      console.warn(
-        `[Timer Control] User ${user.id} attempted to control timer in session ${sessionId} but is not HOST`
-      )
-      return NextResponse.json(
-        { error: 'Only the session host can control the timer' },
-        { status: 403 }
-      )
-    }
+    // Log timer control action for debugging
+    console.log(
+      `[Timer Control] User ${user.id} (role: ${participant.role}) controlling timer in session ${sessionId}`
+    )
 
     // Use transaction with optimistic locking to prevent race conditions
     let retryCount = 0

@@ -670,6 +670,7 @@ model SessionMessage {
   @@index([senderId])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([sessionId, createdAt]) // PERF: Session messages pagination (most common query)
 }
 
 enum TimerState {

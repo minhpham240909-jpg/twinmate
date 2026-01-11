@@ -30,14 +30,20 @@ export function useTimerSync(sessionId: string) {
     if (!sessionId) return
 
     let pollingInterval: NodeJS.Timeout | null = null
+    let realtimeWorking = false
+    let isCleanedUp = false
 
     // Fetch timer from API
     const fetchTimer = async () => {
+      if (isCleanedUp) return
+
       try {
         const res = await fetch(`/api/study-sessions/${sessionId}/timer`, {
           cache: 'no-store',
         })
         const data = await res.json()
+
+        if (isCleanedUp) return
 
         if (data.success && data.timer) {
           setTimer(data.timer)
@@ -47,7 +53,9 @@ export function useTimerSync(sessionId: string) {
       } catch (error) {
         // Silently handle errors
       } finally {
-        setLoading(false)
+        if (!isCleanedUp) {
+          setLoading(false)
+        }
       }
     }
 
@@ -57,10 +65,26 @@ export function useTimerSync(sessionId: string) {
     // Initial fetch
     fetchTimer()
 
-    // Set up polling as fallback (every 30 seconds) - real-time handles most updates
-    pollingInterval = setInterval(() => {
-      fetchTimer()
-    }, 30000)
+    // Start polling fallback function
+    const startPollingFallback = () => {
+      if (pollingInterval || isCleanedUp) return
+
+      console.log('[Timer Sync] Starting polling fallback (realtime not working)')
+      pollingInterval = setInterval(() => {
+        if (!realtimeWorking && !isCleanedUp) {
+          fetchTimer()
+        }
+      }, 10000) // Poll every 10 seconds as fallback (much slower than before)
+    }
+
+    // Stop polling when realtime works
+    const stopPolling = () => {
+      if (pollingInterval) {
+        console.log('[Timer Sync] Stopping polling (realtime working)')
+        clearInterval(pollingInterval)
+        pollingInterval = null
+      }
+    }
 
     // Subscribe to real-time updates on SessionTimer table
     const channel = supabase
@@ -74,15 +98,45 @@ export function useTimerSync(sessionId: string) {
           filter: `sessionId=eq.${sessionId}`,
         },
         () => {
+          if (isCleanedUp) return
+
+          // Mark realtime as working and stop polling
+          realtimeWorking = true
+          stopPolling()
+
           // Refetch timer when any change occurs
           fetchTimer()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (isCleanedUp) return
+
+        console.log('[Timer Sync] Subscription status:', status)
+
+        if (status === 'SUBSCRIBED') {
+          console.log('[Timer Sync] Realtime connected successfully')
+          // Don't stop polling yet - wait for first realtime event to confirm it's working
+        }
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Timer Sync] Realtime failed, using polling fallback')
+          realtimeWorking = false
+          startPollingFallback()
+        }
+      })
+
+    // Start polling fallback after 5 seconds if no realtime events received
+    const fallbackTimeout = setTimeout(() => {
+      if (!realtimeWorking && !isCleanedUp) {
+        startPollingFallback()
+      }
+    }, 5000)
 
     // Cleanup
     return () => {
-      if (pollingInterval) clearInterval(pollingInterval)
+      isCleanedUp = true
+      clearTimeout(fallbackTimeout)
+      stopPolling()
       supabase.removeChannel(channel)
     }
   }, [sessionId, supabase])
