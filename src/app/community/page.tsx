@@ -10,6 +10,15 @@ import PartnerAvatar from '@/components/PartnerAvatar'
 import { motion } from 'framer-motion'
 import ReportModal from '@/components/ReportModal'
 import { sanitizeText, sanitizeUrl } from '@/lib/sanitize'
+import {
+  POST_CACHE_KEYS,
+  getCachedPosts as getSharedCachedPosts,
+  setCachedPosts,
+  updatePostInCache,
+  removePostFromCache,
+  subscribeToPostUpdates,
+  clearOldCaches,
+} from '@/lib/cache/post-cache'
 
 type Post = {
   id: string
@@ -50,11 +59,6 @@ type Comment = {
 
 type Reply = Comment // Replies have the same structure as comments
 
-// Cache version - increment this to invalidate all client caches on deploy
-const CACHE_VERSION = 'v2'
-const CACHE_KEY_POSTS = `community_posts_${CACHE_VERSION}`
-const CACHE_KEY_POPULAR = `community_popular_posts_${CACHE_VERSION}`
-
 export default function CommunityPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -63,62 +67,11 @@ export default function CommunityPage() {
 
   // Clear old cache keys on mount (one-time cleanup)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Remove old unversioned cache keys
-      localStorage.removeItem('community_posts')
-      localStorage.removeItem('community_popular_posts')
-      // Remove old versions if needed
-      localStorage.removeItem('community_posts_v1')
-      localStorage.removeItem('community_popular_posts_v1')
-    }
+    clearOldCaches()
   }, [])
 
-  // Helper to get cached posts from localStorage for instant display
-  const getCachedPosts = (): Post[] => {
-    if (typeof window === 'undefined') return []
-    try {
-      const cached = localStorage.getItem(CACHE_KEY_POSTS)
-      if (!cached) return []
-
-      const posts: Post[] = JSON.parse(cached)
-
-      // Validate cache structure
-      if (posts.length > 0 && (!posts[0]._count || posts[0].connectionStatus === undefined)) {
-        localStorage.removeItem(CACHE_KEY_POSTS)
-        return []
-      }
-
-      return posts
-    } catch (error) {
-      console.error('Error loading cached posts:', error)
-      return []
-    }
-  }
-
-  // Helper to get cached popular posts
-  const getCachedPopularPosts = (): Post[] => {
-    if (typeof window === 'undefined') return []
-    try {
-      const cached = localStorage.getItem(CACHE_KEY_POPULAR)
-      if (!cached) return []
-
-      const posts: Post[] = JSON.parse(cached)
-
-      // Validate cache structure
-      if (posts.length > 0 && (!posts[0]._count || posts[0].connectionStatus === undefined)) {
-        localStorage.removeItem(CACHE_KEY_POPULAR)
-        return []
-      }
-
-      return posts
-    } catch (error) {
-      console.error('Error loading cached popular posts:', error)
-      return []
-    }
-  }
-
   // Initialize with cached data for instant display - NO LOADING DELAY!
-  const [posts, setPosts] = useState<Post[]>(() => getCachedPosts())
+  const [posts, setPosts] = useState<Post[]>(() => getSharedCachedPosts(POST_CACHE_KEYS.RECENT) as Post[])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Post[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -130,7 +83,7 @@ export default function CommunityPage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [activeTab, setActiveTab] = useState<'recent' | 'popular'>('recent')
-  const [popularPosts, setPopularPosts] = useState<Post[]>(() => getCachedPopularPosts())
+  const [popularPosts, setPopularPosts] = useState<Post[]>(() => getSharedCachedPosts(POST_CACHE_KEYS.POPULAR) as Post[])
   const [trendingHashtags, setTrendingHashtags] = useState<{ hashtag: string; count: number }[]>([])
   const [isLoadingPopular, setIsLoadingPopular] = useState(false)
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
@@ -147,8 +100,26 @@ export default function CommunityPage() {
   const [replyingTo, setReplyingTo] = useState<{ commentId: string; userName: string } | null>(null)
   const [replyContent, setReplyContent] = useState('')
 
-  // Post settings (allowComments, allowLikes per post)
-  const [postSettings, setPostSettings] = useState<{ [postId: string]: { allowComments: boolean; allowLikes: boolean } }>({})
+  // Subscribe to post updates from other pages (e.g., profile page edits)
+  useEffect(() => {
+    const unsubscribe = subscribeToPostUpdates(({ postId, updates, isDelete }) => {
+      if (isDelete) {
+        // Remove deleted post from all local states
+        setPosts(prev => prev.filter(p => p.id !== postId))
+        setSearchResults(prev => prev.filter(p => p.id !== postId))
+        setPopularPosts(prev => prev.filter(p => p.id !== postId))
+      } else if (updates) {
+        // Update post content in all local states
+        const updatePost = (posts: Post[]) =>
+          posts.map(p => p.id === postId ? { ...p, ...updates } : p)
+        setPosts(updatePost)
+        setSearchResults(updatePost)
+        setPopularPosts(updatePost)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -210,14 +181,8 @@ export default function CommunityPage() {
         setPosts(data.posts)
         setNewPostsCount(0) // Reset count when fetching
 
-        // Cache posts to localStorage for instant display next time
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem(CACHE_KEY_POSTS, JSON.stringify(data.posts))
-          } catch (error) {
-            console.error('Error caching posts:', error)
-          }
-        }
+        // Cache posts using shared cache utility
+        setCachedPosts(POST_CACHE_KEYS.RECENT, data.posts)
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
@@ -235,14 +200,8 @@ export default function CommunityPage() {
         const data = await response.json()
         setPopularPosts(data.posts)
 
-        // Cache popular posts to localStorage
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem(CACHE_KEY_POPULAR, JSON.stringify(data.posts))
-          } catch (error) {
-            console.error('Error caching popular posts:', error)
-          }
-        }
+        // Cache popular posts using shared cache utility
+        setCachedPosts(POST_CACHE_KEYS.POPULAR, data.posts)
       }
     } catch (error) {
       console.error('Error fetching popular posts:', error)
@@ -338,32 +297,18 @@ export default function CommunityPage() {
               : post
           )
 
-        // Update all post states
+        // Update all post states and caches
         setPosts(prev => {
           const updated = updateLikeState(prev)
-          // Update cache
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem(CACHE_KEY_POSTS, JSON.stringify(updated))
-            } catch (error) {
-              console.error('Error updating cache:', error)
-            }
-          }
+          setCachedPosts(POST_CACHE_KEYS.RECENT, updated)
           return updated
         })
 
-        // Also update search results and popular posts
         setSearchResults(prev => updateLikeState(prev))
+
         setPopularPosts(prev => {
           const updated = updateLikeState(prev)
-          // Update popular posts cache
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem(CACHE_KEY_POPULAR, JSON.stringify(updated))
-            } catch (error) {
-              console.error('Error updating popular cache:', error)
-            }
-          }
+          setCachedPosts(POST_CACHE_KEYS.POPULAR, updated)
           return updated
         })
       }
@@ -694,17 +639,29 @@ export default function CommunityPage() {
 
       if (response.ok) {
         const data = await response.json()
+        const updatedContent = data.post?.content || editContent.trim()
 
         // Helper to update post content
         const updatePostContent = (posts: Post[]) =>
           posts.map(post =>
-            post.id === postId ? { ...post, content: data.post.content } : post
+            post.id === postId ? { ...post, content: updatedContent } : post
           )
 
         // Update all post states
-        setPosts(prev => updatePostContent(prev))
+        setPosts(prev => {
+          const updated = updatePostContent(prev)
+          setCachedPosts(POST_CACHE_KEYS.RECENT, updated)
+          return updated
+        })
         setSearchResults(prev => updatePostContent(prev))
-        setPopularPosts(prev => updatePostContent(prev))
+        setPopularPosts(prev => {
+          const updated = updatePostContent(prev)
+          setCachedPosts(POST_CACHE_KEYS.POPULAR, updated)
+          return updated
+        })
+
+        // Also update shared cache so profile page sees the change
+        updatePostInCache(postId, { content: updatedContent }, user?.id)
 
         setEditingPostId(null)
         setEditContent('')
@@ -728,7 +685,7 @@ export default function CommunityPage() {
     const previousSearchResults = searchResults
     const previousPopularPosts = popularPosts
 
-    // Optimistic update - remove post immediately
+    // Optimistic update - remove post immediately from local state
     setPosts(prev => prev.filter(post => post.id !== postId))
     setSearchResults(prev => prev.filter(post => post.id !== postId))
     setPopularPosts(prev => prev.filter(post => post.id !== postId))
@@ -739,6 +696,11 @@ export default function CommunityPage() {
       })
 
       if (response.ok) {
+        // Update caches after successful delete
+        setCachedPosts(POST_CACHE_KEYS.RECENT, posts.filter(p => p.id !== postId))
+        setCachedPosts(POST_CACHE_KEYS.POPULAR, popularPosts.filter(p => p.id !== postId))
+        removePostFromCache(postId, user?.id)
+
         const data = await response.json()
         alert(data.message || t('postMovedToHistory'))
       } else {
@@ -746,18 +708,18 @@ export default function CommunityPage() {
         setPosts(previousPosts)
         setSearchResults(previousSearchResults)
         setPopularPosts(previousPopularPosts)
-        
+
         const error = await response.json()
         alert(error.error || t('failedToDeletePostAlert'))
       }
     } catch (error) {
       console.error('Error deleting post:', error)
-      
+
       // ROLLBACK: Restore previous state
       setPosts(previousPosts)
       setSearchResults(previousSearchResults)
       setPopularPosts(previousPopularPosts)
-      
+
       alert(t('failedToDeletePostAlert'))
     }
   }

@@ -58,49 +58,27 @@ export default function PartnerSearchBar({ onConversationSelect }: PartnerSearch
 
   const performSearch = async (query: string) => {
     try {
-      const [partnersRes, messagesRes] = await Promise.all([
-        fetch('/api/partners/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ searchQuery: query }),
-        }).then(r => r.json()).catch(() => ({ profiles: [] })),
-        fetch('/api/messages/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            searchQuery: query,
-            type: 'partner'
-          }),
-        }).then(r => r.json()).catch(() => ({ messages: [] }))
-      ])
-
-      const partners = partnersRes.profiles || []
-      const messages = messagesRes.messages || []
-
-      // Combine and deduplicate partners
-      const partnerMap = new Map()
-      partners.forEach((p: any) => {
-        partnerMap.set(p.user.id, {
-          id: p.user.id,
-          name: p.user.name,
-          avatarUrl: p.user.avatarUrl,
-          onlineStatus: p.presence?.status
-        })
+      // Search only within user's existing partners and their conversations
+      // This endpoint only returns partners the user is connected with
+      const response = await fetch('/api/chat/partners/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchQuery: query }),
       })
 
-      // Add partners from messages
-      messages.forEach((m: any) => {
-        if (m.sender && !partnerMap.has(m.sender.id)) {
-          partnerMap.set(m.sender.id, {
-            id: m.sender.id,
-            name: m.sender.name,
-            avatarUrl: m.sender.avatarUrl,
-            onlineStatus: undefined
-          })
-        }
-      })
+      if (!response.ok) {
+        throw new Error('Search failed')
+      }
 
-      setSearchResults(Array.from(partnerMap.values()))
+      const data = await response.json()
+      const partners = data.partners || []
+
+      setSearchResults(partners.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        avatarUrl: p.avatarUrl,
+        onlineStatus: p.onlineStatus
+      })))
     } catch (error) {
       console.error('Search error:', error)
       setSearchResults([])

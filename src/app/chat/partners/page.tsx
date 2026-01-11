@@ -620,9 +620,22 @@ function PartnersChatContent() {
       <div className="flex-1 flex overflow-hidden">
         {/* Partner List Sidebar */}
         <div className="w-80 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col overflow-hidden">
-          {/* Search Bar */}
+          {/* Search Bar with Find Partner Button */}
           <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
-            <PartnerSearchBar onConversationSelect={handleSearchConversationSelect} />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <PartnerSearchBar onConversationSelect={handleSearchConversationSelect} />
+              </div>
+              <button
+                onClick={() => router.push('/find-partner')}
+                className="flex-shrink-0 p-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
+                title={tChat('findPartner')}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Conversations List */}

@@ -10,6 +10,10 @@ import GlowBorder from '@/components/ui/GlowBorder'
 import Pulse from '@/components/ui/Pulse'
 import FadeIn from '@/components/ui/FadeIn'
 import Bounce from '@/components/ui/Bounce'
+import {
+  updatePostInCache,
+  removePostFromCache,
+} from '@/lib/cache/post-cache'
 
 type UserPost = {
   id: string
@@ -197,13 +201,24 @@ export default function MyProfilePage() {
       })
 
       if (response.ok) {
+        const data = await response.json()
+        const updatedContent = data.post?.content || editContent.trim()
+
+        // Update local state
         setPosts(prev =>
           prev.map(post =>
-            post.id === postId ? { ...post, content: editContent.trim() } : post
+            post.id === postId ? { ...post, content: updatedContent } : post
           )
         )
+
+        // Sync with shared cache so community page sees the update
+        updatePostInCache(postId, { content: updatedContent }, user?.id)
+
         setEditingPostId(null)
         setEditContent('')
+      } else {
+        const error = await response.json()
+        alert(error.error || t('failedToEditPost'))
       }
     } catch (error) {
       console.error('Error editing post:', error)
@@ -220,7 +235,19 @@ export default function MyProfilePage() {
       })
 
       if (response.ok) {
+        // Update local state
         setPosts(prev => prev.filter(post => post.id !== postId))
+
+        // Sync with shared cache so community page sees the deletion
+        removePostFromCache(postId, user?.id)
+
+        const data = await response.json()
+        if (data.message) {
+          alert(data.message)
+        }
+      } else {
+        const error = await response.json()
+        alert(error.error || t('failedToDeletePostRetry'))
       }
     } catch (error) {
       console.error('Error deleting post:', error)
@@ -457,6 +484,17 @@ export default function MyProfilePage() {
               </div>
             )}
           </div>
+
+          {/* Edit Profile Button */}
+          <button
+            onClick={() => router.push('/profile/edit')}
+            className="mb-4 px-4 py-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            {t('editProfile')}
+          </button>
 
           {/* Quick Stats */}
           <FadeIn delay={0.2}>

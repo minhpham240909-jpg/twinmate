@@ -58,55 +58,28 @@ export default function GroupSearchBar({ onGroupSelect }: GroupSearchBarProps) {
 
   const performSearch = async (query: string) => {
     try {
-      const [groupsRes, messagesRes] = await Promise.all([
-        fetch('/api/groups/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: query,
-            subject: query,
-            subjectCustomDescription: query
-          }),
-        }).then(r => r.json()).catch(() => ({ groups: [] })),
-        fetch('/api/messages/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            searchQuery: query,
-            type: 'group'
-          }),
-        }).then(r => r.json()).catch(() => ({ messages: [] }))
-      ])
-
-      const groups = groupsRes.groups || []
-      const messages = messagesRes.messages || []
-
-      // Combine and deduplicate groups
-      const groupMap = new Map()
-      groups.forEach((g: any) => {
-        groupMap.set(g.id, {
-          id: g.id,
-          name: g.name,
-          description: g.description,
-          subject: g.subject,
-          memberCount: g.memberCount || 0
-        })
+      // Search only within user's existing groups and their conversations
+      // This endpoint only returns groups the user is a member of
+      const response = await fetch('/api/chat/groups/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchQuery: query }),
       })
 
-      // Add groups from messages
-      messages.forEach((m: any) => {
-        if (m.groupId && !groupMap.has(m.groupId)) {
-          groupMap.set(m.groupId, {
-            id: m.groupId,
-            name: m.groupName || 'Unknown Group',
-            description: null,
-            subject: '',
-            memberCount: 0
-          })
-        }
-      })
+      if (!response.ok) {
+        throw new Error('Search failed')
+      }
 
-      setSearchResults(Array.from(groupMap.values()))
+      const data = await response.json()
+      const groups = data.groups || []
+
+      setSearchResults(groups.map((g: any) => ({
+        id: g.id,
+        name: g.name,
+        description: g.description,
+        subject: g.subject,
+        memberCount: g.memberCount || 0
+      })))
     } catch (error) {
       console.error('Search error:', error)
       setSearchResults([])

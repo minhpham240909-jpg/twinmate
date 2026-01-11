@@ -67,33 +67,36 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     // Sessions longer than this are likely left open and shouldn't count as real study time
     const MAX_SESSION_DURATION = 4 * 60 * 60 // 4 hours = 14400 seconds
 
-    // Get all user's AI Partner sessions
-    const [sessions, sessionStats, messageStats, flaggedMessages] = await Promise.all([
-      // All sessions with basic info
-      prisma.aIPartnerSession.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          subject: true,
-          status: true,
-          startedAt: true,
-          endedAt: true,
-          totalDuration: true,
-          messageCount: true,
-          quizCount: true,
-          flashcardCount: true,
-          rating: true,
-          feedback: true,
-          flaggedCount: true,
-          wasSafetyBlocked: true,
-          createdAt: true,
-          persona: {
-            select: { name: true }
-          },
-        }
-      }),
+    // Get all user's AI Partner sessions - fetch separately to handle errors better
+    const sessions = await prisma.aIPartnerSession.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        subject: true,
+        status: true,
+        startedAt: true,
+        endedAt: true,
+        totalDuration: true,
+        messageCount: true,
+        quizCount: true,
+        flashcardCount: true,
+        rating: true,
+        feedback: true,
+        flaggedCount: true,
+        wasSafetyBlocked: true,
+        createdAt: true,
+        persona: {
+          select: { name: true }
+        },
+      }
+    })
 
+    // Get session IDs for message queries
+    const sessionIds = sessions.map(s => s.id)
+
+    // Fetch remaining stats in parallel
+    const [sessionStats, messageStats, flaggedMessages] = await Promise.all([
       // Aggregate session stats - only count COMPLETED sessions for accurate duration
       prisma.aIPartnerSession.aggregate({
         where: { userId, status: 'COMPLETED' },
@@ -112,36 +115,40 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         },
       }),
 
-      // Message type breakdown
-      prisma.aIPartnerMessage.groupBy({
-        by: ['messageType'],
-        where: {
-          session: { userId }
-        },
-        _count: true,
-      }),
+      // Message type breakdown - only if user has sessions
+      sessionIds.length > 0
+        ? prisma.aIPartnerMessage.groupBy({
+            by: ['messageType'],
+            where: {
+              sessionId: { in: sessionIds }
+            },
+            _count: true,
+          })
+        : Promise.resolve([]),
 
-      // All flagged messages
-      prisma.aIPartnerMessage.findMany({
-        where: {
-          session: { userId },
-          wasFlagged: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          content: true,
-          role: true,
-          flagCategories: true,
-          createdAt: true,
-          session: {
+      // All flagged messages - only if user has sessions
+      sessionIds.length > 0
+        ? prisma.aIPartnerMessage.findMany({
+            where: {
+              sessionId: { in: sessionIds },
+              wasFlagged: true,
+            },
+            orderBy: { createdAt: 'desc' },
             select: {
               id: true,
-              subject: true,
+              content: true,
+              role: true,
+              flagCategories: true,
+              createdAt: true,
+              session: {
+                select: {
+                  id: true,
+                  subject: true,
+                }
+              }
             }
-          }
-        }
-      }),
+          })
+        : Promise.resolve([]),
     ])
 
     // Get subject breakdown
