@@ -247,12 +247,20 @@ async function getRecentActivity(userId: string) {
 }
 
 /**
- * Get the specific content being reported
+ * Get the specific content being reported with smart feature detection
+ * Returns content with feature source information for better admin context
  */
-async function getRelatedContent(contentType: string, contentId: string) {
-  switch (contentType) {
+async function getRelatedContent(contentType: string | null, contentId: string | null) {
+  if (!contentType || !contentId) return null
+
+  const normalizedType = contentType.toLowerCase()
+
+  switch (normalizedType) {
     case 'message':
-      return prisma.message.findUnique({
+    case 'dm':
+    case 'direct_message':
+      // DM message - get message with conversation context
+      const dmMessage = await prisma.message.findUnique({
         where: { id: contentId },
         include: {
           sender: {
@@ -260,8 +268,43 @@ async function getRelatedContent(contentType: string, contentId: string) {
           },
         },
       })
+      if (dmMessage) {
+        return {
+          ...dmMessage,
+          featureSource: 'CHAT',
+          featureLabel: 'Direct Message',
+          featureDescription: `DM between ${dmMessage.sender?.name || dmMessage.senderName || 'Unknown'} and ${dmMessage.recipientName || 'Unknown'}`,
+        }
+      }
+      return null
+
+    case 'group_message':
     case 'group':
-      return prisma.group.findUnique({
+      // Group message or group itself
+      if (normalizedType === 'group_message') {
+        const groupMessage = await prisma.message.findUnique({
+          where: { id: contentId },
+          include: {
+            sender: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+            group: {
+              select: { id: true, name: true, subject: true },
+            },
+          },
+        })
+        if (groupMessage) {
+          return {
+            ...groupMessage,
+            featureSource: 'GROUP_CHAT',
+            featureLabel: 'Group Message',
+            featureDescription: `Message in group "${groupMessage.group?.name || 'Unknown'}"`,
+          }
+        }
+        return null
+      }
+      // Group itself
+      const group = await prisma.group.findUnique({
         where: { id: contentId },
         select: {
           id: true,
@@ -269,19 +312,169 @@ async function getRelatedContent(contentType: string, contentId: string) {
           description: true,
           subject: true,
           ownerId: true,
+          avatarUrl: true,
           createdAt: true,
         },
       })
-    case 'post':
-      return prisma.post.findUnique({
+      if (group) {
+        // Get owner info separately
+        const owner = await prisma.user.findUnique({
+          where: { id: group.ownerId },
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        })
+        return {
+          ...group,
+          user: owner,
+          featureSource: 'GROUP',
+          featureLabel: 'Study Group',
+          featureDescription: `Group: ${group.name}`,
+        }
+      }
+      return null
+
+    case 'session_message':
+    case 'study_session':
+      // Study session message
+      const sessionMessage = await prisma.sessionMessage.findUnique({
         where: { id: contentId },
         include: {
-          user: {
-            select: { id: true, name: true, email: true },
+          sender: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+          session: {
+            select: { id: true, title: true, type: true },
           },
         },
       })
+      if (sessionMessage) {
+        return {
+          ...sessionMessage,
+          featureSource: 'STUDY_SESSION',
+          featureLabel: 'Study Session Message',
+          featureDescription: `Message in session "${sessionMessage.session?.title || 'Unknown'}"`,
+        }
+      }
+      return null
+
+    case 'post':
+    case 'community':
+    case 'community_post':
+      // Community post
+      const post = await prisma.post.findUnique({
+        where: { id: contentId },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+          comments: {
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: { id: true, name: true, avatarUrl: true },
+              },
+            },
+          },
+          _count: {
+            select: { likes: true, comments: true, reposts: true },
+          },
+        },
+      })
+      if (post) {
+        return {
+          ...post,
+          featureSource: 'COMMUNITY',
+          featureLabel: 'Community Post',
+          featureDescription: `Post by ${post.user?.name || 'Unknown'}`,
+        }
+      }
+      return null
+
+    case 'comment':
+    case 'post_comment':
+      // Post comment
+      const comment = await prisma.postComment.findUnique({
+        where: { id: contentId },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+          post: {
+            select: { id: true, content: true },
+          },
+        },
+      })
+      if (comment) {
+        return {
+          ...comment,
+          featureSource: 'COMMUNITY',
+          featureLabel: 'Post Comment',
+          featureDescription: `Comment on a community post`,
+        }
+      }
+      return null
+
+    case 'profile':
+    case 'user':
+      // User profile - fetch user and profile separately to avoid type issues
+      const userProfile = await prisma.user.findUnique({
+        where: { id: contentId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          createdAt: true,
+        },
+      })
+      if (userProfile) {
+        // Get profile info separately
+        const profile = await prisma.profile.findUnique({
+          where: { userId: contentId },
+          select: {
+            bio: true,
+            interests: true,
+            subjects: true,
+            location_city: true,
+          },
+        })
+        return {
+          ...userProfile,
+          bio: profile?.bio,
+          interests: profile?.interests,
+          subjects: profile?.subjects,
+          location: profile?.location_city,
+          featureSource: 'PROFILE',
+          featureLabel: 'User Profile',
+          featureDescription: `Profile of ${userProfile.name || userProfile.email}`,
+        }
+      }
+      return null
+
+    case 'ai_message':
+    case 'ai_partner':
+      // AI Partner message
+      const aiMessage = await prisma.aIPartnerMessage.findUnique({
+        where: { id: contentId },
+        include: {
+          session: {
+            select: { id: true, subject: true, userId: true },
+          },
+        },
+      })
+      if (aiMessage) {
+        return {
+          ...aiMessage,
+          featureSource: 'AI_PARTNER',
+          featureLabel: 'AI Partner Message',
+          featureDescription: `AI Partner session message`,
+        }
+      }
+      return null
+
     default:
+      // Unknown type - try to detect from ID pattern or return null
+      console.log(`[Investigation] Unknown content type: ${contentType}`)
       return null
   }
 }

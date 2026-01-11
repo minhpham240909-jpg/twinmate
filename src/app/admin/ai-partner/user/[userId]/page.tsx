@@ -63,13 +63,16 @@ interface UserAIData {
   }
   stats: {
     totalSessions: number
+    completedSessions?: number
     totalMessages: number
     totalDuration: number
     totalDurationFormatted: string
     averageRating: number | null
-    totalFlagged: number
+    totalFlaggedMessages: number // API returns totalFlaggedMessages, not totalFlagged
     totalQuizzes: number
     totalFlashcards: number
+    flaggedSessionCount?: number
+    safetyBlockedCount?: number
   }
   sessions: AISession[]
   flaggedMessages: AIMessage[]
@@ -380,8 +383,8 @@ export default function AdminAIPartnerUserPage({
               <Flag className="w-4 h-4" />
               <span className="text-xs">Flagged Messages</span>
             </div>
-            <p className={`text-2xl font-bold ${data.stats.totalFlagged > 0 ? 'text-red-400' : 'text-slate-400'}`}>
-              {data.stats.totalFlagged}
+            <p className={`text-2xl font-bold ${data.stats.totalFlaggedMessages > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+              {data.stats.totalFlaggedMessages}
             </p>
           </div>
         </div>

@@ -44,26 +44,30 @@ export async function GET(request: NextRequest) {
     let messages: any[] = []
     let totalCount = 0
 
-    // NEW: Images filter - fetch all messages with image attachments
+    // Flagged Images filter - fetch flagged content that contains images
     if (type === 'images') {
+      // Get flagged content that has images (from FlaggedContent table)
       const imageWhereClause: any = {
-        isDeleted: false,
         OR: [
-          { type: 'IMAGE' },
-          { fileUrl: { not: null } },
+          { contentType: 'IMAGE' },
           { content: { startsWith: '[Image:' } },
+          { content: { contains: '.jpg' } },
+          { content: { contains: '.jpeg' } },
+          { content: { contains: '.png' } },
+          { content: { contains: '.gif' } },
+          { content: { contains: '.webp' } },
         ],
+      }
+      if (status) {
+        imageWhereClause.status = status.toUpperCase()
       }
       if (search) {
         imageWhereClause.AND = [
           {
             OR: [
               { content: { contains: search, mode: 'insensitive' } },
-              { sender: { name: { contains: search, mode: 'insensitive' } } },
-              { sender: { email: { contains: search, mode: 'insensitive' } } },
               { senderName: { contains: search, mode: 'insensitive' } },
               { senderEmail: { contains: search, mode: 'insensitive' } },
-              { fileName: { contains: search, mode: 'insensitive' } },
             ],
           },
         ]
@@ -72,41 +76,91 @@ export async function GET(request: NextRequest) {
         imageWhereClause.senderId = userId
       }
 
-      const [imageMessages, imageCount] = await Promise.all([
-        prisma.message.findMany({
+      const [flaggedImages, imageCount] = await Promise.all([
+        prisma.flaggedContent.findMany({
           where: imageWhereClause,
+          orderBy: { flaggedAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.flaggedContent.count({ where: imageWhereClause }),
+      ])
+
+      // Also get actual flagged messages with images from Message table
+      const messageImageWhere: any = {
+        OR: [
+          { type: 'IMAGE' },
+          { fileUrl: { not: null } },
+          { content: { startsWith: '[Image:' } },
+        ],
+        // Only get messages that have been flagged (via FlaggedContent)
+        id: {
+          in: await prisma.flaggedContent.findMany({
+            where: { contentType: { in: ['DIRECT_MESSAGE', 'GROUP_MESSAGE'] } },
+            select: { contentId: true },
+          }).then(f => f.map(x => x.contentId)),
+        },
+      }
+
+      const [flaggedMessageImages, msgImageCount] = await Promise.all([
+        prisma.message.findMany({
+          where: messageImageWhere,
           include: {
             sender: { select: { id: true, name: true, email: true, avatarUrl: true } },
             group: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
+          skip: flaggedImages.length >= limit ? limit : 0,
+          take: Math.max(0, limit - flaggedImages.length),
         }),
-        prisma.message.count({ where: imageWhereClause }),
+        prisma.message.count({ where: messageImageWhere }),
       ])
 
-      messages = imageMessages.map((m) => ({
-        id: m.id,
-        type: m.groupId ? 'GROUP_MESSAGE' : 'DIRECT_MESSAGE',
-        content: m.content,
-        senderId: m.senderId,
-        senderEmail: m.sender?.email || m.senderEmail || '[Deleted User]',
-        senderName: m.sender?.name || m.senderName || 'Deleted User',
-        senderAvatar: m.sender?.avatarUrl || m.senderAvatarUrl,
-        senderDeleted: !m.sender,
-        conversationId: m.groupId || m.recipientId,
-        conversationType: m.groupId ? 'group' : 'partner',
-        groupName: m.group?.name,
-        createdAt: m.createdAt,
-        isFlagged: false,
-        // File/image attachments
-        fileUrl: m.fileUrl,
-        fileName: m.fileName,
-        fileSize: m.fileSize,
-        messageType: m.type,
-      }))
-      totalCount = imageCount
+      // Combine flagged content images and actual message images
+      messages = [
+        ...flaggedImages.map((f) => ({
+          id: f.id,
+          contentId: f.contentId,
+          type: f.contentType,
+          content: f.content,
+          senderId: f.senderId,
+          senderEmail: f.senderEmail,
+          senderName: f.senderName,
+          conversationId: f.conversationId,
+          conversationType: f.conversationType,
+          flagReason: f.flagReason,
+          aiCategories: f.aiCategories,
+          aiScore: f.aiScore,
+          status: f.status,
+          reviewedById: f.reviewedById,
+          reviewedAt: f.reviewedAt,
+          actionTaken: f.actionTaken,
+          createdAt: f.flaggedAt,
+          isFlagged: true,
+          isImage: true,
+        })),
+        ...flaggedMessageImages.map((m) => ({
+          id: m.id,
+          type: m.groupId ? 'GROUP_MESSAGE' : 'DIRECT_MESSAGE',
+          content: m.content,
+          senderId: m.senderId,
+          senderEmail: m.sender?.email || m.senderEmail || '[Deleted User]',
+          senderName: m.sender?.name || m.senderName || 'Deleted User',
+          senderAvatar: m.sender?.avatarUrl || m.senderAvatarUrl,
+          senderDeleted: !m.sender,
+          conversationId: m.groupId || m.recipientId,
+          conversationType: m.groupId ? 'group' : 'partner',
+          groupName: m.group?.name,
+          createdAt: m.createdAt,
+          isFlagged: true,
+          isImage: true,
+          fileUrl: m.fileUrl,
+          fileName: m.fileName,
+          fileSize: m.fileSize,
+          messageType: m.type,
+        })),
+      ]
+      totalCount = imageCount + msgImageCount
     } else if (type === 'flagged') {
       // Fetch flagged content
       const whereClause: any = {}

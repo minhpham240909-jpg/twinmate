@@ -48,6 +48,20 @@ interface Message {
   }
 }
 
+interface RelatedContent {
+  id: string
+  content?: string
+  featureSource?: string
+  featureLabel?: string
+  featureDescription?: string
+  sender?: { id: string; name: string | null; avatarUrl: string | null }
+  user?: { id: string; name: string | null; avatarUrl: string | null }
+  images?: string[]
+  fileUrl?: string
+  createdAt?: string
+  [key: string]: any
+}
+
 interface InvestigationData {
   report: any
   investigation: {
@@ -76,7 +90,7 @@ interface InvestigationData {
       reportsMade: any[]
       falseReportCount: number
     }
-    relatedContent: any
+    relatedContent: RelatedContent | null
     aiAnalysis: {
       riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
       confidence: number
@@ -286,6 +300,114 @@ export default function InvestigationPanel({
               </div>
             )}
           </div>
+
+          {/* Reported Content Section - Shows the actual content being reported */}
+          {investigation.relatedContent && (
+            <div className="bg-slate-800 rounded-xl overflow-hidden border-2 border-orange-500/50">
+              <div className="p-4 bg-orange-500/10">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-orange-400" />
+                  <div>
+                    <span className="font-semibold text-white">Reported Content</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full">
+                        {investigation.relatedContent.featureLabel || report.contentType || 'Unknown'}
+                      </span>
+                      {investigation.relatedContent.featureSource && (
+                        <span className="text-xs text-gray-400">
+                          Source: {investigation.relatedContent.featureSource}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border-t border-slate-700 space-y-4">
+                {/* Feature Description */}
+                {investigation.relatedContent.featureDescription && (
+                  <p className="text-sm text-gray-400">
+                    {investigation.relatedContent.featureDescription}
+                  </p>
+                )}
+
+                {/* Content Author */}
+                {(investigation.relatedContent.sender || investigation.relatedContent.user) && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-900 rounded-lg">
+                    {(investigation.relatedContent.sender?.avatarUrl || investigation.relatedContent.user?.avatarUrl) ? (
+                      <Image
+                        src={investigation.relatedContent.sender?.avatarUrl || investigation.relatedContent.user?.avatarUrl || ''}
+                        alt="Author"
+                        width={40}
+                        height={40}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {investigation.relatedContent.sender?.name || investigation.relatedContent.user?.name || 'Unknown'}
+                      </p>
+                      <p className="text-xs text-gray-400">Content Author</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Text Content */}
+                {investigation.relatedContent.content && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <p className="text-xs text-red-400 mb-2 font-medium">Reported Content:</p>
+                    <p className="text-white whitespace-pre-wrap">{investigation.relatedContent.content}</p>
+                  </div>
+                )}
+
+                {/* Images if any */}
+                {investigation.relatedContent.images && investigation.relatedContent.images.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-2">Attached Images:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {investigation.relatedContent.images.map((img: string, idx: number) => (
+                        <a
+                          key={idx}
+                          href={img}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-24 h-24 rounded-lg overflow-hidden border border-gray-600 hover:border-orange-500 transition-colors"
+                        >
+                          <img src={img} alt={`Attachment ${idx + 1}`} className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* File attachment */}
+                {investigation.relatedContent.fileUrl && (
+                  <div className="p-3 bg-slate-900 rounded-lg">
+                    <p className="text-xs text-gray-400 mb-1">Attached File:</p>
+                    <a
+                      href={investigation.relatedContent.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      View Attachment
+                    </a>
+                  </div>
+                )}
+
+                {/* Timestamp */}
+                {investigation.relatedContent.createdAt && (
+                  <p className="text-xs text-gray-500">
+                    Posted: {formatDate(investigation.relatedContent.createdAt)}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Conversation Section */}
           {conversation && (

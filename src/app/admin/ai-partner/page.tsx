@@ -471,52 +471,8 @@ export default function AdminAIPartnerPage() {
         )}
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Active Sessions */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-green-400" />
-              Active Sessions ({data.activeUsers.length})
-            </h3>
-            <Link
-              href="/admin/ai-partner/sessions?status=ACTIVE"
-              className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
-            >
-              View All
-              <ExternalLink className="w-3 h-3" />
-            </Link>
-          </div>
-          {data.activeUsers.length > 0 ? (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {data.activeUsers.map(session => (
-                <Link
-                  key={session.id}
-                  href={`/admin/users/${session.userId}`}
-                  className="block p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-white">
-                      {session.subject || 'General Study'}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">
-                      Active
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {session.messageCount} messages • Started {formatRelativeTime(session.startedAt)}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              No active sessions right now
-            </div>
-          )}
-        </div>
-
+      {/* Token Usage & Cost - Full Width */}
+      <div className="grid grid-cols-1 gap-6">
         {/* Token Usage & Cost */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">

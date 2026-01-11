@@ -2,6 +2,7 @@
 
 // Admin Messages Page
 // CEO Control Panel - Message Moderation and Monitoring
+// Shows only flagged content and flagged images for review
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
@@ -21,9 +22,11 @@ import {
   ChevronRight,
   X,
   ImageIcon,
+  Brain,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import InvestigationPanel from '@/components/admin/InvestigationPanel'
 
 interface Message {
   id: string
@@ -108,6 +111,10 @@ export default function AdminMessagesPage() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [isActioning, setIsActioning] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // AI Investigation panel
+  const [showInvestigation, setShowInvestigation] = useState(false)
+  const [investigationMessageId, setInvestigationMessageId] = useState<string | null>(null)
 
   const fetchMessages = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true)
@@ -378,22 +385,18 @@ export default function AdminMessagesPage() {
       {/* Filters */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Message Type Filter */}
+          {/* Message Type Filter - Only Flagged Content and Flagged Images */}
           <div className="flex flex-wrap bg-gray-700 rounded-lg p-1">
             {[
-              { key: 'flagged', label: 'Flagged', icon: AlertTriangle },
-              { key: 'images', label: 'Images', icon: ImageIcon },
-              { key: 'all', label: 'All', icon: MessageSquare },
-              { key: 'dm', label: 'DMs', icon: Users },
-              { key: 'group', label: 'Groups', icon: Users },
-              { key: 'session', label: 'Sessions', icon: MessageSquare },
+              { key: 'flagged', label: 'Flagged Content', icon: AlertTriangle },
+              { key: 'images', label: 'Flagged Images', icon: ImageIcon },
             ].map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setMessageType(key)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
                   messageType === key
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-red-600 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -754,6 +757,22 @@ export default function AdminMessagesPage() {
                 </div>
               )}
 
+              {/* AI Investigation Button - Available for all flagged messages */}
+              {selectedMessage.isFlagged && (
+                <div className="pt-4 border-t border-gray-700">
+                  <button
+                    onClick={() => {
+                      setInvestigationMessageId(selectedMessage.id)
+                      setShowInvestigation(true)
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+                  >
+                    <Brain className="w-5 h-5" />
+                    AI Investigation
+                  </button>
+                </div>
+              )}
+
               {/* Action Buttons (only for flagged pending messages) */}
               {selectedMessage.isFlagged && selectedMessage.status === 'PENDING' && (
                 <div className="flex gap-3 pt-4 border-t border-gray-700">
@@ -862,6 +881,25 @@ export default function AdminMessagesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Investigation Panel */}
+      {showInvestigation && investigationMessageId && (
+        <InvestigationPanel
+          reportId={investigationMessageId}
+          reportType={selectedMessage?.type || 'MESSAGE'}
+          onClose={() => {
+            setShowInvestigation(false)
+            setInvestigationMessageId(null)
+          }}
+          onAction={(action, data) => {
+            // Handle investigation actions (e.g., ban, warn, dismiss)
+            if (action === 'refresh') {
+              fetchMessages(true)
+            }
+            console.log('[Investigation Action]', action, data)
+          }}
+        />
       )}
     </div>
   )
