@@ -627,7 +627,7 @@ function PartnersChatContent() {
                 <PartnerSearchBar onConversationSelect={handleSearchConversationSelect} />
               </div>
               <button
-                onClick={() => router.push('/find-partner')}
+                onClick={() => router.push('/search')}
                 className="flex-shrink-0 p-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
                 title={tChat('findPartner')}
               >
