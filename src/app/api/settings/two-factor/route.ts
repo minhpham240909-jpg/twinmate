@@ -133,6 +133,8 @@ export async function POST(request: NextRequest) {
 
     if (action === 'enable') {
       // Step 1: Generate TOTP secret and QR code
+      // Always generate a fresh secret - this handles cases where user had a failed setup
+      // with an old encrypted secret that used different key derivation
       const secret = authenticator.generateSecret()
       const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Clerva'
       const otpauthUrl = authenticator.keyuri(dbUser.email, appName, secret)
@@ -180,7 +182,24 @@ export async function POST(request: NextRequest) {
       }
 
       // Decrypt the secret
-      const decryptedSecret = decrypt(dbUser.twoFactorSecret)
+      let decryptedSecret: string
+      try {
+        decryptedSecret = decrypt(dbUser.twoFactorSecret)
+      } catch (decryptError) {
+        console.error('[2FA] Failed to decrypt secret - likely encrypted with old key:', decryptError)
+        // Clear the corrupted secret and ask user to start over
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            twoFactorSecret: null,
+            twoFactorEnabled: false,
+          },
+        })
+        return NextResponse.json(
+          { error: 'Your 2FA setup was corrupted. Please click "Enable 2FA" again to start fresh.' },
+          { status: 400 }
+        )
+      }
 
       // Verify the TOTP code
       const isValid = authenticator.verify({
@@ -189,6 +208,12 @@ export async function POST(request: NextRequest) {
       })
 
       if (!isValid) {
+        // Log for debugging
+        console.error('[2FA] Code verification failed:', {
+          userId: user.id,
+          codeLength: code.length,
+          secretLength: decryptedSecret.length,
+        })
         return NextResponse.json(
           { error: 'Invalid verification code. Please try again.' },
           { status: 400 }
