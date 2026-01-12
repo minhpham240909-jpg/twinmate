@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getOrSetCached } from '@/lib/cache'
-import { adminRateLimit, getRateLimitHeaders } from '@/lib/admin/rate-limit'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // Short cache TTL for real-time data (10 seconds)
 const ONLINE_USERS_CACHE_TTL = 10
@@ -125,16 +125,10 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // Add rate limit headers to response
-    const headers = await getRateLimitHeaders(req, 'analytics')
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: onlineData,
-      },
-      { headers }
-    )
+    return NextResponse.json({
+      success: true,
+      data: onlineData,
+    })
   } catch (error) {
     console.error('Error fetching online users:', error)
     return NextResponse.json(

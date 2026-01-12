@@ -9,7 +9,7 @@ import {
   getRecentSignups,
   getUserActivityBreakdown,
 } from '@/lib/admin/utils'
-import { adminRateLimit, getRateLimitHeaders } from '@/lib/admin/rate-limit'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,18 +47,14 @@ export async function GET(req: NextRequest) {
     if (recentSignupsOnly) {
       // Lightweight request for just recent signups
       const recentSignups = await getRecentSignups(10)
-      const headers = await getRateLimitHeaders(req, 'dashboard')
 
-      return NextResponse.json(
-        {
-          success: true,
-          data: {
-            recentSignups,
-            generatedAt: new Date().toISOString(),
-          },
+      return NextResponse.json({
+        success: true,
+        data: {
+          recentSignups,
+          generatedAt: new Date().toISOString(),
         },
-        { headers }
-      )
+      })
     }
 
     // Get all dashboard data (uses cached queries with indexes)
@@ -69,22 +65,16 @@ export async function GET(req: NextRequest) {
       getUserActivityBreakdown(),
     ])
 
-    // Add rate limit headers to response
-    const headers = await getRateLimitHeaders(req, 'dashboard')
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          stats,
-          growthData,
-          recentSignups,
-          activityBreakdown,
-          generatedAt: new Date().toISOString(),
-        },
+    return NextResponse.json({
+      success: true,
+      data: {
+        stats,
+        growthData,
+        recentSignups,
+        activityBreakdown,
+        generatedAt: new Date().toISOString(),
       },
-      { headers }
-    )
+    })
   } catch (error) {
     console.error('[Admin Dashboard] Error:', error)
     return NextResponse.json(

@@ -9,10 +9,10 @@ import bcrypt from 'bcryptjs'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // Configure TOTP with time window tolerance for clock drift
-// window: 1 means accept codes from 1 step before and 1 step after (±30 seconds)
+// window: 2 means accept codes from 2 steps before and 2 steps after (±60 seconds)
 // This helps prevent "Invalid code" errors due to slight time differences
 authenticator.options = {
-  window: 1, // Accept codes within ±30 seconds of current time
+  window: 2, // Accept codes within ±60 seconds of current time
   step: 30,  // 30-second time step (standard TOTP)
 }
 
