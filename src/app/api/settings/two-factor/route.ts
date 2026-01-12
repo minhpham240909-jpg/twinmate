@@ -33,7 +33,10 @@ function getEncryptionKey(): Buffer {
   if (ENCRYPTION_KEY === 'your-32-character-secret-key-here!' || ENCRYPTION_KEY.length < 32) {
     throw new Error('ENCRYPTION_KEY must be at least 32 characters and not the default value')
   }
-  return Buffer.from(ENCRYPTION_KEY).slice(0, 32)
+  // SECURITY: Use SHA256 hash to ensure consistent 32-byte key derivation
+  // This must match the key derivation in /api/auth/signin/route.ts
+  const hash = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest()
+  return hash.slice(0, 32)
 }
 
 function encrypt(text: string): string {
