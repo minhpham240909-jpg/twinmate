@@ -10,6 +10,14 @@ import bcrypt from 'bcryptjs'
 import { isAccountLocked, recordFailedAttempt, clearLockout, formatLockoutMessage } from '@/lib/account-lockout'
 // Note: CSRF protection handled by middleware origin check + Supabase's own auth security
 
+// Configure TOTP with time window tolerance for clock drift
+// window: 1 means accept codes from 1 step before and 1 step after (±30 seconds)
+// This helps prevent "Invalid code" errors due to slight time differences
+authenticator.options = {
+  window: 1, // Accept codes within ±30 seconds of current time
+  step: 30,  // 30-second time step (standard TOTP)
+}
+
 // Encryption helpers for decrypting 2FA secret
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
 const ALGORITHM = 'aes-256-cbc'
