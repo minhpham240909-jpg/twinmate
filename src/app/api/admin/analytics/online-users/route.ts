@@ -55,30 +55,8 @@ export async function GET(req: NextRequest) {
       const now = new Date()
       const threshold = new Date(now.getTime() - ONLINE_THRESHOLD_MS)
 
-      // Get all online users with their basic info
-      // Uses lastSeenAt field with index for efficient queries
-      const onlinePresences = await prisma.userPresence.findMany({
-        where: {
-          status: 'online', // lowercase as per schema
-          lastSeenAt: { gte: threshold },
-        },
-        select: {
-          userId: true,
-          lastSeenAt: true,
-          lastActivityAt: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatarUrl: true,
-            }
-          }
-        },
-        orderBy: { lastSeenAt: 'desc' },
-      })
-
-      // Count active device sessions for page breakdown
-      // DeviceSession tracks actual page views via userAgent
+      // FIX: Use DeviceSession as primary source for online users
+      // DeviceSession is more reliable as it tracks actual heartbeats
       const activeDeviceSessions = await prisma.deviceSession.findMany({
         where: {
           isActive: true,
@@ -87,8 +65,38 @@ export async function GET(req: NextRequest) {
         select: {
           userId: true,
           userAgent: true,
-        }
+          lastHeartbeatAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            }
+          }
+        },
+        orderBy: { lastHeartbeatAt: 'desc' },
       })
+
+      // Get unique online users from device sessions
+      const uniqueUserIds = new Set<string>()
+      const onlineUsers: Array<{
+        id: string
+        name: string | null
+        avatarUrl: string | null
+        lastSeen: Date
+      }> = []
+
+      for (const session of activeDeviceSessions) {
+        if (!uniqueUserIds.has(session.userId) && session.user) {
+          uniqueUserIds.add(session.userId)
+          onlineUsers.push({
+            id: session.user.id,
+            name: session.user.name,
+            avatarUrl: session.user.avatarUrl,
+            lastSeen: session.lastHeartbeatAt,
+          })
+        }
+      }
 
       // Get page visits in last 5 minutes for real-time page breakdown
       const pageVisitThreshold = new Date(now.getTime() - 5 * 60 * 1000)
@@ -111,14 +119,14 @@ export async function GET(req: NextRequest) {
       })
 
       return {
-        count: onlinePresences.length,
-        activeDevices: activeDeviceSessions.length,
-        users: onlinePresences.slice(0, 20).map(p => ({
-          id: p.user.id,
-          name: p.user.name,
-          avatarUrl: p.user.avatarUrl,
-          currentPage: null, // Not tracked in UserPresence
-          lastSeen: p.lastSeenAt,
+        count: onlineUsers.length, // Unique online users
+        activeDevices: activeDeviceSessions.length, // Total active device sessions
+        users: onlineUsers.slice(0, 20).map(u => ({
+          id: u.id,
+          name: u.name,
+          avatarUrl: u.avatarUrl,
+          currentPage: null, // Not tracked in DeviceSession
+          lastSeen: u.lastSeen,
         })),
         pageBreakdown,
         timestamp: now.toISOString(),

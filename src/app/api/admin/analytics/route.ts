@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
             UNION ALL
             SELECT 'newUsersThisPeriod', COUNT(*)::bigint FROM "User" WHERE "createdAt" >= ${startDate}
             UNION ALL
-            SELECT 'onlineUsersNow', COUNT(*)::bigint FROM "user_presence" WHERE status = 'online' AND "lastSeenAt" >= ${onlineThreshold}
+            SELECT 'onlineUsersNow', COUNT(DISTINCT "userId")::bigint FROM "device_sessions" WHERE "isActive" = true AND "lastHeartbeatAt" >= ${onlineThreshold}
             UNION ALL
             SELECT 'totalSessions', COUNT(*)::bigint FROM "user_session_analytics" WHERE "startedAt" >= ${startDate}
             UNION ALL
