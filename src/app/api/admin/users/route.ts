@@ -7,6 +7,7 @@ import { handlePrivilegeChange } from '@/lib/security/session-rotation'
 import logger from '@/lib/logger'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
 import { withCsrfProtection } from '@/lib/csrf'
+import crypto from 'crypto'
 
 // GET - List users with search, filter, and pagination
 export async function GET(request: NextRequest) {
@@ -200,29 +201,53 @@ export async function POST(request: NextRequest) {
         )
       }
 
-    // SECURITY: Super-admin protection
-    // Use database flag instead of email comparison to prevent email-based attacks
-    // Super-admin is determined by a special flag in the database (set via migration)
+    // SECURITY: Super-admin protection - FIX: Use database flag instead of env var
+    // Super-admin is determined by isSuperAdmin flag in the database (set via migration)
+    // This is more secure than email comparison as it:
+    // 1. Cannot be bypassed by email spoofing
+    // 2. Requires database access to grant super-admin
+    // 3. Is auditable (can track when/who set the flag)
     const actingAdmin = await prisma.user.findUnique({
       where: { id: user.id },
       select: { 
-        email: true,
-        // Check for super admin flag (can be added via migration: isSuperAdmin boolean field)
-        // For now, fallback to environment variable check but use constant-time comparison
         id: true,
+        email: true,
+        // NOTE: isSuperAdmin field added to schema - run `npx prisma generate` and migrate
+        // After migration, uncomment: isSuperAdmin: true,
       },
     })
     
-    // SECURITY: Use constant-time comparison to prevent timing attacks
-    // In production, this should be replaced with a database flag (isSuperAdmin)
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
+    // FIX: Check database flag for super-admin status
+    // First try to get isSuperAdmin from raw query (works even before Prisma client regeneration)
     let isSuperAdmin = false
-    if (superAdminEmail && actingAdmin?.email) {
-      // Use timing-safe comparison
+    
+    try {
+      // Try raw query to check isSuperAdmin field (works after migration, before client regen)
+      const superAdminCheck = await prisma.$queryRaw<Array<{ isSuperAdmin: boolean }>>`
+        SELECT "isSuperAdmin" FROM "User" WHERE id = ${user.id}
+      `.catch(() => null)
+      
+      if (superAdminCheck && superAdminCheck[0]?.isSuperAdmin === true) {
+        isSuperAdmin = true
+      }
+    } catch {
+      // Field doesn't exist yet or query failed - fall through to env var check
+    }
+    
+    // Fallback to env var check ONLY during migration period (remove after migration)
+    // Migration SQL: UPDATE "User" SET "isSuperAdmin" = true WHERE email = 'your-super-admin@email.com';
+    if (!isSuperAdmin && process.env.SUPER_ADMIN_EMAIL && actingAdmin?.email) {
+      // Temporary fallback using timing-safe comparison
+      const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
       const emailBuffer = Buffer.from(actingAdmin.email.toLowerCase().trim())
       const expectedBuffer = Buffer.from(superAdminEmail.toLowerCase().trim())
       if (emailBuffer.length === expectedBuffer.length) {
-        isSuperAdmin = require('crypto').timingSafeEqual(emailBuffer, expectedBuffer)
+        isSuperAdmin = crypto.timingSafeEqual(emailBuffer, expectedBuffer)
+        
+        // Log warning to remind developers to migrate
+        if (isSuperAdmin) {
+          logger.warn('DEPRECATION: Super-admin check using env var. Run migration to set isSuperAdmin flag in database.')
+        }
       }
     }
 

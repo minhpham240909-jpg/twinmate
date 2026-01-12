@@ -1292,6 +1292,8 @@ model UserPresence {
   id              String   @id @default(uuid())
   userId          String   @unique
   status          String   @default("offline") // "online" | "away" | "offline"
+  activityType    String   @default("browsing") // "browsing" | "studying" | "in_call" | "with_ai" | "idle"
+  activityDetails String?  // JSON: { sessionId, subject, startedAt, etc. }
   lastSeenAt      DateTime @default(now())
   lastActivityAt  DateTime @default(now())
   isPrivate       Boolean  @default(false) // Privacy setting: hide online status
@@ -1303,6 +1305,7 @@ model UserPresence {
 
   @@index([userId])
   @@index([status])
+  @@index([activityType]) // For filtering by activity type
   @@index([lastSeenAt]) // For presence timeout/cleanup queries
   @@index([status, lastSeenAt]) // For finding stale online users
   @@index([lastActivityAt]) // PERF: Cleanup stale presence records
@@ -2472,4 +2475,171 @@ model AIUsageDailySummary {
   @@index([date])
   @@index([userId])
   @@map("ai_usage_daily_summaries")
+}
+
+// ==========================================
+// STUDY CIRCLES (Social Accountability)
+// ==========================================
+
+enum StudyCircleStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CircleMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum CircleMemberStatus {
+  ACTIVE
+  INVITED
+  LEFT
+  REMOVED
+}
+
+// Study Circle - Stable groups of 3-6 people who study together regularly
+model StudyCircle {
+  id              String            @id @default(uuid())
+  name            String            // "CS Study Squad", "SAT Prep Group"
+  description     String?           @db.Text
+  coverImageUrl   String?
+
+  // Circle settings
+  maxMembers      Int               @default(6) // Max 6 for intimate accountability
+  isPrivate       Boolean           @default(true) // Private by default
+  inviteCode      String?           @unique // For inviting new members
+
+  // Focus area
+  subjects        String[]          // ["Math", "Physics"]
+  goals           String[]          // ["Pass finals", "Study 2hrs/day"]
+
+  // Status
+  status          StudyCircleStatus @default(ACTIVE)
+
+  // Group streak (collective accountability)
+  currentStreak   Int               @default(0) // Days everyone showed up
+  longestStreak   Int               @default(0)
+  lastActivityAt  DateTime?         // Last time any member was active
+
+  // Creator
+  createdById     String
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  members         StudyCircleMember[]
+  scheduledSessions CircleScheduledSession[]
+  attendanceRecords CircleAttendance[]
+
+  @@index([createdById])
+  @@index([status])
+  @@index([inviteCode])
+  @@index([currentStreak]) // For leaderboards
+  @@map("study_circles")
+}
+
+// Study Circle Members
+model StudyCircleMember {
+  id              String              @id @default(uuid())
+  circleId        String
+  userId          String
+
+  // Role and status
+  role            CircleMemberRole    @default(MEMBER)
+  status          CircleMemberStatus  @default(ACTIVE)
+
+  // Member stats within this circle
+  attendanceRate  Float               @default(0) // 0-100%
+  totalSessions   Int                 @default(0)
+  totalStudyTime  Int                 @default(0) // Minutes in this circle
+
+  // Notifications
+  notifyBeforeSession Boolean         @default(true)
+  notifyOnMemberJoin  Boolean         @default(true)
+
+  joinedAt        DateTime            @default(now())
+  leftAt          DateTime?
+
+  // Relations
+  circle          StudyCircle         @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+  @@index([userId])
+  @@index([circleId])
+  @@index([status])
+  @@map("study_circle_members")
+}
+
+// Scheduled/Recurring Sessions for Circles
+model CircleScheduledSession {
+  id              String            @id @default(uuid())
+  circleId        String
+
+  // Session details
+  title           String            // "Daily Study Session"
+  description     String?           @db.Text
+
+  // Schedule (recurring)
+  isRecurring     Boolean           @default(true)
+  recurringDays   String[]          // ["Monday", "Wednesday", "Friday"]
+  startTime       String            // "19:00" (24hr format)
+  durationMinutes Int               @default(60)
+  timezone        String            @default("UTC")
+
+  // One-time session date (if not recurring)
+  scheduledDate   DateTime?
+
+  // Status
+  isActive        Boolean           @default(true)
+
+  // Reminder settings
+  reminderMinutes Int               @default(15) // Notify 15 min before
+
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  circle          StudyCircle       @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  attendances     CircleAttendance[]
+
+  @@index([circleId])
+  @@index([isActive])
+  @@index([createdById])
+  @@map("circle_scheduled_sessions")
+}
+
+// Attendance Tracking - Who showed up to which session
+model CircleAttendance {
+  id              String            @id @default(uuid())
+  circleId        String
+  sessionId       String?           // Links to scheduled session
+  userId          String
+
+  // Attendance details
+  date            DateTime          @db.Date
+  joinedAt        DateTime?         // When they joined
+  leftAt          DateTime?         // When they left
+  durationMinutes Int               @default(0) // How long they studied
+
+  // Status
+  didAttend       Boolean           @default(false)
+  wasLate         Boolean           @default(false) // Joined >10 min late
+
+  createdAt       DateTime          @default(now())
+
+  // Relations
+  circle          StudyCircle       @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  scheduledSession CircleScheduledSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([circleId, userId, date]) // One record per person per day per circle
+  @@index([userId])
+  @@index([circleId])
+  @@index([date])
+  @@index([didAttend])
+  @@map("circle_attendance")
 }

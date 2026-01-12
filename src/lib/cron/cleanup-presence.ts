@@ -5,8 +5,12 @@ export async function cleanupPresence() {
   console.log('[CLEANUP] Starting presence cleanup job...')
 
   try {
-    // 1. Mark stale device sessions as inactive (no heartbeat for 60+ seconds)
-    const staleThreshold = new Date(Date.now() - 60 * 1000) // 60 seconds ago
+    // 1. Mark stale device sessions as inactive
+    // FIX: Increased threshold from 60s to 120s to account for:
+    // - Heartbeat interval: 45s (active) to 90s (idle)
+    // - Network latency and retry delays
+    // - Prevents false offline status between heartbeats
+    const staleThreshold = new Date(Date.now() - 120 * 1000) // 120 seconds (2 minutes) ago
 
     const staleSessionsResult = await prisma.deviceSession.updateMany({
       where: {

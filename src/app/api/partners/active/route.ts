@@ -46,6 +46,8 @@ export async function GET() {
             presence: {
               select: {
                 status: true,
+                activityType: true,
+                activityDetails: true,
                 lastSeenAt: true,
                 lastActivityAt: true,
                 isPrivate: true
@@ -81,6 +83,8 @@ export async function GET() {
             presence: {
               select: {
                 status: true,
+                activityType: true,
+                activityDetails: true,
                 lastSeenAt: true,
                 lastActivityAt: true,
                 isPrivate: true
@@ -118,17 +122,34 @@ export async function GET() {
       const partner = match.senderId === user.id ? match.receiver : match.sender
       const presence = partner.presence
 
-      // Determine online status from presence data
-      // FIX: Use lastActivityAt for more accurate online detection
-      // Heartbeat sends every 45-90 seconds, so 2 minutes is a safe threshold
+      // Determine online status and activity type from presence data
+      // FIX: Improved online detection with consistent threshold
+      // - Heartbeat sends every 45s (active) to 90s (idle)
+      // - Use 3-minute threshold to account for idle intervals + network latency
+      // - Check presence status from database (set by heartbeat API)
       let onlineStatus = 'OFFLINE'
+      let activityType = 'browsing'
+      let activityDetails: Record<string, unknown> | null = null
+
       if (presence && !presence.isPrivate) {
         const lastActivityAt = presence.lastActivityAt || presence.lastSeenAt
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000)
+        const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000)
 
-        // User is online if status is 'online' AND they've had activity recently
-        if (presence.status === 'online' && lastActivityAt > twoMinutesAgo) {
+        // User is online if:
+        // 1. Status is 'online' (set by heartbeat) AND
+        // 2. They've had activity within 3 minutes (accounts for idle heartbeat interval)
+        if (presence.status === 'online' && lastActivityAt > threeMinutesAgo) {
           onlineStatus = 'ONLINE'
+          activityType = (presence as any).activityType || 'browsing'
+
+          // Parse activity details if available
+          if ((presence as any).activityDetails) {
+            try {
+              activityDetails = JSON.parse((presence as any).activityDetails)
+            } catch {
+              activityDetails = null
+            }
+          }
         }
       }
 
@@ -154,6 +175,8 @@ export async function GET() {
         name: partner.name,
         avatarUrl: partner.avatarUrl,
         onlineStatus,
+        activityType,
+        activityDetails,
         profile: partner.profile ? {
           bio: partner.profile.bio,
           subjects: partner.profile.subjects,

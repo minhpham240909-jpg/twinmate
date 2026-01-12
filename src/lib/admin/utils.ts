@@ -460,3 +460,116 @@ export async function invalidateAdminCaches() {
     console.error('[Admin] Error invalidating caches:', error)
   }
 }
+
+/**
+ * Get user activity breakdown for admin dashboard
+ * Shows how many users are doing what (studying, in call, with AI, etc.)
+ * OPTIMIZED: Single query with grouping
+ */
+export async function getUserActivityBreakdown() {
+  const cacheKey = 'admin:activity:breakdown'
+
+  return getOrSetCached(cacheKey, 30, async () => { // 30 seconds cache
+    try {
+      // Get activity breakdown from presence data
+      const activityCounts = await prisma.userPresence.groupBy({
+        by: ['activityType'],
+        where: {
+          status: 'online',
+        },
+        _count: { _all: true },
+      })
+
+      // Get total online users
+      const totalOnline = await prisma.userPresence.count({
+        where: { status: 'online' },
+      })
+
+      // Get today's study statistics
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const [todayStudySessions, todayStudyMinutes, topStreakers] = await Promise.all([
+        // Count completed sessions today
+        prisma.studySession.count({
+          where: {
+            status: 'COMPLETED',
+            endedAt: { gte: today },
+          },
+        }),
+        // Get total study time today (from completed sessions)
+        prisma.studySession.findMany({
+          where: {
+            status: 'COMPLETED',
+            endedAt: { gte: today },
+          },
+          select: {
+            startedAt: true,
+            endedAt: true,
+          },
+        }).then(sessions => {
+          return sessions.reduce((total, session) => {
+            if (session.startedAt && session.endedAt) {
+              const diff = session.endedAt.getTime() - session.startedAt.getTime()
+              return total + Math.round(diff / (1000 * 60)) // Convert to minutes
+            }
+            return total
+          }, 0)
+        }),
+        // Get users with highest streaks (from Profile model)
+        prisma.profile.findMany({
+          where: {
+            studyStreak: { gt: 0 },
+            user: { deactivatedAt: null },
+          },
+          select: {
+            userId: true,
+            studyStreak: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true,
+              }
+            }
+          },
+          orderBy: { studyStreak: 'desc' },
+          take: 5,
+        }).then(profiles => profiles.map(p => ({
+          id: p.user.id,
+          name: p.user.name,
+          avatarUrl: p.user.avatarUrl,
+          studyStreak: p.studyStreak,
+        }))),
+      ])
+
+      // Format activity breakdown
+      const activityBreakdown: Record<string, number> = {
+        browsing: 0,
+        studying: 0,
+        in_call: 0,
+        with_ai: 0,
+        idle: 0,
+      }
+
+      activityCounts.forEach(item => {
+        const type = item.activityType || 'browsing'
+        activityBreakdown[type] = item._count._all
+      })
+
+      return {
+        totalOnline,
+        activityBreakdown,
+        todayStats: {
+          studySessions: todayStudySessions,
+          studyMinutes: todayStudyMinutes,
+          studyHours: Math.round(todayStudyMinutes / 60 * 10) / 10, // 1 decimal place
+        },
+        topStreakers,
+      }
+    } catch (error) {
+      console.error('[Admin] Error getting activity breakdown:', error)
+      return null
+    }
+  })
+}

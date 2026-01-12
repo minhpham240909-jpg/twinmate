@@ -14,10 +14,70 @@
  * - FIX: Race condition prevention using atomic check-and-set
  * - FIX: Memory leak prevention with bounded caches
  * - Message content deduplication for chat
+ * - FIX: Redis support for multi-instance deployments
  */
 
 import { SCALABILITY_CONFIG } from './config'
 import logger from '@/lib/logger'
+
+// =============================================================================
+// REDIS ADAPTER INTERFACE
+// =============================================================================
+
+/**
+ * Redis adapter interface for distributed deduplication
+ * Implement this interface to use Redis instead of in-memory storage
+ */
+export interface RedisDeduplicationAdapter {
+  // Set a key with TTL
+  set(key: string, value: string, ttlMs: number): Promise<void>
+  // Get a key
+  get(key: string): Promise<string | null>
+  // Delete a key
+  del(key: string): Promise<void>
+  // Set only if not exists (atomic)
+  setNX(key: string, value: string, ttlMs: number): Promise<boolean>
+  // Check if key exists
+  exists(key: string): Promise<boolean>
+}
+
+// Global Redis adapter (set via setRedisAdapter)
+let redisAdapter: RedisDeduplicationAdapter | null = null
+
+/**
+ * Configure Redis adapter for distributed deduplication
+ * Call this at app startup with your Redis client
+ * 
+ * Example:
+ * ```
+ * import Redis from 'ioredis'
+ * const redis = new Redis(process.env.REDIS_URL)
+ * 
+ * setRedisAdapter({
+ *   set: async (key, value, ttlMs) => {
+ *     await redis.set(`dedupe:${key}`, value, 'PX', ttlMs)
+ *   },
+ *   get: async (key) => redis.get(`dedupe:${key}`),
+ *   del: async (key) => { await redis.del(`dedupe:${key}`) },
+ *   setNX: async (key, value, ttlMs) => {
+ *     const result = await redis.set(`dedupe:${key}`, value, 'PX', ttlMs, 'NX')
+ *     return result === 'OK'
+ *   },
+ *   exists: async (key) => (await redis.exists(`dedupe:${key}`)) === 1,
+ * })
+ * ```
+ */
+export function setRedisAdapter(adapter: RedisDeduplicationAdapter): void {
+  redisAdapter = adapter
+  logger.info('Redis adapter configured for request deduplication')
+}
+
+/**
+ * Check if Redis is configured
+ */
+export function isRedisConfigured(): boolean {
+  return redisAdapter !== null
+}
 
 interface InFlightRequest<T> {
   promise: Promise<T>

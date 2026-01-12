@@ -7,6 +7,7 @@ import {
   getAdminDashboardStats,
   getUserGrowthData,
   getRecentSignups,
+  getUserActivityBreakdown,
 } from '@/lib/admin/utils'
 import { adminRateLimit, getRateLimitHeaders } from '@/lib/admin/rate-limit'
 
@@ -61,10 +62,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all dashboard data (uses cached queries with indexes)
-    const [stats, growthData, recentSignups] = await Promise.all([
+    const [stats, growthData, recentSignups, activityBreakdown] = await Promise.all([
       getAdminDashboardStats(),
       getUserGrowthData(30),
       getRecentSignups(10),
+      getUserActivityBreakdown(),
     ])
 
     // Add rate limit headers to response
@@ -77,6 +79,7 @@ export async function GET(req: NextRequest) {
           stats,
           growthData,
           recentSignups,
+          activityBreakdown,
           generatedAt: new Date().toISOString(),
         },
       },

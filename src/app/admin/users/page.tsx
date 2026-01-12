@@ -26,6 +26,7 @@ import {
   Eye,
   Trash2,
 } from 'lucide-react'
+import { useCsrfToken } from '@/hooks/useCsrfToken'
 
 interface UserData {
   id: string
@@ -64,6 +65,7 @@ type ActionType = 'ban' | 'unban' | 'warn' | 'deactivate' | 'reactivate' | 'gran
 export default function AdminUsersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { csrfToken } = useCsrfToken()
 
   // State
   const [users, setUsers] = useState<UserData[]>([])
@@ -150,6 +152,12 @@ export default function AdminUsersPage() {
   const handleAction = async () => {
     if (!actionModal) return
 
+    // Check for CSRF token before proceeding
+    if (!csrfToken) {
+      alert('Security token not available. Please refresh the page and try again.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -169,7 +177,10 @@ export default function AdminUsersPage() {
 
       const response = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
         body: JSON.stringify(body),
       })
 

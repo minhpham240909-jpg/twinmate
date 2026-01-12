@@ -93,6 +93,29 @@ interface AIPartnerQuickStats {
   error?: string
 }
 
+// Activity breakdown for real-time user activity
+interface ActivityBreakdown {
+  totalOnline: number
+  activityBreakdown: {
+    browsing: number
+    studying: number
+    in_call: number
+    with_ai: number
+    idle: number
+  }
+  todayStats: {
+    studySessions: number
+    studyMinutes: number
+    studyHours: number
+  }
+  topStreakers: Array<{
+    id: string
+    name: string
+    avatarUrl: string | null
+    studyStreak: number
+  }>
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [growthData, setGrowthData] = useState<GrowthDataPoint[]>([])
@@ -104,6 +127,9 @@ export default function AdminDashboard() {
   // AI Partner quick stats
   const [aiPartnerStats, setAiPartnerStats] = useState<AIPartnerQuickStats | null>(null)
   const [aiPartnerLoading, setAiPartnerLoading] = useState(true)
+
+  // Activity breakdown (studying, in call, with AI, etc.)
+  const [activityBreakdown, setActivityBreakdown] = useState<ActivityBreakdown | null>(null)
 
   // Real-time WebSocket connection for live updates
   // Replaces polling with Supabase Realtime for ~80% reduction in database load
@@ -143,6 +169,9 @@ export default function AdminDashboard() {
         setStats(data.data.stats)
         setGrowthData(data.data.growthData)
         setRecentSignups(data.data.recentSignups)
+        if (data.data.activityBreakdown) {
+          setActivityBreakdown(data.data.activityBreakdown)
+        }
         setLastUpdated(new Date())
       }
     } catch (error) {
@@ -560,6 +589,123 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {/* User Activity Breakdown - What users are doing */}
+      {activityBreakdown && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Activity Types */}
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Activity className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">What Users Are Doing</h2>
+                <p className="text-xs text-gray-400">Real-time activity breakdown</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="p-3 bg-emerald-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">🟢</div>
+                <p className="text-xl font-bold text-emerald-400">{activityBreakdown.activityBreakdown.browsing}</p>
+                <p className="text-xs text-gray-400">Browsing</p>
+              </div>
+              <div className="p-3 bg-blue-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">📚</div>
+                <p className="text-xl font-bold text-blue-400">{activityBreakdown.activityBreakdown.studying}</p>
+                <p className="text-xs text-gray-400">Studying</p>
+              </div>
+              <div className="p-3 bg-green-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">📞</div>
+                <p className="text-xl font-bold text-green-400">{activityBreakdown.activityBreakdown.in_call}</p>
+                <p className="text-xs text-gray-400">In Call</p>
+              </div>
+              <div className="p-3 bg-purple-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">🤖</div>
+                <p className="text-xl font-bold text-purple-400">{activityBreakdown.activityBreakdown.with_ai}</p>
+                <p className="text-xs text-gray-400">With AI</p>
+              </div>
+              <div className="p-3 bg-yellow-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">💤</div>
+                <p className="text-xl font-bold text-yellow-400">{activityBreakdown.activityBreakdown.idle}</p>
+                <p className="text-xs text-gray-400">Idle</p>
+              </div>
+            </div>
+            {/* Today's Stats */}
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Today&apos;s Study Stats</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats.studySessions}</p>
+                  <p className="text-xs text-gray-400">Sessions</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats.studyHours}h</p>
+                  <p className="text-xs text-gray-400">Study Time</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats.studyMinutes}</p>
+                  <p className="text-xs text-gray-400">Minutes</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Streakers */}
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-orange-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Top Study Streaks</h2>
+                <p className="text-xs text-gray-400">Most consistent learners</p>
+              </div>
+            </div>
+            {activityBreakdown.topStreakers.length > 0 ? (
+              <div className="space-y-3">
+                {activityBreakdown.topStreakers.map((user, idx) => (
+                  <Link
+                    key={user.id}
+                    href={`/admin/users/${user.id}`}
+                    className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white font-bold text-sm">
+                      {idx + 1}
+                    </div>
+                    {user.avatarUrl ? (
+                      <Image
+                        src={user.avatarUrl}
+                        alt={user.name || 'User'}
+                        width={36}
+                        height={36}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center">
+                        <span className="text-white font-medium">
+                          {user.name?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">{user.name || 'Unknown'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-orange-400">{user.studyStreak}</p>
+                      <p className="text-xs text-gray-400">days</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No active streaks yet
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Growth Chart and Recent Signups */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

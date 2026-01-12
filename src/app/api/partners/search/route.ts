@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
     const useSemanticSearch = rawData.useSemanticSearch
 
     // Validate at least one search criteria
+    // Include ALL filters that the frontend can send
     const hasSearchCriteria =
       (searchQuery && searchQuery.trim().length > 0) ||
       (subjects && subjects.length > 0) ||
@@ -149,7 +150,17 @@ export async function POST(request: NextRequest) {
       (locationCountry && locationCountry.trim().length > 0) ||
       (rawData.school && rawData.school.trim().length > 0) ||
       (strengthsFilter && strengthsFilter.trim().length > 0) ||
-      (weaknessesFilter && weaknessesFilter.trim().length > 0)
+      (weaknessesFilter && weaknessesFilter.trim().length > 0) ||
+      // Additional filters from frontend that were missing
+      (rawData.skillLevelCustomDescription && rawData.skillLevelCustomDescription.trim().length > 0) ||
+      (rawData.studyStyleCustomDescription && rawData.studyStyleCustomDescription.trim().length > 0) ||
+      (rawData.availability && rawData.availability.length > 0) ||
+      (rawData.availableHours && rawData.availableHours.trim().length > 0) ||
+      (rawData.interestsCustomDescription && rawData.interestsCustomDescription.trim().length > 0) ||
+      (rawData.languages && rawData.languages.trim().length > 0) ||
+      (rawData.role && rawData.role.length > 0) ||
+      (rawData.subjectCustomDescription && rawData.subjectCustomDescription.trim().length > 0) ||
+      (rawData.aboutYourselfSearch && rawData.aboutYourselfSearch.trim().length > 0)
 
     if (!hasSearchCriteria) {
       return NextResponse.json(
@@ -191,11 +202,19 @@ export async function POST(request: NextRequest) {
     // Combine exclusion lists
     const excludeUserIds = [...new Set([...blockedUserIds, ...pendingOrOtherUserIds])]
 
-    // Build cache key
+    // Build cache key - include ALL filters for proper cache invalidation
     const cacheKey = `${CACHE_PREFIX.SEARCH_PARTNERS}:${user.id}:${JSON.stringify({
       searchQuery, subjects, skillLevel, studyStyle, interests, goals,
       ageRange: rawData.ageRange, locationCity, locationState, locationCountry,
       strengthsFilter, weaknessesFilter,
+      // Include additional filters in cache key
+      availability: rawData.availability,
+      availableHours: rawData.availableHours,
+      languages: rawData.languages,
+      role: rawData.role,
+      skillLevelCustomDescription: rawData.skillLevelCustomDescription,
+      studyStyleCustomDescription: rawData.studyStyleCustomDescription,
+      interestsCustomDescription: rawData.interestsCustomDescription,
       page, limit, useSemanticSearch
     })}`
 
@@ -320,6 +339,11 @@ export async function POST(request: NextRequest) {
             locationCountry,
             strengthsFilter,
             weaknessesFilter,
+            // Additional filters
+            availability: rawData.availability,
+            availableHours: rawData.availableHours,
+            languages: rawData.languages,
+            role: rawData.role,
             limit: limit * 2,
             offset: 0
           })
@@ -488,6 +512,11 @@ interface TraditionalSearchParams {
   // Strengths and Weaknesses filters
   strengthsFilter?: string | null
   weaknessesFilter?: string | null
+  // Additional filters for availability, languages, and role
+  availability?: string[] | null
+  availableHours?: string | null
+  languages?: string | null
+  role?: string[] | null
   limit: number
   offset: number
 }
@@ -508,6 +537,11 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
     locationCountry,
     strengthsFilter,
     weaknessesFilter,
+    // Additional filters
+    availability,
+    availableHours,
+    languages,
+    role,
     limit,
     offset
   } = params
@@ -554,6 +588,42 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
   if (locationCountry) {
     whereConditions.AND.push({
       location_country: { contains: locationCountry, mode: 'insensitive' }
+    })
+  }
+
+  // Availability filters (days of week)
+  if (availability && availability.length > 0) {
+    whereConditions.AND.push({ availableDays: { hasSome: availability } })
+  }
+
+  // Available hours filter (text search in availableHours array)
+  if (availableHours && availableHours.trim()) {
+    // Search for overlap - user might type "morning", "9am", etc.
+    const hourTerms = availableHours.toLowerCase().split(/[\s,]+/).filter(t => t.length > 1)
+    if (hourTerms.length > 0) {
+      // Use OR to find profiles with any matching hour term
+      whereConditions.AND.push({
+        OR: hourTerms.map(term => ({
+          availableHours: { has: term }
+        }))
+      })
+    }
+  }
+
+  // Languages filter (comma-separated text field)
+  if (languages && languages.trim()) {
+    whereConditions.AND.push({
+      languages: { contains: languages.trim(), mode: 'insensitive' }
+    })
+  }
+
+  // Role filter (array of roles)
+  if (role && role.length > 0) {
+    // Match any of the selected roles (case-insensitive)
+    whereConditions.AND.push({
+      OR: role.map(r => ({
+        role: { equals: r, mode: 'insensitive' }
+      }))
     })
   }
 

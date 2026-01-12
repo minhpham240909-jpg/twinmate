@@ -288,6 +288,7 @@ export function usePresence() {
   }, [isInitialized, user, wasOffline, isOnline, sendHeartbeat, getHeartbeatInterval])
 
   // Handle page visibility changes (tab focus/blur)
+  // FIX: Also restart heartbeat loop if it was stopped
   useEffect(() => {
     if (!isInitialized || !user || !isOnline) return
 
@@ -295,6 +296,21 @@ export function usePresence() {
       if (document.visibilityState === 'visible' && user && isOnline) {
         // Tab became visible - send immediate heartbeat
         sendHeartbeat()
+
+        // FIX: Restart heartbeat loop if it was stopped (e.g., during sessions)
+        if (!heartbeatLoopActiveRef.current && currentUserIdRef.current) {
+          heartbeatLoopActiveRef.current = true
+          const scheduleNextHeartbeat = () => {
+            if (!heartbeatLoopActiveRef.current || !currentUserIdRef.current) return
+            const interval = getHeartbeatInterval()
+            heartbeatIntervalRef.current = setTimeout(() => {
+              if (!heartbeatLoopActiveRef.current || !currentUserIdRef.current) return
+              sendHeartbeat()
+              scheduleNextHeartbeat()
+            }, interval)
+          }
+          scheduleNextHeartbeat()
+        }
       }
     }
 
@@ -303,7 +319,7 @@ export function usePresence() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [isInitialized, user, isOnline, sendHeartbeat])
+  }, [isInitialized, user, isOnline, sendHeartbeat, getHeartbeatInterval])
 
   // Handle beforeunload (browser close)
   useEffect(() => {

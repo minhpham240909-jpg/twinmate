@@ -96,6 +96,7 @@ export async function GET(request: Request) {
     )
 
     // Fetch presence for all partners (only if there are partners)
+    // Include activityType for showing what partners are doing
     const userPresences = partnerIdsFromMatches.length > 0
       ? await prisma.userPresence.findMany({
           where: {
@@ -105,7 +106,9 @@ export async function GET(request: Request) {
             userId: true,
             status: true,
             lastSeenAt: true,
-            isPrivate: true
+            isPrivate: true,
+            activityType: true,
+            activityDetails: true,
           }
         })
       : []
@@ -122,9 +125,23 @@ export async function GET(request: Request) {
 
       // Determine online status from presence data
       let onlineStatus = 'OFFLINE'
+      let activityType = 'browsing'
+      let activityDetails: Record<string, unknown> | null = null
+
       if (presence && !presence.isPrivate) {
         // Map presence status to old onlineStatus format
         onlineStatus = presence.status === 'online' ? 'ONLINE' : 'OFFLINE'
+        activityType = presence.activityType || 'browsing'
+        // Parse activityDetails if it's a string
+        if (presence.activityDetails) {
+          try {
+            activityDetails = typeof presence.activityDetails === 'string'
+              ? JSON.parse(presence.activityDetails)
+              : presence.activityDetails as Record<string, unknown>
+          } catch {
+            activityDetails = null
+          }
+        }
       }
 
       return {
@@ -133,6 +150,8 @@ export async function GET(request: Request) {
         avatarUrl: partner.avatarUrl,
         type: 'partner' as const,
         onlineStatus,
+        activityType,
+        activityDetails,
         lastMessage: null as string | null,
         lastMessageTime: null as Date | null,
         unreadCount: 0
@@ -170,33 +189,62 @@ export async function GET(request: Request) {
     const messageQueries = []
 
     if (partnerIds.length > 0) {
+      // FIX: Use DISTINCT query to get only the latest message per partner
+      // This is much more efficient than fetching 100 messages and filtering in JS
+      // Previously: take: 100 could miss messages if user has > 100 messages with one partner
       messageQueries.push(
-        // Last messages for partners - fetch all and filter in JS
-        prisma.message.findMany({
-          where: {
-            OR: [
-              { senderId: userId, recipientId: { in: partnerIds } },
-              { senderId: { in: partnerIds }, recipientId: userId }
-            ],
-            groupId: null
-          },
-          select: {
-            id: true,
-            content: true,
-            type: true,
-            callType: true,
-            callDuration: true,
-            callStatus: true,
-            createdAt: true,
-            senderId: true,
-            recipientId: true,
-            deletedAt: true, // Include deletedAt to check for deleted messages
-          },
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 100 // Limit to prevent too many messages
-        }).then(results => ({ type: 'partner', results })),
+        // Last messages for partners - use distinct to get only one per partner
+        // This ensures we always get the latest message regardless of message count
+        prisma.$queryRaw<Array<{
+          id: string
+          content: string
+          type: string
+          callType: string | null
+          callDuration: number | null
+          callStatus: string | null
+          createdAt: Date
+          senderId: string
+          recipientId: string
+          deletedAt: Date | null
+          partnerId: string
+        }>>`
+          WITH RankedMessages AS (
+            SELECT 
+              m.id,
+              m.content,
+              m.type::text,
+              m."callType"::text,
+              m."callDuration",
+              m."callStatus"::text,
+              m."createdAt",
+              m."senderId",
+              m."recipientId",
+              m."deletedAt",
+              CASE 
+                WHEN m."senderId" = ${userId} THEN m."recipientId"
+                ELSE m."senderId"
+              END as "partnerId",
+              ROW_NUMBER() OVER (
+                PARTITION BY 
+                  CASE 
+                    WHEN m."senderId" = ${userId} THEN m."recipientId"
+                    ELSE m."senderId"
+                  END
+                ORDER BY m."createdAt" DESC
+              ) as rn
+            FROM "Message" m
+            WHERE 
+              m."groupId" IS NULL
+              AND (
+                (m."senderId" = ${userId} AND m."recipientId" = ANY(${partnerIds}))
+                OR (m."senderId" = ANY(${partnerIds}) AND m."recipientId" = ${userId})
+              )
+          )
+          SELECT id, content, type, "callType", "callDuration", "callStatus", 
+                 "createdAt", "senderId", "recipientId", "deletedAt", "partnerId"
+          FROM RankedMessages
+          WHERE rn = 1
+        `.then(results => ({ type: 'partner', results })),
         // Unread counts for partners
         prisma.message.groupBy({
           by: ['senderId'],
@@ -254,25 +302,21 @@ export async function GET(request: Request) {
     // Process message data
     messageData.forEach(data => {
       if (data.type === 'partner') {
-        // Group messages by partner and get the most recent for each
-        const lastMessageMap = new Map<string, { content: string; createdAt: Date; senderId: string | null; recipientId: string | null; deletedAt: Date | null }>()
-
+        // FIX: Raw query already returns one message per partner with partnerId field
+        // No need to group - directly map to partners
         data.results.forEach((msg: unknown) => {
-          const message = msg as { senderId: string | null; recipientId: string | null; content: string; createdAt: Date; deletedAt: Date | null }
-          const partnerId = message.senderId === userId ? message.recipientId : message.senderId
-
-          if (partnerId && !lastMessageMap.has(partnerId)) {
-            lastMessageMap.set(partnerId, message)
+          const message = msg as { 
+            partnerId: string
+            content: string
+            createdAt: Date
+            deletedAt: Date | null 
           }
-        })
-
-        // Map to partners using partnerMap for O(1) lookup
-        partners.forEach(partner => {
-          const lastMsg = lastMessageMap.get(partner.id)
-          if (lastMsg) {
+          
+          const partner = partnerMap.get(message.partnerId)
+          if (partner) {
             // Check if message is deleted - show "Message deleted" instead of actual content
-            partner.lastMessage = lastMsg.deletedAt ? 'Message deleted' : lastMsg.content
-            partner.lastMessageTime = lastMsg.createdAt
+            partner.lastMessage = message.deletedAt ? 'Message deleted' : message.content
+            partner.lastMessageTime = message.createdAt
           }
         })
       } else if (data.type === 'partner-unread') {

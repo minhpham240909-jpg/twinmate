@@ -28,7 +28,7 @@ import {
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
 import Link from 'next/link'
 
-type TabType = 'reports' | 'feedback'
+type TabType = 'reports' | 'feedback' | 'flagged'
 
 interface Reporter {
   id: string
@@ -94,6 +94,43 @@ interface FeedbackStats {
   total: number
 }
 
+// Flagged content interfaces (AI-detected moderation)
+interface FlaggedContentSender {
+  id: string
+  name: string | null
+  email: string
+  avatarUrl: string | null
+}
+
+interface FlaggedContentData {
+  id: string
+  contentType: string
+  contentId: string
+  content: string
+  senderId: string
+  senderEmail: string | null
+  senderName: string | null
+  flagReason: string
+  flaggedAt: string
+  aiCategories: string[] | null
+  aiScore: number | null
+  status: string
+  reviewedAt: string | null
+  reviewNotes: string | null
+  actionTaken: string | null
+  sender: FlaggedContentSender
+  reviewedBy: {
+    id: string
+    name: string | null
+    email: string
+  } | null
+}
+
+interface FlaggedContentStats {
+  byStatus: Record<string, number>
+  total: number
+}
+
 export default function AdminReportsPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('reports')
@@ -108,6 +145,11 @@ export default function AdminReportsPage() {
   const [feedbackPagination, setFeedbackPagination] = useState<Pagination | null>(null)
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null)
 
+  // Flagged content state (AI-detected)
+  const [flaggedContent, setFlaggedContent] = useState<FlaggedContentData[]>([])
+  const [flaggedPagination, setFlaggedPagination] = useState<Pagination | null>(null)
+  const [flaggedStats, setFlaggedStats] = useState<FlaggedContentStats | null>(null)
+
   // Filters - Reports
   const [status, setStatus] = useState('')
   const [type, setType] = useState('')
@@ -117,6 +159,11 @@ export default function AdminReportsPage() {
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [feedbackRating, setFeedbackRating] = useState('')
   const [feedbackPage, setFeedbackPage] = useState(1)
+
+  // Filters - Flagged content
+  const [flaggedStatus, setFlaggedStatus] = useState('')
+  const [flaggedContentType, setFlaggedContentType] = useState('')
+  const [flaggedPage, setFlaggedPage] = useState(1)
 
   // Modal state - Reports
   const [actionModal, setActionModal] = useState<{
@@ -135,6 +182,15 @@ export default function AdminReportsPage() {
     action: 'review' | 'resolve' | 'archive'
   } | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
+
+  // Modal state - Flagged content
+  const [flaggedModal, setFlaggedModal] = useState<{
+    content: FlaggedContentData
+    action: 'approve' | 'remove' | 'warn' | 'ban'
+  } | null>(null)
+  const [flaggedNotes, setFlaggedNotes] = useState('')
+  const [flaggedBanDuration, setFlaggedBanDuration] = useState<number | null>(null)
+  const [flaggedBanReason, setFlaggedBanReason] = useState('')
 
   // Investigation panel state
   const [investigationReport, setInvestigationReport] = useState<ReportData | null>(null)
@@ -192,13 +248,42 @@ export default function AdminReportsPage() {
     }
   }, [feedbackPage, feedbackStatus, feedbackRating])
 
+  // Fetch flagged content (AI-detected)
+  const fetchFlaggedContent = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setIsRefreshing(true)
+
+    try {
+      const params = new URLSearchParams({
+        page: flaggedPage.toString(),
+        limit: '20',
+        ...(flaggedStatus && { status: flaggedStatus }),
+        ...(flaggedContentType && { contentType: flaggedContentType }),
+      })
+
+      const response = await fetch(`/api/admin/flagged-content?${params}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setFlaggedContent(data.data.flaggedContent)
+        setFlaggedPagination(data.data.pagination)
+        setFlaggedStats(data.data.statistics)
+      }
+    } catch (error) {
+      console.error('Error fetching flagged content:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [flaggedPage, flaggedStatus, flaggedContentType])
+
   useEffect(() => {
     if (activeTab === 'reports') {
       fetchReports()
-    } else {
+    } else if (activeTab === 'feedback') {
       fetchFeedback()
+    } else if (activeTab === 'flagged') {
+      fetchFlaggedContent()
     }
-  }, [activeTab, fetchReports, fetchFeedback])
+  }, [activeTab, fetchReports, fetchFeedback, fetchFlaggedContent])
 
   // Handle action
   const handleAction = async (action: 'review' | 'resolve' | 'dismiss', reportId: string) => {
@@ -311,6 +396,79 @@ export default function AdminReportsPage() {
       alert('An error occurred')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // Handle flagged content action
+  const handleFlaggedAction = async (action: 'approve' | 'remove' | 'warn' | 'ban', contentId: string) => {
+    const content = flaggedContent.find((fc) => fc.id === contentId)
+    if (content) {
+      setFlaggedModal({ content, action })
+      setFlaggedNotes('')
+      setFlaggedBanDuration(null)
+      setFlaggedBanReason('')
+    }
+  }
+
+  // Submit flagged content action
+  const submitFlaggedAction = async () => {
+    if (!flaggedModal) return
+
+    setIsSubmitting(true)
+
+    try {
+      const body: Record<string, unknown> = {
+        action: flaggedModal.action,
+        flaggedContentId: flaggedModal.content.id,
+        notes: flaggedNotes,
+      }
+
+      if (flaggedModal.action === 'ban') {
+        body.banDuration = flaggedBanDuration
+        body.banReason = flaggedBanReason
+      }
+
+      const response = await fetch('/api/admin/flagged-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        fetchFlaggedContent(true)
+        setFlaggedModal(null)
+        setFlaggedNotes('')
+        setFlaggedBanDuration(null)
+        setFlaggedBanReason('')
+      } else {
+        alert(data.error || 'Action failed')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('An error occurred')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Delete flagged content permanently
+  const deleteFlaggedContent = async (contentId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this flagged content record? This cannot be undone.')) return
+
+    try {
+      const response = await fetch('/api/admin/flagged-content', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flaggedContentId: contentId }),
+      })
+
+      if ((await response.json()).success) {
+        fetchFlaggedContent(true)
+      }
+    } catch (error) {
+      console.error('Error deleting flagged content:', error)
     }
   }
 
@@ -433,8 +591,67 @@ export default function AdminReportsPage() {
     )
   }
 
+  // Get flagged content status badge
+  const getFlaggedStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return { label: 'Pending', color: 'bg-yellow-500/20 text-yellow-400', icon: Clock }
+      case 'APPROVED':
+        return { label: 'Approved', color: 'bg-green-500/20 text-green-400', icon: CheckCircle }
+      case 'REMOVED':
+        return { label: 'Removed', color: 'bg-red-500/20 text-red-400', icon: XCircle }
+      case 'WARNING':
+        return { label: 'Warned', color: 'bg-orange-500/20 text-orange-400', icon: AlertTriangle }
+      default:
+        return { label: status, color: 'bg-gray-500/20 text-gray-400', icon: Flag }
+    }
+  }
+
+  // Get flagged content type badge
+  const getFlaggedTypeBadge = (contentType: string) => {
+    switch (contentType) {
+      case 'POST':
+        return { label: 'Post', color: 'bg-blue-500/20 text-blue-400' }
+      case 'COMMENT':
+        return { label: 'Comment', color: 'bg-purple-500/20 text-purple-400' }
+      case 'DIRECT_MESSAGE':
+        return { label: 'DM', color: 'bg-indigo-500/20 text-indigo-400' }
+      case 'GROUP_MESSAGE':
+        return { label: 'Group Msg', color: 'bg-teal-500/20 text-teal-400' }
+      case 'SESSION_MESSAGE':
+        return { label: 'Session', color: 'bg-cyan-500/20 text-cyan-400' }
+      default:
+        return { label: contentType, color: 'bg-gray-500/20 text-gray-400' }
+    }
+  }
+
+  // Get AI category badge color
+  const getAICategoryColor = (category: string) => {
+    switch (category) {
+      case 'harassment':
+        return 'bg-red-500/20 text-red-400'
+      case 'hate_speech':
+        return 'bg-red-600/20 text-red-500'
+      case 'violence':
+        return 'bg-orange-500/20 text-orange-400'
+      case 'sexual_content':
+        return 'bg-pink-500/20 text-pink-400'
+      case 'self_harm':
+        return 'bg-purple-500/20 text-purple-400'
+      case 'dangerous':
+        return 'bg-yellow-500/20 text-yellow-400'
+      case 'spam':
+        return 'bg-gray-500/20 text-gray-400'
+      case 'pii':
+        return 'bg-blue-500/20 text-blue-400'
+      default:
+        return 'bg-gray-500/20 text-gray-400'
+    }
+  }
+
   const pendingReportsCount = reports.filter((r) => r.status === 'PENDING').length
   const pendingFeedbackCount = feedback.filter((f) => f.status === 'PENDING').length
+  const pendingFlaggedCount = flaggedContent.filter((fc) => fc.status === 'PENDING').length
 
   return (
     <div className="space-y-6">
@@ -493,6 +710,25 @@ export default function AdminReportsPage() {
             )}
           </span>
           {activeTab === 'feedback' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('flagged')}
+          className={`px-6 py-3 font-medium transition-colors relative ${
+            activeTab === 'flagged'
+              ? 'text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            AI Flagged
+            {pendingFlaggedCount > 0 && (
+              <span className="px-2 py-0.5 text-xs bg-orange-500 text-black rounded-full">{pendingFlaggedCount}</span>
+            )}
+          </span>
+          {activeTab === 'flagged' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
           )}
         </button>
@@ -584,6 +820,60 @@ export default function AdminReportsPage() {
               <option value="3">3 Stars</option>
               <option value="2">2 Stars</option>
               <option value="1">1 Star</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Statistics Bar for Flagged Content */}
+      {activeTab === 'flagged' && flaggedStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <p className="text-sm text-gray-400">Total Flagged</p>
+            <p className="text-2xl font-bold text-white">{flaggedStats.total}</p>
+          </div>
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <p className="text-sm text-gray-400">Pending Review</p>
+            <p className="text-2xl font-bold text-orange-400">{flaggedStats.byStatus.PENDING || 0}</p>
+          </div>
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <p className="text-sm text-gray-400">Approved</p>
+            <p className="text-2xl font-bold text-green-400">{flaggedStats.byStatus.APPROVED || 0}</p>
+          </div>
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+            <p className="text-sm text-gray-400">Removed</p>
+            <p className="text-2xl font-bold text-red-400">{flaggedStats.byStatus.REMOVED || 0}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Filters - Flagged Content Tab */}
+      {activeTab === 'flagged' && (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+          <div className="flex flex-wrap gap-4">
+            <select
+              value={flaggedStatus}
+              onChange={(e) => { setFlaggedStatus(e.target.value); setFlaggedPage(1) }}
+              className="px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="">All Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REMOVED">Removed</option>
+              <option value="WARNING">Warned</option>
+            </select>
+
+            <select
+              value={flaggedContentType}
+              onChange={(e) => { setFlaggedContentType(e.target.value); setFlaggedPage(1) }}
+              className="px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="">All Types</option>
+              <option value="POST">Posts</option>
+              <option value="COMMENT">Comments</option>
+              <option value="DIRECT_MESSAGE">Direct Messages</option>
+              <option value="GROUP_MESSAGE">Group Messages</option>
+              <option value="SESSION_MESSAGE">Session Messages</option>
             </select>
           </div>
         </div>
@@ -1026,6 +1316,200 @@ export default function AdminReportsPage() {
         </>
       )}
 
+      {/* Flagged Content List */}
+      {activeTab === 'flagged' && (
+        <>
+          <div className="space-y-4">
+            {flaggedContent.length > 0 ? (
+              flaggedContent.map((fc) => {
+                const statusBadge = getFlaggedStatusBadge(fc.status)
+                const typeBadge = getFlaggedTypeBadge(fc.contentType)
+                const StatusIcon = statusBadge.icon
+
+                return (
+                  <div
+                    key={fc.id}
+                    className={`bg-gray-800 rounded-xl border p-6 ${
+                      fc.status === 'PENDING'
+                        ? 'border-orange-500/50'
+                        : 'border-gray-700'
+                    }`}
+                  >
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-lg bg-orange-500/10">
+                          <AlertTriangle className="w-6 h-6 text-orange-400" />
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className={`text-xs px-2 py-1 rounded ${statusBadge.color}`}>
+                              <StatusIcon className="w-3 h-3 inline mr-1" />
+                              {statusBadge.label}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded ${typeBadge.color}`}>
+                              {typeBadge.label}
+                            </span>
+                            {fc.aiScore && (
+                              <span className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">
+                                AI Score: {(fc.aiScore * 100).toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Flagged {formatDate(fc.flaggedAt)} • Reason: {fc.flagReason}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      {fc.status === 'PENDING' && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleFlaggedAction('approve', fc.id)}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleFlaggedAction('remove', fc.id)}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm transition-colors"
+                          >
+                            Remove
+                          </button>
+                          <button
+                            onClick={() => handleFlaggedAction('warn', fc.id)}
+                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-white text-sm transition-colors"
+                          >
+                            Warn
+                          </button>
+                          <button
+                            onClick={() => handleFlaggedAction('ban', fc.id)}
+                            className="px-3 py-1.5 bg-red-800 hover:bg-red-900 rounded-lg text-white text-sm transition-colors"
+                          >
+                            Ban User
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Delete Button - Always visible */}
+                      <button
+                        onClick={() => deleteFlaggedContent(fc.id)}
+                        className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 border border-red-600/50 rounded-lg text-red-400 text-sm transition-colors flex items-center gap-1"
+                        title="Delete permanently"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </button>
+                    </div>
+
+                    {/* Content Preview */}
+                    <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap line-clamp-5">{fc.content}</p>
+                    </div>
+
+                    {/* AI Categories */}
+                    {fc.aiCategories && fc.aiCategories.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-400 mb-2">AI Detected Categories:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {fc.aiCategories.map((category, idx) => (
+                            <span
+                              key={idx}
+                              className={`text-xs px-2 py-1 rounded ${getAICategoryColor(category)}`}
+                            >
+                              {category.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sender Info */}
+                    <Link
+                      href={`/admin/users/${fc.sender.id}`}
+                      className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors group"
+                    >
+                      <User className="w-4 h-4 text-gray-500" />
+                      <div className="flex items-center gap-2">
+                        {fc.sender.avatarUrl ? (
+                          <Image
+                            src={fc.sender.avatarUrl}
+                            alt={fc.sender.name || fc.sender.email}
+                            width={32}
+                            height={32}
+                            className="rounded-full"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                            <span className="text-white text-xs">
+                              {fc.sender.name?.charAt(0) || fc.sender.email.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-400">Posted by</p>
+                          <p className="text-sm text-white group-hover:text-blue-400 transition-colors">{fc.sender.name || fc.sender.email}</p>
+                        </div>
+                      </div>
+                      <Eye className="w-4 h-4 text-gray-500 group-hover:text-blue-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+
+                    {/* Review Notes */}
+                    {fc.reviewNotes && (
+                      <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                        <p className="text-xs text-blue-400 mb-1 flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
+                          Review Notes
+                        </p>
+                        <p className="text-sm text-gray-300">{fc.reviewNotes}</p>
+                        {fc.reviewedBy && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            By {fc.reviewedBy.name || fc.reviewedBy.email}
+                            {fc.reviewedAt && ` on ${formatDate(fc.reviewedAt)}`}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            ) : (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 p-12 text-center">
+                <AlertTriangle className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400">No flagged content found</p>
+                <p className="text-sm text-gray-500 mt-2">AI-detected content violations will appear here</p>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination - Flagged Content */}
+          {flaggedPagination && flaggedPagination.pages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-800 rounded-xl border border-gray-700">
+              <p className="text-sm text-gray-400">
+                Page {flaggedPagination.currentPage} of {flaggedPagination.pages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFlaggedPage(Math.max(1, flaggedPage - 1))}
+                  disabled={flaggedPage === 1}
+                  className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setFlaggedPage(Math.min(flaggedPagination.pages, flaggedPage + 1))}
+                  disabled={flaggedPage === flaggedPagination.pages}
+                  className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 disabled:opacity-50"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Action Modal - Reports */}
       {actionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -1215,6 +1699,128 @@ export default function AdminReportsPage() {
                     )}
                     {feedbackModal.action === 'resolve' ? 'Resolve' :
                      feedbackModal.action === 'review' ? 'Mark as Reviewed' : 'Archive'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Modal - Flagged Content */}
+      {flaggedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-white">
+                {flaggedModal.action === 'approve' ? 'Approve Content' :
+                 flaggedModal.action === 'remove' ? 'Remove Content' :
+                 flaggedModal.action === 'warn' ? 'Warn User' : 'Ban User'}
+              </h2>
+              <button
+                onClick={() => setFlaggedModal(null)}
+                className="p-2 rounded-lg hover:bg-gray-700 text-gray-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Preview */}
+            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+              <p className="text-xs text-gray-400 mb-1">Content:</p>
+              <p className="text-sm text-gray-300 line-clamp-3">{flaggedModal.content.content}</p>
+            </div>
+
+            {/* Notes */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Admin Notes
+              </label>
+              <textarea
+                value={flaggedNotes}
+                onChange={(e) => setFlaggedNotes(e.target.value)}
+                placeholder="Add notes about this action..."
+                rows={3}
+                className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
+              />
+            </div>
+
+            {/* Ban Options (for ban action) */}
+            {flaggedModal.action === 'ban' && (
+              <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-sm text-red-400 font-medium mb-3 flex items-center gap-2">
+                  <Ban className="w-4 h-4" />
+                  Ban Settings
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Ban Duration</label>
+                    <select
+                      value={flaggedBanDuration || ''}
+                      onChange={(e) => setFlaggedBanDuration(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
+                    >
+                      <option value="">Permanent</option>
+                      <option value="1">1 day</option>
+                      <option value="7">7 days</option>
+                      <option value="30">30 days</option>
+                      <option value="90">90 days</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Ban Reason</label>
+                    <input
+                      type="text"
+                      value={flaggedBanReason}
+                      onChange={(e) => setFlaggedBanReason(e.target.value)}
+                      placeholder="Reason for ban..."
+                      className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setFlaggedModal(null)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitFlaggedAction}
+                disabled={isSubmitting}
+                className={`px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 ${
+                  flaggedModal.action === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : flaggedModal.action === 'remove'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : flaggedModal.action === 'warn'
+                        ? 'bg-yellow-600 hover:bg-yellow-700'
+                        : 'bg-red-800 hover:bg-red-900'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {flaggedModal.action === 'approve' ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : flaggedModal.action === 'remove' ? (
+                      <XCircle className="w-4 h-4" />
+                    ) : flaggedModal.action === 'warn' ? (
+                      <AlertTriangle className="w-4 h-4" />
+                    ) : (
+                      <Ban className="w-4 h-4" />
+                    )}
+                    {flaggedModal.action === 'approve' ? 'Approve' :
+                     flaggedModal.action === 'remove' ? 'Remove' :
+                     flaggedModal.action === 'warn' ? 'Warn User' : 'Ban User'}
                   </>
                 )}
               </button>

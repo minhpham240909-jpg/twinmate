@@ -8,6 +8,38 @@ const sanitizeEnvVar = (value: string | undefined): string => {
   return value.replace(/[\r\n\s]+/g, '').trim()
 }
 
+// FIX: Session timeout configuration (not just for admin panel)
+// This applies to all authenticated routes for security
+const SESSION_CONFIG = {
+  // Maximum session age (24 hours) - after this, user must re-authenticate
+  maxSessionAgeMs: 24 * 60 * 60 * 1000,
+  // Idle timeout (4 hours) - user is logged out after this period of inactivity
+  idleTimeoutMs: 4 * 60 * 60 * 1000,
+  // Warning before timeout (5 minutes) - optional, for client-side warning
+  warningBeforeTimeoutMs: 5 * 60 * 1000,
+  // Activity cookie name
+  lastActivityCookieName: 'last_activity',
+}
+
+/**
+ * Check if session has timed out due to inactivity
+ */
+function isSessionTimedOut(request: NextRequest): boolean {
+  const lastActivityStr = request.cookies.get(SESSION_CONFIG.lastActivityCookieName)?.value
+  
+  if (!lastActivityStr) {
+    return false // First request, not timed out
+  }
+  
+  const lastActivity = parseInt(lastActivityStr, 10)
+  if (isNaN(lastActivity)) {
+    return false
+  }
+  
+  const timeSinceActivity = Date.now() - lastActivity
+  return timeSinceActivity > SESSION_CONFIG.idleTimeoutMs
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
     request,
@@ -125,6 +157,43 @@ export async function updateSession(request: NextRequest) {
   // Auth redirect logic
   if (user) {
     // User is logged in
+    
+    // FIX: Check for session timeout (idle timeout for all users, not just admin)
+    // This ensures inactive sessions are terminated for security
+    if (!isPublicRoute && !isPublicApiRoute && isSessionTimedOut(request)) {
+      console.log('[Middleware] Session timed out due to inactivity')
+      
+      // Redirect to auth with timeout message
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth'
+      url.searchParams.set('reason', 'session_timeout')
+      
+      // Clear auth cookies
+      const timeoutResponse = NextResponse.redirect(url)
+      timeoutResponse.cookies.delete(SESSION_CONFIG.lastActivityCookieName)
+      
+      // Also try to sign out from Supabase
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        // Ignore signout errors
+      }
+      
+      return timeoutResponse
+    }
+    
+    // Update last activity timestamp for non-API routes
+    // API routes don't update activity to prevent background fetches from keeping session alive
+    const isApiRoute = pathname.startsWith('/api')
+    if (!isApiRoute && !isPublicRoute) {
+      response.cookies.set(SESSION_CONFIG.lastActivityCookieName, Date.now().toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: SESSION_CONFIG.maxSessionAgeMs / 1000, // Convert to seconds
+      })
+    }
     
     // Clean up auth_callback param if present (prevents it being bookmarked)
     if (hasAuthCallbackParam) {
