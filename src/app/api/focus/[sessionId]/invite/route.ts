@@ -71,7 +71,7 @@ export async function POST(
       select: { userId: true },
     })
 
-    const existingUserIds = new Set(existingParticipants.map(p => p.userId))
+    const existingUserIds = new Set(existingParticipants.map((p: { userId: string }) => p.userId))
 
     // Filter out already invited users
     const newPartnerIds = partnerIds.filter(id => !existingUserIds.has(id))
@@ -87,22 +87,22 @@ export async function POST(
     const partners = await prisma.match.findMany({
       where: {
         OR: [
-          { user1Id: user.id, user2Id: { in: newPartnerIds }, status: 'ACCEPTED' },
-          { user2Id: user.id, user1Id: { in: newPartnerIds }, status: 'ACCEPTED' },
+          { senderId: user.id, receiverId: { in: newPartnerIds }, status: 'ACCEPTED' },
+          { receiverId: user.id, senderId: { in: newPartnerIds }, status: 'ACCEPTED' },
         ],
       },
       select: {
-        user1Id: true,
-        user2Id: true,
-        user1: { select: { id: true, name: true, avatarUrl: true } },
-        user2: { select: { id: true, name: true, avatarUrl: true } },
+        senderId: true,
+        receiverId: true,
+        sender: { select: { id: true, name: true, avatarUrl: true } },
+        receiver: { select: { id: true, name: true, avatarUrl: true } },
       },
     })
 
     // Map partner IDs to verify all are valid partners
     const validPartnerIds = new Set<string>()
     partners.forEach(match => {
-      const partnerId = match.user1Id === user.id ? match.user2Id : match.user1Id
+      const partnerId = match.senderId === user.id ? match.receiverId : match.senderId
       validPartnerIds.add(partnerId)
     })
 
@@ -147,7 +147,7 @@ export async function POST(
           userId: partnerId,
           type: 'FOCUS_SESSION_INVITE',
           title: 'Quick Focus Invitation',
-          content: `${hostProfile?.user.name || 'Someone'} invited you to a 5-minute focus session`,
+          message: `${hostProfile?.user.name || 'Someone'} invited you to a 5-minute focus session`,
           actionUrl: `/focus/${sessionId}`,
         })),
       })
@@ -239,28 +239,28 @@ export async function GET(
     })
 
     // Separate participants by status
-    const invited = participants.filter(p => p.status === 'INVITED')
-    const joined = participants.filter(p => p.status === 'JOINED')
-    const declined = participants.filter(p => p.status === 'DECLINED')
+    const invited = participants.filter((p: { status: string }) => p.status === 'INVITED')
+    const joined = participants.filter((p: { status: string }) => p.status === 'JOINED')
+    const declined = participants.filter((p: { status: string }) => p.status === 'DECLINED')
 
     return NextResponse.json({
       success: true,
       participants: {
-        invited: invited.map(p => ({
+        invited: invited.map((p: { id: string; user: { id: string; name: string; avatarUrl: string | null }; createdAt: Date }) => ({
           id: p.id,
           userId: p.user.id,
           name: p.user.name,
           avatarUrl: p.user.avatarUrl,
           invitedAt: p.createdAt,
         })),
-        joined: joined.map(p => ({
+        joined: joined.map((p: { id: string; user: { id: string; name: string; avatarUrl: string | null }; joinedAt: Date | null }) => ({
           id: p.id,
           userId: p.user.id,
           name: p.user.name,
           avatarUrl: p.user.avatarUrl,
           joinedAt: p.joinedAt,
         })),
-        declined: declined.map(p => ({
+        declined: declined.map((p: { id: string; user: { id: string; name: string; avatarUrl: string | null } }) => ({
           id: p.id,
           userId: p.user.id,
           name: p.user.name,

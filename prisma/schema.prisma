@@ -774,6 +774,7 @@ enum NotificationType {
   SESSION_ENDED
   SESSION_GOAL_COMPLETED
   INCOMING_CALL
+  FOCUS_SESSION_INVITE      // Quick focus session invitation
   ANNOUNCEMENT           // Critical app announcements
   POST_LIKE              // Someone liked user's post
   POST_COMMENT           // Someone commented on user's post
