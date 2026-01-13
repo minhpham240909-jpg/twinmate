@@ -30,6 +30,7 @@ interface SessionNotesProps {
   sessionId: string
   onShareNotes?: (content: string, title: string) => void // Callback when user shares notes
   onStopSharing?: () => void // Callback when user stops sharing notes
+  onUpdateNotes?: (content: string, title: string) => void // Real-time updates while sharing
   isSharing?: boolean // Whether notes are currently being shared to screen
 }
 
@@ -37,6 +38,7 @@ export default function SessionNotes({
   sessionId,
   onShareNotes,
   onStopSharing,
+  onUpdateNotes,
   isSharing = false
 }: SessionNotesProps) {
   const [note, setNote] = useState<SessionNote | null>(null)
@@ -119,11 +121,19 @@ export default function SessionNotes({
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle)
     debouncedSave(newTitle, content)
+    // Broadcast update if sharing
+    if (isSharing && onUpdateNotes) {
+      onUpdateNotes(content, newTitle)
+    }
   }
 
   const handleContentChange = (newContent: string) => {
     setContent(newContent)
     debouncedSave(title, newContent)
+    // Broadcast update if sharing
+    if (isSharing && onUpdateNotes) {
+      onUpdateNotes(newContent, title)
+    }
   }
 
   const handleManualSave = () => {

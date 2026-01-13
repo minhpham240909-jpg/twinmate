@@ -1227,5 +1227,21 @@
       "dismiss": "Descartar",
       "studyAgain": "Estudiar de Nuevo"
     }
+  },
+  "quickFocus": {
+    "title": "Enfoque Rápido",
+    "subtitle": "Sin configuración. Solo empieza.",
+    "duration": "7 minutos",
+    "startButton": "Empezar a Enfocar",
+    "starting": "Iniciando...",
+    "microCopy": "Un clic. Cero decisiones. Solo enfócate.",
+    "sessionNotFound": "Sesión no encontrada",
+    "backToDashboard": "Volver al Panel",
+    "abandonSession": "Abandonar sesión",
+    "remaining": "restante",
+    "sessionComplete": "¡Sesión Completada!",
+    "greatJob": "¡Buen trabajo! Te enfocaste por {minutes} minutos.",
+    "startAnother": "Iniciar Otra Sesión",
+    "motivationalMessage": "Cada minuto de enfoque suma. Tú puedes."
   }
 }

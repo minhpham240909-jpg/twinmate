@@ -2643,3 +2643,47 @@ model CircleAttendance {
   @@index([didAttend])
   @@map("circle_attendance")
 }
+
+// ==========================================
+// QUICK FOCUS - Zero-Motivation Entry Point
+// ==========================================
+// Instant focus sessions that require no setup or decision-making
+// Users can start a 7-minute focus timer with one click
+
+enum FocusSessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+model FocusSession {
+  id        String             @id @default(uuid())
+  userId    String
+
+  // Session configuration
+  durationMinutes Int          @default(7) // Default 7-minute focus
+
+  // Timing
+  startedAt       DateTime     @default(now())
+  completedAt     DateTime?    // When session was completed or abandoned
+
+  // Status tracking
+  status          FocusSessionStatus @default(ACTIVE)
+  actualMinutes   Int?         // Actual time spent focusing
+
+  // Optional context (can be added during or after session)
+  label           String?      // e.g., "Math", "Reading", "Work"
+  notes           String?      @db.Text
+
+  // Streak tracking
+  contributesToStreak Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([userId, startedAt]) // For user's session history
+  @@map("focus_sessions")
+}

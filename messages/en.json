@@ -1232,5 +1232,21 @@
       "dismiss": "Dismiss",
       "studyAgain": "Study Again"
     }
+  },
+  "quickFocus": {
+    "title": "Quick Focus",
+    "subtitle": "No setup needed. Just start.",
+    "duration": "7 minutes",
+    "startButton": "Start Focusing Now",
+    "starting": "Starting...",
+    "microCopy": "One click. Zero decisions. Just focus.",
+    "sessionNotFound": "Session not found",
+    "backToDashboard": "Back to Dashboard",
+    "abandonSession": "Abandon session",
+    "remaining": "remaining",
+    "sessionComplete": "Session Complete!",
+    "greatJob": "Great job! You focused for {minutes} minutes.",
+    "startAnother": "Start Another Session",
+    "motivationalMessage": "Every minute of focus adds up. You've got this."
   }
 }

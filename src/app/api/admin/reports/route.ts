@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
+import { withCsrfProtection } from '@/lib/csrf'
 
 // GET - List reports with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -106,58 +107,61 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Handle report actions (review, resolve, dismiss)
+// SECURITY: Protected with CSRF token validation
 export async function POST(request: NextRequest) {
-  try {
-    // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
-    const rateLimitResult = await adminRateLimit(request, 'bulk')
-    if (rateLimitResult) return rateLimitResult
+  // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
+  const rateLimitResult = await adminRateLimit(request, 'bulk')
+  if (rateLimitResult) return rateLimitResult
 
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // SECURITY: Wrap report actions with CSRF protection
+  return withCsrfProtection(request, async () => {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
+      if (!user) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
 
-    // Verify admin status
-    const adminUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    })
+      // Verify admin status
+      const adminUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true },
+      })
 
-    if (!adminUser?.isAdmin) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
-    }
+      if (!adminUser?.isAdmin) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+      }
 
-    const body = await request.json()
-    const { action, reportId, resolution, banUser, banDuration, banReason } = body
+      const body = await request.json()
+      const { action, reportId, resolution, banUser, banDuration, banReason } = body
 
-    if (!action || !reportId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+      if (!action || !reportId) {
+        return NextResponse.json(
+          { error: 'Missing required fields' },
+          { status: 400 }
+        )
+      }
 
-    // Get IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') ||
-                      request.headers.get('x-real-ip') ||
-                      'unknown'
-    const userAgent = request.headers.get('user-agent') || 'unknown'
+      // Get IP and user agent for audit log
+      const ipAddress = request.headers.get('x-forwarded-for') ||
+                        request.headers.get('x-real-ip') ||
+                        'unknown'
+      const userAgent = request.headers.get('user-agent') || 'unknown'
 
-    // Get the report
-    const report = await prisma.report.findUnique({
-      where: { id: reportId },
-      include: {
-        reportedUser: true,
-      },
-    })
+      // Get the report
+      const report = await prisma.report.findUnique({
+        where: { id: reportId },
+        include: {
+          reportedUser: true,
+        },
+      })
 
-    if (!report) {
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 })
-    }
+      if (!report) {
+        return NextResponse.json({ error: 'Report not found' }, { status: 404 })
+      }
 
-    switch (action) {
+      switch (action) {
       case 'review': {
         // Mark as under review
         await prisma.report.update({
@@ -266,70 +270,75 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Report dismissed' })
       }
 
-      default:
-        return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+        default:
+          return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+      }
+    } catch (error) {
+      console.error('[Admin Reports] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-  } catch (error) {
-    console.error('[Admin Reports] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  })
 }
 
 // DELETE - Permanently delete reports
+// SECURITY: Protected with CSRF token validation
 export async function DELETE(request: NextRequest) {
-  try {
-    // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
-    const rateLimitResult = await adminRateLimit(request, 'bulk')
-    if (rateLimitResult) return rateLimitResult
+  // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
+  const rateLimitResult = await adminRateLimit(request, 'bulk')
+  if (rateLimitResult) return rateLimitResult
 
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // SECURITY: Wrap delete action with CSRF protection
+  return withCsrfProtection(request, async () => {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      if (!user) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
+
+      // Verify admin status
+      const adminUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true },
+      })
+
+      if (!adminUser?.isAdmin) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+      }
+
+      const body = await request.json()
+      const { reportId } = body
+
+      if (!reportId) {
+        return NextResponse.json({ error: 'Report ID required' }, { status: 400 })
+      }
+
+      // Get IP and user agent for audit log
+      const ipAddress = request.headers.get('x-forwarded-for') ||
+                        request.headers.get('x-real-ip') ||
+                        'unknown'
+      const userAgent = request.headers.get('user-agent') || 'unknown'
+
+      // Delete the report
+      await prisma.report.delete({
+        where: { id: reportId },
+      })
+
+      await logAdminAction({
+        adminId: user.id,
+        action: 'report_deleted',
+        targetType: 'report',
+        targetId: reportId,
+        details: {},
+        ipAddress,
+        userAgent,
+      })
+
+      return NextResponse.json({ success: true, message: 'Report deleted permanently' })
+    } catch (error) {
+      console.error('[Admin Reports Delete] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-
-    // Verify admin status
-    const adminUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    })
-
-    if (!adminUser?.isAdmin) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
-    }
-
-    const body = await request.json()
-    const { reportId } = body
-
-    if (!reportId) {
-      return NextResponse.json({ error: 'Report ID required' }, { status: 400 })
-    }
-
-    // Get IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') ||
-                      request.headers.get('x-real-ip') ||
-                      'unknown'
-    const userAgent = request.headers.get('user-agent') || 'unknown'
-
-    // Delete the report
-    await prisma.report.delete({
-      where: { id: reportId },
-    })
-
-    await logAdminAction({
-      adminId: user.id,
-      action: 'report_deleted',
-      targetType: 'report',
-      targetId: reportId,
-      details: {},
-      ipAddress,
-      userAgent,
-    })
-
-    return NextResponse.json({ success: true, message: 'Report deleted permanently' })
-  } catch (error) {
-    console.error('[Admin Reports Delete] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  })
 }

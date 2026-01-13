@@ -44,6 +44,7 @@ interface SessionWhiteboardProps {
   sessionId: string
   onShareWhiteboard?: (data: SharedWhiteboardData) => void
   onStopSharing?: () => void
+  onUpdateWhiteboard?: (data: SharedWhiteboardData) => void // Real-time updates while sharing
   isSharing?: boolean
   sharedWhiteboard?: SharedWhiteboardData | null
 }
@@ -52,6 +53,7 @@ export default function SessionWhiteboard({
   sessionId,
   onShareWhiteboard,
   onStopSharing,
+  onUpdateWhiteboard,
   isSharing = false,
   sharedWhiteboard = null
 }: SessionWhiteboardProps) {
@@ -226,6 +228,21 @@ export default function SessionWhiteboard({
     localStorage.setItem(storageKey, JSON.stringify(newActions))
   }, [sessionId, user?.id])
 
+  // Broadcast whiteboard update when sharing (debounced to prevent excessive broadcasts)
+  const broadcastWhiteboardUpdate = useCallback(() => {
+    if (!isSharing || !onUpdateWhiteboard || !canvasRef.current) return
+
+    const imageData = canvasRef.current.toDataURL('image/png')
+    onUpdateWhiteboard({
+      imageData,
+      sharedBy: {
+        id: user?.id || '',
+        name: profile?.name || 'Anonymous',
+        avatarUrl: profile?.avatarUrl
+      }
+    })
+  }, [isSharing, onUpdateWhiteboard, user?.id, profile?.name, profile?.avatarUrl])
+
   // Initialize and Handle Resize
   useEffect(() => {
     if (!mounted || !containerRef.current || !canvasRef.current) return
@@ -271,6 +288,39 @@ export default function SessionWhiteboard({
 
     return () => resizeObserver.disconnect()
   }, [mounted, sessionId, user?.id, redrawCanvas])
+
+  // FIX: Force canvas resize when returning from shared view to own whiteboard
+  // This fixes the quarter-screen bug after stop sharing
+  useEffect(() => {
+    if (!mounted || !containerRef.current || !canvasRef.current) return
+    // Only run when we're NOT viewing someone else's shared whiteboard
+    if (sharedWhiteboard && sharedWhiteboard.sharedBy.id !== user?.id) return
+
+    const container = containerRef.current
+    const canvas = canvasRef.current
+    const rect = container.getBoundingClientRect()
+
+    // Force resize with a small delay to ensure DOM is updated
+    const resizeTimer = setTimeout(() => {
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = rect.width * dpr
+      canvas.height = rect.height * dpr
+
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.scale(dpr, dpr)
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+      }
+
+      canvas.style.width = `${rect.width}px`
+      canvas.style.height = `${rect.height}px`
+
+      redrawCanvas()
+    }, 100)
+
+    return () => clearTimeout(resizeTimer)
+  }, [sharedWhiteboard, user?.id, mounted, redrawCanvas])
 
   // Trigger redraw when actions change
   useEffect(() => {
@@ -360,6 +410,10 @@ export default function SessionWhiteboard({
 
     setRedoStack([])
     redrawCanvas()
+
+    // Broadcast update to participants if sharing
+    // Use setTimeout to ensure canvas is redrawn first
+    setTimeout(broadcastWhiteboardUpdate, 50)
   }
 
   const handleAddText = () => {
@@ -388,6 +442,9 @@ export default function SessionWhiteboard({
     setRedoStack([])
     setTextInput('')
     setShowTextInput(false)
+
+    // Broadcast update to participants if sharing
+    setTimeout(broadcastWhiteboardUpdate, 50)
   }
 
   const handleClear = () => {
@@ -396,6 +453,8 @@ export default function SessionWhiteboard({
     setRedoStack([])
     const storageKey = `whiteboard-${sessionId}-${user?.id}`
     localStorage.removeItem(storageKey)
+    // Broadcast cleared whiteboard if sharing
+    setTimeout(broadcastWhiteboardUpdate, 50)
   }
 
   const handleUndo = () => {
@@ -414,6 +473,8 @@ export default function SessionWhiteboard({
     })
 
     setRedoStack(prev => [...prev, lastAction])
+    // Broadcast undo if sharing
+    setTimeout(broadcastWhiteboardUpdate, 50)
   }
 
   const handleRedo = () => {
@@ -428,6 +489,8 @@ export default function SessionWhiteboard({
       saveToLocalStorage(newActions)
       return newActions
     })
+    // Broadcast redo if sharing
+    setTimeout(broadcastWhiteboardUpdate, 50)
   }
 
   const handleTextDragStart = (e: React.MouseEvent) => {

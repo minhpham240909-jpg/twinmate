@@ -50,24 +50,29 @@ export default function DeferredProviders({ children }: DeferredProvidersProps) 
     }
   }, [])
 
-  // Before deferred providers are ready, just render children
-  // This ensures the main UI appears immediately
-  if (!isReady) {
-    return <>{children}</>
-  }
-
-  // Once ready, wrap children with deferred providers
+  /**
+   * IMPORTANT:
+   * `BackgroundSessionProvider` must ALWAYS be mounted because parts of the app
+   * call `useBackgroundSession()` during the initial render (e.g. study session pages).
+   *
+   * We still defer truly non-critical providers (presence, incoming call UI) until after
+   * first paint / idle time.
+   */
   return (
-    <PresenceProvider>
-      <BackgroundSessionProvider>
-        <IncomingCallProvider>
-          {children}
-          <FloatingSessionButton />
-          <PausedSessionFAB />
-          <CompletedSessionFAB />
-          <IncomingCallModal />
-        </IncomingCallProvider>
-      </BackgroundSessionProvider>
-    </PresenceProvider>
+    <BackgroundSessionProvider>
+      {!isReady ? (
+        <>{children}</>
+      ) : (
+        <PresenceProvider>
+          <IncomingCallProvider>
+            {children}
+            <FloatingSessionButton />
+            <PausedSessionFAB />
+            <CompletedSessionFAB />
+            <IncomingCallModal />
+          </IncomingCallProvider>
+        </PresenceProvider>
+      )}
+    </BackgroundSessionProvider>
   )
 }

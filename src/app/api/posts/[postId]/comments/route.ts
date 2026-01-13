@@ -5,6 +5,7 @@ import { CONTENT_LIMITS } from '@/lib/constants'
 import { validateContent } from '@/lib/validation'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { notifyPostComment } from '@/lib/notifications/send'
+import { moderateContent, flagContent } from '@/lib/moderation/content-moderator'
 
 // GET /api/posts/[postId]/comments - Get comments for a post (with replies)
 export async function GET(
@@ -138,6 +139,61 @@ export async function POST(
       )
     }
 
+    // CONTENT MODERATION: Check for inappropriate content before creating comment
+    const trimmedContent = content.trim()
+    if (trimmedContent.length > 0) {
+      const moderationResult = await moderateContent(trimmedContent, 'comment')
+
+      // Block if content contains profanity, hate speech, or other inappropriate content
+      if (moderationResult.action === 'block') {
+        // Get user info for logging (batch with post check if needed)
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { name: true, email: true },
+        })
+
+        // Flag the content for admin review
+        await flagContent({
+          contentType: 'comment',
+          contentId: `pending-comment-${Date.now()}`, // Temporary ID since comment wasn't created
+          content: trimmedContent,
+          senderId: user.id,
+          senderEmail: dbUser?.email,
+          senderName: dbUser?.name,
+          moderationResult,
+        })
+
+        // Return user-friendly error based on category
+        const categoryMessages: Record<string, string> = {
+          profanity: 'Your comment contains inappropriate language. Please remove profanity and try again.',
+          hate_speech: 'Your comment contains language that violates our community guidelines. Please revise and try again.',
+          harassment: 'Your comment contains content that may be harmful to others. Please revise and try again.',
+          violence: 'Your comment contains content that promotes violence. This is not allowed.',
+          sexual_content: 'Your comment contains inappropriate content. Please keep comments safe for all users.',
+          self_harm: 'Your comment contains concerning content. If you need support, please reach out to a trusted person or helpline.',
+          spam: 'Your comment appears to be spam. Please share genuine, meaningful content.',
+          dangerous: 'Your comment contains potentially harmful content. Please revise and try again.',
+        }
+
+        const primaryCategory = moderationResult.categories.find(c => c !== 'safe') || 'dangerous'
+        const errorMessage = categoryMessages[primaryCategory] || 'Your comment contains content that violates our community guidelines. Please revise and try again.'
+
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            code: 'CONTENT_MODERATION_BLOCKED',
+            category: primaryCategory,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Store moderation result for flagging after creation (if suspicious but not blocked)
+      if (moderationResult.action === 'flag' || moderationResult.action === 'escalate') {
+        (req as any).__moderationResult = moderationResult
+      }
+    }
+
     // Check if post exists and allows comments
     const post = await prisma.post.findUnique({
       where: { id: postId },
@@ -187,7 +243,7 @@ export async function POST(
       data: {
         postId,
         userId: user.id,
-        content: content.trim(),
+        content: trimmedContent,
         parentId: parentId || null, // null for top-level comments
       },
       include: {
@@ -200,6 +256,26 @@ export async function POST(
         },
       },
     })
+
+    // If content was flagged for review (but not blocked), flag the created comment
+    const moderationResult = (req as any).__moderationResult
+    if (moderationResult && (moderationResult.action === 'flag' || moderationResult.action === 'escalate')) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { name: true, email: true },
+      })
+
+      await flagContent({
+        contentType: 'comment',
+        contentId: comment.id,
+        content: trimmedContent,
+        senderId: user.id,
+        senderEmail: dbUser?.email,
+        senderName: dbUser?.name,
+        conversationId: postId,
+        moderationResult,
+      })
+    }
 
     // Send notification to post owner (for comments) or parent comment author (for replies)
     if (parentId && parentComment) {

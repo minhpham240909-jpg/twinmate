@@ -14,6 +14,7 @@ import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
 import PushNotificationPrompt from '@/components/PushNotificationPrompt'
 import { AIPartnerSuggestionModal } from '@/components/ai-partner'
 import DashboardAIWidget from '@/components/ai-partner/DashboardAIWidget'
+import QuickFocusCard from '@/components/QuickFocusCard'
 
 interface Partner {
   id: string
@@ -105,11 +106,6 @@ export default function DashboardPage() {
 
   // AI Partner suggestion modal state
   const [showAIPartnerModal, setShowAIPartnerModal] = useState(false)
-
-  // AI Partner card modal state (for dashboard card)
-  const [showAIPartnerCardModal, setShowAIPartnerCardModal] = useState(false)
-  const [aiPartnerInput, setAIPartnerInput] = useState('')
-  const [isStartingAISession, setIsStartingAISession] = useState(false)
 
   // Group IDs for real-time subscription
   const [groupIds, setGroupIds] = useState<string[]>([])
@@ -598,40 +594,6 @@ export default function DashboardPage() {
     router.push('/profile/edit')
   }
 
-  // Handle starting AI Partner session from dashboard card
-  const handleStartAIPartnerSession = async () => {
-    if (!aiPartnerInput.trim()) return
-
-    setIsStartingAISession(true)
-    try {
-      // Build searchCriteria object with the input as a subject
-      // This matches the expected format of the API
-      const searchCriteria = {
-        subjects: [aiPartnerInput.trim()],
-        subjectDescription: aiPartnerInput.trim(),
-      }
-
-      const res = await fetch('/api/ai-partner/session-from-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchCriteria }),
-      })
-      const data = await res.json()
-
-      if (data.success && data.session?.id) {
-        // Redirect to the AI session
-        router.push(`/ai-partner/${data.session.id}`)
-      } else {
-        console.error('Failed to start AI session:', data.error)
-      }
-    } catch (error) {
-      console.error('Failed to start AI Partner session:', error)
-    } finally {
-      setIsStartingAISession(false)
-      setShowAIPartnerCardModal(false)
-      setAIPartnerInput('')
-    }
-  }
   // Helper function to detect which fields match the search query for partners
   const getMatchingFields = (partner: Partner, query: string): string[] => {
     const searchLower = query.toLowerCase().trim()
@@ -942,6 +904,12 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
+          {/* Quick Focus - Zero-Motivation Entry Point */}
+          {/* THE PRIMARY ACTION - Start focusing immediately with no decisions */}
+          <div className="mb-8">
+            <QuickFocusCard />
+          </div>
+
           {/* Streak and Study Stats Section - Prominent Display */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {/* Streak Card */}
@@ -1116,43 +1084,6 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-          </div>
-
-          {/* AI Partner Card - Always visible */}
-          <div className="mb-8">
-            <button
-              onClick={() => setShowAIPartnerCardModal(true)}
-              className="w-full p-6 bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 rounded-2xl text-white shadow-sm hover:shadow-lg hover:scale-[1.01] hover:border-blue-500/50 transition-all duration-300 group cursor-pointer text-left"
-            >
-              <div className="flex items-center gap-4">
-                {/* AI Icon - App Logo */}
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
-                  <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 overflow-hidden">
-                    <Image src="/logo.png" alt="AI Partner" width={40} height={40} className="object-contain" />
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-xl font-bold">{t('aiPartner')}</h2>
-                    <span className="px-2 py-0.5 bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-400 text-xs font-semibold rounded-full border border-blue-500/30">
-                      AI
-                    </span>
-                  </div>
-                  <p className="text-slate-400 text-sm">{t('aiPartnerDescription')}</p>
-                </div>
-
-                {/* Arrow */}
-                <div className="flex items-center gap-2 text-blue-400">
-                  <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">{t('startStudying')}</span>
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </button>
           </div>
 
           {/* AI Partner Widget - Shows sessions for users who have used AI Partner */}
@@ -1431,107 +1362,6 @@ export default function DashboardPage() {
         noResultsReason="name_not_found"
       />
 
-      {/* AI Partner Card Modal - For dashboard card click */}
-      {showAIPartnerCardModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => !isStartingAISession && setShowAIPartnerCardModal(false)}
-        >
-          <div
-            className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-700/50 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl blur-md opacity-50" />
-                <div className="relative w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center overflow-hidden">
-                  <Image src="/logo.png" alt="AI Partner" width={36} height={36} className="object-contain" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">{t('aiPartner')}</h3>
-                <p className="text-sm text-slate-400">{t('aiPartnerModalSubtitle')}</p>
-              </div>
-              <button
-                onClick={() => setShowAIPartnerCardModal(false)}
-                className="ml-auto p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Input Section */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                {t('whatWouldYouLikeToStudy')}
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={aiPartnerInput}
-                  onChange={(e) => setAIPartnerInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && aiPartnerInput.trim()) {
-                      e.preventDefault()
-                      handleStartAIPartnerSession()
-                    }
-                  }}
-                  placeholder={t('aiPartnerInputPlaceholder')}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  autoFocus
-                  disabled={isStartingAISession}
-                />
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                {t('aiPartnerInputHint')}
-              </p>
-            </div>
-
-            {/* Preview */}
-            {aiPartnerInput.trim() && (
-              <div className="mb-6 p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/20 rounded-xl">
-                <p className="text-sm text-slate-300">
-                  <span className="text-blue-400 font-medium">{t('aiWillMatchSearch')}</span>
-                </p>
-                <p className="text-white font-semibold mt-1">{aiPartnerInput.trim()}</p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAIPartnerCardModal(false)}
-                disabled={isStartingAISession}
-                className="flex-1 px-4 py-3 bg-slate-700/50 text-white rounded-xl hover:bg-slate-700 transition-colors font-medium disabled:opacity-50"
-              >
-                {tCommon('cancel')}
-              </button>
-              <button
-                onClick={handleStartAIPartnerSession}
-                disabled={!aiPartnerInput.trim() || isStartingAISession}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-semibold shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isStartingAISession ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {t('starting')}
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    {t('startStudying')}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

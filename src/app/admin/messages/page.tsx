@@ -27,6 +27,7 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
+import { useCsrf } from '@/hooks/useCsrf'
 
 interface Message {
   id: string
@@ -95,6 +96,9 @@ export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // CSRF token for secure admin actions
+  const { csrfFetch } = useCsrf()
 
   // Filters
   const [messageType, setMessageType] = useState('flagged')
@@ -191,7 +195,7 @@ export default function AdminMessagesPage() {
 
     setIsActioning(true)
     try {
-      const response = await fetch('/api/admin/messages', {
+      const response = await csrfFetch('/api/admin/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,7 +238,7 @@ export default function AdminMessagesPage() {
 
     setIsActioning(true)
     try {
-      const response = await fetch('/api/admin/messages', {
+      const response = await csrfFetch('/api/admin/messages', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

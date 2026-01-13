@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
 import Link from 'next/link'
+import { useCsrf } from '@/hooks/useCsrf'
 
 type TabType = 'reports' | 'feedback' | 'flagged'
 
@@ -134,6 +135,9 @@ interface FlaggedContentStats {
 export default function AdminReportsPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('reports')
+
+  // CSRF token for secure admin actions
+  const { csrfFetch } = useCsrf()
 
   // Reports state
   const [reports, setReports] = useState<ReportData[]>([])
@@ -289,7 +293,7 @@ export default function AdminReportsPage() {
   const handleAction = async (action: 'review' | 'resolve' | 'dismiss', reportId: string) => {
     if (action === 'review') {
       try {
-        const response = await fetch('/api/admin/reports', {
+        const response = await csrfFetch('/api/admin/reports', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'review', reportId }),
@@ -330,7 +334,7 @@ export default function AdminReportsPage() {
         body.banReason = banReason
       }
 
-      const response = await fetch('/api/admin/reports', {
+      const response = await csrfFetch('/api/admin/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -372,7 +376,7 @@ export default function AdminReportsPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/admin/feedback', {
+      const response = await csrfFetch('/api/admin/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -428,7 +432,7 @@ export default function AdminReportsPage() {
         body.banReason = flaggedBanReason
       }
 
-      const response = await fetch('/api/admin/flagged-content', {
+      const response = await csrfFetch('/api/admin/flagged-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -458,7 +462,7 @@ export default function AdminReportsPage() {
     if (!confirm('Are you sure you want to permanently delete this flagged content record? This cannot be undone.')) return
 
     try {
-      const response = await fetch('/api/admin/flagged-content', {
+      const response = await csrfFetch('/api/admin/flagged-content', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ flaggedContentId: contentId }),
@@ -477,7 +481,7 @@ export default function AdminReportsPage() {
     if (!confirm('Are you sure you want to permanently delete this report? This cannot be undone.')) return
 
     try {
-      const response = await fetch('/api/admin/reports', {
+      const response = await csrfFetch('/api/admin/reports', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportId }),
@@ -496,7 +500,7 @@ export default function AdminReportsPage() {
     if (!confirm('Are you sure you want to permanently delete this feedback? This cannot be undone.')) return
 
     try {
-      const response = await fetch('/api/admin/feedback', {
+      const response = await csrfFetch('/api/admin/feedback', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feedbackId }),

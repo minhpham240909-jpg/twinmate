@@ -37,6 +37,7 @@ export type ModerationCategory =
   | 'illegal'
   | 'pii'
   | 'off_topic'
+  | 'profanity'
 
 export type ModerationAction = 'allow' | 'flag' | 'block' | 'escalate'
 
@@ -81,15 +82,123 @@ const DEFAULT_CONFIG: Required<ModerationConfig> = {
 
 // ===== BLOCKED KEYWORDS =====
 
-// NOTE: These are hashed to prevent exposure - actual words are checked at runtime
+// NOTE: These patterns use word boundaries and variations to catch common bypasses
+// The patterns are designed to be performant with early regex termination
+
+/**
+ * Creates a regex pattern that matches a word and common bypass variations
+ * Handles: spaces (f u c k), special chars (f*ck, f@ck), repeated chars (fuuuck)
+ */
+function createProfanityPattern(word: string): RegExp {
+  // Create pattern that matches letter variations
+  const pattern = word.split('').map(char => {
+    // Allow optional spaces, special chars, or repeated chars between letters
+    return `${char}+[\\s*@#$%^&!_.\\-]*`
+  }).join('')
+  return new RegExp(`\\b${pattern}\\b`, 'i')
+}
+
+// Common profanity words - each will be expanded into a regex pattern
+const PROFANITY_WORDS = [
+  // Strong profanity
+  'fuck', 'fuk', 'fck', 'fuq',
+  'shit', 'sht',
+  'ass', 'arse',
+  'bitch', 'btch',
+  'damn', 'dammit',
+  'cunt', 'cnt',
+  'dick', 'dck',
+  'cock', 'cck',
+  'pussy', 'puss',
+  'whore', 'hoe',
+  'slut',
+  'bastard',
+  'prick',
+  'twat',
+  'wanker',
+  'bollocks',
+  'crap',
+  'piss',
+]
+
+// Racial slurs and hate speech - ZERO TOLERANCE
+const RACIAL_SLURS = [
+  'nigger', 'nigga', 'nigg', 'n1gg', 'niga',
+  'chink',
+  'gook',
+  'spic', 'spick',
+  'wetback',
+  'kike',
+  'cracker',
+  'honky',
+  'gringo',
+  'beaner',
+  'coon',
+  'paki',
+  'raghead',
+  'towelhead',
+  'sandnigger',
+  'zipperhead',
+  'jap',
+  'slant',
+  'fag', 'faggot', 'fgt',
+  'dyke',
+  'tranny',
+  'retard', 'retarded', 'rtard',
+]
+
+// Generate profanity patterns
+const PROFANITY_PATTERNS: RegExp[] = [
+  ...PROFANITY_WORDS.map(word => createProfanityPattern(word)),
+  // Additional variations that need special handling
+  /\bf+\s*u+\s*c+\s*k+/i, // f u c k with spaces
+  /\bs+\s*h+\s*[i1]+\s*t+/i, // s h i t with spaces/numbers
+  /\ba+\s*s+\s*s+/i, // a s s with spaces
+  /\b(mother|motha)\s*f/i, // motherfucker variants
+  /\bf[\s*@#$]*u[\s*@#$]*c[\s*@#$]*k/i, // special char variations
+  /\bwtf\b/i, // Common abbreviations
+  /\bstfu\b/i,
+  /\bgtfo\b/i,
+  /\blmfao\b/i, // Not blocking - borderline acceptable
+]
+
+// Racial slur patterns - stricter matching
+const RACIAL_SLUR_PATTERNS: RegExp[] = [
+  ...RACIAL_SLURS.map(slur => {
+    // Create strict patterns for slurs that catch common bypasses
+    const escapedSlur = slur.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // Match the word with possible character substitutions (1 for i, @ for a, etc.)
+    const flexPattern = escapedSlur
+      .replace(/i/gi, '[i1!|]')
+      .replace(/a/gi, '[a@4]')
+      .replace(/e/gi, '[e3]')
+      .replace(/o/gi, '[o0]')
+      .replace(/s/gi, '[s$5]')
+    return new RegExp(`\\b${flexPattern}\\b`, 'i')
+  }),
+  // Additional patterns for creative bypasses
+  /\bn[\s*_\-.@#]*[i1!][\s*_\-.@#]*g[\s*_\-.@#]*g/i, // n*i*g*g variations
+  /\bn[\s*]*word\b/i, // "n word"
+]
+
 const BLOCKED_KEYWORD_PATTERNS: RegExp[] = [
+  // Include profanity patterns
+  ...PROFANITY_PATTERNS,
+  
+  // Include racial slur patterns (highest priority)
+  ...RACIAL_SLUR_PATTERNS,
+  
   // Severe harassment
   /\b(kill\s*(yourself|urself|your\s*self))\b/i,
   /\b(kys)\b/i,
   /\b(go\s*die)\b/i,
+  /\bhope\s*(you|u)\s*(die|get\s*(cancer|hit|killed))/i,
+  /\b(hang|shoot|stab)\s*(yourself|urself)/i,
+  /\byou\s*should\s*(die|kill)/i,
   
   // Hate speech patterns
   /\b(hate\s*all|death\s*to)\s+\w+/i,
+  /\b(all\s*\w+\s*(should|must|need\s*to)\s*die)\b/i,
   
   // Spam patterns
   /\b(buy\s*now|click\s*here|free\s*money|work\s*from\s*home)\b/i,
@@ -232,14 +341,65 @@ function checkKeywords(
   additionalKeywords: string[] = []
 ): ModerationResult {
   const flaggedPhrases: string[] = []
+  const detectedCategories: Set<ModerationCategory> = new Set()
   let severeMatch = false
   let suspiciousMatch = false
   
-  // Check blocked patterns
-  for (const pattern of BLOCKED_KEYWORD_PATTERNS) {
-    const match = content.match(pattern)
+  // Normalize content for better matching
+  const normalizedContent = content
+    .toLowerCase()
+    // Convert common number/symbol substitutions
+    .replace(/0/g, 'o')
+    .replace(/1/g, 'i')
+    .replace(/3/g, 'e')
+    .replace(/4/g, 'a')
+    .replace(/5/g, 's')
+    .replace(/@/g, 'a')
+    .replace(/\$/g, 's')
+  
+  // Check racial slurs first (highest severity - hate speech)
+  for (const pattern of RACIAL_SLUR_PATTERNS) {
+    const match = content.match(pattern) || normalizedContent.match(pattern)
     if (match) {
       flaggedPhrases.push(match[0])
+      detectedCategories.add('hate_speech')
+      severeMatch = true
+    }
+  }
+  
+  // Check profanity patterns
+  for (const pattern of PROFANITY_PATTERNS) {
+    const match = content.match(pattern) || normalizedContent.match(pattern)
+    if (match) {
+      flaggedPhrases.push(match[0])
+      detectedCategories.add('profanity')
+      severeMatch = true
+    }
+  }
+  
+  // Check other blocked patterns (harassment, spam, etc.)
+  for (const pattern of BLOCKED_KEYWORD_PATTERNS) {
+    // Skip profanity and slur patterns (already checked above)
+    if (PROFANITY_PATTERNS.includes(pattern) || RACIAL_SLUR_PATTERNS.includes(pattern)) {
+      continue
+    }
+    
+    const match = content.match(pattern) || normalizedContent.match(pattern)
+    if (match) {
+      flaggedPhrases.push(match[0])
+      // Categorize based on pattern type
+      if (/kill|die|kys|hang|shoot|stab|hope.*die/i.test(pattern.source)) {
+        detectedCategories.add('harassment')
+        detectedCategories.add('violence')
+      } else if (/hate|death\s*to/i.test(pattern.source)) {
+        detectedCategories.add('hate_speech')
+      } else if (/buy|click|free.*money|work.*home|https/i.test(pattern.source)) {
+        detectedCategories.add('spam')
+      } else if (/number|phone|snap|meet|add.*me/i.test(pattern.source)) {
+        detectedCategories.add('dangerous')
+      } else {
+        detectedCategories.add('dangerous')
+      }
       severeMatch = true
     }
   }
@@ -257,17 +417,35 @@ function checkKeywords(
   for (const keyword of additionalKeywords) {
     if (content.toLowerCase().includes(keyword.toLowerCase())) {
       flaggedPhrases.push(keyword)
+      detectedCategories.add('profanity')
       severeMatch = true
     }
   }
   
+  // Remove duplicates from flagged phrases
+  const uniqueFlaggedPhrases = [...new Set(flaggedPhrases)]
+  
   if (severeMatch) {
+    // Determine primary category and reason based on what was detected
+    const categories = Array.from(detectedCategories) as ModerationCategory[]
+    let reason = 'Content contains inappropriate language'
+    
+    if (detectedCategories.has('hate_speech')) {
+      reason = 'Content contains hate speech or discriminatory language'
+    } else if (detectedCategories.has('profanity')) {
+      reason = 'Content contains profanity or inappropriate language'
+    } else if (detectedCategories.has('harassment')) {
+      reason = 'Content contains harassing or threatening language'
+    } else if (detectedCategories.has('spam')) {
+      reason = 'Content appears to be spam'
+    }
+    
     return {
       action: 'block',
-      categories: ['harassment', 'dangerous'],
+      categories: categories.length > 0 ? categories : ['dangerous'],
       confidence: 0.95,
-      reason: 'Content contains blocked phrases',
-      flaggedPhrases,
+      reason,
+      flaggedPhrases: uniqueFlaggedPhrases,
       requiresReview: true,
     }
   }
@@ -278,7 +456,7 @@ function checkKeywords(
       categories: ['safe'],
       confidence: 0.7,
       reason: 'Content contains suspicious phrases',
-      flaggedPhrases,
+      flaggedPhrases: uniqueFlaggedPhrases,
       requiresReview: true,
     }
   }

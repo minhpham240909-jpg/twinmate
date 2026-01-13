@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { moderateContent, flagContent } from '@/lib/moderation/content-moderator'
 
 // PATCH - Edit post
 export async function PATCH(
@@ -29,6 +30,61 @@ export async function PATCH(
       )
     }
 
+    // CONTENT MODERATION: Check edited content for inappropriate language
+    const trimmedContent = content.trim()
+    if (trimmedContent.length > 0) {
+      const moderationResult = await moderateContent(trimmedContent, 'post')
+
+      // Block if content contains profanity, hate speech, or other inappropriate content
+      if (moderationResult.action === 'block') {
+        // Get user info for logging
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { name: true, email: true },
+        })
+
+        // Flag the content for admin review
+        await flagContent({
+          contentType: 'post',
+          contentId: `edit-blocked-${postId}`, // Reference the post being edited
+          content: trimmedContent,
+          senderId: user.id,
+          senderEmail: dbUser?.email,
+          senderName: dbUser?.name,
+          moderationResult,
+        })
+
+        // Return user-friendly error based on category
+        const categoryMessages: Record<string, string> = {
+          profanity: 'Your post contains inappropriate language. Please remove profanity and try again.',
+          hate_speech: 'Your post contains language that violates our community guidelines. Please revise and try again.',
+          harassment: 'Your post contains content that may be harmful to others. Please revise and try again.',
+          violence: 'Your post contains content that promotes violence. This is not allowed.',
+          sexual_content: 'Your post contains inappropriate content. Please keep posts safe for all users.',
+          self_harm: 'Your post contains concerning content. If you need support, please reach out to a trusted person or helpline.',
+          spam: 'Your post appears to be spam. Please share genuine, meaningful content.',
+          dangerous: 'Your post contains potentially harmful content. Please revise and try again.',
+        }
+
+        const primaryCategory = moderationResult.categories.find(c => c !== 'safe') || 'dangerous'
+        const errorMessage = categoryMessages[primaryCategory] || 'Your post contains content that violates our community guidelines. Please revise and try again.'
+
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            code: 'CONTENT_MODERATION_BLOCKED',
+            category: primaryCategory,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Store moderation result for flagging after update (if suspicious but not blocked)
+      if (moderationResult.action === 'flag' || moderationResult.action === 'escalate') {
+        (req as any).__moderationResult = moderationResult
+      }
+    }
+
     // SECURITY: Check ownership IN the database query to prevent IDOR
     // This prevents revealing whether posts exist that the user doesn't own
     const existingPost = await prisma.post.findFirst({
@@ -53,7 +109,7 @@ export async function PATCH(
     const updatedPost = await prisma.post.update({
       where: { id: postId },
       data: {
-        content: content.trim(),
+        content: trimmedContent,
         // updatedAt is automatically set by Prisma
       },
       include: {
@@ -73,6 +129,25 @@ export async function PATCH(
         },
       },
     })
+
+    // If content was flagged for review (but not blocked), flag the edited post
+    const moderationResult = (req as any).__moderationResult
+    if (moderationResult && (moderationResult.action === 'flag' || moderationResult.action === 'escalate')) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { name: true, email: true },
+      })
+
+      await flagContent({
+        contentType: 'post',
+        contentId: postId,
+        content: trimmedContent,
+        senderId: user.id,
+        senderEmail: dbUser?.email,
+        senderName: dbUser?.name,
+        moderationResult,
+      })
+    }
 
     return NextResponse.json({ post: updatedPost })
   } catch (error) {

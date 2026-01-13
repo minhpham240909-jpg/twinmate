@@ -39,6 +39,7 @@ interface SessionFlashcardsProps {
   currentUserId?: string
   onShareFlashcards?: (data: SharedFlashcardsData) => void
   onStopSharing?: () => void
+  onUpdateFlashcards?: (data: SharedFlashcardsData) => void // Real-time updates while sharing
   isSharing?: boolean
   sharedFlashcards?: SharedFlashcardsData | null
 }
@@ -48,6 +49,7 @@ export default function SessionFlashcards({
   currentUserId,
   onShareFlashcards,
   onStopSharing,
+  onUpdateFlashcards,
   isSharing = false,
   sharedFlashcards = null
 }: SessionFlashcardsProps) {
@@ -156,6 +158,22 @@ export default function SessionFlashcards({
     }
   }
 
+  // Helper to broadcast flashcard state updates when sharing
+  const broadcastFlashcardUpdate = (newIndex: number, newIsFlipped: boolean) => {
+    if (isSharing && onUpdateFlashcards && flashcards.length > 0) {
+      onUpdateFlashcards({
+        flashcards,
+        currentIndex: newIndex,
+        isFlipped: newIsFlipped,
+        sharedBy: {
+          id: currentUserId || '',
+          name: 'You',
+          avatarUrl: null
+        }
+      })
+    }
+  }
+
   const handleSubmitAnswer = (e: React.FormEvent) => {
     e.preventDefault()
     if (!userAnswer.trim()) {
@@ -164,12 +182,16 @@ export default function SessionFlashcards({
     }
     setHasAnswered(true)
     setIsFlipped(true)
+    // Broadcast flip when sharing
+    broadcastFlashcardUpdate(currentIndex, true)
   }
 
   const handleRevealForCreator = () => {
     setHasAnswered(true)
     setIsFlipped(true)
     setUserAnswer('(Revealed by creator)')
+    // Broadcast flip when sharing
+    broadcastFlashcardUpdate(currentIndex, true)
   }
 
   const handleNextCard = (wasCorrect?: boolean) => {
@@ -183,7 +205,10 @@ export default function SessionFlashcards({
     setUserAnswer('')
 
     if (currentIndex < flashcards.length - 1) {
-      setCurrentIndex(prev => prev + 1)
+      const newIndex = currentIndex + 1
+      setCurrentIndex(newIndex)
+      // Broadcast next card when sharing
+      broadcastFlashcardUpdate(newIndex, false)
     } else {
       setViewMode('results')
       toast.success('Deck completed!')
@@ -198,6 +223,8 @@ export default function SessionFlashcards({
     setIsFlipped(false)
     setHasAnswered(false)
     setUserAnswer('')
+    // Broadcast restart when sharing
+    broadcastFlashcardUpdate(0, false)
   }
 
   // Share flashcards to screen

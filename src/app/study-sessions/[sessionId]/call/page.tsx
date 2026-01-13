@@ -274,6 +274,12 @@ export default function StudyCallPage() {
           setSharedNotes(null)
         }
       })
+      .on('broadcast', { event: 'update-notes' }, (payload) => {
+        // Real-time notes updates while sharing
+        if (payload.payload.sharedBy.id !== user.id) {
+          setSharedNotes(payload.payload)
+        }
+      })
       // Flashcards sharing events
       .on('broadcast', { event: 'share-flashcards' }, (payload) => {
         if (payload.payload.sharedBy.id !== user.id) {
@@ -286,11 +292,23 @@ export default function StudyCallPage() {
           setSharedFlashcards(null)
         }
       })
+      .on('broadcast', { event: 'update-flashcards' }, (payload) => {
+        // Real-time flashcards updates while sharing
+        if (payload.payload.sharedBy.id !== user.id) {
+          setSharedFlashcards(payload.payload)
+        }
+      })
       // Whiteboard sharing events
       .on('broadcast', { event: 'share-whiteboard' }, (payload) => {
         if (payload.payload.sharedBy.id !== user.id) {
           setSharedWhiteboard(payload.payload)
           toast.success(`${payload.payload.sharedBy.name} shared their whiteboard`)
+        }
+      })
+      .on('broadcast', { event: 'update-whiteboard' }, (payload) => {
+        // Real-time whiteboard updates while sharing
+        if (payload.payload.sharedBy.id !== user.id) {
+          setSharedWhiteboard(payload.payload)
         }
       })
       .on('broadcast', { event: 'stop-share-whiteboard' }, (payload) => {
@@ -345,6 +363,25 @@ export default function StudyCallPage() {
     setIsSharingNotes(false)
   }, [user])
 
+  // Handler: Real-time notes updates while sharing
+  const handleUpdateNotes = useCallback(async (content: string, title: string) => {
+    if (!user || !profile || !sharedNotesChannelRef.current) return
+
+    await sharedNotesChannelRef.current.send({
+      type: 'broadcast',
+      event: 'update-notes',
+      payload: {
+        content,
+        title,
+        sharedBy: {
+          id: user.id,
+          name: profile.name || 'Anonymous',
+          avatarUrl: profile.avatarUrl,
+        },
+      },
+    })
+  }, [user, profile])
+
   // FIX: Handler: Share flashcards to all participants
   const handleShareFlashcards = useCallback(async (data: {
     flashcards: Array<{ id: string; front: string; back: string; difficulty: number; userId: string }>
@@ -383,6 +420,29 @@ export default function StudyCallPage() {
     setIsSharingFlashcards(false)
   }, [user])
 
+  // Handler: Real-time flashcards updates while sharing
+  const handleUpdateFlashcards = useCallback(async (data: {
+    flashcards: Array<{ id: string; front: string; back: string; difficulty: number; userId: string }>
+    currentIndex: number
+    isFlipped: boolean
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  }) => {
+    if (!user || !profile || !sharedNotesChannelRef.current) return
+
+    await sharedNotesChannelRef.current.send({
+      type: 'broadcast',
+      event: 'update-flashcards',
+      payload: {
+        ...data,
+        sharedBy: {
+          id: user.id,
+          name: profile.name || 'Anonymous',
+          avatarUrl: profile.avatarUrl,
+        },
+      },
+    })
+  }, [user, profile])
+
   // FIX: Handler: Share whiteboard to all participants
   const handleShareWhiteboard = useCallback(async (data: {
     imageData: string
@@ -418,6 +478,27 @@ export default function StudyCallPage() {
 
     setIsSharingWhiteboard(false)
   }, [user])
+
+  // Handler: Real-time whiteboard updates while sharing
+  const handleUpdateWhiteboard = useCallback(async (data: {
+    imageData: string
+    sharedBy: { id: string; name: string; avatarUrl?: string | null }
+  }) => {
+    if (!user || !profile || !sharedNotesChannelRef.current) return
+
+    await sharedNotesChannelRef.current.send({
+      type: 'broadcast',
+      event: 'update-whiteboard',
+      payload: {
+        ...data,
+        sharedBy: {
+          id: user.id,
+          name: profile.name || 'Anonymous',
+          avatarUrl: profile.avatarUrl,
+        },
+      },
+    })
+  }, [user, profile])
 
   const handleEndCall = async () => {
     if (!confirm(t('confirmLeaveCall'))) return
@@ -657,6 +738,7 @@ export default function StudyCallPage() {
                   currentUserId={user.id}
                   onShareFlashcards={handleShareFlashcards}
                   onStopSharing={handleStopSharingFlashcards}
+                  onUpdateFlashcards={handleUpdateFlashcards}
                   isSharing={isSharingFlashcards}
                   sharedFlashcards={sharedFlashcards}
                 />
@@ -666,6 +748,7 @@ export default function StudyCallPage() {
                   sessionId={sessionId}
                   onShareNotes={handleShareNotes}
                   onStopSharing={handleStopSharingNotes}
+                  onUpdateNotes={handleUpdateNotes}
                   isSharing={isSharingNotes}
                 />
 
@@ -687,6 +770,7 @@ export default function StudyCallPage() {
                   sessionId={sessionId}
                   onShareWhiteboard={handleShareWhiteboard}
                   onStopSharing={handleStopSharingWhiteboard}
+                  onUpdateWhiteboard={handleUpdateWhiteboard}
                   isSharing={isSharingWhiteboard}
                   sharedWhiteboard={sharedWhiteboard}
                 />
@@ -806,17 +890,17 @@ export default function StudyCallPage() {
                     </button>
                   </Bounce>
                   <Bounce delay={0.2}>
-                    <button onClick={() => setActiveFeature('chat')} className="w-12 h-12 bg-green-600 text-white rounded-lg hover:bg-green-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('chat')}>
+                    <button onClick={() => setActiveFeature('chat')} className="w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={t('chat')}>
                       <span className="text-xl">💬</span>
                     </button>
                   </Bounce>
                   <Bounce delay={0.3}>
-                    <button onClick={() => setActiveFeature('flashcards')} className="w-12 h-12 bg-orange-600 text-white rounded-lg hover:bg-orange-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('flashcards')}>
+                    <button onClick={() => setActiveFeature('flashcards')} className="w-12 h-12 bg-blue-500 text-white rounded-lg hover:bg-blue-600 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('flashcards')}>
                       <span className="text-xl">📚</span>
                     </button>
                   </Bounce>
                   <Bounce delay={0.4}>
-                    <button onClick={() => setActiveFeature('notes')} className="w-12 h-12 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('notes')}>
+                    <button onClick={() => setActiveFeature('notes')} className="w-12 h-12 bg-slate-700 text-white rounded-lg hover:bg-slate-600 hover:scale-110 transition-all flex items-center justify-center shadow-md" title={tCommon('notes')}>
                       <span className="text-xl">📝</span>
                     </button>
                   </Bounce>
@@ -870,7 +954,7 @@ function VideoTile({ videoTrack, hasVideo, hasAudio, name }: { videoTrack: unkno
   }, [videoTrack, hasVideo])
 
   return (
-    <GlowBorder color={hasVideo ? "#3b82f6" : "#8b5cf6"} intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
+    <GlowBorder color="#3b82f6" intensity="medium" animated={false}  style={{ borderRadius: 12 }}>
       <div className="relative bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden aspect-video">
         {hasVideo ? (
           <div ref={videoRef} className="w-full h-full" />

@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
+import { withCsrfProtection } from '@/lib/csrf'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
 // GET /api/admin/flagged-content - Get flagged content with pagination
 export async function GET(req: NextRequest) {
@@ -136,32 +138,39 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/admin/flagged-content - Take action on flagged content
+// SECURITY: Protected with CSRF token validation
 export async function POST(req: NextRequest) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // Apply rate limiting (userActions preset: 30 actions/minute)
+  const rateLimitResult = await adminRateLimit(req, 'userActions')
+  if (rateLimitResult) return rateLimitResult
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
-    }
+  // SECURITY: Wrap moderation actions with CSRF protection
+  return withCsrfProtection(req, async () => {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    // Verify admin status
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true, deactivatedAt: true },
-    })
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Not authenticated' },
+          { status: 401 }
+        )
+      }
 
-    if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
-      return NextResponse.json(
-        { error: 'Not authorized' },
-        { status: 403 }
-      )
-    }
+      // Verify admin status
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true, deactivatedAt: true },
+      })
 
-    const body = await req.json()
+      if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
+        return NextResponse.json(
+          { error: 'Not authorized' },
+          { status: 403 }
+        )
+      }
+
+      const body = await req.json()
     const { action, flaggedContentId, notes, banUser, banDuration, banReason } = body
 
     if (!flaggedContentId || !action) {
@@ -322,70 +331,79 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
     }
-  } catch (error) {
-    console.error('[Admin Flagged Content] Error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+    } catch (error) {
+      console.error('[Admin Flagged Content] Error:', error)
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
+  })
 }
 
 // DELETE /api/admin/flagged-content - Delete flagged content record
+// SECURITY: Protected with CSRF token validation
 export async function DELETE(req: NextRequest) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+  // Apply rate limiting (userActions preset: 30 actions/minute)
+  const rateLimitResult = await adminRateLimit(req, 'userActions')
+  if (rateLimitResult) return rateLimitResult
 
-    if (!user) {
+  // SECURITY: Wrap delete action with CSRF protection
+  return withCsrfProtection(req, async () => {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Not authenticated' },
+          { status: 401 }
+        )
+      }
+
+      // Verify admin status
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { isAdmin: true, deactivatedAt: true },
+      })
+
+      if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
+        return NextResponse.json(
+          { error: 'Not authorized' },
+          { status: 403 }
+        )
+      }
+
+      const body = await req.json()
+      const { flaggedContentId } = body
+
+      if (!flaggedContentId) {
+        return NextResponse.json(
+          { error: 'Missing flaggedContentId' },
+          { status: 400 }
+        )
+      }
+
+      await prisma.flaggedContent.delete({
+        where: { id: flaggedContentId },
+      })
+
+      // Log the action
+      await logAdminAction({
+        adminId: user.id,
+        action: 'flagged_content_deleted',
+        targetType: 'flagged_content',
+        targetId: flaggedContentId,
+        details: { message: 'Flagged content record permanently deleted' },
+      })
+
+      return NextResponse.json({ success: true })
+    } catch (error) {
+      console.error('[Admin Flagged Content] Delete Error:', error)
       return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
+        { error: 'Internal server error' },
+        { status: 500 }
       )
     }
-
-    // Verify admin status
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true, deactivatedAt: true },
-    })
-
-    if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
-      return NextResponse.json(
-        { error: 'Not authorized' },
-        { status: 403 }
-      )
-    }
-
-    const body = await req.json()
-    const { flaggedContentId } = body
-
-    if (!flaggedContentId) {
-      return NextResponse.json(
-        { error: 'Missing flaggedContentId' },
-        { status: 400 }
-      )
-    }
-
-    await prisma.flaggedContent.delete({
-      where: { id: flaggedContentId },
-    })
-
-    // Log the action
-    await logAdminAction({
-      adminId: user.id,
-      action: 'flagged_content_deleted',
-      targetType: 'flagged_content',
-      targetId: flaggedContentId,
-      details: { message: 'Flagged content record permanently deleted' },
-    })
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[Admin Flagged Content] Delete Error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+  })
 }
