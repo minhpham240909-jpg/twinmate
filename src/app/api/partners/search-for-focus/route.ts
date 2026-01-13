@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
           },
         ],
       },
-      include: {
+      select: {
+        senderId: true,
+        receiverId: true,
         sender: {
           select: {
             id: true,
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
             avatarUrl: true,
             presence: {
               select: {
-                onlineStatus: true,
+                status: true,
                 activityType: true,
                 lastSeenAt: true,
               },
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
             avatarUrl: true,
             presence: {
               select: {
-                onlineStatus: true,
+                status: true,
                 activityType: true,
                 lastSeenAt: true,
               },
@@ -109,16 +111,16 @@ export async function POST(request: NextRequest) {
         id: partner.id,
         name: partner.name,
         avatarUrl: partner.avatarUrl,
-        onlineStatus: partner.presence?.onlineStatus || 'OFFLINE',
+        onlineStatus: partner.presence?.status || 'offline',
         activityType: partner.presence?.activityType || null,
         lastSeenAt: partner.presence?.lastSeenAt || null,
       }
     })
 
-    // Sort by online status (ONLINE first) then by name
+    // Sort by online status (online first) then by name
     partners.sort((a, b) => {
-      if (a.onlineStatus === 'ONLINE' && b.onlineStatus !== 'ONLINE') return -1
-      if (a.onlineStatus !== 'ONLINE' && b.onlineStatus === 'ONLINE') return 1
+      if (a.onlineStatus === 'online' && b.onlineStatus !== 'online') return -1
+      if (a.onlineStatus !== 'online' && b.onlineStatus === 'online') return 1
       return a.name.localeCompare(b.name)
     })
 
