@@ -4,12 +4,13 @@
  * QuickFocusCard - Engaging Focus Challenge Entry Point
  *
  * Features:
- * - Live user count ("X students focusing right now")
+ * - Live user count (real data only)
  * - Streak display with fire emoji
  * - Mode selection: Solo Focus vs AI-Guided Focus
  * - Big, inviting call-to-action button
  * - Instant timer start with no friction
  * - Gamification elements for motivation
+ * - Blue color scheme
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -156,11 +157,6 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
     setSelectedMode(mode)
   }
 
-  // Format large numbers (e.g., 2134 -> "2,134")
-  const formatNumber = (num: number): string => {
-    return num.toLocaleString()
-  }
-
   // Format time remaining (e.g., 125 seconds -> "2:05")
   const formatTimeRemaining = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -168,14 +164,24 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Get the live users display text (real data only)
+  const getLiveUsersText = (): string => {
+    if (isLoadingStats) return ''
+    const count = stats?.liveUsersCount || 0
+    if (count === 0) {
+      return t('noOneStudying')
+    }
+    return t('studyingNow', { count })
+  }
+
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      {/* Main Card - Vibrant gradient with depth */}
-      <div className="bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-orange-500/25 relative">
+      {/* Main Card - Blue gradient */}
+      <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-blue-500/25 relative">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -right-20 w-56 h-56 bg-yellow-400/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-pink-400/20 rounded-full blur-3xl" />
+          <div className="absolute -top-20 -right-20 w-56 h-56 bg-cyan-400/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-indigo-400/20 rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
         </div>
 
@@ -186,20 +192,22 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
             <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
               <div className="relative">
                 <Users className="w-4 h-4 text-white" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                {stats && stats.liveUsersCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                )}
               </div>
               <span className="text-white/90 text-sm font-medium">
                 {isLoadingStats ? (
-                  <span className="inline-block w-12 h-4 bg-white/20 rounded animate-pulse" />
+                  <span className="inline-block w-20 h-4 bg-white/20 rounded animate-pulse" />
                 ) : (
-                  `${formatNumber(stats?.liveUsersCount || 127)} studying now`
+                  getLiveUsersText()
                 )}
               </span>
             </div>
 
             {/* Streak Badge */}
             {stats && stats.userStreak > 0 && (
-              <div className="flex items-center gap-1.5 bg-yellow-400/90 text-yellow-900 rounded-full px-3 py-1.5">
+              <div className="flex items-center gap-1.5 bg-amber-400/90 text-amber-900 rounded-full px-3 py-1.5">
                 <Flame className="w-4 h-4" />
                 <span className="text-sm font-bold">Day {stats.userStreak}</span>
               </div>
@@ -210,16 +218,16 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                <Zap className="w-6 h-6 text-yellow-300" />
+                <Zap className="w-6 h-6 text-cyan-300" />
               </div>
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                  {t('challengeTitle') || '5-Minute Focus Challenge'}
+                  {t('challengeTitle')}
                 </h2>
               </div>
             </div>
             <p className="text-white/80 text-base sm:text-lg ml-0 sm:ml-15">
-              {t('challengeSubtitle') || 'Start now. No excuses. Just 5 minutes.'}
+              {t('challengeSubtitle')}
             </p>
           </div>
 
@@ -230,11 +238,11 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
               {/* Continue Session - Primary */}
               <button
                 onClick={handleContinueSession}
-                className="w-full py-5 sm:py-6 bg-white hover:bg-orange-50 rounded-2xl font-bold text-xl sm:text-2xl text-orange-600 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-black/20 flex items-center justify-center gap-3 group"
+                className="w-full py-5 sm:py-6 bg-white hover:bg-blue-50 rounded-2xl font-bold text-xl sm:text-2xl text-blue-600 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-black/20 flex items-center justify-center gap-3 group"
               >
-                <Play className="w-7 h-7 text-orange-500 fill-orange-500" />
+                <Play className="w-7 h-7 text-blue-500 fill-blue-500" />
                 <span>Continue Session</span>
-                <span className="text-orange-400 font-mono">
+                <span className="text-blue-400 font-mono">
                   ({formatTimeRemaining(stats.activeSession.timeRemaining)} left)
                 </span>
               </button>
@@ -273,9 +281,9 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 mx-auto ${
-                    selectedMode === 'solo' ? 'bg-orange-100' : 'bg-white/20'
+                    selectedMode === 'solo' ? 'bg-blue-100' : 'bg-white/20'
                   }`}>
-                    <Target className={`w-5 h-5 ${selectedMode === 'solo' ? 'text-orange-600' : 'text-white'}`} />
+                    <Target className={`w-5 h-5 ${selectedMode === 'solo' ? 'text-blue-600' : 'text-white'}`} />
                   </div>
                   <h3 className={`font-bold text-sm ${selectedMode === 'solo' ? 'text-gray-900' : 'text-white'}`}>
                     Solo Focus
@@ -312,11 +320,11 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
               <button
                 onClick={handleStartFocus}
                 disabled={isStarting}
-                className="w-full py-4 bg-white hover:bg-orange-50 disabled:bg-white/80 rounded-xl font-bold text-lg text-orange-600 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg flex items-center justify-center gap-2"
+                className="w-full py-4 bg-white hover:bg-blue-50 disabled:bg-white/80 rounded-xl font-bold text-lg text-blue-600 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg flex items-center justify-center gap-2"
               >
                 {isStarting ? (
                   <>
-                    <div className="w-5 h-5 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
                     <span>Starting...</span>
                   </>
                 ) : (
@@ -328,11 +336,11 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
                       </>
                     ) : (
                       <>
-                        <Flame className="w-5 h-5 text-orange-500" />
+                        <Zap className="w-5 h-5 text-blue-500" />
                         <span>Start Now</span>
                       </>
                     )}
-                    <ChevronRight className="w-5 h-5 text-orange-400" />
+                    <ChevronRight className="w-5 h-5 text-blue-400" />
                   </>
                 )}
               </button>
@@ -350,18 +358,18 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
             <button
               onClick={handleStartFocus}
               disabled={isStarting}
-              className="w-full py-5 sm:py-6 bg-white hover:bg-orange-50 disabled:bg-white/80 rounded-2xl font-bold text-xl sm:text-2xl text-orange-600 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-black/20 flex items-center justify-center gap-3 group"
+              className="w-full py-5 sm:py-6 bg-white hover:bg-blue-50 disabled:bg-white/80 rounded-2xl font-bold text-xl sm:text-2xl text-blue-600 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-black/20 flex items-center justify-center gap-3 group"
             >
               {isStarting ? (
                 <>
-                  <div className="w-7 h-7 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                  <span>{t('starting') || 'Starting...'}</span>
+                  <div className="w-7 h-7 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <span>{t('starting')}</span>
                 </>
               ) : (
                 <>
-                  <Flame className="w-7 h-7 text-orange-500 group-hover:animate-pulse" />
-                  <span>{t('startChallenge') || 'Start Challenge'}</span>
-                  <ChevronRight className="w-6 h-6 text-orange-400 group-hover:translate-x-1 transition-transform" />
+                  <Zap className="w-7 h-7 text-blue-500 group-hover:animate-pulse" />
+                  <span>{t('startChallenge')}</span>
+                  <ChevronRight className="w-6 h-6 text-blue-400 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
@@ -386,7 +394,7 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
 
           {/* Motivational micro-copy */}
           <p className="text-center text-white/60 text-sm mt-4">
-            {t('microCopy') || 'Timer starts instantly. One tap is all it takes.'}
+            {t('microCopy')}
           </p>
         </div>
       </div>

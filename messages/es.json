@@ -1241,7 +1241,12 @@
     "remaining": "restante",
     "sessionComplete": "¡Sesión Completada!",
     "greatJob": "¡Buen trabajo! Te enfocaste por {minutes} minutos.",
-    "startAnother": "Iniciar Otra Sesión",
-    "motivationalMessage": "Cada minuto de enfoque suma. Tú puedes."
+    "startAnother": "¡Sigue así! (+5 min)",
+    "motivationalMessage": "Cada minuto de enfoque suma. Tú puedes.",
+    "challengeTitle": "Desafío de Enfoque de 5 Minutos",
+    "challengeSubtitle": "Empieza ahora. Sin excusas. Solo 5 minutos.",
+    "startChallenge": "Iniciar Desafío",
+    "studyingNow": "{count} estudiando ahora",
+    "noOneStudying": "¡Sé el primero en empezar!"
   }
 }

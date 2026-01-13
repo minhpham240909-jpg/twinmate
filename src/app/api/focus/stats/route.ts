@@ -23,8 +23,8 @@ export async function GET() {
     const todayEnd = new Date(now)
     todayEnd.setHours(23, 59, 59, 999)
 
-    // Get count of currently active focus sessions (live users)
-    const activeSessions = await prisma.focusSession.count({
+    // Get count of currently active focus sessions (real live users only)
+    const liveUsersCount = await prisma.focusSession.count({
       where: {
         status: 'ACTIVE',
         // Session started in last 30 minutes (reasonable active window)
@@ -33,12 +33,6 @@ export async function GET() {
         },
       },
     })
-
-    // Add a base number to make it feel more lively + some variance
-    // In production, this would be real data from many users
-    const baseActiveUsers = 127
-    const variance = Math.floor(Math.random() * 50) - 25
-    const liveUsersCount = Math.max(50, baseActiveUsers + activeSessions + variance)
 
     // Get today's community completed sessions
     const todayCompletedCount = await prisma.focusSession.count({
@@ -139,7 +133,7 @@ export async function GET() {
       success: true,
       stats: {
         liveUsersCount,
-        todayCompletedCount: todayCompletedCount + 234, // Add base for engagement
+        todayCompletedCount, // Real data only
         userStreak,
         userTodaySessions,
         userTotalSessions,

@@ -1246,7 +1246,12 @@
     "remaining": "remaining",
     "sessionComplete": "Session Complete!",
     "greatJob": "Great job! You focused for {minutes} minutes.",
-    "startAnother": "Start Another Session",
-    "motivationalMessage": "Every minute of focus adds up. You've got this."
+    "startAnother": "Keep Going! (+5 min)",
+    "motivationalMessage": "Every minute of focus adds up. You've got this.",
+    "challengeTitle": "5-Minute Focus Challenge",
+    "challengeSubtitle": "Start now. No excuses. Just 5 minutes.",
+    "startChallenge": "Start Challenge",
+    "studyingNow": "{count} studying now",
+    "noOneStudying": "Be the first to start!"
   }
 }
