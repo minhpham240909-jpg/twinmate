@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { X, Check, Volume2, VolumeX, Flame, Trophy, Users, RotateCcw } from 'lucide-react'
+import { X, Check, Volume2, VolumeX, Flame, Trophy, Users, RotateCcw, UserPlus, Search, Loader2, ArrowLeft } from 'lucide-react'
 import Image from 'next/image'
 import { subscribeToFocusSessionParticipants } from '@/lib/supabase/realtime'
 
@@ -30,6 +30,8 @@ interface FocusSession {
   taskSubject: string | null
   taskPrompt: string | null
   taskDifficulty: string | null
+  pausedAt: string | null
+  totalPausedMs: number
 }
 
 interface CompletionStats {
@@ -45,6 +47,14 @@ interface Participant {
   name: string
   avatarUrl: string | null
   joinedAt: string | null
+}
+
+interface Partner {
+  id: string
+  name: string
+  avatarUrl: string | null
+  onlineStatus: string
+  activityType: string | null
 }
 
 export default function FocusTimerPage() {
@@ -72,6 +82,15 @@ export default function FocusTimerPage() {
   // Participants
   const [participants, setParticipants] = useState<Participant[]>([])
   const [isHost, setIsHost] = useState(false)
+
+  // Invitation UI state
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Partner[]>([])
+  const [selectedPartners, setSelectedPartners] = useState<Partner[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSendingInvites, setIsSendingInvites] = useState(false)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Settings
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -232,21 +251,110 @@ export default function FocusTimerPage() {
     }
   }, [sessionId])
 
+  // Search partners with debouncing
+  const searchPartners = useCallback(async (query: string) => {
+    if (query.trim().length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch('/api/partners/search-for-focus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, limit: 10 }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSearchResults(data.partners || [])
+      }
+    } catch (error) {
+      console.error('Error searching partners:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }, [])
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query)
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      searchPartners(query)
+    }, 300)
+  }, [searchPartners])
+
+  // Toggle partner selection
+  const togglePartnerSelection = useCallback((partner: Partner) => {
+    setSelectedPartners(prev => {
+      const isSelected = prev.some(p => p.id === partner.id)
+      if (isSelected) {
+        return prev.filter(p => p.id !== partner.id)
+      } else {
+        if (prev.length >= 10) {
+          return prev
+        }
+        return [...prev, partner]
+      }
+    })
+  }, [])
+
+  // Send invitations
+  const sendInvitations = useCallback(async () => {
+    if (selectedPartners.length === 0) return
+
+    setIsSendingInvites(true)
+    try {
+      const response = await fetch(`/api/focus/${sessionId}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerIds: selectedPartners.map(p => p.id),
+        }),
+      })
+
+      if (response.ok) {
+        setShowInviteModal(false)
+        setSelectedPartners([])
+        setSearchQuery('')
+        setSearchResults([])
+        fetchParticipants()
+      } else {
+        const error = await response.json()
+        console.error('Error sending invitations:', error)
+      }
+    } catch (error) {
+      console.error('Error sending invitations:', error)
+    } finally {
+      setIsSendingInvites(false)
+    }
+  }, [sessionId, selectedPartners, fetchParticipants])
+
   // Complete session
   const completeSession = useCallback(async () => {
     if (!session) return
 
     try {
-      const actualMinutes = Math.round(
-        (Date.now() - new Date(session.startedAt).getTime()) / 60000
-      )
+      // Calculate actual minutes spent focusing (excluding paused time)
+      const totalPausedMs = session.totalPausedMs || 0
+      const effectiveElapsed = Date.now() - new Date(session.startedAt).getTime() - totalPausedMs
+      const actualMinutes = Math.round(effectiveElapsed / 60000)
 
       await fetch(`/api/focus/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'COMPLETED',
-          actualMinutes: Math.min(actualMinutes, session.durationMinutes),
+          actualMinutes: Math.min(Math.max(0, actualMinutes), session.durationMinutes),
         }),
       })
 
@@ -266,16 +374,37 @@ export default function FocusTimerPage() {
         if (!response.ok) throw new Error('Session not found')
 
         const data = await response.json()
-        setSession(data.session)
+        const sessionData = data.session
 
-        const startTime = new Date(data.session.startedAt).getTime()
-        const durationMs = data.session.durationMinutes * 60 * 1000
-        const elapsed = Date.now() - startTime
-        const remaining = Math.max(0, Math.ceil((durationMs - elapsed) / 1000))
+        // If session was paused, resume it first
+        if (sessionData.pausedAt && sessionData.status === 'ACTIVE') {
+          try {
+            const resumeResponse = await fetch(`/api/focus/${sessionId}/pause`, {
+              method: 'DELETE',
+            })
+            if (resumeResponse.ok) {
+              const resumeData = await resumeResponse.json()
+              // Update session with resumed data
+              sessionData.pausedAt = null
+              sessionData.totalPausedMs = resumeData.session.totalPausedMs
+            }
+          } catch (resumeErr) {
+            console.error('Failed to resume session', resumeErr)
+          }
+        }
+
+        setSession(sessionData)
+
+        // Calculate remaining time accounting for paused time
+        const startTime = new Date(sessionData.startedAt).getTime()
+        const durationMs = sessionData.durationMinutes * 60 * 1000
+        const totalPausedMs = sessionData.totalPausedMs || 0
+        const effectiveElapsed = Date.now() - startTime - totalPausedMs
+        const remaining = Math.max(0, Math.ceil((durationMs - effectiveElapsed) / 1000))
 
         setTimeRemaining(remaining)
 
-        if (data.session.status !== 'ACTIVE' || remaining === 0) {
+        if (sessionData.status !== 'ACTIVE' || remaining === 0) {
           setIsCompleted(true)
           setIsRunning(false)
         }
@@ -345,14 +474,15 @@ export default function FocusTimerPage() {
     }
   }, [isRunning, isCompleted, hasShownWarning, playSound, completeSession])
 
-  // Abandon session
+  // Abandon session (permanently end it)
   const handleAbandon = async () => {
     if (!session) return
 
     try {
-      const actualMinutes = Math.round(
-        (Date.now() - new Date(session.startedAt).getTime()) / 60000
-      )
+      // Calculate actual minutes spent (excluding paused time)
+      const totalPausedMs = session.totalPausedMs || 0
+      const effectiveElapsed = Date.now() - new Date(session.startedAt).getTime() - totalPausedMs
+      const actualMinutes = Math.max(0, Math.round(effectiveElapsed / 60000))
 
       await fetch(`/api/focus/${sessionId}`, {
         method: 'PATCH',
@@ -362,6 +492,25 @@ export default function FocusTimerPage() {
 
       router.push('/dashboard')
     } catch {
+      router.push('/dashboard')
+    }
+  }
+
+  // Go back to dashboard (pause session, can continue later)
+  const handleGoBack = async () => {
+    if (!session || session.status !== 'ACTIVE') {
+      router.push('/dashboard')
+      return
+    }
+
+    try {
+      // Pause the session before navigating away
+      await fetch(`/api/focus/${sessionId}/pause`, {
+        method: 'POST',
+      })
+      router.push('/dashboard')
+    } catch {
+      // Still navigate even if pause fails
       router.push('/dashboard')
     }
   }
@@ -450,25 +599,57 @@ export default function FocusTimerPage() {
 
       {/* Header */}
       <header className="flex items-center justify-between p-4 sm:p-6 relative z-40">
-        <button
-          onClick={handleAbandon}
-          className="p-3 hover:bg-neutral-800 rounded-xl transition-colors"
-          aria-label="Leave session"
-        >
-          <X className="w-6 h-6 text-neutral-500 hover:text-neutral-300" />
-        </button>
-
-        <button
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className="p-3 hover:bg-neutral-800 rounded-xl transition-colors"
-          aria-label={soundEnabled ? 'Mute' : 'Unmute'}
-        >
-          {soundEnabled ? (
-            <Volume2 className="w-5 h-5 text-neutral-500" />
-          ) : (
-            <VolumeX className="w-5 h-5 text-neutral-500" />
+        <div className="flex items-center gap-2">
+          {/* Back button - pauses session and goes to dashboard */}
+          {!isCompleted && (
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-2 px-3 py-2 hover:bg-neutral-800 rounded-xl transition-colors text-neutral-400 hover:text-white"
+              aria-label="Go back (pause session)"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm hidden sm:inline">Back</span>
+            </button>
           )}
-        </button>
+
+          {/* Abandon button - ends session permanently */}
+          {!isCompleted && (
+            <button
+              onClick={handleAbandon}
+              className="p-2 hover:bg-red-900/30 rounded-xl transition-colors group"
+              aria-label="Abandon session"
+              title="End session permanently"
+            >
+              <X className="w-5 h-5 text-neutral-600 group-hover:text-red-400" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Invite Button - Only show for host during active session */}
+          {isHost && !isCompleted && (
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors text-white text-sm font-medium"
+              aria-label="Invite partners"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Invite</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className="p-3 hover:bg-neutral-800 rounded-xl transition-colors"
+            aria-label={soundEnabled ? 'Mute' : 'Unmute'}
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-5 h-5 text-neutral-500" />
+            ) : (
+              <VolumeX className="w-5 h-5 text-neutral-500" />
+            )}
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -666,6 +847,183 @@ export default function FocusTimerPage() {
             Stay focused. You got this.
           </p>
         </footer>
+      )}
+
+      {/* Invite Partners Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-neutral-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Invite Partners
+                  </h3>
+                  <p className="text-xs text-neutral-400">
+                    Max {10 - selectedPartners.length} more
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-neutral-400" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-4 border-b border-neutral-800">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search partners by name..."
+                  className="w-full pl-10 pr-4 py-3 bg-neutral-800 border-0 rounded-xl text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                  autoFocus
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 animate-spin" />
+                )}
+              </div>
+            </div>
+
+            {/* Selected Partners */}
+            {selectedPartners.length > 0 && (
+              <div className="p-4 border-b border-neutral-800">
+                <p className="text-xs font-semibold text-neutral-400 mb-2">
+                  SELECTED ({selectedPartners.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedPartners.map(partner => (
+                    <button
+                      key={partner.id}
+                      onClick={() => togglePartnerSelection(partner)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/30 text-blue-300 rounded-full hover:bg-blue-900/50 transition-colors"
+                    >
+                      {partner.avatarUrl ? (
+                        <Image
+                          src={partner.avatarUrl}
+                          alt={partner.name}
+                          width={20}
+                          height={20}
+                          className="rounded-full"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 bg-blue-400 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {partner.name[0]}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium">{partner.name}</span>
+                      <X className="w-4 h-4" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Search Results */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {searchQuery.trim().length < 2 ? (
+                <div className="text-center py-12">
+                  <Search className="w-12 h-12 text-neutral-600 mx-auto mb-3" />
+                  <p className="text-neutral-400 text-sm">
+                    Type at least 2 characters to search
+                  </p>
+                </div>
+              ) : searchResults.length === 0 && !isSearching ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-neutral-600 mx-auto mb-3" />
+                  <p className="text-neutral-400 text-sm">
+                    No partners found
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {searchResults.map(partner => {
+                    const isSelected = selectedPartners.some(p => p.id === partner.id)
+                    return (
+                      <button
+                        key={partner.id}
+                        onClick={() => togglePartnerSelection(partner)}
+                        disabled={!isSelected && selectedPartners.length >= 10}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                          isSelected
+                            ? 'bg-blue-900/30 border-2 border-blue-500'
+                            : 'bg-neutral-800 hover:bg-neutral-700 border-2 border-transparent'
+                        } ${!isSelected && selectedPartners.length >= 10 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {partner.avatarUrl ? (
+                          <Image
+                            src={partner.avatarUrl}
+                            alt={partner.name}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                            {partner.name[0]}
+                          </div>
+                        )}
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold text-white">
+                            {partner.name}
+                          </p>
+                          <p className="text-xs text-neutral-400">
+                            {partner.onlineStatus === 'online' ? (
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 bg-green-500 rounded-full" />
+                                Online
+                              </span>
+                            ) : (
+                              'Offline'
+                            )}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-neutral-800">
+              <button
+                onClick={sendInvitations}
+                disabled={selectedPartners.length === 0 || isSendingInvites}
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-neutral-700 disabled:to-neutral-700 text-white rounded-xl font-semibold transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSendingInvites ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-5 h-5" />
+                    <span>
+                      Send {selectedPartners.length > 0 ? `${selectedPartners.length} ` : ''}
+                      Invitation{selectedPartners.length === 1 ? '' : 's'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
