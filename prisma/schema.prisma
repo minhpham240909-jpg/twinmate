@@ -2669,10 +2669,6 @@ model FocusSession {
   startedAt       DateTime     @default(now())
   completedAt     DateTime?    // When session was completed or abandoned
 
-  // Pause/Resume tracking - allows users to leave and come back
-  pausedAt        DateTime?    // When session was paused (null if not paused)
-  totalPausedMs   Int          @default(0) // Total milliseconds spent paused
-
   // Status tracking
   status          FocusSessionStatus @default(ACTIVE)
   actualMinutes   Int?         // Actual time spent focusing

@@ -30,8 +30,6 @@ interface FocusSession {
   taskSubject: string | null
   taskPrompt: string | null
   taskDifficulty: string | null
-  pausedAt: string | null
-  totalPausedMs: number
 }
 
 interface CompletionStats {
@@ -344,10 +342,9 @@ export default function FocusTimerPage() {
     if (!session) return
 
     try {
-      // Calculate actual minutes spent focusing (excluding paused time)
-      const totalPausedMs = session.totalPausedMs || 0
-      const effectiveElapsed = Date.now() - new Date(session.startedAt).getTime() - totalPausedMs
-      const actualMinutes = Math.round(effectiveElapsed / 60000)
+      // Calculate actual minutes spent focusing
+      const elapsed = Date.now() - new Date(session.startedAt).getTime()
+      const actualMinutes = Math.round(elapsed / 60000)
 
       await fetch(`/api/focus/${sessionId}`, {
         method: 'PATCH',
@@ -376,31 +373,13 @@ export default function FocusTimerPage() {
         const data = await response.json()
         const sessionData = data.session
 
-        // If session was paused, resume it first
-        if (sessionData.pausedAt && sessionData.status === 'ACTIVE') {
-          try {
-            const resumeResponse = await fetch(`/api/focus/${sessionId}/pause`, {
-              method: 'DELETE',
-            })
-            if (resumeResponse.ok) {
-              const resumeData = await resumeResponse.json()
-              // Update session with resumed data
-              sessionData.pausedAt = null
-              sessionData.totalPausedMs = resumeData.session.totalPausedMs
-            }
-          } catch (resumeErr) {
-            console.error('Failed to resume session', resumeErr)
-          }
-        }
-
         setSession(sessionData)
 
-        // Calculate remaining time accounting for paused time
+        // Calculate remaining time
         const startTime = new Date(sessionData.startedAt).getTime()
         const durationMs = sessionData.durationMinutes * 60 * 1000
-        const totalPausedMs = sessionData.totalPausedMs || 0
-        const effectiveElapsed = Date.now() - startTime - totalPausedMs
-        const remaining = Math.max(0, Math.ceil((durationMs - effectiveElapsed) / 1000))
+        const elapsed = Date.now() - startTime
+        const remaining = Math.max(0, Math.ceil((durationMs - elapsed) / 1000))
 
         setTimeRemaining(remaining)
 
@@ -479,10 +458,9 @@ export default function FocusTimerPage() {
     if (!session) return
 
     try {
-      // Calculate actual minutes spent (excluding paused time)
-      const totalPausedMs = session.totalPausedMs || 0
-      const effectiveElapsed = Date.now() - new Date(session.startedAt).getTime() - totalPausedMs
-      const actualMinutes = Math.max(0, Math.round(effectiveElapsed / 60000))
+      // Calculate actual minutes spent
+      const elapsed = Date.now() - new Date(session.startedAt).getTime()
+      const actualMinutes = Math.max(0, Math.round(elapsed / 60000))
 
       await fetch(`/api/focus/${sessionId}`, {
         method: 'PATCH',
@@ -496,23 +474,9 @@ export default function FocusTimerPage() {
     }
   }
 
-  // Go back to dashboard (pause session, can continue later)
-  const handleGoBack = async () => {
-    if (!session || session.status !== 'ACTIVE') {
-      router.push('/dashboard')
-      return
-    }
-
-    try {
-      // Pause the session before navigating away
-      await fetch(`/api/focus/${sessionId}/pause`, {
-        method: 'POST',
-      })
-      router.push('/dashboard')
-    } catch {
-      // Still navigate even if pause fails
-      router.push('/dashboard')
-    }
+  // Go back to dashboard
+  const handleGoBack = () => {
+    router.push('/dashboard')
   }
 
   // Start another round
