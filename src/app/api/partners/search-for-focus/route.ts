@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
         status: 'ACCEPTED',
         OR: [
           {
-            user1Id: user.id,
-            user2: {
+            senderId: user.id,
+            receiver: {
               name: {
                 contains: query,
                 mode: 'insensitive',
@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
             },
           },
           {
-            user2Id: user.id,
-            user1: {
+            receiverId: user.id,
+            sender: {
               name: {
                 contains: query,
                 mode: 'insensitive',
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         ],
       },
       include: {
-        user1: {
+        sender: {
           select: {
             id: true,
             name: true,
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
             },
           },
         },
-        user2: {
+        receiver: {
           select: {
             id: true,
             name: true,
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
 
     // Map matches to partner objects
     const partners = matches.map(match => {
-      const isUser1 = match.user1Id === user.id
-      const partner = isUser1 ? match.user2 : match.user1
+      const isSender = match.senderId === user.id
+      const partner = isSender ? match.receiver : match.sender
 
       return {
         id: partner.id,
