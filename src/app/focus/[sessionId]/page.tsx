@@ -14,6 +14,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { X, Check, Volume2, VolumeX, Flame, Trophy, Users, RotateCcw } from 'lucide-react'
+import Image from 'next/image'
+import { subscribeToFocusSessionParticipants } from '@/lib/supabase/realtime'
 
 interface FocusSession {
   id: string
@@ -37,6 +39,14 @@ interface CompletionStats {
   liveUsersCount: number
 }
 
+interface Participant {
+  id: string
+  userId: string
+  name: string
+  avatarUrl: string | null
+  joinedAt: string | null
+}
+
 export default function FocusTimerPage() {
   const router = useRouter()
   const params = useParams()
@@ -58,6 +68,10 @@ export default function FocusTimerPage() {
   const [completionStats, setCompletionStats] = useState<CompletionStats | null>(null)
   const [liveUsersCount, setLiveUsersCount] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
+
+  // Participants
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [isHost, setIsHost] = useState(false)
 
   // Settings
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -204,6 +218,20 @@ export default function FocusTimerPage() {
     }
   }, [])
 
+  // Fetch participants
+  const fetchParticipants = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/focus/${sessionId}/invite`)
+      if (response.ok) {
+        const data = await response.json()
+        setParticipants(data.participants.joined || [])
+        setIsHost(data.isHost || false)
+      }
+    } catch (err) {
+      console.error('Failed to fetch participants', err)
+    }
+  }, [sessionId])
+
   // Complete session
   const completeSession = useCallback(async () => {
     if (!session) return
@@ -268,6 +296,22 @@ export default function FocusTimerPage() {
     const statsInterval = setInterval(fetchStats, 30000)
     return () => clearInterval(statsInterval)
   }, [sessionId, fetchStats])
+
+  // Load participants and subscribe to real-time updates
+  useEffect(() => {
+    // Fetch initial participants
+    fetchParticipants()
+
+    // Subscribe to real-time participant changes
+    const unsubscribe = subscribeToFocusSessionParticipants(
+      sessionId,
+      fetchParticipants
+    )
+
+    return () => {
+      unsubscribe()
+    }
+  }, [sessionId, fetchParticipants])
 
   // Timer logic with 1-minute warning
   useEffect(() => {
@@ -510,6 +554,42 @@ export default function FocusTimerPage() {
               <div className="flex items-center gap-2 mb-8 text-neutral-500 text-sm">
                 <Users className="w-4 h-4" />
                 <span>{liveUsersCount} students focusing right now</span>
+              </div>
+            )}
+
+            {/* Session Participants - Live */}
+            {participants.length > 0 && (
+              <div className="w-full max-w-lg mb-8 bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-3 text-neutral-400 text-sm">
+                  <Users className="w-4 h-4" />
+                  <span className="font-medium">
+                    Focusing together ({participants.length})
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {participants.map((participant) => (
+                    <div
+                      key={participant.id}
+                      className="flex items-center gap-2 bg-neutral-800 rounded-full px-3 py-1.5"
+                    >
+                      {participant.avatarUrl ? (
+                        <Image
+                          src={participant.avatarUrl}
+                          alt={participant.name}
+                          width={20}
+                          height={20}
+                          className="rounded-full"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {participant.name[0]}
+                        </div>
+                      )}
+                      <span className="text-white text-sm">{participant.name}</span>
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

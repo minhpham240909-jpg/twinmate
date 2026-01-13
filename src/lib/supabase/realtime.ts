@@ -974,3 +974,67 @@ export function subscribeToUnreadMessages(
     }
   }
 }
+
+/**
+ * Subscribe to Focus Session Participant changes
+ * Listens for invitations, joins, and leaves in real-time
+ * Enables instant updates when partners join/leave quick focus sessions
+ */
+export function subscribeToFocusSessionParticipants(
+  focusSessionId: string,
+  onParticipantChange: () => void
+): () => void {
+  const supabase = createClient()
+  let isCleanedUp = false
+
+  const channel = supabase
+    .channel(`focus-session:${focusSessionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'focus_session_participants',
+        filter: `focusSessionId=eq.${focusSessionId}`,
+      },
+      (payload) => {
+        if (isCleanedUp) return
+        console.log('[Realtime] New focus session participant:', payload)
+        onParticipantChange()
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'focus_session_participants',
+        filter: `focusSessionId=eq.${focusSessionId}`,
+      },
+      (payload) => {
+        if (isCleanedUp) return
+        console.log('[Realtime] Focus session participant updated:', payload)
+        onParticipantChange()
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'focus_session_participants',
+        filter: `focusSessionId=eq.${focusSessionId}`,
+      },
+      (payload) => {
+        if (isCleanedUp) return
+        console.log('[Realtime] Focus session participant removed:', payload)
+        onParticipantChange()
+      }
+    )
+    .subscribe()
+
+  return () => {
+    isCleanedUp = true
+    supabase.removeChannel(channel)
+  }
+}

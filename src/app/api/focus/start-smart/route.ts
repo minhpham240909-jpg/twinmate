@@ -11,57 +11,58 @@ const startSmartSchema = z.object({
 })
 
 // Task templates for quick generation (fallback if AI fails)
+// Based on user requirements: warm, low-pressure, focus on "just one" and "for the next X minutes"
 const TASK_TEMPLATES: Record<string, string[]> = {
   Math: [
-    'Solve 1 problem from your homework. Just one.',
-    'Review one formula and write it from memory.',
-    'Work through one example problem step by step.',
+    'For the next 5 minutes: Open your math homework and complete just one problem.',
+    'Just one problem from today\'s math homework. You don\'t need to rush.',
+    'Pick one math problem you\'re stuck on. Work through it slowly.',
   ],
   Physics: [
-    'Solve one physics problem completely.',
-    'Draw a diagram for one concept you\'re learning.',
-    'Review one formula and explain what each variable means.',
+    'For the next 5 minutes: Work on one physics problem from your homework.',
+    'Just one problem. Draw the diagram first, then solve.',
+    'Open your physics homework and complete just one small task.',
   ],
   Chemistry: [
-    'Balance one chemical equation.',
-    'Draw one molecular structure from memory.',
-    'Review the properties of one element.',
+    'For the next 5 minutes: Balance one chemical equation from your homework.',
+    'Just one equation. Take your time.',
+    'Pick one chemistry problem and work through it step by step.',
   ],
   Biology: [
-    'Label one diagram from memory.',
-    'Explain one biological process in your own words.',
-    'Review one system or cycle.',
+    'For the next 5 minutes: Label one diagram from your notes.',
+    'Just one concept. Read it and write it in your own words.',
+    'Open your biology homework and complete just one small task.',
   ],
   'Computer Science': [
-    'Write or fix one function.',
-    'Debug one small piece of code.',
-    'Trace through one algorithm step by step.',
+    'For the next 5 minutes: Write or fix just one function.',
+    'Just one bug. Take your time to understand it.',
+    'Open your coding assignment and complete just one small task.',
   ],
   English: [
-    'Read one paragraph and write a 1-sentence summary.',
-    'Find and fix one grammar mistake in your writing.',
-    'Write 3 sentences using a new vocabulary word.',
+    'For the next 5 minutes: Read one paragraph and write what it means.',
+    'Just one paragraph. No pressure.',
+    'Open your reading assignment and read just one page.',
   ],
   History: [
-    'Summarize one historical event in 2-3 sentences.',
-    'Create a mini timeline of one topic.',
-    'Explain cause and effect of one event.',
+    'For the next 5 minutes: Summarize one event from today\'s reading.',
+    'Just one event. Write 2-3 sentences.',
+    'Open your history homework and complete just one small task.',
   ],
   default: [
-    'Open your homework and complete just one task.',
-    'Review your notes for 5 minutes.',
-    'Organize what\'s due tomorrow.',
-    'Read one page of your study material.',
+    'For the next 5 minutes: Open your homework and complete just one small task.',
+    'Just one. Pick the easiest thing on your to-do list.',
+    'You don\'t need to rush. Just start with one thing.',
+    'Open your assignment and do just one part of it.',
   ],
 }
 
-// Encouragement messages
+// Encouragement messages - warm, reassuring, low-pressure
 const ENCOURAGEMENTS = [
-  'You got this. 5 minutes of focus.',
-  'Let\'s make these 5 minutes count.',
-  'One small step. Let\'s go.',
-  'Focus mode: activated.',
-  'Just you and the task. Let\'s do it.',
+  'I\'ll keep time. You just focus.',
+  'No pressure. Just 5 minutes.',
+  'You\'ve got this. One step at a time.',
+  'Let\'s make progress together.',
+  'I\'m here. Take your time.',
 ]
 
 // Initialize OpenAI (optional - for personalized tasks)
@@ -153,16 +154,19 @@ export async function POST(request: NextRequest) {
         const aiPrompt = `Generate ONE tiny study task for a ${skillLevel.toLowerCase()} level student studying ${subject}.
 The task must be:
 - Completable in exactly 5 minutes or less
+- SAME concept as their current homework (not new material)
 - Very specific (not vague like "study chapter 3")
-- Feel achievable and complete when done
-- Written in second person ("Solve...", "Write...", "Review...")
+- Feel achievable and low-pressure
+- Use warm, reassuring language
+- Include phrases like "For the next 5 minutes:" or "Just one" or "You don't need to rush"
+- Written in second person
 
-Examples of good tasks:
-- "Solve 1 problem from your homework. Just one."
-- "Write a 1-sentence summary of the last paragraph you read."
-- "Fix or write one function - no more."
+Examples of PERFECT tasks:
+- "For the next 5 minutes: Open your ${subject} homework and complete just one problem."
+- "Just one ${subject} problem from today's homework. You don't need to rush."
+- "Pick one problem you're stuck on. Work through it slowly."
 
-Respond with ONLY the task text, nothing else. Keep it under 15 words.`
+Respond with ONLY the task text, nothing else. Keep it warm and under 20 words.`
 
         const completion = await openai.chat.completions.create({
           model: 'gpt-4o-mini',

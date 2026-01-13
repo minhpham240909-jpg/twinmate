@@ -102,6 +102,7 @@ model User {
   sessionMessages       SessionMessage[]
   sessionNotes          SessionNote[]
   notifications         Notification[]
+  focusSessionParticipations FocusSessionParticipant[]
   posts                 Post[]
   postLikes             PostLike[]
   postComments          PostComment[]
@@ -2688,6 +2689,9 @@ model FocusSession {
   // Streak tracking
   contributesToStreak Boolean  @default(true)
 
+  // Relations
+  participants    FocusSessionParticipant[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2696,4 +2700,43 @@ model FocusSession {
   @@index([startedAt])
   @@index([userId, startedAt]) // For user's session history
   @@map("focus_sessions")
+}
+
+// FocusSessionParticipant - For collaborative quick focus sessions
+model FocusSessionParticipant {
+  id              String             @id @default(uuid())
+  focusSessionId  String
+  focusSession    FocusSession       @relation(fields: [focusSessionId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role            FocusSessionRole       @default(PARTICIPANT)
+  status          FocusParticipantStatus @default(INVITED)
+
+  joinedAt        DateTime?
+  leftAt          DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([focusSessionId, userId]) // One user can only be in a focus session once
+  @@index([userId])
+  @@index([focusSessionId])
+  @@index([status])
+  @@index([focusSessionId, status]) // PERF: Find active participants in a session
+  @@index([joinedAt])
+  @@index([leftAt])
+  @@map("focus_session_participants")
+}
+
+enum FocusSessionRole {
+  HOST
+  PARTICIPANT
+}
+
+enum FocusParticipantStatus {
+  INVITED
+  JOINED
+  LEFT
+  DECLINED
 }
