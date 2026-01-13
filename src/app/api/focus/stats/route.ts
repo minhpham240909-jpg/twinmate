@@ -91,6 +91,22 @@ export async function GET() {
             startedAt: userActiveSession.startedAt.toISOString(),
             timeRemaining: remainingSeconds,
           }
+        } else {
+          // Session has expired - auto-complete it in the background
+          // Use Promise to not block the response
+          prisma.focusSession.update({
+            where: { id: userActiveSession.id },
+            data: {
+              status: 'COMPLETED',
+              completedAt: new Date(),
+              actualMinutes: userActiveSession.durationMinutes,
+            },
+          }).catch((err) => {
+            logger.error('Failed to auto-complete expired session', {
+              sessionId: userActiveSession.id,
+              error: err
+            })
+          })
         }
       }
 
