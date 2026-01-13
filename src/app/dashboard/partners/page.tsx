@@ -71,7 +71,19 @@ export default function PartnersPage() {
     const fetchPartners = async () => {
       try {
         const response = await fetch('/api/partners/active')
-        if (!response.ok) throw new Error('Failed to fetch partners')
+
+        // Handle auth errors - redirect to login
+        if (response.status === 401) {
+          console.warn('Session expired, redirecting to login')
+          router.push('/auth')
+          return
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Failed to fetch partners')
+        }
+
         const data = await response.json()
         const fetchedPartners = data.partners || []
         setPartners(fetchedPartners)

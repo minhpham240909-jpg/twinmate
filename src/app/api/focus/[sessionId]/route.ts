@@ -10,6 +10,13 @@ const updateFocusSessionSchema = z.object({
   actualMinutes: z.number().min(0).optional(),
   label: z.string().optional(),
   notes: z.string().optional(),
+  // AI task fields
+  taskType: z.string().optional(),
+  taskSubject: z.string().optional(),
+  taskPrompt: z.string().optional(),
+  taskDifficulty: z.string().optional(),
+  userResponse: z.string().optional(),
+  taskCompleted: z.boolean().optional(),
 })
 
 /**
@@ -93,7 +100,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
-    const { status, actualMinutes, label, notes } = validation.data
+    const { status, actualMinutes, label, notes, taskType, taskSubject, taskPrompt, taskDifficulty, userResponse, taskCompleted } = validation.data
 
     // Build update data
     const updateData: Record<string, unknown> = {}
@@ -113,6 +120,31 @@ export async function PATCH(
 
     if (notes !== undefined) {
       updateData.notes = notes
+    }
+
+    // AI task fields
+    if (taskType !== undefined) {
+      updateData.taskType = taskType
+    }
+
+    if (taskSubject !== undefined) {
+      updateData.taskSubject = taskSubject
+    }
+
+    if (taskPrompt !== undefined) {
+      updateData.taskPrompt = taskPrompt
+    }
+
+    if (taskDifficulty !== undefined) {
+      updateData.taskDifficulty = taskDifficulty
+    }
+
+    if (userResponse !== undefined) {
+      updateData.userResponse = userResponse
+    }
+
+    if (taskCompleted !== undefined) {
+      updateData.taskCompleted = taskCompleted
     }
 
     // Update the session

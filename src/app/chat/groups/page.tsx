@@ -661,7 +661,7 @@ function GroupsChatContent() {
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/chat')}
+              onClick={() => router.push('/chat/partners')}
               className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
             >
               <svg className="w-6 h-6 text-neutral-700 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -672,6 +672,16 @@ function GroupsChatContent() {
               {tChat('groupChat')}
             </h1>
           </div>
+          {/* Partner Chat Navigation Button */}
+          <button
+            onClick={() => router.push('/chat/partners')}
+            className="flex items-center gap-2 px-4 py-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span className="text-sm font-medium">{tChat('partnerChat')}</span>
+          </button>
         </div>
       </header>
 

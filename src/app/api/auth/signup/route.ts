@@ -1,13 +1,29 @@
 // API Route: Sign Up with Email/Password
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { passwordSchema } from '@/lib/password-validation'
+import logger from '@/lib/logger'
 // Note: CSRF protection handled by middleware origin check + Supabase's own auth security
+
+// Helper to safely delete orphaned auth user using admin client
+async function cleanupAuthUser(userId: string): Promise<void> {
+  try {
+    const adminClient = createAdminClient()
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId)
+    if (deleteError) {
+      logger.error('Failed to delete orphaned auth user', { userId, error: deleteError.message })
+    } else {
+      logger.info('Successfully cleaned up orphaned auth user', { userId })
+    }
+  } catch (cleanupError) {
+    logger.error('Error during auth user cleanup', { userId, error: cleanupError })
+  }
+}
 
 const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -137,20 +153,13 @@ export async function POST(request: NextRequest) {
         },
       })
     } catch (dbError) {
-      // Transaction failed - clean up Supabase auth user
-      console.error('Database transaction failed, cleaning up auth user:', dbError)
+      // Transaction failed - clean up Supabase auth user using admin client
+      logger.error('Database transaction failed, cleaning up auth user', { error: dbError })
 
       // Check if it's a unique constraint violation (race condition)
       if (dbError instanceof Prisma.PrismaClientKnownRequestError && dbError.code === 'P2002') {
         // Delete the Supabase auth user we just created
-        try {
-          const { error: deleteError } = await supabase.auth.admin.deleteUser(createdAuthUser.id)
-          if (deleteError) {
-            console.error('Failed to delete orphaned auth user:', deleteError)
-          }
-        } catch (cleanupError) {
-          console.error('Error during auth user cleanup:', cleanupError)
-        }
+        await cleanupAuthUser(createdAuthUser.id)
 
         return NextResponse.json(
           { error: 'User with this email already exists' },
@@ -160,32 +169,18 @@ export async function POST(request: NextRequest) {
 
       // For other database errors, attempt cleanup
       if (createdAuthUser) {
-        try {
-          const { error: deleteError } = await supabase.auth.admin.deleteUser(createdAuthUser.id)
-          if (deleteError) {
-            console.error('Failed to delete orphaned auth user after DB error:', deleteError)
-          }
-        } catch (cleanupError) {
-          console.error('Error during auth user cleanup:', cleanupError)
-        }
+        await cleanupAuthUser(createdAuthUser.id)
       }
 
       // Re-throw to be caught by outer catch
       throw dbError
     }
   } catch (error) {
-    console.error('Sign up error:', error)
+    logger.error('Sign up error', { error })
 
     // If we have an orphaned auth user and haven't cleaned it up yet, try once more
     if (createdAuthUser && !(error instanceof Prisma.PrismaClientKnownRequestError)) {
-      try {
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(createdAuthUser.id)
-        if (deleteError) {
-          console.error('Final attempt to delete orphaned auth user failed:', deleteError)
-        }
-      } catch (cleanupError) {
-        console.error('Final cleanup error:', cleanupError)
-      }
+      await cleanupAuthUser(createdAuthUser.id)
     }
 
     return NextResponse.json(

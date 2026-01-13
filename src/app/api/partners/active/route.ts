@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import logger from '@/lib/logger'
 
 /**
  * GET /api/partners/active
@@ -16,12 +17,31 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     // Verify user is authenticated
-    const supabase = await createClient()
+    let supabase
+    try {
+      supabase = await createClient()
+    } catch (clientError) {
+      logger.error('Failed to create Supabase client', { error: clientError })
+      return NextResponse.json(
+        { error: 'Service unavailable' },
+        { status: 503 }
+      )
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
+    if (authError) {
+      logger.warn('Auth error fetching partners', { error: authError.message, code: authError.code })
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Session expired - please sign in again', details: authError.message },
+        { status: 401 }
+      )
+    }
+
+    if (!user) {
+      logger.warn('No user found for partners request - session may have expired')
+      return NextResponse.json(
+        { error: 'Please sign in to view partners' },
         { status: 401 }
       )
     }
@@ -203,7 +223,20 @@ export async function GET() {
       partners
     })
   } catch (error) {
-    console.error('Fetch active partners error:', error)
+    logger.error('Fetch active partners error', {
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error
+    })
+
+    // Check for specific Prisma errors
+    if (error instanceof Error) {
+      if (error.message.includes('connect') || error.message.includes('ECONNREFUSED')) {
+        return NextResponse.json(
+          { error: 'Database connection failed' },
+          { status: 503 }
+        )
+      }
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -8,6 +8,7 @@ import logger from '@/lib/logger'
 const createFocusSessionSchema = z.object({
   durationMinutes: z.number().min(1).max(120).default(7),
   label: z.string().optional(),
+  mode: z.enum(['solo', 'ai_guided']).default('solo'),
 })
 
 /**
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { durationMinutes, label } = validation.data
+    const { durationMinutes, label, mode } = validation.data
 
     // Check for any existing active focus session
     const existingActive = await prisma.focusSession.findFirst({
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         durationMinutes,
         label,
+        mode,
         status: 'ACTIVE',
         startedAt: new Date(),
       },

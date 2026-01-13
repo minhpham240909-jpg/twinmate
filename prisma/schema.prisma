@@ -2675,6 +2675,16 @@ model FocusSession {
   label           String?      // e.g., "Math", "Reading", "Work"
   notes           String?      @db.Text
 
+  // AI Task Feature
+  mode            String       @default("solo") // "solo" or "ai_guided"
+  taskType        String?      // "question", "problem", "writing", "reading", "coding"
+  taskSubject     String?      // User's chosen subject or custom input
+  taskPrompt      String?      @db.Text // The AI-generated task
+  taskDifficulty  String?      // "easy", "medium", "hard"
+  userResponse    String?      @db.Text // User's answer/submission
+  aiFeedback      String?      @db.Text // AI's feedback on user's response
+  taskCompleted   Boolean      @default(false) // Did user mark task as done
+
   // Streak tracking
   contributesToStreak Boolean  @default(true)
 
