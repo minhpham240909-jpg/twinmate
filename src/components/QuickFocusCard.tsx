@@ -1,26 +1,25 @@
 'use client'
 
 /**
- * QuickFocusCard - Streamlined Focus Entry Point
+ * QuickFocusCard - 5-Minute Focus Challenge
  *
- * Features:
- * - Clean, professional design
- * - Single "Start" button - fast entry
- * - AI toggle for guided mode
- * - No time display on card
- * - Instant start with optional AI guidance
+ * Simple, frictionless entry to focused study:
+ * - One button: "Start"
+ * - AI analyzes profile → gives ONE tiny task
+ * - Silent focus room with live student count
+ * - No interruptions during session
+ * - Reward moment at the end
  */
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Flame, Zap, ChevronRight, Play, RefreshCw, Brain, Loader2 } from 'lucide-react'
+import { Flame, Zap, ChevronRight, Play, RefreshCw, Loader2 } from 'lucide-react'
 
 interface ActiveSession {
   id: string
   durationMinutes: number
   startedAt: string
   timeRemaining: number
-  mode?: 'solo' | 'ai_guided'
 }
 
 interface FocusStats {
@@ -42,7 +41,6 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
   const [isStarting, setIsStarting] = useState(false)
   const [stats, setStats] = useState<FocusStats | null>(null)
   const [, setIsLoadingStats] = useState(true)
-  const [aiEnabled, setAiEnabled] = useState(false)
 
   // Fetch live stats
   const fetchStats = useCallback(async () => {
@@ -61,7 +59,6 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
 
   useEffect(() => {
     fetchStats()
-    // Refresh stats every 30 seconds
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
   }, [fetchStats])
@@ -93,68 +90,31 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
     }
   }
 
-  // Start new focus session
+  // Start new focus session with profile-based AI task
   const startNewSession = async () => {
     try {
-      // Create session
-      const response = await fetch('/api/focus', {
+      // Create session - API will analyze profile and generate task
+      const response = await fetch('/api/focus/start-smart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          durationMinutes: 5,
-          mode: aiEnabled ? 'ai_guided' : 'solo'
-        }),
+        body: JSON.stringify({ durationMinutes: 5 }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to start focus session')
+        // Fallback to regular focus if smart start fails
+        const fallbackResponse = await fetch('/api/focus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ durationMinutes: 5, mode: 'solo' }),
+        })
+        if (!fallbackResponse.ok) throw new Error('Failed to start session')
+        const data = await fallbackResponse.json()
+        router.push(`/focus/${data.session.id}`)
+        return
       }
 
       const data = await response.json()
-      const sessionId = data.session.id
-
-      // If AI mode, generate a task automatically
-      if (aiEnabled) {
-        try {
-          // Generate a random task with random subject and type
-          const subjects = ['General Knowledge', 'Critical Thinking', 'Problem Solving', 'Creative Writing', 'Logic']
-          const taskTypes = ['question', 'problem', 'writing', 'random'] as const
-
-          const randomSubject = subjects[Math.floor(Math.random() * subjects.length)]
-          const randomTaskType = taskTypes[Math.floor(Math.random() * taskTypes.length)]
-
-          const taskResponse = await fetch('/api/focus/generate-task', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              subject: randomSubject,
-              taskType: randomTaskType,
-              difficulty: 'medium',
-            }),
-          })
-
-          if (taskResponse.ok) {
-            const taskData = await taskResponse.json()
-
-            // Update session with task details
-            await fetch(`/api/focus/${sessionId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                taskType: taskData.task?.taskType || randomTaskType,
-                taskSubject: taskData.task?.subject || randomSubject,
-                taskPrompt: taskData.task?.prompt || 'Focus on your learning goals for this session.',
-                taskDifficulty: 'medium',
-              }),
-            })
-          }
-        } catch (taskError) {
-          console.error('Failed to generate AI task:', taskError)
-          // Continue anyway - user can still use the session
-        }
-      }
-
-      router.push(`/focus/${sessionId}`)
+      router.push(`/focus/${data.session.id}`)
     } catch (error) {
       console.error('Error starting focus session:', error)
       setIsStarting(false)
@@ -177,9 +137,9 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      {/* Main Card - Clean blue gradient */}
+      {/* Main Card */}
       <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-blue-600/20 relative">
-        {/* Subtle background elements */}
+        {/* Subtle background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-400/10 rounded-full blur-3xl" />
           <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-400/10 rounded-full blur-3xl" />
@@ -187,7 +147,7 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
 
         {/* Content */}
         <div className="relative z-10">
-          {/* Header with streak */}
+          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center">
@@ -198,7 +158,7 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
                   Quick Focus
                 </h2>
                 <p className="text-white/70 text-sm">
-                  5 minutes of pure focus
+                  5 minutes. One task. Let&apos;s go.
                 </p>
               </div>
             </div>
@@ -207,51 +167,21 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
             {stats && stats.userStreak > 0 && (
               <div className="flex items-center gap-1.5 bg-amber-400/90 text-amber-900 rounded-full px-3 py-1.5">
                 <Flame className="w-4 h-4" />
-                <span className="text-sm font-bold">{stats.userStreak}</span>
+                <span className="text-sm font-bold">Day {stats.userStreak}</span>
               </div>
             )}
           </div>
 
-          {/* AI Toggle */}
-          <div className="mb-6">
-            <button
-              onClick={() => setAiEnabled(!aiEnabled)}
-              className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${
-                aiEnabled
-                  ? 'bg-purple-500/30 border-2 border-purple-400/50'
-                  : 'bg-white/10 border-2 border-transparent hover:bg-white/15'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  aiEnabled ? 'bg-purple-500/50' : 'bg-white/10'
-                }`}>
-                  <Brain className={`w-5 h-5 ${aiEnabled ? 'text-purple-200' : 'text-white/70'}`} />
-                </div>
-                <div className="text-left">
-                  <p className={`font-semibold ${aiEnabled ? 'text-purple-200' : 'text-white'}`}>
-                    AI Tutor
-                  </p>
-                  <p className={`text-xs ${aiEnabled ? 'text-purple-300/70' : 'text-white/50'}`}>
-                    Get a task & feedback
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle Switch */}
-              <div className={`w-12 h-7 rounded-full p-1 transition-colors ${
-                aiEnabled ? 'bg-purple-500' : 'bg-white/20'
-              }`}>
-                <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
-                  aiEnabled ? 'translate-x-5' : 'translate-x-0'
-                }`} />
-              </div>
-            </button>
-          </div>
+          {/* Live students count */}
+          {stats && stats.liveUsersCount > 0 && (
+            <div className="mb-6 flex items-center justify-center gap-2 text-white/80 text-sm">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              <span>{stats.liveUsersCount} students focusing right now</span>
+            </div>
+          )}
 
           {/* Action Buttons */}
           {stats?.activeSession ? (
-            // User has an active session
             <div className="space-y-3">
               <button
                 onClick={handleContinueSession}
@@ -283,7 +213,6 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
               </button>
             </div>
           ) : (
-            // No active session - show Start button
             <button
               onClick={handleStartFocus}
               disabled={isStarting}
@@ -292,7 +221,7 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
               {isStarting ? (
                 <>
                   <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
-                  <span>{aiEnabled ? 'Preparing...' : 'Starting...'}</span>
+                  <span>Preparing...</span>
                 </>
               ) : (
                 <>
@@ -304,21 +233,11 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
             </button>
           )}
 
-          {/* Stats Row - Minimal */}
-          {stats && (stats.userTodaySessions > 0 || stats.liveUsersCount > 0) && (
-            <div className="mt-5 flex items-center justify-center gap-4 text-white/60 text-sm">
-              {stats.userTodaySessions > 0 && (
-                <span>
-                  <span className="font-semibold text-white/90">{stats.userTodaySessions}</span>
-                  {' '}today
-                </span>
-              )}
-              {stats.liveUsersCount > 0 && (
-                <span>
-                  <span className="font-semibold text-white/90">{stats.liveUsersCount}</span>
-                  {' '}focusing now
-                </span>
-              )}
+          {/* Stats Row */}
+          {stats && stats.userTodaySessions > 0 && (
+            <div className="mt-5 text-center text-white/60 text-sm">
+              <span className="font-semibold text-white/90">{stats.userTodaySessions}</span>
+              {' '}session{stats.userTodaySessions === 1 ? '' : 's'} today
             </div>
           )}
         </div>
