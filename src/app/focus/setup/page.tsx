@@ -111,8 +111,13 @@ export default function FocusSetupPage() {
       }
 
       const data = await response.json()
-      setGeneratedTask(data)
-      setDuration(data.estimatedMinutes || 5)
+      // API returns { task: { prompt, taskType, ... } }
+      setGeneratedTask({
+        task: data.task?.prompt || data.task,
+        taskType: data.task?.taskType || taskType,
+        estimatedMinutes: data.task?.estimatedMinutes || 5,
+      })
+      setDuration(data.task?.estimatedMinutes || 5)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate task')
     } finally {
