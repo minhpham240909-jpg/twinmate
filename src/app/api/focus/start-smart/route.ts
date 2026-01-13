@@ -110,8 +110,6 @@ export async function POST(request: NextRequest) {
         id: true,
         startedAt: true,
         durationMinutes: true,
-        pausedAt: true,
-        totalPausedMs: true,
       },
     })
 
@@ -119,26 +117,17 @@ export async function POST(request: NextRequest) {
       // Calculate if session has expired (time ran out)
       const startTime = new Date(existingSession.startedAt).getTime()
       const durationMs = existingSession.durationMinutes * 60 * 1000
-      const totalPausedMs = existingSession.totalPausedMs || 0
-
-      // If paused, add current pause duration
-      let currentPauseMs = 0
-      if (existingSession.pausedAt) {
-        currentPauseMs = Date.now() - new Date(existingSession.pausedAt).getTime()
-      }
-
-      const effectiveElapsed = Date.now() - startTime - totalPausedMs - currentPauseMs
-      const remainingMs = durationMs - effectiveElapsed
+      const elapsed = Date.now() - startTime
+      const remainingMs = durationMs - elapsed
 
       // If session has expired (no time left), auto-complete it
       if (remainingMs <= 0) {
-        const actualMinutes = Math.round((durationMs) / 60000)
         await prisma.focusSession.update({
           where: { id: existingSession.id },
           data: {
             status: 'COMPLETED',
             completedAt: new Date(),
-            actualMinutes: Math.min(actualMinutes, existingSession.durationMinutes),
+            actualMinutes: existingSession.durationMinutes,
           },
         })
         logger.info('Auto-completed expired focus session', {

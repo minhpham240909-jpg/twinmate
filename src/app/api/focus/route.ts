@@ -45,12 +45,35 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingActive) {
-      // Return existing active session instead of creating new one
-      return NextResponse.json({
-        success: true,
-        session: existingActive,
-        message: 'Existing active session found',
-      })
+      // Check if session has expired based on elapsed time
+      const startTime = new Date(existingActive.startedAt).getTime()
+      const durationMs = existingActive.durationMinutes * 60 * 1000
+      const elapsed = Date.now() - startTime
+      const remainingMs = durationMs - elapsed
+
+      if (remainingMs <= 0) {
+        // Session has expired - auto-complete it
+        await prisma.focusSession.update({
+          where: { id: existingActive.id },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            actualMinutes: existingActive.durationMinutes,
+          },
+        })
+        logger.info('Auto-completed expired focus session', {
+          sessionId: existingActive.id,
+          userId: user.id,
+        })
+        // Continue to create new session
+      } else {
+        // Return existing active session
+        return NextResponse.json({
+          success: true,
+          session: existingActive,
+          message: 'Existing active session found',
+        })
+      }
     }
 
     // Create new focus session

@@ -63,25 +63,15 @@ export async function GET() {
           id: true,
           durationMinutes: true,
           startedAt: true,
-          pausedAt: true,
-          totalPausedMs: true,
         },
       })
 
       if (userActiveSession) {
-        // Calculate remaining time accounting for paused time
+        // Calculate remaining time
         const startTime = new Date(userActiveSession.startedAt).getTime()
         const durationMs = userActiveSession.durationMinutes * 60 * 1000
-        const totalPausedMs = userActiveSession.totalPausedMs || 0
-
-        // If currently paused, also add the current pause duration
-        let currentPauseMs = 0
-        if (userActiveSession.pausedAt) {
-          currentPauseMs = Date.now() - new Date(userActiveSession.pausedAt).getTime()
-        }
-
-        const effectiveElapsed = Date.now() - startTime - totalPausedMs - currentPauseMs
-        const remainingSeconds = Math.max(0, Math.ceil((durationMs - effectiveElapsed) / 1000))
+        const elapsed = Date.now() - startTime
+        const remainingSeconds = Math.max(0, Math.ceil((durationMs - elapsed) / 1000))
 
         // Only show if there's still time remaining
         if (remainingSeconds > 0) {
@@ -93,7 +83,6 @@ export async function GET() {
           }
         } else {
           // Session has expired - auto-complete it in the background
-          // Use Promise to not block the response
           prisma.focusSession.update({
             where: { id: userActiveSession.id },
             data: {
