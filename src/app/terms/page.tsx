@@ -168,7 +168,7 @@ export default function TermsOfServicePage() {
               If you have any questions about these Terms, please contact us at:
             </p>
             <p className="text-gray-700 dark:text-slate-300">
-              Email: <a href="mailto:support@clerva.com" className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline">support@clerva.com</a>
+              Email: <a href="mailto:privacy@clerva.app" className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline">privacy@clerva.app</a>
             </p>
           </section>
 

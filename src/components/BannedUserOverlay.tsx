@@ -72,8 +72,8 @@ export default function BannedUserOverlay({ children }: BannedUserOverlayProps) 
           {/* Appeal link */}
           <p className="text-sm text-slate-500 mb-6">
             If you believe this is a mistake, please contact support at{' '}
-            <a href="mailto:support@clerva.com" className="text-blue-400 hover:underline">
-              support@clerva.com
+            <a href="mailto:privacy@clerva.app" className="text-blue-400 hover:underline">
+              privacy@clerva.app
             </a>
           </p>
 
@@ -121,8 +121,8 @@ export default function BannedUserOverlay({ children }: BannedUserOverlayProps) 
           {/* Contact support */}
           <p className="text-sm text-slate-500 mb-6">
             Contact us at{' '}
-            <a href="mailto:support@clerva.com" className="text-blue-400 hover:underline">
-              support@clerva.com
+            <a href="mailto:privacy@clerva.app" className="text-blue-400 hover:underline">
+              privacy@clerva.app
             </a>
           </p>
 

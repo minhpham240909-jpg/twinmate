@@ -7,7 +7,6 @@ import { handlePrivilegeChange } from '@/lib/security/session-rotation'
 import logger from '@/lib/logger'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
 import { withCsrfProtection } from '@/lib/csrf'
-import crypto from 'crypto'
 
 // GET - List users with search, filter, and pagination
 export async function GET(request: NextRequest) {
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
     // Build where clause
-    const where: any = {}
+    const where: Record<string, unknown> = {}
 
     if (search) {
       where.OR = [
@@ -66,7 +65,6 @@ export async function GET(request: NextRequest) {
     }
 
     // FIX N+1: Fetch users and count in parallel, then bans separately
-    // This eliminates the N+1 pattern (previously fetched ban per user)
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -77,6 +75,7 @@ export async function GET(request: NextRequest) {
           avatarUrl: true,
           role: true,
           isAdmin: true,
+          isSuperAdmin: true,
           emailVerified: true,
           googleId: true,
           createdAt: true,
@@ -84,7 +83,6 @@ export async function GET(request: NextRequest) {
           deactivatedAt: true,
           deactivationReason: true,
           twoFactorEnabled: true,
-          // Include counts for activity display (efficient single query with _count)
           _count: {
             select: {
               sentMessages: true,
@@ -160,13 +158,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
       }
 
-      // Verify admin status
-      const adminUser = await prisma.user.findUnique({
+      // Get acting admin's full info including super admin status
+      const actingAdmin = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { isAdmin: true },
+        select: {
+          id: true,
+          email: true,
+          isAdmin: true,
+          isSuperAdmin: true,
+        },
       })
 
-      if (!adminUser?.isAdmin) {
+      if (!actingAdmin?.isAdmin) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
       }
 
@@ -188,10 +191,15 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // SECURITY: Check if target is an admin (for protected actions)
+      // Get target user's info
       const targetUser = await prisma.user.findUnique({
         where: { id: userId },
-        select: { isAdmin: true, adminGrantedBy: true },
+        select: {
+          id: true,
+          isAdmin: true,
+          isSuperAdmin: true,
+          adminGrantedBy: true,
+        },
       })
 
       if (!targetUser) {
@@ -201,433 +209,402 @@ export async function POST(request: NextRequest) {
         )
       }
 
-    // SECURITY: Super-admin protection - FIX: Use database flag instead of env var
-    // Super-admin is determined by isSuperAdmin flag in the database (set via migration)
-    // This is more secure than email comparison as it:
-    // 1. Cannot be bypassed by email spoofing
-    // 2. Requires database access to grant super-admin
-    // 3. Is auditable (can track when/who set the flag)
-    const actingAdmin = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { 
-        id: true,
-        email: true,
-        // NOTE: isSuperAdmin field added to schema - run `npx prisma generate` and migrate
-        // After migration, uncomment: isSuperAdmin: true,
-      },
-    })
-    
-    // FIX: Check database flag for super-admin status
-    // First try to get isSuperAdmin from raw query (works even before Prisma client regeneration)
-    let isSuperAdmin = false
-    
-    try {
-      // Try raw query to check isSuperAdmin field (works after migration, before client regen)
-      const superAdminCheck = await prisma.$queryRaw<Array<{ isSuperAdmin: boolean }>>`
-        SELECT "isSuperAdmin" FROM "User" WHERE id = ${user.id}
-      `.catch(() => null)
-      
-      if (superAdminCheck && superAdminCheck[0]?.isSuperAdmin === true) {
-        isSuperAdmin = true
-      }
-    } catch {
-      // Field doesn't exist yet or query failed - fall through to env var check
-    }
-    
-    // Fallback to env var check ONLY during migration period (remove after migration)
-    // Migration SQL: UPDATE "User" SET "isSuperAdmin" = true WHERE email = 'your-super-admin@email.com';
-    if (!isSuperAdmin && process.env.SUPER_ADMIN_EMAIL && actingAdmin?.email) {
-      // Temporary fallback using timing-safe comparison
-      const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
-      const emailBuffer = Buffer.from(actingAdmin.email.toLowerCase().trim())
-      const expectedBuffer = Buffer.from(superAdminEmail.toLowerCase().trim())
-      if (emailBuffer.length === expectedBuffer.length) {
-        isSuperAdmin = crypto.timingSafeEqual(emailBuffer, expectedBuffer)
-        
-        // Log warning to remind developers to migrate
-        if (isSuperAdmin) {
-          logger.warn('DEPRECATION: Super-admin check using env var. Run migration to set isSuperAdmin flag in database.')
-        }
-      }
-    }
+      // ============================================
+      // ADMIN HIERARCHY PROTECTION
+      // ============================================
+      // 1. Super Admin - Can do anything, CANNOT be banned/warned/deactivated by anyone
+      // 2. Normal Admin - Can only ban/warn/deactivate NORMAL USERS (not other admins)
+      // 3. Normal User - No admin actions
 
-    // Protected actions that require super-admin for targeting other admins
-    const protectedActions = ['ban', 'warn', 'deactivate', 'grant_admin', 'revoke_admin']
+      const isSuperAdmin = actingAdmin.isSuperAdmin === true
+      const targetIsSuperAdmin = targetUser.isSuperAdmin === true
+      const targetIsAdmin = targetUser.isAdmin === true
 
-    if (protectedActions.includes(action)) {
-      // Only super-admin can take protected actions on other admins
-      if (targetUser.isAdmin && !isSuperAdmin) {
+      // CRITICAL: No one can take action against a Super Admin
+      if (targetIsSuperAdmin) {
         return NextResponse.json(
-          { error: 'Only the super-admin can perform this action on other administrators' },
+          { error: 'Cannot perform any admin action on the super admin' },
           { status: 403 }
         )
       }
 
-      // Admin grant/revoke always requires super-admin
-      if ((action === 'grant_admin' || action === 'revoke_admin') && !isSuperAdmin) {
-        return NextResponse.json(
-          { error: 'Only the super-admin can grant or revoke admin privileges' },
-          { status: 403 }
-        )
-      }
-    }
+      // Protected actions that affect user status
+      const protectedActions = ['ban', 'warn', 'deactivate', 'grant_admin', 'revoke_admin', 'permanent_delete']
 
-    // Get IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') ||
-                      request.headers.get('x-real-ip') ||
-                      'unknown'
-    const userAgent = request.headers.get('user-agent') || 'unknown'
-
-    switch (action) {
-      case 'ban': {
-        // Create ban record
-        const expiresAt = duration
-          ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000)
-          : null
-
-        await prisma.userBan.upsert({
-          where: { userId },
-          create: {
-            userId,
-            issuedById: user.id,
-            type: duration ? 'TEMPORARY' : 'PERMANENT',
-            reason: reason || 'No reason provided',
-            expiresAt,
-          },
-          update: {
-            issuedById: user.id,
-            type: duration ? 'TEMPORARY' : 'PERMANENT',
-            reason: reason || 'No reason provided',
-            expiresAt,
-            updatedAt: new Date(),
-          },
-        })
-
-        // SECURITY: Rotate session to immediately invalidate banned user's access
-        await handlePrivilegeChange(userId, { accountStatusChanged: true })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'user_banned',
-          targetType: 'user',
-          targetId: userId,
-          details: { reason, duration, banType: duration ? 'temporary' : 'permanent' },
-          ipAddress,
-          userAgent,
-        })
-
-        return NextResponse.json({ success: true, message: 'User banned' })
-      }
-
-      case 'unban': {
-        await prisma.userBan.delete({
-          where: { userId },
-        })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'user_unbanned',
-          targetType: 'user',
-          targetId: userId,
-          details: { reason },
-          ipAddress,
-          userAgent,
-        })
-
-        return NextResponse.json({ success: true, message: 'User unbanned' })
-      }
-
-      case 'warn': {
-        await prisma.userWarning.create({
-          data: {
-            userId,
-            issuedById: user.id,
-            reason: reason || 'No reason provided',
-            severity: severity || 1,
-          },
-        })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'user_warned',
-          targetType: 'user',
-          targetId: userId,
-          details: { reason, severity },
-          ipAddress,
-          userAgent,
-        })
-
-        return NextResponse.json({ success: true, message: 'Warning issued' })
-      }
-
-      case 'deactivate': {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            deactivatedAt: new Date(),
-            deactivationReason: reason || 'Deactivated by admin',
-          },
-        })
-
-        // SECURITY: Rotate session to immediately invalidate deactivated user's access
-        await handlePrivilegeChange(userId, { accountStatusChanged: true })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'user_deactivated',
-          targetType: 'user',
-          targetId: userId,
-          details: { reason },
-          ipAddress,
-          userAgent,
-        })
-
-        return NextResponse.json({ success: true, message: 'User deactivated' })
-      }
-
-      case 'reactivate': {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            deactivatedAt: null,
-            deactivationReason: null,
-          },
-        })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'user_reactivated',
-          targetType: 'user',
-          targetId: userId,
-          details: { reason },
-          ipAddress,
-          userAgent,
-        })
-
-        return NextResponse.json({ success: true, message: 'User reactivated' })
-      }
-
-      case 'grant_admin': {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            isAdmin: true,
-            adminGrantedAt: new Date(),
-            adminGrantedBy: user.id,
-          },
-        })
-
-        // SECURITY: Rotate session to reflect new admin privileges
-        await handlePrivilegeChange(userId, { adminStatusChanged: true })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'admin_granted',
-          targetType: 'user',
-          targetId: userId,
-          details: {},
-          ipAddress,
-          userAgent,
-        })
-
-        logger.info('Admin access granted', { data: { targetUserId: userId, grantedBy: user.id } })
-        return NextResponse.json({ success: true, message: 'Admin access granted' })
-      }
-
-      case 'revoke_admin': {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            isAdmin: false,
-            adminGrantedAt: null,
-            adminGrantedBy: null,
-          },
-        })
-
-        // SECURITY: Rotate session to immediately revoke admin privileges
-        await handlePrivilegeChange(userId, { adminStatusChanged: true })
-
-        await logAdminAction({
-          adminId: user.id,
-          action: 'admin_revoked',
-          targetType: 'user',
-          targetId: userId,
-          details: {},
-          ipAddress,
-          userAgent,
-        })
-
-        logger.info('Admin access revoked', { data: { targetUserId: userId, revokedBy: user.id } })
-        return NextResponse.json({ success: true, message: 'Admin access revoked' })
-      }
-
-      case 'permanent_delete': {
-        // CRITICAL: Only super-admin can permanently delete users
-        if (!isSuperAdmin) {
+      if (protectedActions.includes(action)) {
+        // Normal admin cannot take protected actions against other admins
+        if (targetIsAdmin && !isSuperAdmin) {
           return NextResponse.json(
-            { error: 'Only the super-admin can permanently delete users' },
+            { error: 'Only the super admin can perform this action on other administrators' },
             { status: 403 }
           )
         }
 
-        // SECURITY: Cannot delete yourself
-        if (userId === user.id) {
+        // Admin grant/revoke ALWAYS requires super admin
+        if ((action === 'grant_admin' || action === 'revoke_admin') && !isSuperAdmin) {
           return NextResponse.json(
-            { error: 'Cannot delete your own account' },
+            { error: 'Only the super admin can grant or revoke admin privileges' },
             { status: 403 }
           )
         }
 
-        // Fetch user details before deletion for audit log
-        const userToDelete = await prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            createdAt: true,
-            _count: {
-              select: {
-                sentMessages: true,
-                posts: true,
-                groupMemberships: true,
-                sentMatches: true,
-                receivedMatches: true,
-              },
-            },
-          },
-        })
+        // Permanent delete ALWAYS requires super admin
+        if (action === 'permanent_delete' && !isSuperAdmin) {
+          return NextResponse.json(
+            { error: 'Only the super admin can permanently delete users' },
+            { status: 403 }
+          )
+        }
+      }
 
-        if (!userToDelete) {
-          return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      // Get IP and user agent for audit log
+      const ipAddress = request.headers.get('x-forwarded-for') ||
+                        request.headers.get('x-real-ip') ||
+                        'unknown'
+      const userAgent = request.headers.get('user-agent') || 'unknown'
+
+      switch (action) {
+        case 'ban': {
+          // Create ban record
+          const expiresAt = duration
+            ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000)
+            : null
+
+          await prisma.userBan.upsert({
+            where: { userId },
+            create: {
+              userId,
+              issuedById: user.id,
+              type: duration ? 'TEMPORARY' : 'PERMANENT',
+              reason: reason || 'No reason provided',
+              expiresAt,
+            },
+            update: {
+              issuedById: user.id,
+              type: duration ? 'TEMPORARY' : 'PERMANENT',
+              reason: reason || 'No reason provided',
+              expiresAt,
+              updatedAt: new Date(),
+            },
+          })
+
+          // SECURITY: Rotate session to immediately invalidate banned user's access
+          await handlePrivilegeChange(userId, { accountStatusChanged: true })
+
+          await logAdminAction({
+            adminId: user.id,
+            action: 'user_banned',
+            targetType: 'user',
+            targetId: userId,
+            details: { reason, duration, banType: duration ? 'temporary' : 'permanent' },
+            ipAddress,
+            userAgent,
+          })
+
+          return NextResponse.json({ success: true, message: 'User banned' })
         }
 
-        // PERFORMANCE: Use transaction for atomic deletion
-        // Most relations have onDelete: Cascade, so they will be auto-deleted
-        // Some relations have onDelete: SetNull (Messages, Reports) to preserve data
-        await prisma.$transaction(async (tx) => {
-          // 1. Delete user bans first (has userId unique constraint)
-          await tx.userBan.deleteMany({ where: { userId } })
-
-          // 2. Delete user warnings
-          await tx.userWarning.deleteMany({ where: { userId } })
-
-          // 3. Delete conversation archives
-          await tx.conversationArchive.deleteMany({ where: { userId } })
-
-          // 4. Delete announcement dismissals
-          await tx.announcementDismissal.deleteMany({ where: { userId } })
-
-          // 5. Delete activity tracking data (to avoid orphaned analytics)
-          await tx.userPageVisit.deleteMany({ where: { userId } })
-          await tx.userFeatureUsage.deleteMany({ where: { userId } })
-          await tx.userSearchQuery.deleteMany({ where: { userId } })
-          await tx.userSessionAnalytics.deleteMany({ where: { userId } })
-          await tx.userActivitySummary.deleteMany({ where: { userId } })
-          await tx.suspiciousActivityLog.deleteMany({ where: { userId } })
-
-          // 6. Delete AI-related data
-          await tx.aIUserMemory.deleteMany({ where: { userId } })
-          await tx.aIMemoryEntry.deleteMany({ where: { userId } })
-          await tx.aIUsageLog.deleteMany({ where: { userId } })
-          await tx.aIUsageDailySummary.deleteMany({ where: { userId } })
-
-          // 7. Delete flagged content records (preserve but nullify sender for audit)
-          await tx.flaggedContent.updateMany({
-            where: { senderId: userId },
-            data: { senderId: 'deleted-user' },
+        case 'unban': {
+          await prisma.userBan.delete({
+            where: { userId },
           })
 
-          // 8. Transfer group ownership or delete user's groups
-          // First, find groups where user is the sole owner
-          const ownedGroups = await tx.group.findMany({
-            where: { ownerId: userId },
-            select: {
-              id: true,
-              members: {
-                where: {
-                  userId: { not: userId },
-                  role: { in: ['ADMIN', 'OWNER'] },
-                },
-                select: { userId: true, role: true },
-                take: 1,
-              },
+          await logAdminAction({
+            adminId: user.id,
+            action: 'user_unbanned',
+            targetType: 'user',
+            targetId: userId,
+            details: { reason },
+            ipAddress,
+            userAgent,
+          })
+
+          return NextResponse.json({ success: true, message: 'User unbanned' })
+        }
+
+        case 'warn': {
+          await prisma.userWarning.create({
+            data: {
+              userId,
+              issuedById: user.id,
+              reason: reason || 'No reason provided',
+              severity: severity || 1,
             },
           })
 
-          for (const group of ownedGroups) {
-            if (group.members.length > 0) {
-              // Transfer ownership to first admin/member
-              await tx.group.update({
-                where: { id: group.id },
-                data: { ownerId: group.members[0].userId },
-              })
-              await tx.groupMember.update({
-                where: {
-                  groupId_userId: {
-                    groupId: group.id,
-                    userId: group.members[0].userId,
-                  },
-                },
-                data: { role: 'OWNER' },
-              })
-            } else {
-              // Mark group as deleted if no other admins
-              await tx.group.update({
-                where: { id: group.id },
-                data: { isDeleted: true, deletedAt: new Date() },
-              })
-            }
+          await logAdminAction({
+            adminId: user.id,
+            action: 'user_warned',
+            targetType: 'user',
+            targetId: userId,
+            details: { reason, severity },
+            ipAddress,
+            userAgent,
+          })
+
+          return NextResponse.json({ success: true, message: 'Warning issued' })
+        }
+
+        case 'deactivate': {
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              deactivatedAt: new Date(),
+              deactivationReason: reason || 'Deactivated by admin',
+            },
+          })
+
+          // SECURITY: Rotate session to immediately invalidate deactivated user's access
+          await handlePrivilegeChange(userId, { accountStatusChanged: true })
+
+          await logAdminAction({
+            adminId: user.id,
+            action: 'user_deactivated',
+            targetType: 'user',
+            targetId: userId,
+            details: { reason },
+            ipAddress,
+            userAgent,
+          })
+
+          return NextResponse.json({ success: true, message: 'User deactivated' })
+        }
+
+        case 'reactivate': {
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              deactivatedAt: null,
+              deactivationReason: null,
+            },
+          })
+
+          await logAdminAction({
+            adminId: user.id,
+            action: 'user_reactivated',
+            targetType: 'user',
+            targetId: userId,
+            details: { reason },
+            ipAddress,
+            userAgent,
+          })
+
+          return NextResponse.json({ success: true, message: 'User reactivated' })
+        }
+
+        case 'grant_admin': {
+          // Cannot grant super admin status through this API
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              isAdmin: true,
+              adminGrantedAt: new Date(),
+              adminGrantedBy: user.id,
+            },
+          })
+
+          // SECURITY: Rotate session to reflect new admin privileges
+          await handlePrivilegeChange(userId, { adminStatusChanged: true })
+
+          await logAdminAction({
+            adminId: user.id,
+            action: 'admin_granted',
+            targetType: 'user',
+            targetId: userId,
+            details: {},
+            ipAddress,
+            userAgent,
+          })
+
+          logger.info('Admin access granted', { data: { targetUserId: userId, grantedBy: user.id } })
+          return NextResponse.json({ success: true, message: 'Admin access granted' })
+        }
+
+        case 'revoke_admin': {
+          // Cannot revoke super admin status
+          if (targetIsSuperAdmin) {
+            return NextResponse.json(
+              { error: 'Cannot revoke super admin status' },
+              { status: 403 }
+            )
           }
 
-          // 9. Finally, delete the user (cascades most relations)
-          await tx.user.delete({ where: { id: userId } })
-        })
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              isAdmin: false,
+              adminGrantedAt: null,
+              adminGrantedBy: null,
+            },
+          })
 
-        // Log the permanent deletion action
-        await logAdminAction({
-          adminId: user.id,
-          action: 'user_permanently_deleted',
-          targetType: 'user',
-          targetId: userId,
-          details: {
-            reason,
-            deletedUserEmail: userToDelete.email,
-            deletedUserName: userToDelete.name,
-            accountAge: Math.floor(
-              (Date.now() - userToDelete.createdAt.getTime()) / (1000 * 60 * 60 * 24)
-            ),
-            stats: userToDelete._count,
-          },
-          ipAddress,
-          userAgent,
-        })
+          // SECURITY: Rotate session to immediately revoke admin privileges
+          await handlePrivilegeChange(userId, { adminStatusChanged: true })
 
-        logger.info('User permanently deleted', {
-          data: {
-            deletedUserId: userId,
-            deletedBy: user.id,
-            email: userToDelete.email,
-          },
-        })
+          await logAdminAction({
+            adminId: user.id,
+            action: 'admin_revoked',
+            targetType: 'user',
+            targetId: userId,
+            details: {},
+            ipAddress,
+            userAgent,
+          })
 
-        return NextResponse.json({
-          success: true,
-          message: 'User permanently deleted',
-          deletedUser: {
-            id: userToDelete.id,
-            email: userToDelete.email,
-            name: userToDelete.name,
-          },
-        })
+          logger.info('Admin access revoked', { data: { targetUserId: userId, revokedBy: user.id } })
+          return NextResponse.json({ success: true, message: 'Admin access revoked' })
+        }
+
+        case 'permanent_delete': {
+          // Already checked for super admin above
+
+          // Fetch user details before deletion for audit log
+          const userToDelete = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              createdAt: true,
+              _count: {
+                select: {
+                  sentMessages: true,
+                  posts: true,
+                  groupMemberships: true,
+                  sentMatches: true,
+                  receivedMatches: true,
+                },
+              },
+            },
+          })
+
+          if (!userToDelete) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 })
+          }
+
+          // PERFORMANCE: Use transaction for atomic deletion
+          await prisma.$transaction(async (tx) => {
+            // 1. Delete user bans first (has userId unique constraint)
+            await tx.userBan.deleteMany({ where: { userId } })
+
+            // 2. Delete user warnings
+            await tx.userWarning.deleteMany({ where: { userId } })
+
+            // 3. Delete conversation archives
+            await tx.conversationArchive.deleteMany({ where: { userId } })
+
+            // 4. Delete announcement dismissals
+            await tx.announcementDismissal.deleteMany({ where: { userId } })
+
+            // 5. Delete activity tracking data (to avoid orphaned analytics)
+            await tx.userPageVisit.deleteMany({ where: { userId } })
+            await tx.userFeatureUsage.deleteMany({ where: { userId } })
+            await tx.userSearchQuery.deleteMany({ where: { userId } })
+            await tx.userSessionAnalytics.deleteMany({ where: { userId } })
+            await tx.userActivitySummary.deleteMany({ where: { userId } })
+            await tx.suspiciousActivityLog.deleteMany({ where: { userId } })
+
+            // 6. Delete AI-related data
+            await tx.aIUserMemory.deleteMany({ where: { userId } })
+            await tx.aIMemoryEntry.deleteMany({ where: { userId } })
+            await tx.aIUsageLog.deleteMany({ where: { userId } })
+            await tx.aIUsageDailySummary.deleteMany({ where: { userId } })
+
+            // 7. Delete flagged content records (preserve but nullify sender for audit)
+            await tx.flaggedContent.updateMany({
+              where: { senderId: userId },
+              data: { senderId: 'deleted-user' },
+            })
+
+            // 8. Transfer group ownership or delete user's groups
+            const ownedGroups = await tx.group.findMany({
+              where: { ownerId: userId },
+              select: {
+                id: true,
+                members: {
+                  where: {
+                    userId: { not: userId },
+                    role: { in: ['ADMIN', 'OWNER'] },
+                  },
+                  select: { userId: true, role: true },
+                  take: 1,
+                },
+              },
+            })
+
+            for (const group of ownedGroups) {
+              if (group.members.length > 0) {
+                // Transfer ownership to first admin/member
+                await tx.group.update({
+                  where: { id: group.id },
+                  data: { ownerId: group.members[0].userId },
+                })
+                await tx.groupMember.update({
+                  where: {
+                    groupId_userId: {
+                      groupId: group.id,
+                      userId: group.members[0].userId,
+                    },
+                  },
+                  data: { role: 'OWNER' },
+                })
+              } else {
+                // Mark group as deleted if no other admins
+                await tx.group.update({
+                  where: { id: group.id },
+                  data: { isDeleted: true, deletedAt: new Date() },
+                })
+              }
+            }
+
+            // 9. Finally, delete the user (cascades most relations)
+            await tx.user.delete({ where: { id: userId } })
+          })
+
+          // Log the permanent deletion action
+          await logAdminAction({
+            adminId: user.id,
+            action: 'user_permanently_deleted',
+            targetType: 'user',
+            targetId: userId,
+            details: {
+              reason,
+              deletedUserEmail: userToDelete.email,
+              deletedUserName: userToDelete.name,
+              accountAge: Math.floor(
+                (Date.now() - userToDelete.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+              ),
+              stats: userToDelete._count,
+            },
+            ipAddress,
+            userAgent,
+          })
+
+          logger.info('User permanently deleted', {
+            data: {
+              deletedUserId: userId,
+              deletedBy: user.id,
+              email: userToDelete.email,
+            },
+          })
+
+          return NextResponse.json({
+            success: true,
+            message: 'User permanently deleted',
+            deletedUser: {
+              id: userToDelete.id,
+              email: userToDelete.email,
+              name: userToDelete.name,
+            },
+          })
+        }
+
+        default:
+          return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
       }
-
-      default:
-        return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    } catch (error) {
+      console.error('[Admin Users] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-  } catch (error) {
-    console.error('[Admin Users] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
   })
 }

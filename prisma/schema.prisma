@@ -78,6 +78,7 @@ model User {
 
   // Admin System (CEO Control Panel)
   isAdmin Boolean @default(false) // Whether user has admin access
+  isSuperAdmin Boolean @default(false) // Super admin - can manage other admins, cannot be banned
   adminGrantedAt DateTime? // When admin access was granted
   adminGrantedBy String? // Who granted admin access (user ID)
 
@@ -207,6 +208,7 @@ model Profile {
   studyStreak     Int       @default(0)
   totalStudyHours Float     @default(0)
   lastStudyDate   DateTime?
+  totalPoints     Int       @default(0) // XP earned from sessions
 
   // Notifications
   emailNotifications Boolean @default(true)
@@ -2740,4 +2742,72 @@ enum FocusParticipantStatus {
   JOINED
   LEFT
   DECLINED
+}
+
+// ==========================================
+// HELP & SUPPORT MESSAGES
+// ==========================================
+
+enum HelpMessageStatus {
+  PENDING     // Not yet reviewed
+  IN_PROGRESS // Being handled
+  RESOLVED    // Issue resolved
+  CLOSED      // Closed without resolution
+}
+
+enum HelpMessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Support messages from users submitted via Help page
+model HelpMessage {
+  id            String              @id @default(uuid())
+
+  // Sender information (can be anonymous/logged-out users)
+  userId        String?             // NULL if submitted by non-logged-in user
+  name          String              // Name provided in form
+  email         String              // Email for response
+
+  // Message content
+  subject       String
+  message       String              @db.Text
+
+  // Categorization
+  category      String?             // "bug", "feature", "account", "billing", "other"
+  priority      HelpMessagePriority @default(NORMAL)
+
+  // Status tracking
+  status        HelpMessageStatus   @default(PENDING)
+
+  // Admin handling
+  assignedToId  String?             // Admin handling this ticket
+  resolvedById  String?             // Admin who resolved it
+  resolvedAt    DateTime?
+
+  // Admin notes (internal)
+  adminNotes    String?             @db.Text
+
+  // Response tracking
+  responseCount Int                 @default(0) // Number of responses sent
+  lastResponseAt DateTime?
+
+  // Metadata for spam prevention and analytics
+  ipAddress     String?             // For rate limiting
+  userAgent     String?             // Browser/device info
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([email])
+  @@index([createdAt])
+  @@index([assignedToId])
+  @@index([status, priority]) // For admin dashboard filtering
+  @@index([status, createdAt]) // For sorting pending messages by date
+  @@map("help_messages")
 }

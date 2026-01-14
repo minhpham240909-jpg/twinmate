@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Bot,
   Clock,
+  HelpCircle,
 } from 'lucide-react'
 
 // Fetch with timeout to prevent infinite loading
@@ -95,6 +96,12 @@ const navItems = [
     href: '/admin/reports',
     icon: AlertTriangle,
     description: 'Content moderation and reports',
+  },
+  {
+    name: 'Support',
+    href: '/admin/support',
+    icon: HelpCircle,
+    description: 'User help requests and support tickets',
   },
   {
     name: 'Announcements',

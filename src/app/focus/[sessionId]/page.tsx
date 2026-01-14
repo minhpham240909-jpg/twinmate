@@ -1,21 +1,35 @@
 'use client'
 
 /**
- * Focus Timer Page - Silent Focus Room
+ * Focus Timer Page - Full Studying Alone Room
  *
- * A distraction-free, silent focus experience:
- * - Shows task immediately (no friction)
- * - Silent room with live student count
- * - No interruptions during session
- * - 1-minute warning alert
- * - Reward moment with confetti and percentile
+ * Features:
+ * - Big centered countdown timer (the anchor)
+ * - Task reminder (ONE line only)
+ * - Presence indicator (silent social pressure)
+ * - Virtual backgrounds (library, cafe, nature)
+ * - Ambient soundscapes (rain, cafe, white noise, etc.)
+ * - Light distraction blocking
+ * - Motivational quotes
+ * - AI study helper
+ * - Exit friction (modal when trying to leave early)
+ * - Reward moment at completion
+ *
+ * Work is done OUTSIDE the app (paper, textbook, other apps)
+ * This room is for accountability only.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { X, Check, Volume2, VolumeX, Flame, Trophy, Users, RotateCcw, UserPlus, Search, Loader2, ArrowLeft } from 'lucide-react'
-import Image from 'next/image'
+import { X, Check, Flame, Trophy, Users, RotateCcw, Settings2 } from 'lucide-react'
 import { subscribeToFocusSessionParticipants } from '@/lib/supabase/realtime'
+import {
+  AmbientSoundPlayer,
+  BackgroundSelector,
+  MotivationalQuote,
+  DistractionBlocker,
+  AIExplainer,
+} from '@/components/focus'
 
 interface FocusSession {
   id: string
@@ -47,14 +61,6 @@ interface Participant {
   joinedAt: string | null
 }
 
-interface Partner {
-  id: string
-  name: string
-  avatarUrl: string | null
-  onlineStatus: string
-  activityType: string | null
-}
-
 export default function FocusTimerPage() {
   const router = useRouter()
   const params = useParams()
@@ -72,40 +78,46 @@ export default function FocusTimerPage() {
   const [showOneMinuteWarning, setShowOneMinuteWarning] = useState(false)
   const [hasShownWarning, setHasShownWarning] = useState(false)
 
+  // Exit friction modal
+  const [showExitModal, setShowExitModal] = useState(false)
+
   // Stats
   const [completionStats, setCompletionStats] = useState<CompletionStats | null>(null)
-  const [liveUsersCount, setLiveUsersCount] = useState(0)
+  const [globalStudyingCount, setGlobalStudyingCount] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
 
   // Participants
   const [participants, setParticipants] = useState<Participant[]>([])
-  const [isHost, setIsHost] = useState(false)
 
-  // Invitation UI state
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Partner[]>([])
-  const [selectedPartners, setSelectedPartners] = useState<Partner[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isSendingInvites, setIsSendingInvites] = useState(false)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Settings
-  const [soundEnabled, setSoundEnabled] = useState(true)
+  // UI State
+  const [showSettings, setShowSettings] = useState(false)
+  const [backgroundClass, setBackgroundClass] = useState('bg-neutral-950')
+  const [showQuote, setShowQuote] = useState(true)
 
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const confettiRef = useRef<HTMLCanvasElement | null>(null)
+  const presenceUpdatedRef = useRef(false)
+
+  // Update presence activity
+  const updatePresenceActivity = useCallback(async (activityType: 'studying' | 'browsing') => {
+    try {
+      await fetch('/api/presence/activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activityType }),
+      })
+    } catch (error) {
+      console.error('Failed to update presence activity:', error)
+    }
+  }, [])
 
   // Play sound
   const playSound = useCallback((type: 'warning' | 'complete') => {
-    if (!soundEnabled) return
-
     try {
       const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
 
       if (type === 'warning') {
-        // Quick alert beep
         const osc = audioContext.createOscillator()
         const gain = audioContext.createGain()
         osc.connect(gain)
@@ -117,7 +129,6 @@ export default function FocusTimerPage() {
         osc.start(audioContext.currentTime)
         osc.stop(audioContext.currentTime + 0.3)
       } else {
-        // Success chime
         const osc = audioContext.createOscillator()
         const gain = audioContext.createGain()
         osc.connect(gain)
@@ -145,7 +156,7 @@ export default function FocusTimerPage() {
     } catch {
       // Audio not available
     }
-  }, [soundEnabled])
+  }, [])
 
   // Confetti animation
   const triggerConfetti = useCallback(() => {
@@ -216,13 +227,12 @@ export default function FocusTimerPage() {
     }, 5000)
   }, [])
 
-  // Fetch stats (live users, percentile, streak)
+  // Fetch stats
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch('/api/focus/stats')
       if (response.ok) {
         const data = await response.json()
-        setLiveUsersCount(data.stats.liveUsersCount || 0)
         setCompletionStats({
           userStreak: data.stats.userStreak,
           userPercentile: data.stats.userPercentile,
@@ -235,6 +245,21 @@ export default function FocusTimerPage() {
     }
   }, [])
 
+  // Fetch global studying count (all modes: solo, partner, AI)
+  const fetchGlobalStudyingCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/presence/studying-count')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setGlobalStudyingCount(data.count || 0)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch global studying count', err)
+    }
+  }, [])
+
   // Fetch participants
   const fetchParticipants = useCallback(async () => {
     try {
@@ -242,107 +267,17 @@ export default function FocusTimerPage() {
       if (response.ok) {
         const data = await response.json()
         setParticipants(data.participants.joined || [])
-        setIsHost(data.isHost || false)
       }
     } catch (err) {
       console.error('Failed to fetch participants', err)
     }
   }, [sessionId])
 
-  // Search partners with debouncing
-  const searchPartners = useCallback(async (query: string) => {
-    if (query.trim().length < 2) {
-      setSearchResults([])
-      return
-    }
-
-    setIsSearching(true)
-    try {
-      const response = await fetch('/api/partners/search-for-focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, limit: 10 }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setSearchResults(data.partners || [])
-      }
-    } catch (error) {
-      console.error('Error searching partners:', error)
-      setSearchResults([])
-    } finally {
-      setIsSearching(false)
-    }
-  }, [])
-
-  // Debounced search handler
-  const handleSearchChange = useCallback((query: string) => {
-    setSearchQuery(query)
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
-    // Set new timeout for debounced search
-    searchTimeoutRef.current = setTimeout(() => {
-      searchPartners(query)
-    }, 300)
-  }, [searchPartners])
-
-  // Toggle partner selection
-  const togglePartnerSelection = useCallback((partner: Partner) => {
-    setSelectedPartners(prev => {
-      const isSelected = prev.some(p => p.id === partner.id)
-      if (isSelected) {
-        return prev.filter(p => p.id !== partner.id)
-      } else {
-        if (prev.length >= 10) {
-          return prev
-        }
-        return [...prev, partner]
-      }
-    })
-  }, [])
-
-  // Send invitations
-  const sendInvitations = useCallback(async () => {
-    if (selectedPartners.length === 0) return
-
-    setIsSendingInvites(true)
-    try {
-      const response = await fetch(`/api/focus/${sessionId}/invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          partnerIds: selectedPartners.map(p => p.id),
-        }),
-      })
-
-      if (response.ok) {
-        setShowInviteModal(false)
-        setSelectedPartners([])
-        setSearchQuery('')
-        setSearchResults([])
-        fetchParticipants()
-      } else {
-        const error = await response.json()
-        console.error('Error sending invitations:', error)
-      }
-    } catch (error) {
-      console.error('Error sending invitations:', error)
-    } finally {
-      setIsSendingInvites(false)
-    }
-  }, [sessionId, selectedPartners, fetchParticipants])
-
   // Complete session
   const completeSession = useCallback(async () => {
     if (!session) return
 
     try {
-      // Calculate actual minutes spent focusing
       const elapsed = Date.now() - new Date(session.startedAt).getTime()
       const actualMinutes = Math.round(elapsed / 60000)
 
@@ -388,7 +323,6 @@ export default function FocusTimerPage() {
           setIsRunning(false)
         }
 
-        // Fetch initial stats
         fetchStats()
       } catch (err) {
         setError('Failed to load session')
@@ -399,18 +333,43 @@ export default function FocusTimerPage() {
     }
 
     loadSession()
+    fetchGlobalStudyingCount()
 
-    // Refresh live count periodically
     const statsInterval = setInterval(fetchStats, 30000)
-    return () => clearInterval(statsInterval)
-  }, [sessionId, fetchStats])
+    const countInterval = setInterval(fetchGlobalStudyingCount, 15000)
+    return () => {
+      clearInterval(statsInterval)
+      clearInterval(countInterval)
+    }
+  }, [sessionId, fetchStats, fetchGlobalStudyingCount])
+
+  // Update presence when entering/leaving focus room
+  useEffect(() => {
+    // Set activity to 'studying' when entering the room
+    if (!presenceUpdatedRef.current && !isCompleted) {
+      presenceUpdatedRef.current = true
+      updatePresenceActivity('studying')
+    }
+
+    // Reset to 'browsing' when leaving the room
+    return () => {
+      if (presenceUpdatedRef.current) {
+        updatePresenceActivity('browsing')
+      }
+    }
+  }, [updatePresenceActivity, isCompleted])
+
+  // Reset presence when session is completed or abandoned
+  useEffect(() => {
+    if (isCompleted && presenceUpdatedRef.current) {
+      updatePresenceActivity('browsing')
+    }
+  }, [isCompleted, updatePresenceActivity])
 
   // Load participants and subscribe to real-time updates
   useEffect(() => {
-    // Fetch initial participants
     fetchParticipants()
 
-    // Subscribe to real-time participant changes
     const unsubscribe = subscribeToFocusSessionParticipants(
       sessionId,
       fetchParticipants
@@ -421,7 +380,7 @@ export default function FocusTimerPage() {
     }
   }, [sessionId, fetchParticipants])
 
-  // Timer logic with 1-minute warning
+  // Timer logic
   useEffect(() => {
     if (!isRunning || isCompleted || timeRemaining <= 0) {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -453,12 +412,21 @@ export default function FocusTimerPage() {
     }
   }, [isRunning, isCompleted, hasShownWarning, playSound, completeSession])
 
-  // Abandon session (permanently end it)
+  // Handle exit attempt - show friction modal
+  const handleExitAttempt = () => {
+    if (timeRemaining > 0 && timeRemaining <= 120) {
+      // Less than 2 minutes left - show modal
+      setShowExitModal(true)
+    } else {
+      handleAbandon()
+    }
+  }
+
+  // Abandon session
   const handleAbandon = async () => {
     if (!session) return
 
     try {
-      // Calculate actual minutes spent
       const elapsed = Date.now() - new Date(session.startedAt).getTime()
       const actualMinutes = Math.max(0, Math.round(elapsed / 60000))
 
@@ -474,37 +442,9 @@ export default function FocusTimerPage() {
     }
   }
 
-  // Go back to dashboard
-  const handleGoBack = () => {
+  // Start another round - go back to dashboard to enter new task
+  const handleAnotherRound = () => {
     router.push('/dashboard')
-  }
-
-  // Start another round
-  const handleAnotherRound = async () => {
-    try {
-      const response = await fetch('/api/focus/start-smart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ durationMinutes: 5 }),
-      })
-
-      if (!response.ok) {
-        // Fallback
-        const fallback = await fetch('/api/focus', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ durationMinutes: 5, mode: 'solo' }),
-        })
-        const data = await fallback.json()
-        router.push(`/focus/${data.session.id}`)
-        return
-      }
-
-      const data = await response.json()
-      router.push(`/focus/${data.session.id}`)
-    } catch {
-      router.push('/dashboard')
-    }
   }
 
   // Format time
@@ -542,7 +482,7 @@ export default function FocusTimerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
+    <div className={`min-h-screen ${backgroundClass} text-white flex flex-col transition-colors duration-500`}>
       {/* Confetti */}
       {showConfetti && (
         <canvas
@@ -552,230 +492,189 @@ export default function FocusTimerPage() {
         />
       )}
 
+      {/* Motivational Quote at Start */}
+      {showQuote && !isCompleted && (
+        <MotivationalQuote showAtStart={true} />
+      )}
+
       {/* 1-Minute Warning */}
       {showOneMinuteWarning && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-in zoom-in duration-200">
           <div className="bg-amber-500/90 text-amber-950 px-8 py-4 rounded-2xl font-bold text-xl shadow-2xl">
-            ⏰ 1 minute left!
+            1 minute left
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 sm:p-6 relative z-40">
-        <div className="flex items-center gap-2">
-          {/* Back button - pauses session and goes to dashboard */}
-          {!isCompleted && (
-            <button
-              onClick={handleGoBack}
-              className="flex items-center gap-2 px-3 py-2 hover:bg-neutral-800 rounded-xl transition-colors text-neutral-400 hover:text-white"
-              aria-label="Go back (pause session)"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="text-sm hidden sm:inline">Back</span>
-            </button>
-          )}
+      {/* Exit Friction Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+            <div className="text-4xl mb-4">
+              {formatTime(timeRemaining)}
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Almost there!
+            </h3>
+            <p className="text-neutral-400 mb-6">
+              {timeRemaining <= 60 ? 'Less than a minute left.' : `${Math.ceil(timeRemaining / 60)} minutes left.`} Want to finish?
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl font-semibold transition-all"
+              >
+                Finish this session
+              </button>
+              <button
+                onClick={handleAbandon}
+                className="w-full py-3 text-neutral-500 hover:text-neutral-300 transition-colors text-sm"
+              >
+                Leave anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Abandon button - ends session permanently */}
+      {/* Header - with tools */}
+      <header className="flex items-center justify-between p-4 sm:p-6">
+        <div className="flex items-center gap-2">
           {!isCompleted && (
             <button
-              onClick={handleAbandon}
-              className="p-2 hover:bg-red-900/30 rounded-xl transition-colors group"
-              aria-label="Abandon session"
-              title="End session permanently"
+              onClick={handleExitAttempt}
+              className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+              aria-label="Leave session"
             >
-              <X className="w-5 h-5 text-neutral-600 group-hover:text-red-400" />
+              <X className="w-5 h-5 text-neutral-400 hover:text-neutral-200" />
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Invite Button - Only show for host during active session */}
-          {isHost && !isCompleted && (
+        {/* Focus Tools */}
+        {!isCompleted && (
+          <div className="flex items-center gap-2">
+            <BackgroundSelector onBackgroundChange={setBackgroundClass} />
+            <AmbientSoundPlayer isPlaying={isRunning && !isCompleted} />
+            <DistractionBlocker isSessionActive={isRunning && !isCompleted} />
             <button
-              onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors text-white text-sm font-medium"
-              aria-label="Invite partners"
+              onClick={() => setShowQuote(true)}
+              className="p-2.5 rounded-xl bg-neutral-800/50 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 transition-all"
+              title="Show quote"
             >
-              <UserPlus className="w-4 h-4" />
-              <span>Invite</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
             </button>
-          )}
-
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-3 hover:bg-neutral-800 rounded-xl transition-colors"
-            aria-label={soundEnabled ? 'Mute' : 'Unmute'}
-          >
-            {soundEnabled ? (
-              <Volume2 className="w-5 h-5 text-neutral-500" />
-            ) : (
-              <VolumeX className="w-5 h-5 text-neutral-500" />
-            )}
-          </button>
-        </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 -mt-8">
+      <main className="flex-1 flex flex-col items-center justify-center px-6">
         {isCompleted ? (
-          // ✅ COMPLETION SCREEN
+          // COMPLETION SCREEN
           <div className="text-center animate-in fade-in zoom-in duration-500 max-w-md w-full">
             {/* Success Icon */}
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-green-500 rounded-full blur-3xl opacity-30 animate-pulse" />
-              <div className="relative w-28 h-28 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl">
-                <Check className="w-14 h-14 text-white" />
+              <div className="relative w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl">
+                <Check className="w-12 h-12 text-white" />
               </div>
             </div>
 
             {/* Message */}
-            <h1 className="text-3xl sm:text-4xl font-bold mb-2">Nice. You showed up.</h1>
+            <h1 className="text-3xl font-bold mb-2">Session complete</h1>
             <p className="text-neutral-400 text-lg mb-8">
-              You completed today&apos;s focus challenge.
+              You showed up. That counts.
             </p>
 
             {/* Stats */}
             {completionStats && (
               <div className="flex flex-wrap justify-center gap-3 mb-8">
-                {completionStats.userPercentile > 0 && (
-                  <div className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 rounded-full px-4 py-2">
-                    <Trophy className="w-5 h-5 text-amber-400" />
-                    <span className="text-amber-200 font-medium">
-                      You beat {completionStats.userPercentile}% of students
-                    </span>
-                  </div>
-                )}
-
                 {completionStats.userStreak > 0 && (
                   <div className="flex items-center gap-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-4 py-2">
                     <Flame className="w-5 h-5 text-orange-400" />
                     <span className="text-orange-200 font-medium">
-                      {completionStats.userStreak} day streak!
+                      {completionStats.userStreak} day streak
+                    </span>
+                  </div>
+                )}
+
+                {completionStats.userPercentile > 0 && (
+                  <div className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 rounded-full px-4 py-2">
+                    <Trophy className="w-5 h-5 text-amber-400" />
+                    <span className="text-amber-200 font-medium">
+                      Top {100 - completionStats.userPercentile}%
                     </span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Exit Message */}
-            <p className="text-neutral-500 text-sm mb-6">
-              You can stop now — or do another 5 minutes.
-            </p>
-
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="w-full sm:w-auto px-8 py-4 bg-neutral-800 hover:bg-neutral-700 rounded-2xl font-semibold transition-colors"
-              >
-                I&apos;m done
-              </button>
+            <div className="flex flex-col gap-3">
               <button
                 onClick={handleAnotherRound}
-                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-2xl font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2"
               >
                 <RotateCcw className="w-5 h-5" />
-                Another round
+                Start another session
+              </button>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="w-full py-4 bg-neutral-800 hover:bg-neutral-700 rounded-2xl font-semibold transition-colors"
+              >
+                Done for now
               </button>
             </div>
-
-            {/* Streak protection message */}
-            <p className="text-neutral-600 text-sm mt-6">
-              Streak protected. See you tomorrow.
-            </p>
           </div>
         ) : (
-          // ⏱️ ACTIVE TIMER - SILENT FOCUS ROOM
+          // ACTIVE TIMER - SILENT FOCUS ROOM
           <>
-            {/* Silent Focus Room Badge */}
-            <div className="flex items-center gap-3 mb-6 text-neutral-400">
-              <span className="text-2xl">🔇</span>
-              <span className="font-medium">Silent Focus Room</span>
-            </div>
-
-            {/* Live Users Count */}
-            {liveUsersCount > 0 && (
-              <div className="flex items-center gap-2 mb-8 text-neutral-500 text-sm">
-                <Users className="w-4 h-4" />
-                <span>{liveUsersCount} students focusing right now</span>
+            {/* Presence Indicator - shows all users studying across all modes */}
+            {globalStudyingCount > 1 && (
+              <div className="flex items-center gap-2 mb-4 text-neutral-500 text-sm">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span>{globalStudyingCount} student{globalStudyingCount > 1 ? 's' : ''} studying right now</span>
               </div>
             )}
 
-            {/* Session Participants - Live */}
+            {/* Participants */}
             {participants.length > 0 && (
-              <div className="w-full max-w-lg mb-8 bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-3 text-neutral-400 text-sm">
-                  <Users className="w-4 h-4" />
-                  <span className="font-medium">
-                    Focusing together ({participants.length})
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {participants.map((participant) => (
-                    <div
-                      key={participant.id}
-                      className="flex items-center gap-2 bg-neutral-800 rounded-full px-3 py-1.5"
-                    >
-                      {participant.avatarUrl ? (
-                        <Image
-                          src={participant.avatarUrl}
-                          alt={participant.name}
-                          width={20}
-                          height={20}
-                          className="rounded-full"
-                        />
-                      ) : (
-                        <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {participant.name[0]}
-                        </div>
-                      )}
-                      <span className="text-white text-sm">{participant.name}</span>
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    </div>
-                  ))}
-                </div>
+              <div className="flex items-center gap-2 mb-6">
+                <Users className="w-4 h-4 text-neutral-500" />
+                <span className="text-neutral-400 text-sm">
+                  {participants.map(p => p.name.split(' ')[0]).join(', ')} focusing with you
+                </span>
               </div>
             )}
 
-            {/* Task Display */}
-            {session.taskPrompt && (
-              <div className="w-full max-w-lg mb-8 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-center">
-                <p className="text-white text-lg leading-relaxed">
-                  {session.taskPrompt}
-                </p>
-                {session.taskSubject && session.taskSubject !== 'General' && (
-                  <p className="text-neutral-500 text-sm mt-3">
-                    {session.taskSubject}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Timer Ring */}
-            <div className="relative w-64 h-64 sm:w-72 sm:h-72 mb-8">
+            {/* Timer - Big & Centered */}
+            <div className="relative w-72 h-72 sm:w-80 sm:h-80 mb-8">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
                   cx="50%"
                   cy="50%"
                   r="45%"
                   stroke="currentColor"
-                  strokeWidth="6"
+                  strokeWidth="4"
                   fill="none"
-                  className="text-neutral-800"
+                  className="text-white/10"
                 />
                 <circle
                   cx="50%"
                   cy="50%"
                   r="45%"
                   stroke="url(#timerGradient)"
-                  strokeWidth="6"
+                  strokeWidth="4"
                   fill="none"
                   strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 45}`}
-                  strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercent / 100)}`}
-                  className="transition-all duration-1000 ease-linear"
-                  style={{ strokeDasharray: '283%', strokeDashoffset: `${283 * (1 - progressPercent / 100)}%` }}
+                  style={{
+                    strokeDasharray: '283%',
+                    strokeDashoffset: `${283 * (1 - progressPercent / 100)}%`,
+                    transition: 'stroke-dashoffset 1s linear'
+                  }}
                 />
                 <defs>
                   <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -787,207 +686,32 @@ export default function FocusTimerPage() {
 
               {/* Time Display */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-6xl sm:text-7xl font-bold tracking-tight">
+                <span className="font-mono text-7xl sm:text-8xl font-bold tracking-tight">
                   {formatTime(timeRemaining)}
                 </span>
               </div>
             </div>
 
-            {/* Pause/Resume - Subtle */}
-            <button
-              onClick={() => setIsRunning(!isRunning)}
-              className="text-neutral-500 hover:text-neutral-300 text-sm transition-colors"
-            >
-              {isRunning ? 'Pause' : 'Resume'}
-            </button>
+            {/* Task Reminder - ONE line */}
+            {session.taskPrompt && (
+              <div className="max-w-md text-center mb-8 px-4">
+                <p className="text-neutral-300 text-lg leading-relaxed">
+                  {session.taskPrompt}
+                </p>
+              </div>
+            )}
+
+            {/* Work outside reminder */}
+            <p className="text-neutral-600 text-sm text-center max-w-xs">
+              Do your work on paper, textbook, or another app. Stay here for accountability.
+            </p>
           </>
         )}
       </main>
 
-      {/* Footer - Silent during session */}
+      {/* AI Explainer - floating panel */}
       {!isCompleted && (
-        <footer className="p-6 text-center">
-          <p className="text-neutral-700 text-sm">
-            Stay focused. You got this.
-          </p>
-        </footer>
-      )}
-
-      {/* Invite Partners Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-neutral-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                  <Users className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">
-                    Invite Partners
-                  </h3>
-                  <p className="text-xs text-neutral-400">
-                    Max {10 - selectedPartners.length} more
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-neutral-400" />
-              </button>
-            </div>
-
-            {/* Search Input */}
-            <div className="p-4 border-b border-neutral-800">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search partners by name..."
-                  className="w-full pl-10 pr-4 py-3 bg-neutral-800 border-0 rounded-xl text-white placeholder-neutral-500 focus:ring-2 focus:ring-blue-500 outline-none"
-                  autoFocus
-                />
-                {isSearching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 animate-spin" />
-                )}
-              </div>
-            </div>
-
-            {/* Selected Partners */}
-            {selectedPartners.length > 0 && (
-              <div className="p-4 border-b border-neutral-800">
-                <p className="text-xs font-semibold text-neutral-400 mb-2">
-                  SELECTED ({selectedPartners.length})
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedPartners.map(partner => (
-                    <button
-                      key={partner.id}
-                      onClick={() => togglePartnerSelection(partner)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/30 text-blue-300 rounded-full hover:bg-blue-900/50 transition-colors"
-                    >
-                      {partner.avatarUrl ? (
-                        <Image
-                          src={partner.avatarUrl}
-                          alt={partner.name}
-                          width={20}
-                          height={20}
-                          className="rounded-full"
-                        />
-                      ) : (
-                        <div className="w-5 h-5 bg-blue-400 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {partner.name[0]}
-                        </div>
-                      )}
-                      <span className="text-sm font-medium">{partner.name}</span>
-                      <X className="w-4 h-4" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Search Results */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {searchQuery.trim().length < 2 ? (
-                <div className="text-center py-12">
-                  <Search className="w-12 h-12 text-neutral-600 mx-auto mb-3" />
-                  <p className="text-neutral-400 text-sm">
-                    Type at least 2 characters to search
-                  </p>
-                </div>
-              ) : searchResults.length === 0 && !isSearching ? (
-                <div className="text-center py-12">
-                  <Users className="w-12 h-12 text-neutral-600 mx-auto mb-3" />
-                  <p className="text-neutral-400 text-sm">
-                    No partners found
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {searchResults.map(partner => {
-                    const isSelected = selectedPartners.some(p => p.id === partner.id)
-                    return (
-                      <button
-                        key={partner.id}
-                        onClick={() => togglePartnerSelection(partner)}
-                        disabled={!isSelected && selectedPartners.length >= 10}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                          isSelected
-                            ? 'bg-blue-900/30 border-2 border-blue-500'
-                            : 'bg-neutral-800 hover:bg-neutral-700 border-2 border-transparent'
-                        } ${!isSelected && selectedPartners.length >= 10 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {partner.avatarUrl ? (
-                          <Image
-                            src={partner.avatarUrl}
-                            alt={partner.name}
-                            width={40}
-                            height={40}
-                            className="rounded-full"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                            {partner.name[0]}
-                          </div>
-                        )}
-                        <div className="flex-1 text-left">
-                          <p className="font-semibold text-white">
-                            {partner.name}
-                          </p>
-                          <p className="text-xs text-neutral-400">
-                            {partner.onlineStatus === 'online' ? (
-                              <span className="flex items-center gap-1">
-                                <span className="w-2 h-2 bg-green-500 rounded-full" />
-                                Online
-                              </span>
-                            ) : (
-                              'Offline'
-                            )}
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                            <Check className="w-4 h-4 text-white" />
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-neutral-800">
-              <button
-                onClick={sendInvitations}
-                disabled={selectedPartners.length === 0 || isSendingInvites}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-neutral-700 disabled:to-neutral-700 text-white rounded-xl font-semibold transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSendingInvites ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Sending...</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-5 h-5" />
-                    <span>
-                      Send {selectedPartners.length > 0 ? `${selectedPartners.length} ` : ''}
-                      Invitation{selectedPartners.length === 1 ? '' : 's'}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AIExplainer sessionId={sessionId} taskContext={session?.taskPrompt} />
       )}
     </div>
   )

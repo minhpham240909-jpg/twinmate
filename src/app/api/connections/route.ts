@@ -52,15 +52,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'all'
 
+    // SCALABILITY: Pagination for large result sets
+    const DEFAULT_LIMIT = 50
+    const MAX_LIMIT = 100
+    const limitParam = parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)
+    const limit = Math.min(Math.max(1, limitParam), MAX_LIMIT)
+    const cursor = searchParams.get('cursor') // ID of last item for cursor-based pagination
+
     let receivedMatches: MatchWithRelations[] = []
     let sentMatches: MatchWithRelations[] = []
+
+    // Build cursor condition if provided
+    const cursorCondition = cursor ? { id: { lt: cursor } } : {}
 
     // Fetch received connection requests (where user is the receiver)
     if (type === 'received' || type === 'all') {
       receivedMatches = await prisma.match.findMany({
         where: {
           receiverId: user.id,
-          status: 'PENDING'
+          status: 'PENDING',
+          ...cursorCondition,
         },
         include: {
           sender: {
@@ -80,7 +91,8 @@ export async function GET(request: NextRequest) {
         },
         orderBy: {
           createdAt: 'desc'
-        }
+        },
+        take: limit + 1, // Fetch one extra to check if there are more
       })
     }
 
@@ -89,7 +101,8 @@ export async function GET(request: NextRequest) {
       sentMatches = await prisma.match.findMany({
         where: {
           senderId: user.id,
-          status: 'PENDING'
+          status: 'PENDING',
+          ...cursorCondition,
         },
         include: {
           sender: {
@@ -109,16 +122,40 @@ export async function GET(request: NextRequest) {
         },
         orderBy: {
           createdAt: 'desc'
-        }
+        },
+        take: limit + 1, // Fetch one extra to check if there are more
       })
     }
+
+    // Check if there are more results
+    const hasMoreReceived = receivedMatches.length > limit
+    const hasMoreSent = sentMatches.length > limit
+
+    // Trim to actual limit
+    if (hasMoreReceived) receivedMatches = receivedMatches.slice(0, limit)
+    if (hasMoreSent) sentMatches = sentMatches.slice(0, limit)
+
+    // Calculate next cursors for pagination
+    const nextReceivedCursor = hasMoreReceived && receivedMatches.length > 0
+      ? receivedMatches[receivedMatches.length - 1].id
+      : null
+    const nextSentCursor = hasMoreSent && sentMatches.length > 0
+      ? sentMatches[sentMatches.length - 1].id
+      : null
 
     return NextResponse.json({
       success: true,
       received: receivedMatches,
       sent: sentMatches,
       receivedCount: receivedMatches.length,
-      sentCount: sentMatches.length
+      sentCount: sentMatches.length,
+      pagination: {
+        limit,
+        hasMoreReceived,
+        hasMoreSent,
+        nextReceivedCursor,
+        nextSentCursor,
+      }
     })
   } catch (error) {
     console.error('Fetch connections error:', error)

@@ -200,8 +200,8 @@ function ConfirmEmailContent() {
         {/* Footer Note */}
         <p className="text-center text-xs text-neutral-500 dark:text-neutral-400 mt-6">
           Having trouble? Contact us at{' '}
-          <a href="mailto:support@clerva.com" className="text-blue-500 hover:underline">
-            support@clerva.com
+          <a href="mailto:privacy@clerva.app" className="text-blue-500 hover:underline">
+            privacy@clerva.app
           </a>
         </p>
       </div>

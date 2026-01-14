@@ -153,14 +153,29 @@ export async function PATCH(
       data: updateData,
     })
 
-    // Log completion
+    // Award points and update streak on completion
     if (status === 'COMPLETED') {
+      const completedMinutes = actualMinutes || existingSession.durationMinutes
+      
+      // Points calculation: 10 XP per minute of focus (minimum 10 XP)
+      const pointsEarned = Math.max(10, completedMinutes * 10)
+      
+      // Update profile with points
+      await prisma.profile.update({
+        where: { userId: user.id },
+        data: {
+          totalPoints: { increment: pointsEarned },
+          lastStudyDate: new Date(),
+        },
+      })
+      
       logger.info('Focus session completed', {
         data: {
           sessionId,
           userId: user.id,
           durationMinutes: existingSession.durationMinutes,
-          actualMinutes: actualMinutes || existingSession.durationMinutes,
+          actualMinutes: completedMinutes,
+          pointsEarned,
         },
       })
     }

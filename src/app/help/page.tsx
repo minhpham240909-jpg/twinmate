@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, MessageSquare, Search, BookOpen, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Mail, Search, BookOpen, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function HelpPage() {
@@ -133,13 +133,31 @@ export default function HelpPage() {
     e.preventDefault()
     setSubmitting(true)
 
-    // TODO: Implement actual contact form submission
-    // For now, just show success message
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('/api/help', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm),
+      })
 
-    toast.success('Message sent! We\'ll get back to you soon.')
-    setContactForm({ name: '', email: '', subject: '', message: '' })
-    setSubmitting(false)
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error('Too many requests. Please try again later.')
+        } else {
+          toast.error(data.error || 'Failed to send message')
+        }
+        return
+      }
+
+      toast.success('Message sent! We\'ll get back to you soon.')
+      setContactForm({ name: '', email: '', subject: '', message: '' })
+    } catch {
+      toast.error('Failed to send message. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -225,13 +243,6 @@ export default function HelpPage() {
               <h3 className="font-semibold text-gray-900 dark:text-slate-200 mb-4">Quick Links</h3>
               <div className="space-y-3">
                 <a
-                  href="/terms"
-                  className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                >
-                  <BookOpen className="h-5 w-5" />
-                  Terms of Service
-                </a>
-                <a
                   href="/privacy"
                   className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                 >
@@ -314,8 +325,8 @@ export default function HelpPage() {
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700/50">
                 <p className="text-sm text-gray-700 dark:text-slate-300">
                   Or email us directly at{' '}
-                  <a href="mailto:support@clerva.com" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-                    support@clerva.com
+                  <a href="mailto:privacy@clerva.app" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                    privacy@clerva.app
                   </a>
                 </p>
               </div>
