@@ -47,7 +47,9 @@
     "home": "Home",
     "studyWithPartner": "Study with Partner",
     "findPartner": "Find Partner",
-    "studyGroups": "Study Groups"
+    "studyGroups": "Study Groups",
+    "settings": "Settings",
+    "help": "Help"
   },
   "settings": {
     "title": "Settings",
