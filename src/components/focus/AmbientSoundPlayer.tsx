@@ -247,7 +247,7 @@ export default function AmbientSoundPlayer({ isPlaying }: AmbientSoundPlayerProp
 
       {/* Sound Panel */}
       {showPanel && (
-        <div className="absolute bottom-full right-0 mb-2 w-64 bg-neutral-900/95 backdrop-blur-sm border border-neutral-800 rounded-2xl shadow-2xl p-4 z-50">
+        <div className="absolute top-full right-0 mt-2 w-64 bg-neutral-900/95 backdrop-blur-sm border border-neutral-800 rounded-2xl shadow-2xl p-4 z-50">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold text-white">Ambient Sounds</h4>
             <button

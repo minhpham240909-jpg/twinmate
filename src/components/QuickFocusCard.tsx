@@ -41,11 +41,10 @@ interface QuickFocusCardProps {
   className?: string
 }
 
-// Duration options in minutes
+// Duration options in minutes (Quick Focus is max 5-10 min)
 const DURATION_OPTIONS = [
   { value: 5, label: '5 min' },
   { value: 10, label: '10 min' },
-  { value: 15, label: '15 min' },
 ]
 
 export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) {

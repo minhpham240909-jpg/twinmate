@@ -12,6 +12,7 @@ import PushNotificationPrompt from '@/components/PushNotificationPrompt'
 import { AIPartnerSuggestionModal } from '@/components/ai-partner'
 import DashboardAIWidget from '@/components/ai-partner/DashboardAIWidget'
 import QuickFocusCard from '@/components/QuickFocusCard'
+import SoloStudyCard from '@/components/SoloStudyCard'
 import {
   DashboardTopBar,
   DashboardStatsRow,
@@ -542,8 +543,14 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
         <div className="space-y-6">
-          {/* Quick Focus - Primary CTA */}
-          <QuickFocusCard />
+          {/* Study Options - Quick Focus and Solo Study */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Quick Focus - Short sessions (5-10 min) */}
+            <QuickFocusCard />
+
+            {/* Solo Study - Full virtual study room */}
+            <SoloStudyCard />
+          </div>
 
           {/* Stats Row */}
           <DashboardStatsRow userStats={userStats} />

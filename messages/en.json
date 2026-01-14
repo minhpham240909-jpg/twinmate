@@ -1255,5 +1255,153 @@
     "startChallenge": "Start Challenge",
     "studyingNow": "{count} studying now",
     "noOneStudying": "Be the first to start!"
+  },
+  "soloStudy": {
+    "title": "Solo Study",
+    "subtitle": "Full virtual study room",
+    "enterRoom": "Enter Study Room",
+    "features": {
+      "backgrounds": "Virtual Backgrounds",
+      "soundMixer": "Sound Mixer",
+      "pomodoro": "Pomodoro Timer",
+      "aiTutor": "AI Tutor",
+      "whiteboard": "Whiteboard"
+    },
+    "timer": {
+      "focusTime": "Focus Time",
+      "breakTime": "Break Time",
+      "completed": "completed",
+      "startSession": "Start Session",
+      "pauseSession": "Pause",
+      "resumeSession": "Resume",
+      "endSession": "End Session",
+      "resetTimer": "Reset Timer"
+    },
+    "settings": {
+      "title": "Timer Settings",
+      "focusDuration": "Focus Duration",
+      "breakDuration": "Break Duration",
+      "saveSettings": "Save Settings"
+    },
+    "backgrounds": {
+      "title": "Virtual Background",
+      "library": "Library",
+      "cafe": "Cafe",
+      "nature": "Nature",
+      "ocean": "Ocean",
+      "nightSky": "Night Sky",
+      "minimal": "Minimal",
+      "syncHint": "Background syncs with your ambient sounds"
+    },
+    "sounds": {
+      "title": "Sound Mixer",
+      "masterVolume": "Master Volume",
+      "rain": "Rain",
+      "cafe": "Cafe",
+      "forest": "Forest",
+      "ocean": "Ocean",
+      "whiteNoise": "White Noise",
+      "fireplace": "Fireplace",
+      "mixHint": "Mix multiple sounds to create your perfect study environment"
+    },
+    "whiteboard": {
+      "title": "Whiteboard",
+      "download": "Download",
+      "clear": "Clear",
+      "pen": "Pen",
+      "eraser": "Eraser"
+    },
+    "aiTutor": {
+      "title": "AI Tutor",
+      "subtitle": "Ask me anything",
+      "placeholder": "Ask your question...",
+      "greeting": "Hi! I'm your AI study tutor. I can help explain concepts, quiz you, or provide study tips. What would you like help with?",
+      "quickActions": {
+        "explain": "Explain this concept",
+        "example": "Give me an example",
+        "quiz": "Quiz me",
+        "tips": "Study tips"
+      }
+    },
+    "completion": {
+      "title": "Great Session!",
+      "xpEarned": "XP earned",
+      "minutes": "minutes",
+      "startAnother": "Start Another",
+      "done": "Done"
+    },
+    "stats": {
+      "streak": "day streak",
+      "level": "Lv",
+      "xp": "XP",
+      "todayMinutes": "minutes studied today"
+    },
+    "flashcards": {
+      "title": "Flashcards",
+      "decks": "decks",
+      "cards": "cards",
+      "noDecks": "No flashcard decks yet",
+      "noDecksDesc": "Generate flashcards from your notes using AI",
+      "createDeck": "Create Deck",
+      "aiGenerate": "AI Generate",
+      "studyModes": {
+        "flip": "Flip",
+        "spaced": "Spaced",
+        "quiz": "Quiz"
+      },
+      "generation": {
+        "title": "AI Flashcard Generator",
+        "description": "Paste your notes, textbook content, or any study material and AI will generate flashcards for you.",
+        "deckTitle": "Deck Title (optional)",
+        "deckTitlePlaceholder": "e.g., Biology Chapter 5",
+        "contentLabel": "Content to Generate From",
+        "contentPlaceholder": "Paste your notes, textbook content, or any study material here... (minimum 50 characters)",
+        "minChars": "characters minimum",
+        "generateButton": "Generate Flashcards",
+        "generating": "Generating Flashcards..."
+      },
+      "study": {
+        "cardOf": "Card {current} of {total}",
+        "correct": "Correct",
+        "incorrect": "Incorrect",
+        "tapToFlip": "Tap to flip",
+        "answer": "Answer",
+        "hint": "Hint",
+        "again": "Again",
+        "hard": "Hard",
+        "good": "Good",
+        "easy": "Easy",
+        "checkAnswer": "Check Answer",
+        "allCaughtUp": "All caught up!",
+        "noDueCards": "No cards due for review. Great job!",
+        "backToDecks": "Back to Decks"
+      },
+      "progress": {
+        "mastery": "mastery",
+        "cardsStudied": "Cards Studied",
+        "cardsMastered": "Cards Mastered",
+        "accuracy": "accuracy"
+      },
+      "completion": {
+        "title": "Session Complete!",
+        "subtitle": "You've reviewed all cards in this deck.",
+        "correct": "Correct",
+        "incorrect": "Incorrect",
+        "xpEarned": "XP Earned",
+        "studyAgain": "Study Again",
+        "done": "Done"
+      },
+      "difficulty": {
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard"
+      },
+      "fullScreen": "Full Screen Study",
+      "settings": {
+        "title": "Study Settings",
+        "shuffle": "Shuffle Cards",
+        "restart": "Restart Session"
+      }
+    }
   }
 }

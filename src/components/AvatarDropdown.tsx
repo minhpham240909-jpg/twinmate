@@ -69,7 +69,7 @@ export default function AvatarDropdown({ avatarUrl, name, onSignOut, isAdmin }: 
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-48 bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-xl py-2 z-50">
+        <div className="absolute top-full left-0 mt-2 w-48 bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-xl py-2 z-50">
           {isAdmin && (
             <button
               onClick={handleAdminDashboard}

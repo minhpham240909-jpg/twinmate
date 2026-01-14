@@ -2811,3 +2811,316 @@ model HelpMessage {
   @@index([status, createdAt]) // For sorting pending messages by date
   @@map("help_messages")
 }
+
+// ==========================================
+// FLASHCARD SYSTEM (Solo Study)
+// ==========================================
+
+enum FlashcardDeckVisibility {
+  PRIVATE    // Only creator can see
+  PUBLIC     // Anyone can view and copy
+  UNLISTED   // Only accessible via direct link
+}
+
+enum FlashcardSource {
+  MANUAL        // User created manually
+  AI_GENERATED  // Generated from AI
+  PDF_EXTRACT   // Extracted from PDF
+  DOC_EXTRACT   // Extracted from document
+  IMPORTED      // Imported from another deck
+  COMMUNITY     // From community/pre-made
+}
+
+enum FlashcardDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuizQuestionType {
+  FLIP           // Classic flip card
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  FILL_IN_BLANK
+}
+
+// Flashcard Deck - Collection of cards
+model FlashcardDeck {
+  id          String                  @id @default(uuid())
+
+  // Owner
+  userId      String
+
+  // Deck info
+  title       String
+  description String?                 @db.Text
+  subject     String?                 // Subject category
+  tags        String[]                @default([])
+  coverImage  String?                 // Cover image URL
+  color       String?                 // Theme color for deck
+
+  // Visibility
+  visibility  FlashcardDeckVisibility @default(PRIVATE)
+
+  // Source tracking
+  source      FlashcardSource         @default(MANUAL)
+  sourceUrl   String?                 // Original source if imported
+
+  // Stats
+  cardCount       Int       @default(0)
+  studyCount      Int       @default(0) // Times studied
+  copyCount       Int       @default(0) // Times copied by others
+  averageRating   Float?    // Community rating (1-5)
+  ratingCount     Int       @default(0)
+
+  // AI Generation metadata
+  aiPrompt        String?   @db.Text   // Original prompt used for AI generation
+  aiModel         String?              // Model used (gpt-4o-mini, etc.)
+
+  // Timestamps
+  lastStudiedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  cards           FlashcardCard[]
+  userProgress    FlashcardDeckProgress[]
+  studySessions   FlashcardStudySession[]
+
+  @@index([userId])
+  @@index([visibility])
+  @@index([subject])
+  @@index([source])
+  @@index([createdAt])
+  @@index([studyCount])
+  @@index([averageRating])
+  @@index([userId, visibility]) // User's public/private decks
+  @@index([visibility, subject]) // Browse by subject
+  @@map("flashcard_decks")
+}
+
+// Individual Flashcard
+model FlashcardCard {
+  id          String   @id @default(uuid())
+
+  // Parent deck
+  deckId      String
+  deck        FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  // Card content
+  front       String   @db.Text    // Question/Term
+  back        String   @db.Text    // Answer/Definition
+  hint        String?  @db.Text    // Optional hint
+  explanation String?  @db.Text    // Detailed explanation (shown after answer)
+
+  // Rich content
+  frontImage  String?              // Image on front
+  backImage   String?              // Image on back
+  audioUrl    String?              // Audio pronunciation
+
+  // Question types for quiz mode
+  questionType QuizQuestionType    @default(FLIP)
+
+  // For multiple choice - JSON array of options
+  // Format: [{"id": "a", "text": "Option A", "isCorrect": false}, ...]
+  multipleChoiceOptions Json?
+
+  // Difficulty and categorization
+  difficulty  FlashcardDifficulty @default(MEDIUM)
+  tags        String[]            @default([])
+
+  // Order in deck
+  position    Int      @default(0)
+
+  // Source tracking
+  source      FlashcardSource     @default(MANUAL)
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userProgress FlashcardCardProgress[]
+  quizAttempts FlashcardQuizAttempt[]
+
+  @@index([deckId])
+  @@index([difficulty])
+  @@index([position])
+  @@index([deckId, position]) // Ordered cards in deck
+  @@map("flashcard_cards")
+}
+
+// User's progress on a specific deck
+model FlashcardDeckProgress {
+  id          String   @id @default(uuid())
+
+  userId      String
+  deckId      String
+  deck        FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  // Progress stats
+  cardsStudied    Int       @default(0)
+  cardsMastered   Int       @default(0) // Cards with high confidence
+  cardsLearning   Int       @default(0) // Cards in progress
+  cardsNotStarted Int       @default(0) // Cards never seen
+
+  // Mastery (0-100%)
+  masteryPercent  Float     @default(0)
+
+  // Gamification
+  xpEarned        Int       @default(0)
+  streakDays      Int       @default(0)
+  longestStreak   Int       @default(0)
+
+  // Study stats
+  totalStudyTime  Int       @default(0) // Minutes
+  totalSessions   Int       @default(0)
+  averageAccuracy Float?    // Percentage correct
+
+  // Timestamps
+  lastStudiedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, deckId])
+  @@index([userId])
+  @@index([deckId])
+  @@index([masteryPercent])
+  @@index([lastStudiedAt])
+  @@map("flashcard_deck_progress")
+}
+
+// User's progress on a specific card (spaced repetition)
+model FlashcardCardProgress {
+  id          String   @id @default(uuid())
+
+  userId      String
+  cardId      String
+  card        FlashcardCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  // Spaced Repetition (SM-2 Algorithm)
+  easeFactor      Float     @default(2.5)  // SM-2 ease factor
+  intervalDays    Int       @default(1)    // Days until next review
+  repetitions     Int       @default(0)    // Consecutive correct answers
+  nextReviewDate  DateTime?                // When to review next
+
+  // Review stats
+  totalReviews    Int       @default(0)
+  correctCount    Int       @default(0)
+  incorrectCount  Int       @default(0)
+
+  // Current status
+  status          String    @default("new") // "new", "learning", "reviewing", "mastered"
+  confidence      Int       @default(0)     // 0-100
+
+  // Response time tracking (for adaptive difficulty)
+  averageResponseTime Int?  // Milliseconds
+  fastestResponseTime Int?
+  slowestResponseTime Int?
+
+  // Timestamps
+  lastReviewedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, cardId])
+  @@index([userId])
+  @@index([cardId])
+  @@index([nextReviewDate])
+  @@index([userId, nextReviewDate]) // Due cards for user
+  @@index([userId, status]) // Cards by status
+  @@map("flashcard_card_progress")
+}
+
+// Study session for a deck
+model FlashcardStudySession {
+  id          String   @id @default(uuid())
+
+  userId      String
+  deckId      String
+  deck        FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  // Session info
+  studyMode   String   // "flip", "spaced", "quiz"
+
+  // Stats for this session
+  cardsStudied    Int       @default(0)
+  cardsCorrect    Int       @default(0)
+  cardsIncorrect  Int       @default(0)
+
+  // Time tracking
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  durationMinutes Int?
+
+  // XP earned in this session
+  xpEarned        Int       @default(0)
+
+  // Quiz-specific
+  quizScore       Float?    // Percentage for quiz mode
+
+  // Relations
+  quizAttempts    FlashcardQuizAttempt[]
+
+  @@index([userId])
+  @@index([deckId])
+  @@index([startedAt])
+  @@index([userId, startedAt]) // User's sessions by date
+  @@map("flashcard_study_sessions")
+}
+
+// Individual quiz attempt (for quiz mode)
+model FlashcardQuizAttempt {
+  id          String   @id @default(uuid())
+
+  sessionId   String
+  session     FlashcardStudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  cardId      String
+  card        FlashcardCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  // Question type used
+  questionType QuizQuestionType
+
+  // Answer
+  userAnswer    String?  @db.Text  // What user answered
+  correctAnswer String   @db.Text  // Correct answer
+  isCorrect     Boolean
+
+  // Response time
+  responseTimeMs Int?    // How long to answer (milliseconds)
+
+  // Hints used
+  usedHint      Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([cardId])
+  @@index([isCorrect])
+  @@map("flashcard_quiz_attempts")
+}
+
+// Flashcard achievements
+model FlashcardAchievement {
+  id          String   @id @default(uuid())
+
+  userId      String
+
+  // Achievement info
+  achievementId String   // "first_deck", "100_cards", "7_day_streak", etc.
+  title         String
+  description   String
+  icon          String?  // Emoji or icon name
+
+  // XP reward
+  xpReward      Int      @default(0)
+
+  // When unlocked
+  unlockedAt    DateTime @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@map("flashcard_achievements")
+}

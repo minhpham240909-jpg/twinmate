@@ -55,7 +55,7 @@ export default function BackgroundSelector({ onBackgroundChange }: BackgroundSel
 
       {/* Background Panel */}
       {showPanel && (
-        <div className="absolute bottom-full left-0 mb-2 w-72 bg-neutral-900/95 backdrop-blur-sm border border-neutral-800 rounded-2xl shadow-2xl p-4 z-50">
+        <div className="absolute top-full left-0 mt-2 w-72 bg-neutral-900/95 backdrop-blur-sm border border-neutral-800 rounded-2xl shadow-2xl p-4 z-50">
           <h4 className="font-semibold text-white mb-3">Virtual Background</h4>
           
           <div className="grid grid-cols-3 gap-2">

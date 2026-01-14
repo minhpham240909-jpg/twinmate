@@ -346,11 +346,11 @@ export default function FocusSetupPage() {
                 <span className="capitalize">{generatedTask.taskType} task</span>
               </div>
 
-              {/* Duration Adjustment */}
+              {/* Duration Adjustment - Quick Focus max 5-10 min */}
               <div className="mb-6">
                 <label className="text-sm text-neutral-400 mb-2 block">Adjust duration</label>
                 <div className="flex items-center gap-2">
-                  {[3, 5, 7, 10, 15].map((mins) => (
+                  {[5, 10].map((mins) => (
                     <button
                       key={mins}
                       onClick={() => setDuration(mins)}

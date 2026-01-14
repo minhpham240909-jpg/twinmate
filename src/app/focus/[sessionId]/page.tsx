@@ -1,34 +1,33 @@
 'use client'
 
 /**
- * Focus Timer Page - Full Studying Alone Room
+ * Quick Focus Timer Page - Simplified Focus Session
  *
  * Features:
  * - Big centered countdown timer (the anchor)
- * - Task reminder (ONE line only)
+ * - Task reminder (ONE line only) - AI assignment
  * - Presence indicator (silent social pressure)
- * - Virtual backgrounds (library, cafe, nature)
- * - Ambient soundscapes (rain, cafe, white noise, etc.)
+ * - Ambient soundscapes (optional)
  * - Light distraction blocking
  * - Motivational quotes
- * - AI study helper
  * - Exit friction (modal when trying to leave early)
  * - Reward moment at completion
  *
+ * Max duration: 5-10 minutes
  * Work is done OUTSIDE the app (paper, textbook, other apps)
  * This room is for accountability only.
+ *
+ * NOTE: Virtual backgrounds and AI tutor moved to Solo Study (/solo-study)
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { X, Check, Flame, Trophy, Users, RotateCcw, Settings2 } from 'lucide-react'
+import { X, Check, Flame, Trophy, Users, RotateCcw } from 'lucide-react'
 import { subscribeToFocusSessionParticipants } from '@/lib/supabase/realtime'
 import {
   AmbientSoundPlayer,
-  BackgroundSelector,
   MotivationalQuote,
   DistractionBlocker,
-  AIExplainer,
 } from '@/components/focus'
 
 interface FocusSession {
@@ -90,8 +89,6 @@ export default function FocusTimerPage() {
   const [participants, setParticipants] = useState<Participant[]>([])
 
   // UI State
-  const [showSettings, setShowSettings] = useState(false)
-  const [backgroundClass, setBackgroundClass] = useState('bg-neutral-950')
   const [showQuote, setShowQuote] = useState(true)
 
   // Refs
@@ -482,7 +479,7 @@ export default function FocusTimerPage() {
   }
 
   return (
-    <div className={`min-h-screen ${backgroundClass} text-white flex flex-col transition-colors duration-500`}>
+    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
       {/* Confetti */}
       {showConfetti && (
         <canvas
@@ -551,10 +548,9 @@ export default function FocusTimerPage() {
           )}
         </div>
 
-        {/* Focus Tools */}
+        {/* Focus Tools - Simplified for Quick Focus */}
         {!isCompleted && (
           <div className="flex items-center gap-2">
-            <BackgroundSelector onBackgroundChange={setBackgroundClass} />
             <AmbientSoundPlayer isPlaying={isRunning && !isCompleted} />
             <DistractionBlocker isSessionActive={isRunning && !isCompleted} />
             <button
@@ -709,10 +705,6 @@ export default function FocusTimerPage() {
         )}
       </main>
 
-      {/* AI Explainer - floating panel */}
-      {!isCompleted && (
-        <AIExplainer sessionId={sessionId} taskContext={session?.taskPrompt} />
-      )}
     </div>
   )
 }
