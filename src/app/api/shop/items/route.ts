@@ -34,14 +34,22 @@ export async function GET() {
       },
     })
 
-    // Get user's current points
-    const profile = await prisma.profile.findUnique({
-      where: { userId: user.id },
-      select: {
-        totalPoints: true,
-        streakShields: true,
-      },
-    })
+    // Get user's current points and count completed sessions
+    const [profile, totalCompletedSessions] = await Promise.all([
+      prisma.profile.findUnique({
+        where: { userId: user.id },
+        select: {
+          totalPoints: true,
+          streakShields: true,
+        },
+      }),
+      prisma.focusSession.count({
+        where: {
+          userId: user.id,
+          status: 'COMPLETED',
+        },
+      }),
+    ])
 
     // Transform to cleaner response format
     const items = unlockables.map(item => ({
@@ -73,6 +81,7 @@ export async function GET() {
       items: grouped,
       userPoints: profile?.totalPoints || 0,
       streakShields: profile?.streakShields || 0,
+      totalCompletedSessions,
     })
   } catch (error) {
     console.error('[Shop Items] Error:', error)

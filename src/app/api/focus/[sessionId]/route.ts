@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import logger from '@/lib/logger'
 
+// Minimum completion percentage required for rewards (80%)
+const COMPLETION_THRESHOLD = 0.8
+
 // Schema for updating a focus session
 const updateFocusSessionSchema = z.object({
   status: z.enum(['COMPLETED', 'ABANDONED']).optional(),
@@ -153,29 +156,57 @@ export async function PATCH(
       data: updateData,
     })
 
-    // Award points and update streak on completion
-    if (status === 'COMPLETED') {
-      const completedMinutes = actualMinutes || existingSession.durationMinutes
-      
+    // Calculate completion percentage for rewards
+    const targetMinutes = existingSession.durationMinutes || 7
+    const completedMinutes = actualMinutes || 0
+    const completionRatio = completedMinutes / targetMinutes
+    const isFullyCompleted = completionRatio >= COMPLETION_THRESHOLD
+
+    let pointsEarned = 0
+    let coinsEarned = 0
+    let streakUpdated = false
+
+    // Only award rewards if session was fully completed (>= 80%)
+    if (status === 'COMPLETED' && isFullyCompleted) {
       // Points calculation: 10 XP per minute of focus (minimum 10 XP)
-      const pointsEarned = Math.max(10, completedMinutes * 10)
-      
-      // Update profile with points
+      pointsEarned = Math.max(10, completedMinutes * 10)
+
+      // Coins: 5 per completed session
+      coinsEarned = 5
+
+      // Update profile with points and coins
       await prisma.profile.update({
         where: { userId: user.id },
         data: {
           totalPoints: { increment: pointsEarned },
-          lastStudyDate: new Date(),
+          coins: { increment: coinsEarned },
         },
       })
-      
-      logger.info('Focus session completed', {
+
+      // Update Quick Focus streak (separate from Solo Study streak)
+      await updateQuickFocusStreak(user.id)
+      streakUpdated = true
+
+      logger.info('Quick Focus session completed with rewards', {
         data: {
           sessionId,
           userId: user.id,
-          durationMinutes: existingSession.durationMinutes,
+          durationMinutes: targetMinutes,
           actualMinutes: completedMinutes,
+          completionPercentage: Math.round(completionRatio * 100),
           pointsEarned,
+          coinsEarned,
+        },
+      })
+    } else if (status === 'COMPLETED') {
+      // Session ended but not enough time for rewards
+      logger.info('Quick Focus session ended early - no rewards', {
+        data: {
+          sessionId,
+          userId: user.id,
+          durationMinutes: targetMinutes,
+          actualMinutes: completedMinutes,
+          completionPercentage: Math.round(completionRatio * 100),
         },
       })
     }
@@ -183,6 +214,16 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       session: updatedSession,
+      pointsEarned,
+      coinsEarned,
+      streakUpdated,
+      isFullyCompleted,
+      completionPercentage: Math.round(completionRatio * 100),
+      message: isFullyCompleted
+        ? 'Great job completing your focus session!'
+        : status === 'COMPLETED'
+          ? `Session ended early (${Math.round(completionRatio * 100)}% completed). Complete at least 80% to earn rewards.`
+          : undefined,
     })
   } catch (error) {
     logger.error('Error updating focus session', { error })
@@ -237,5 +278,101 @@ export async function DELETE(
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Update user's QUICK FOCUS streak (separate from Solo Study streak)
+ * Stored in Profile.quickFocusStreak field
+ * Supports streak shields to protect against missed days
+ */
+async function updateQuickFocusStreak(userId: string) {
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    // Get current profile stats (including streak shields)
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      select: {
+        quickFocusStreak: true,
+        lastQuickFocusDate: true,
+        streakShields: true,
+      },
+    })
+
+    if (!profile) return
+
+    // Check if already completed a quick focus session today
+    if (profile.lastQuickFocusDate) {
+      const lastFocus = new Date(profile.lastQuickFocusDate)
+      lastFocus.setHours(0, 0, 0, 0)
+
+      if (lastFocus.getTime() === today.getTime()) {
+        // Already updated today, nothing to do
+        return
+      }
+    }
+
+    // Check if user completed a quick focus session yesterday
+    // Only count COMPLETED sessions with mode != 'solo' (quick focus uses ai_guided or default)
+    const yesterdaySession = await prisma.focusSession.findFirst({
+      where: {
+        userId,
+        status: 'COMPLETED',
+        mode: { not: 'solo' }, // Quick focus sessions (not solo study)
+        startedAt: {
+          gte: yesterday,
+          lt: today,
+        },
+      },
+    })
+
+    let newStreak = 1
+    let shieldsToUse = 0
+
+    if (yesterdaySession) {
+      // Focused yesterday - continue the streak
+      newStreak = (profile.quickFocusStreak || 0) + 1
+    } else if (profile.lastQuickFocusDate) {
+      // Didn't focus yesterday - check if we can use a shield
+      const lastFocus = new Date(profile.lastQuickFocusDate)
+      lastFocus.setHours(0, 0, 0, 0)
+
+      // Calculate days missed
+      const daysMissed = Math.floor((today.getTime() - lastFocus.getTime()) / (1000 * 60 * 60 * 24)) - 1
+
+      if (daysMissed > 0 && daysMissed <= (profile.streakShields || 0)) {
+        // Use shields to protect streak
+        shieldsToUse = daysMissed
+        newStreak = (profile.quickFocusStreak || 0) + 1
+        logger.info(`[Quick Focus Streak] Using ${shieldsToUse} shield(s) to protect streak`, { userId })
+      } else if (daysMissed > 0) {
+        // No shields or not enough - streak resets
+        newStreak = 1
+        logger.info(`[Quick Focus Streak] Streak reset`, { userId, daysMissed, shields: profile.streakShields || 0 })
+      }
+    }
+
+    // Update quick focus streak and shields in Profile
+    await prisma.profile.update({
+      where: { userId },
+      data: {
+        quickFocusStreak: newStreak,
+        lastQuickFocusDate: new Date(),
+        ...(shieldsToUse > 0 && {
+          streakShields: { decrement: shieldsToUse },
+        }),
+      },
+    })
+
+    if (shieldsToUse > 0) {
+      logger.info(`[Quick Focus Streak] Streak protected!`, { userId, shieldsUsed: shieldsToUse, newStreak })
+    }
+  } catch (error) {
+    logger.error('Update quick focus streak error', { error })
   }
 }

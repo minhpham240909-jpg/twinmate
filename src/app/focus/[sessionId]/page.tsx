@@ -88,9 +88,6 @@ export default function FocusTimerPage() {
   // Participants
   const [participants, setParticipants] = useState<Participant[]>([])
 
-  // UI State
-  const [showQuote, setShowQuote] = useState(true)
-
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const confettiRef = useRef<HTMLCanvasElement | null>(null)
@@ -489,10 +486,6 @@ export default function FocusTimerPage() {
         />
       )}
 
-      {/* Motivational Quote at Start */}
-      {showQuote && !isCompleted && (
-        <MotivationalQuote showAtStart={true} />
-      )}
 
       {/* 1-Minute Warning */}
       {showOneMinuteWarning && (
@@ -553,15 +546,6 @@ export default function FocusTimerPage() {
           <div className="flex items-center gap-2">
             <AmbientSoundPlayer isPlaying={isRunning && !isCompleted} />
             <DistractionBlocker isSessionActive={isRunning && !isCompleted} />
-            <button
-              onClick={() => setShowQuote(true)}
-              className="p-2.5 rounded-xl bg-neutral-800/50 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 transition-all"
-              title="Show quote"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-            </button>
           </div>
         )}
       </header>
@@ -696,6 +680,11 @@ export default function FocusTimerPage() {
                 </p>
               </div>
             )}
+
+            {/* Motivational Quote - Always Visible */}
+            <div className="max-w-md w-full mb-6">
+              <MotivationalQuote alwaysVisible={true} />
+            </div>
 
             {/* Work outside reminder */}
             <p className="text-neutral-600 text-sm text-center max-w-xs">

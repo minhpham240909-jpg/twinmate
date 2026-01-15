@@ -204,12 +204,23 @@ model Profile {
   // Community Settings
   postPrivacy PostPrivacy @default(PUBLIC)
 
-  // Gamification
-  studyStreak     Int       @default(0)
+  // Gamification - General
   totalStudyHours Float     @default(0)
-  lastStudyDate   DateTime?
   totalPoints     Int       @default(0) // XP earned from sessions
+  coins           Int       @default(0) // Focus Points for unlockables
   streakShields   Int       @default(0) // Protects streak when missing a day
+
+  // Streaks - Separate for each feature
+  studyStreak         Int       @default(0)  // Legacy/combined streak (deprecated)
+  lastStudyDate       DateTime?              // Legacy (deprecated)
+
+  // Solo Study Streak (pomodoro sessions in study room)
+  soloStudyStreak     Int       @default(0)
+  lastSoloStudyDate   DateTime?
+
+  // Quick Focus Streak (quick focus sessions)
+  quickFocusStreak    Int       @default(0)
+  lastQuickFocusDate  DateTime?
 
   // User unlockables relation
   userUnlocks UserUnlock[]

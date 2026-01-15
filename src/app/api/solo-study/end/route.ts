@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+// Minimum completion percentage required for rewards (80%)
+const COMPLETION_THRESHOLD = 0.8
+
 /**
  * POST /api/solo-study/end - End a Solo Study session
+ *
+ * Rewards are only given if user completes >= 80% of target time.
+ * Early exits save the session but don't award XP/coins/streak.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,45 +28,72 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
     }
 
-    // Verify session belongs to user
+    // Verify session belongs to user and get target duration
     const session = await prisma.focusSession.findUnique({
       where: { id: sessionId },
-      select: { userId: true, status: true },
+      select: { userId: true, status: true, durationMinutes: true },
     })
 
     if (!session || session.userId !== user.id) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
+    // Calculate completion percentage
+    const targetMinutes = session.durationMinutes || 25
+    const completionRatio = totalMinutes / targetMinutes
+    const isFullyCompleted = completionRatio >= COMPLETION_THRESHOLD
+
+    // Determine session status based on completion
+    const sessionStatus = isFullyCompleted ? 'COMPLETED' : 'ABANDONED'
+
     // Update session
     const updatedSession = await prisma.focusSession.update({
       where: { id: sessionId },
       data: {
-        status: 'COMPLETED',
+        status: sessionStatus,
         completedAt: new Date(),
         actualMinutes: totalMinutes,
       },
     })
 
-    // Award XP (25 per pomodoro) - stored in Profile
-    const xpEarned = completedPomodoros * 25
+    let xpEarned = 0
+    let coinsEarned = 0
+    let streakUpdated = false
 
-    if (xpEarned > 0) {
-      await prisma.profile.update({
-        where: { userId: user.id },
-        data: {
-          totalPoints: { increment: xpEarned },
-        },
-      })
+    // Only award rewards if session was fully completed (>= 80%)
+    if (isFullyCompleted) {
+      // Award XP (25 per pomodoro) - stored in Profile
+      xpEarned = completedPomodoros * 25
+
+      // Award coins (10 per completed pomodoro)
+      coinsEarned = completedPomodoros * 10
+
+      if (xpEarned > 0 || coinsEarned > 0) {
+        await prisma.profile.update({
+          where: { userId: user.id },
+          data: {
+            totalPoints: { increment: xpEarned },
+            coins: { increment: coinsEarned },
+          },
+        })
+      }
+
+      // Update solo study streak (separate from quick focus streak)
+      await updateSoloStudyStreak(user.id)
+      streakUpdated = true
     }
-
-    // Update streak in Profile
-    await updateStreak(user.id)
 
     return NextResponse.json({
       success: true,
       session: updatedSession,
       xpEarned,
+      coinsEarned,
+      streakUpdated,
+      isFullyCompleted,
+      completionPercentage: Math.round(completionRatio * 100),
+      message: isFullyCompleted
+        ? 'Great job completing your session!'
+        : `Session ended early (${Math.round(completionRatio * 100)}% completed). Complete at least 80% to earn rewards.`,
     })
   } catch (error) {
     console.error('End solo study error:', error)
@@ -72,10 +105,11 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Update user's study streak (stored in Profile)
- * Now supports streak shields to protect against missed days
+ * Update user's SOLO STUDY streak (separate from Quick Focus streak)
+ * Stored in Profile.soloStudyStreak field
+ * Supports streak shields to protect against missed days
  */
-async function updateStreak(userId: string) {
+async function updateSoloStudyStreak(userId: string) {
   try {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -83,24 +117,21 @@ async function updateStreak(userId: string) {
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
 
-    const twoDaysAgo = new Date(today)
-    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
-
     // Get current profile stats (including streak shields)
     const profile = await prisma.profile.findUnique({
       where: { userId },
       select: {
-        studyStreak: true,
-        lastStudyDate: true,
+        soloStudyStreak: true,
+        lastSoloStudyDate: true,
         streakShields: true,
       },
     })
 
     if (!profile) return
 
-    // Check if already studied today
-    if (profile.lastStudyDate) {
-      const lastStudy = new Date(profile.lastStudyDate)
+    // Check if already completed a solo study session today
+    if (profile.lastSoloStudyDate) {
+      const lastStudy = new Date(profile.lastSoloStudyDate)
       lastStudy.setHours(0, 0, 0, 0)
 
       if (lastStudy.getTime() === today.getTime()) {
@@ -109,11 +140,13 @@ async function updateStreak(userId: string) {
       }
     }
 
-    // Check if user studied yesterday
+    // Check if user completed a solo study session yesterday
+    // Only count COMPLETED sessions (not ABANDONED)
     const yesterdaySession = await prisma.focusSession.findFirst({
       where: {
         userId,
         status: 'COMPLETED',
+        mode: 'solo', // Only solo study sessions
         startedAt: {
           gte: yesterday,
           lt: today,
@@ -126,10 +159,10 @@ async function updateStreak(userId: string) {
 
     if (yesterdaySession) {
       // Studied yesterday - continue the streak
-      newStreak = (profile.studyStreak || 0) + 1
-    } else if (profile.lastStudyDate) {
+      newStreak = (profile.soloStudyStreak || 0) + 1
+    } else if (profile.lastSoloStudyDate) {
       // Didn't study yesterday - check if we can use a shield
-      const lastStudy = new Date(profile.lastStudyDate)
+      const lastStudy = new Date(profile.lastSoloStudyDate)
       lastStudy.setHours(0, 0, 0, 0)
 
       // Calculate days missed
@@ -138,21 +171,21 @@ async function updateStreak(userId: string) {
       if (daysMissed > 0 && daysMissed <= (profile.streakShields || 0)) {
         // Use shields to protect streak
         shieldsToUse = daysMissed
-        newStreak = (profile.studyStreak || 0) + 1
-        console.log(`[Streak] Using ${shieldsToUse} shield(s) to protect streak for user ${userId}`)
+        newStreak = (profile.soloStudyStreak || 0) + 1
+        console.log(`[Solo Study Streak] Using ${shieldsToUse} shield(s) to protect streak for user ${userId}`)
       } else if (daysMissed > 0) {
         // No shields or not enough - streak resets
         newStreak = 1
-        console.log(`[Streak] Streak reset for user ${userId} (missed ${daysMissed} days, had ${profile.streakShields || 0} shields)`)
+        console.log(`[Solo Study Streak] Streak reset for user ${userId} (missed ${daysMissed} days, had ${profile.streakShields || 0} shields)`)
       }
     }
 
-    // Update streak and shields in Profile
+    // Update solo study streak and shields in Profile
     await prisma.profile.update({
       where: { userId },
       data: {
-        studyStreak: newStreak,
-        lastStudyDate: new Date(),
+        soloStudyStreak: newStreak,
+        lastSoloStudyDate: new Date(),
         ...(shieldsToUse > 0 && {
           streakShields: { decrement: shieldsToUse },
         }),
@@ -160,9 +193,9 @@ async function updateStreak(userId: string) {
     })
 
     if (shieldsToUse > 0) {
-      console.log(`[Streak] Streak protected! Used ${shieldsToUse} shield(s). New streak: ${newStreak}`)
+      console.log(`[Solo Study Streak] Streak protected! Used ${shieldsToUse} shield(s). New streak: ${newStreak}`)
     }
   } catch (error) {
-    console.error('Update streak error:', error)
+    console.error('Update solo study streak error:', error)
   }
 }

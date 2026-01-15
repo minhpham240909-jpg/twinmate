@@ -27,12 +27,16 @@ interface ShopData {
   }
   userPoints: number
   streakShields: number
+  totalCompletedSessions: number
 }
 
 interface RewardsShopProps {
   isOpen: boolean
   onClose: () => void
 }
+
+// Minimum completed sessions before showing the shop (prevent early distraction)
+const MIN_SESSIONS_TO_SHOW = 3
 
 export default function RewardsShop({ isOpen, onClose }: RewardsShopProps) {
   const [data, setData] = useState<ShopData | null>(null)
@@ -115,6 +119,36 @@ export default function RewardsShop({ isOpen, onClose }: RewardsShopProps) {
   ]
 
   const currentItems = data?.items[activeTab] || []
+  const totalSessions = data?.totalCompletedSessions || 0
+  const isLocked = totalSessions < MIN_SESSIONS_TO_SHOW
+
+  // If user hasn't completed enough sessions, show a locked state
+  if (isLocked && !loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl w-full max-w-sm p-6 text-center shadow-xl">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+            <Lock className="w-8 h-8 text-neutral-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
+            Progress Perks
+          </h2>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+            Complete {MIN_SESSIONS_TO_SHOW - totalSessions} more session{MIN_SESSIONS_TO_SHOW - totalSessions !== 1 ? 's' : ''} to unlock perks.
+          </p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-500 mb-4">
+            Focus on building your habit first — perks will be here when you&apos;re ready.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-lg text-sm font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -126,19 +160,19 @@ export default function RewardsShop({ isOpen, onClose }: RewardsShopProps) {
         <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-800">
           <div>
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
-              Rewards Shop
+              Progress Perks
             </h2>
             <div className="flex items-center gap-1 mt-0.5">
               <Star className="w-4 h-4 text-amber-500" />
               <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                {data?.userPoints || 0} points
+                {data?.userPoints || 0} Focus Points
               </span>
               {(data?.streakShields || 0) > 0 && (
                 <>
                   <span className="mx-1.5 text-neutral-300 dark:text-neutral-700">•</span>
                   <Shield className="w-4 h-4 text-blue-500" />
                   <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                    {data?.streakShields} shields
+                    {data?.streakShields} shield{data?.streakShields !== 1 ? 's' : ''}
                   </span>
                 </>
               )}
@@ -169,24 +203,24 @@ export default function RewardsShop({ isOpen, onClose }: RewardsShopProps) {
         {showGuide && (
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
             <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-              How It Works
+              How Perks Work
             </h3>
             <div className="space-y-2 text-xs text-blue-800 dark:text-blue-200">
               <div className="flex items-start gap-2">
                 <Zap className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <p><strong>Earn points</strong> by completing focus sessions (25 pts per pomodoro, 10 pts per minute of Quick Focus)</p>
+                <p><strong>Earn Focus Points</strong> by completing sessions. One more session = closer to your next perk.</p>
               </div>
               <div className="flex items-start gap-2">
                 <Palette className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <p><strong>Themes & Sounds</strong> customize your focus room. Once unlocked, tap "Use" to activate.</p>
+                <p><strong>Themes & Sounds</strong> customize your space. Your room improves as you improve.</p>
               </div>
               <div className="flex items-start gap-2">
                 <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <p><strong>Streak Shields</strong> protect your streak if you miss a day. They're used automatically when needed.</p>
+                <p><strong>Streak Shields</strong> protect your streak if you miss a day. Used automatically when needed.</p>
               </div>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-300 mt-3 italic">
-              No real money involved — just study and earn!
+              No purchases. Just progress.
             </p>
           </div>
         )}
@@ -310,13 +344,9 @@ export default function RewardsShop({ isOpen, onClose }: RewardsShopProps) {
 
         {/* Footer hint */}
         <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50">
-          <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span>Tap</span>
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>for help</span>
-            <span className="mx-1">•</span>
-            <span>Earn points by studying</span>
-          </div>
+          <p className="text-center text-xs text-neutral-500 dark:text-neutral-400 italic">
+            Your space improves as you improve.
+          </p>
         </div>
       </div>
     </div>

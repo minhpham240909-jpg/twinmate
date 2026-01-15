@@ -3,24 +3,33 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Volume2, VolumeX, Volume1 } from 'lucide-react'
 
-// Sound types for mixing
-// Hybrid approach: Procedural noise as fallback + optional audio URLs for real sounds
-// Audio URLs from free sound libraries (Freesound, etc.) - replace with your own hosted files for production
+/**
+ * Ambient Sound Configuration
+ *
+ * Download high-quality ambient sounds and place them in /public/sounds/ambient/
+ * Recommended sources (CC0/royalty-free):
+ * - https://freesound.org
+ * - https://mixkit.co/free-sound-effects/
+ * - https://pixabay.com/sound-effects/
+ *
+ * File naming: rain.mp3, cafe.mp3, forest.mp3, ocean.mp3, fireplace.mp3, lofi.mp3
+ * Format: MP3 or OGG, looped, 1-5 minutes duration
+ */
 const SOUND_LAYERS = [
   {
     id: 'rain',
     name: 'Rain',
     icon: '🌧️',
     noiseType: 'pink' as const,
-    // Free rain ambient from freesound.org (CC0) - example URL
-    audioUrl: 'https://cdn.freesound.org/previews/531/531947_5766779-lq.mp3',
+    // Local file in /public/sounds/ambient/ - falls back to procedural noise
+    audioUrl: '/sounds/ambient/rain.mp3',
   },
   {
     id: 'cafe',
     name: 'Cafe',
     icon: '☕',
     noiseType: 'brown' as const,
-    audioUrl: 'https://cdn.freesound.org/previews/462/462361_9159316-lq.mp3',
+    audioUrl: '/sounds/ambient/cafe.mp3',
   },
   {
     id: 'forest',
@@ -28,28 +37,35 @@ const SOUND_LAYERS = [
     icon: '🌲',
     noiseType: 'pink' as const,
     hasChirps: true,
-    audioUrl: 'https://cdn.freesound.org/previews/509/509026_10799555-lq.mp3',
+    audioUrl: '/sounds/ambient/forest.mp3',
   },
   {
     id: 'ocean',
     name: 'Ocean',
     icon: '🌊',
     noiseType: 'brown' as const,
-    audioUrl: 'https://cdn.freesound.org/previews/573/573577_7869667-lq.mp3',
+    audioUrl: '/sounds/ambient/ocean.mp3',
   },
   {
     id: 'white_noise',
     name: 'White Noise',
     icon: '📻',
     noiseType: 'white' as const,
-    // No audio URL - procedural white noise is perfect for this
+    // Procedural white noise is perfect for this - no audio file needed
   },
   {
     id: 'fireplace',
     name: 'Fireplace',
     icon: '🔥',
     noiseType: 'brown' as const,
-    audioUrl: 'https://cdn.freesound.org/previews/499/499071_10656503-lq.mp3',
+    audioUrl: '/sounds/ambient/fireplace.mp3',
+  },
+  {
+    id: 'lofi',
+    name: 'Lo-Fi',
+    icon: '🎵',
+    noiseType: 'pink' as const,
+    audioUrl: '/sounds/ambient/lofi.mp3',
   },
 ]
 
