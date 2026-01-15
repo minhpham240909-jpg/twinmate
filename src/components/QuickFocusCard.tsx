@@ -20,6 +20,7 @@ interface ActiveSession {
   durationMinutes: number
   startedAt: string
   timeRemaining: number
+  sessionType: 'solo_study' | 'quick_focus'
 }
 
 interface FocusStats {
@@ -272,8 +273,8 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
           )}
 
           {/* Action Buttons */}
-          {stats?.activeSession ? (
-            // Has active session
+          {stats?.activeSession && stats.activeSession.sessionType === 'quick_focus' ? (
+            // Has active Quick Focus session (not Solo Study)
             <div className="space-y-3">
               <button
                 onClick={handleContinueSession}

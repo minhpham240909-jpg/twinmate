@@ -209,6 +209,10 @@ model Profile {
   totalStudyHours Float     @default(0)
   lastStudyDate   DateTime?
   totalPoints     Int       @default(0) // XP earned from sessions
+  streakShields   Int       @default(0) // Protects streak when missing a day
+
+  // User unlockables relation
+  userUnlocks UserUnlock[]
 
   // Notifications
   emailNotifications Boolean @default(true)
@@ -3123,4 +3127,77 @@ model FlashcardAchievement {
   @@index([userId])
   @@index([achievementId])
   @@map("flashcard_achievements")
+}
+
+// ==========================================
+// UNLOCKABLES & REWARDS SHOP
+// ==========================================
+
+enum UnlockableCategory {
+  THEME         // Focus room themes
+  SOUND         // Ambient sounds
+  STREAK_SHIELD // Streak protection
+  FEATURE       // Premium-like features
+}
+
+// Available unlockable items (master list)
+model Unlockable {
+  id          String             @id @default(uuid())
+
+  // Item details
+  itemId      String             @unique // "theme_forest", "sound_rain", "streak_shield", etc.
+  name        String
+  description String?
+  category    UnlockableCategory
+
+  // Cost
+  pointsCost  Int                @default(0)
+
+  // Display
+  icon        String?            // Emoji or icon name
+  previewUrl  String?            // Preview image/sound URL
+
+  // Availability
+  isActive    Boolean            @default(true)
+  sortOrder   Int                @default(0)
+
+  // Tracking
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relations
+  userUnlocks UserUnlock[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("unlockables")
+}
+
+// User's purchased/unlocked items
+model UserUnlock {
+  id           String     @id @default(uuid())
+
+  userId       String
+  profile      Profile    @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  unlockableId String
+  unlockable   Unlockable @relation(fields: [unlockableId], references: [id], onDelete: Cascade)
+
+  // Purchase details
+  pointsSpent  Int        @default(0)
+
+  // For consumables like streak shields
+  quantity     Int        @default(1)
+
+  // Active selection (for themes/sounds)
+  isActive     Boolean    @default(false)
+
+  // Timestamps
+  unlockedAt   DateTime   @default(now())
+
+  @@unique([userId, unlockableId])
+  @@index([userId])
+  @@index([unlockableId])
+  @@index([isActive])
+  @@map("user_unlocks")
 }

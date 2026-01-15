@@ -33,7 +33,10 @@
     "weeksAgo": "hace {count}s",
     "connect": "Conectar",
     "message": "Mensaje",
-    "cancelRequest": "Cancelar Solicitud"
+    "cancelRequest": "Cancelar Solicitud",
+    "send": "Enviar",
+    "viewProfile": "Ver Perfil",
+    "editProfile": "Editar Perfil"
   },
   "navigation": {
     "dashboard": "Panel",

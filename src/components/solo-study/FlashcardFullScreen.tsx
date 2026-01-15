@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   X,
   ArrowLeft,
   ArrowRight,
   RotateCcw,
-  Shuffle,
   Settings,
   Trophy,
   Zap,
@@ -16,7 +15,6 @@ import {
   AlertCircle,
   Loader2,
   Lightbulb,
-  Volume2,
 } from 'lucide-react'
 
 interface FlashcardCard {
@@ -66,7 +64,9 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
   // Settings
   const [showSettings, setShowSettings] = useState(false)
   const [shuffled, setShuffled] = useState(false)
-  const [autoFlip, setAutoFlip] = useState(false)
+  const [typeAnswerMode, setTypeAnswerMode] = useState(true) // Type answer before flip
+  const [userTypedAnswer, setUserTypedAnswer] = useState('')
+  const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false)
 
   // Load cards
   useEffect(() => {
@@ -148,6 +148,8 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
     setSelectedAnswer(null)
     setAnswerRevealed(false)
     setFillInAnswer('')
+    setUserTypedAnswer('')
+    setHasSubmittedAnswer(false)
   }
 
   const handleRating = async (quality: 'again' | 'hard' | 'good' | 'easy') => {
@@ -424,46 +426,130 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
 
               {/* Flip Card Mode */}
               {(studyMode === 'flip' || studyMode === 'spaced') && currentCard.questionType === 'FLIP' && (
-                <div
-                  onClick={() => setIsFlipped(!isFlipped)}
-                  className="relative h-80 cursor-pointer perspective-1000"
-                >
+                <div className="space-y-4">
+                  {/* Card Display */}
                   <div
-                    className={`relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
-                      isFlipped ? 'rotate-y-180' : ''
-                    }`}
+                    onClick={() => {
+                      if (hasSubmittedAnswer || !typeAnswerMode) {
+                        setIsFlipped(!isFlipped)
+                      }
+                    }}
+                    className={`relative h-64 perspective-1000 ${hasSubmittedAnswer || !typeAnswerMode ? 'cursor-pointer' : ''}`}
                   >
-                    {/* Front */}
-                    <div className={`absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 border border-neutral-700 rounded-2xl p-8 flex flex-col backface-hidden ${isFlipped ? 'invisible' : ''}`}>
-                      <div className="flex-1 flex items-center justify-center">
-                        <p className="text-2xl text-white text-center font-medium">
-                          {currentCard.front}
-                        </p>
+                    <div
+                      className={`relative w-full h-full transition-transform duration-500 transform-style-preserve-3d ${
+                        isFlipped ? 'rotate-y-180' : ''
+                      }`}
+                    >
+                      {/* Front */}
+                      <div className={`absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 border border-neutral-700 rounded-2xl p-8 flex flex-col backface-hidden ${isFlipped ? 'invisible' : ''}`}>
+                        <div className="flex-1 flex items-center justify-center">
+                          <p className="text-2xl text-white text-center font-medium">
+                            {currentCard.front}
+                          </p>
+                        </div>
+                        {showHint && currentCard.hint && (
+                          <p className="text-sm text-yellow-400/80 text-center mt-4">
+                            💡 {currentCard.hint}
+                          </p>
+                        )}
+                        {!typeAnswerMode && (
+                          <p className="text-sm text-neutral-500 text-center mt-4">
+                            Click or press Space to flip
+                          </p>
+                        )}
                       </div>
-                      {showHint && currentCard.hint && (
-                        <p className="text-sm text-yellow-400/80 text-center mt-4">
-                          💡 {currentCard.hint}
-                        </p>
-                      )}
-                      <p className="text-sm text-neutral-500 text-center mt-4">
-                        Click or press Space to flip
-                      </p>
-                    </div>
 
-                    {/* Back */}
-                    <div className={`absolute inset-0 bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-blue-500/30 rounded-2xl p-8 flex flex-col rotate-y-180 backface-hidden ${!isFlipped ? 'invisible' : ''}`}>
-                      <div className="flex-1 flex items-center justify-center">
-                        <p className="text-2xl text-white text-center font-medium">
-                          {currentCard.back}
-                        </p>
+                      {/* Back */}
+                      <div className={`absolute inset-0 bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-blue-500/30 rounded-2xl p-8 flex flex-col rotate-y-180 backface-hidden ${!isFlipped ? 'invisible' : ''}`}>
+                        <div className="flex-1 flex items-center justify-center">
+                          <p className="text-2xl text-white text-center font-medium">
+                            {currentCard.back}
+                          </p>
+                        </div>
+                        {currentCard.explanation && (
+                          <p className="text-sm text-blue-300/80 text-center mt-4">
+                            {currentCard.explanation}
+                          </p>
+                        )}
                       </div>
-                      {currentCard.explanation && (
-                        <p className="text-sm text-blue-300/80 text-center mt-4">
-                          {currentCard.explanation}
-                        </p>
-                      )}
                     </div>
                   </div>
+
+                  {/* Type Answer Input (only in typeAnswerMode and not yet submitted) */}
+                  {typeAnswerMode && !isFlipped && (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={userTypedAnswer}
+                          onChange={(e) => setUserTypedAnswer(e.target.value)}
+                          disabled={hasSubmittedAnswer}
+                          placeholder="Type your answer here..."
+                          className={`w-full px-6 py-4 bg-neutral-800 border rounded-xl text-white text-lg placeholder-neutral-500 focus:outline-none transition-colors ${
+                            hasSubmittedAnswer
+                              ? userTypedAnswer.toLowerCase().trim() === currentCard.back.toLowerCase().trim()
+                                ? 'border-green-500 bg-green-500/10'
+                                : 'border-orange-500 bg-orange-500/10'
+                              : 'border-neutral-700 focus:border-blue-500'
+                          }`}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !hasSubmittedAnswer && userTypedAnswer.trim()) {
+                              e.preventDefault()
+                              setHasSubmittedAnswer(true)
+                              setIsFlipped(true)
+                            }
+                          }}
+                        />
+                        {hasSubmittedAnswer && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            {userTypedAnswer.toLowerCase().trim() === currentCard.back.toLowerCase().trim() ? (
+                              <Check className="w-6 h-6 text-green-400" />
+                            ) : (
+                              <AlertCircle className="w-6 h-6 text-orange-400" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {!hasSubmittedAnswer ? (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setHasSubmittedAnswer(true)
+                              setIsFlipped(true)
+                            }}
+                            className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold transition-colors disabled:opacity-50"
+                            disabled={!userTypedAnswer.trim()}
+                          >
+                            Check Answer
+                          </button>
+                          <button
+                            onClick={() => {
+                              setHasSubmittedAnswer(true)
+                              setIsFlipped(true)
+                            }}
+                            className="px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded-xl font-medium transition-colors"
+                          >
+                            Skip & Reveal
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-neutral-400 text-center">
+                          {userTypedAnswer.toLowerCase().trim() === currentCard.back.toLowerCase().trim()
+                            ? '✓ Great job! Your answer matches.'
+                            : 'Your answer differs from the correct one. Rate how well you knew it.'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Show click to flip message after submission */}
+                  {typeAnswerMode && hasSubmittedAnswer && !isFlipped && (
+                    <p className="text-sm text-neutral-500 text-center">
+                      Click card or press Space to see the answer
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -694,6 +780,25 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
             </div>
 
             <div className="space-y-4">
+              <label className="flex items-center justify-between">
+                <div>
+                  <span className="text-white">Type Answer First</span>
+                  <p className="text-xs text-neutral-400">Type your answer before revealing</p>
+                </div>
+                <button
+                  onClick={() => setTypeAnswerMode(!typeAnswerMode)}
+                  className={`w-12 h-6 rounded-full transition-colors ${
+                    typeAnswerMode ? 'bg-blue-500' : 'bg-neutral-700'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full transition-transform ${
+                      typeAnswerMode ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </label>
+
               <label className="flex items-center justify-between">
                 <span className="text-white">Shuffle Cards</span>
                 <button

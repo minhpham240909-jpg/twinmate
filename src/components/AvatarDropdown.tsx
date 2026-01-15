@@ -34,6 +34,16 @@ export default function AvatarDropdown({ avatarUrl, name, onSignOut, isAdmin }: 
     }
   }, [isOpen])
 
+  const handleViewProfile = () => {
+    setIsOpen(false)
+    router.push('/profile')
+  }
+
+  const handleEditProfile = () => {
+    setIsOpen(false)
+    router.push('/profile/edit')
+  }
+
   const handleAdminDashboard = () => {
     setIsOpen(false)
     router.push('/admin')
@@ -69,7 +79,32 @@ export default function AvatarDropdown({ avatarUrl, name, onSignOut, isAdmin }: 
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-48 bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-xl py-2 z-50">
+        <div className="absolute top-full right-0 mt-2 w-48 bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-xl py-2 z-50">
+          {/* View Profile */}
+          <button
+            onClick={handleViewProfile}
+            className="w-full px-4 py-3 text-left text-slate-300 hover:bg-slate-700/50 transition flex items-center gap-3"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            {t('viewProfile')}
+          </button>
+
+          {/* Edit Profile */}
+          <button
+            onClick={handleEditProfile}
+            className="w-full px-4 py-3 text-left text-slate-300 hover:bg-slate-700/50 transition flex items-center gap-3"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            {t('editProfile')}
+          </button>
+
+          {/* Divider */}
+          <div className="my-1 border-t border-slate-700/50" />
+
           {isAdmin && (
             <button
               onClick={handleAdminDashboard}
@@ -91,6 +126,10 @@ export default function AvatarDropdown({ avatarUrl, name, onSignOut, isAdmin }: 
             </svg>
             {t('settings')}
           </button>
+
+          {/* Divider */}
+          <div className="my-1 border-t border-slate-700/50" />
+
           <button
             onClick={handleLogout}
             className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition flex items-center gap-3"

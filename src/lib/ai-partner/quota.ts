@@ -15,6 +15,7 @@
 import { prisma } from '@/lib/prisma'
 import { AI_QUOTAS } from '@/lib/constants'
 import logger from '@/lib/logger'
+import { fetchWithBackoff } from '@/lib/api/timeout'
 
 // ============================================
 // Upstash Redis Helpers (using REST API)
@@ -31,9 +32,9 @@ async function redisGet(key: string): Promise<string | null> {
     const url = process.env.UPSTASH_REDIS_REST_URL!
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-    const response = await fetch(`${url}/get/${encodeURIComponent(key)}`, {
+    const response = await fetchWithBackoff(`${url}/get/${encodeURIComponent(key)}`, {
       headers: { Authorization: `Bearer ${token}` },
-    })
+    }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
 
     if (!response.ok) return null
 
@@ -51,10 +52,10 @@ async function redisSetEx(key: string, value: string, expirySeconds: number): Pr
     const url = process.env.UPSTASH_REDIS_REST_URL!
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-    const response = await fetch(`${url}/setex/${encodeURIComponent(key)}/${expirySeconds}/${encodeURIComponent(value)}`, {
+    const response = await fetchWithBackoff(`${url}/setex/${encodeURIComponent(key)}/${expirySeconds}/${encodeURIComponent(value)}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-    })
+    }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
 
     return response.ok
   } catch {

@@ -1,7 +1,7 @@
 'use client'
 
 // Auth Context for Client-Side Authentication State
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -92,9 +92,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const supabase = createClient()
 
+  // Debounce refs for profile fetch - prevents thundering herd on rapid auth changes
+  const fetchProfileTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastFetchedUserIdRef = useRef<string | null>(null)
+  const isFetchingRef = useRef(false)
+
   // Note: Presence heartbeat is handled by PresenceProvider in root layout
 
+  // Debounced profile fetch - prevents multiple fetches on rapid auth state changes
+  const debouncedFetchProfile = useCallback((userId: string, immediate = false) => {
+    // Skip if already fetching this user's profile
+    if (isFetchingRef.current && lastFetchedUserIdRef.current === userId) {
+      return
+    }
+
+    // Clear any pending fetch
+    if (fetchProfileTimeoutRef.current) {
+      clearTimeout(fetchProfileTimeoutRef.current)
+      fetchProfileTimeoutRef.current = null
+    }
+
+    // If immediate (initial load), fetch right away
+    if (immediate) {
+      fetchProfile(userId)
+      return
+    }
+
+    // Otherwise debounce for 500ms to coalesce rapid auth state changes
+    fetchProfileTimeoutRef.current = setTimeout(() => {
+      fetchProfile(userId)
+    }, 500)
+  }, [])
+
   const fetchProfile = async (userId: string) => {
+    // Track fetch state to prevent duplicate requests
+    isFetchingRef.current = true
+    lastFetchedUserIdRef.current = userId
     setProfileError(null)
     try {
       // Add cache: 'no-store' to bypass any caching and get fresh profile data
@@ -144,6 +177,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfileError(`Failed to load profile: ${errorMessage}`)
       }
+    } finally {
+      // Clear fetching state
+      isFetchingRef.current = false
     }
   }
 
@@ -259,9 +295,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         setUser(session?.user ?? null)
         if (session?.user) {
-          await fetchProfile(session.user.id)
+          // Use debounced fetch for auth state changes to prevent thundering herd
+          // Only fetch immediately on SIGNED_IN, debounce for TOKEN_REFRESHED etc.
+          const isSignIn = event === 'SIGNED_IN'
+          debouncedFetchProfile(session.user.id, isSignIn)
         } else {
           setProfile(null)
+          // Clear any pending profile fetch
+          if (fetchProfileTimeoutRef.current) {
+            clearTimeout(fetchProfileTimeoutRef.current)
+            fetchProfileTimeoutRef.current = null
+          }
         }
         setLoading(false)
 
@@ -272,8 +316,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [router, supabase])
+    return () => {
+      subscription.unsubscribe()
+      // Clear pending fetch on cleanup
+      if (fetchProfileTimeoutRef.current) {
+        clearTimeout(fetchProfileTimeoutRef.current)
+      }
+    }
+  }, [router, supabase, debouncedFetchProfile])
 
   const signOut = async () => {
     // Confirm before signing out

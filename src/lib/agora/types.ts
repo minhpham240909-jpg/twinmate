@@ -26,6 +26,10 @@ export interface RemoteUser {
   videoTrack?: IRemoteVideoTrack
   audioTrack?: IRemoteAudioTrack
   screenTrack?: IRemoteVideoTrack
+  // User display info (fetched from API)
+  name?: string
+  avatarUrl?: string | null
+  userId?: string
 }
 
 export interface LocalTracks {

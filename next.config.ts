@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
 
 // Bundle Analyzer - Optional (only loads if installed)
 // To use: npm install --save-dev @next/bundle-analyzer && ANALYZE=true npm run build
@@ -17,12 +18,20 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false, // TODO: Re-enable after fixing Agora SDK double-mount issue
 
+  // Fix monorepo-style root inference when multiple lockfiles exist
+  // Prevents Next from selecting the parent directory as tracing root.
+  outputFileTracingRoot: path.join(__dirname),
+
   // ESLint configuration - skip during build (already checked during compilation)
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: false, // Don't ignore TypeScript errors
+    // NOTE:
+    // - Keep TypeScript strict by default.
+    // - If Next's internal type-check step hangs in some environments, allow skipping it
+    //   while still enforcing `npm run typecheck` as the correctness gate.
+    ignoreBuildErrors: process.env.NEXT_BUILD_SKIP_TYPECHECK === 'true',
   },
 
   // Output configuration - disable static optimization for database-dependent pages

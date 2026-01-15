@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { fetchWithBackoff } from '@/lib/api/timeout'
 
 const requestSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Call Google Maps Geocoding API
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
 
-    const geocodeResponse = await fetch(geocodeUrl)
+    const geocodeResponse = await fetchWithBackoff(geocodeUrl, {}, { timeoutPerAttemptMs: 8000, maxRetries: 3 })
     const geocodeData = await geocodeResponse.json()
 
     if (geocodeData.status !== 'OK' || !geocodeData.results || geocodeData.results.length === 0) {

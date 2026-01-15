@@ -42,6 +42,8 @@ import SoloStudyWhiteboard from '@/components/solo-study/SoloStudyWhiteboard'
 import SoloStudyAITutor from '@/components/solo-study/SoloStudyAITutor'
 import FlashcardPanel from '@/components/solo-study/FlashcardPanel'
 import FlashcardFullScreen from '@/components/solo-study/FlashcardFullScreen'
+import FocusSessionReminder, { NotificationStatusIndicator } from '@/components/solo-study/FocusSessionReminder'
+import { useFocusReminders } from '@/lib/hooks/useFocusReminders'
 import { DistractionBlocker, MotivationalQuote } from '@/components/focus'
 
 // Storage keys for Solo Study
@@ -50,6 +52,8 @@ const SOLO_STUDY_STORAGE = {
   SOUNDS: 'solo_study_sounds',
   TIMER_FOCUS: 'solo_study_timer_focus',
   TIMER_BREAK: 'solo_study_timer_break',
+  // Session persistence (for pause on page leave)
+  ACTIVE_SESSION: 'solo_study_active_session',
 }
 
 // Default Pomodoro settings
@@ -58,7 +62,7 @@ const DEFAULT_BREAK_MINUTES = 5
 
 export default function SoloStudyPage() {
   const router = useRouter()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
 
   // Session state
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -79,7 +83,6 @@ export default function SoloStudyPage() {
   const [showAITutor, setShowAITutor] = useState(false)
   const [showFlashcards, setShowFlashcards] = useState(false)
   const [flashcardFullScreen, setFlashcardFullScreen] = useState<{ deckId: string; title: string } | null>(null)
-  const [showQuote, setShowQuote] = useState(true)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
 
   // Stats
@@ -92,7 +95,21 @@ export default function SoloStudyPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const sessionIdRef = useRef<string | null>(null)
 
-  // Load saved preferences
+  // Focus reminders - gentle notifications when user leaves during session
+  const {
+    hasPermission: hasNotificationPermission,
+    requestPermission: requestNotificationPermission,
+  } = useFocusReminders({
+    isSessionActive,
+    isPaused,
+    timeRemaining,
+    sessionId: sessionIdRef.current,
+    onReturn: () => {
+      // User returned to the app - session is already paused by visibility handler
+    },
+  })
+
+  // Load saved preferences and restore active session
   useEffect(() => {
     const savedBg = localStorage.getItem(SOLO_STUDY_STORAGE.BACKGROUND)
     const savedFocus = localStorage.getItem(SOLO_STUDY_STORAGE.TIMER_FOCUS)
@@ -105,6 +122,30 @@ export default function SoloStudyPage() {
       setTimeRemaining(mins * 60)
     }
     if (savedBreak) setBreakMinutes(parseInt(savedBreak))
+
+    // Restore active session if exists (user navigated away and came back)
+    const savedSession = localStorage.getItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession)
+        // Validate session data
+        if (session.sessionId && session.timeRemaining > 0) {
+          sessionIdRef.current = session.sessionId
+          setTimeRemaining(session.timeRemaining)
+          setIsBreak(session.isBreak || false)
+          setCompletedPomodoros(session.completedPomodoros || 0)
+          setSessionStartTime(session.sessionStartTime ? new Date(session.sessionStartTime) : new Date())
+          setFocusMinutes(session.focusMinutes || DEFAULT_FOCUS_MINUTES)
+          setBreakMinutes(session.breakMinutes || DEFAULT_BREAK_MINUTES)
+          // Start in paused state so user can resume when ready
+          setIsSessionActive(true)
+          setIsPaused(true)
+        }
+      } catch {
+        // Invalid session data, clear it
+        localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
+      }
+    }
   }, [])
 
   // Fetch user stats
@@ -131,6 +172,57 @@ export default function SoloStudyPage() {
 
     fetchStats()
   }, [user])
+
+  // Save session state when leaving page (pause on navigate away)
+  useEffect(() => {
+    const saveSessionState = () => {
+      if (isSessionActive && sessionIdRef.current && timeRemaining > 0) {
+        const sessionState = {
+          sessionId: sessionIdRef.current,
+          timeRemaining,
+          isBreak,
+          completedPomodoros,
+          sessionStartTime: sessionStartTime?.toISOString(),
+          focusMinutes,
+          breakMinutes,
+          savedAt: new Date().toISOString(),
+        }
+        localStorage.setItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION, JSON.stringify(sessionState))
+      }
+    }
+
+    // Handle page visibility change (tab switch, minimize)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isSessionActive && !isPaused) {
+        // Pause the timer when page becomes hidden
+        setIsPaused(true)
+        saveSessionState()
+      }
+    }
+
+    // Handle before unload (page refresh, close)
+    const handleBeforeUnload = () => {
+      saveSessionState()
+    }
+
+    // Handle route change (Next.js navigation)
+    const handleRouteChange = () => {
+      if (isSessionActive) {
+        setIsPaused(true)
+        saveSessionState()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handleRouteChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handleRouteChange)
+    }
+  }, [isSessionActive, isPaused, timeRemaining, isBreak, completedPomodoros, sessionStartTime, focusMinutes, breakMinutes])
 
   // Timer logic
   useEffect(() => {
@@ -228,11 +320,15 @@ export default function SoloStudyPage() {
 
   // Start session
   const handleStartSession = async () => {
+    // Clear any stale saved session (starting fresh)
+    localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
+
     setIsSessionActive(true)
     setIsPaused(false)
     setSessionStartTime(new Date())
     setTimeRemaining(focusMinutes * 60)
     setIsBreak(false)
+    setCompletedPomodoros(0)
 
     // Create session in backend
     try {
@@ -275,6 +371,9 @@ export default function SoloStudyPage() {
     setIsSessionActive(false)
     setIsPaused(false)
     setShowCompletionModal(true)
+
+    // Clear saved session state (session is ending properly)
+    localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
 
     // Calculate total time
     const totalMinutes = sessionStartTime
@@ -358,10 +457,6 @@ export default function SoloStudyPage() {
 
   return (
     <SoloStudyBackground backgroundId={selectedBackground}>
-      {/* Motivational Quote at Start */}
-      {showQuote && !isSessionActive && (
-        <MotivationalQuote showAtStart={true} />
-      )}
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between p-4 sm:p-6 bg-gradient-to-b from-black/50 to-transparent">
@@ -395,6 +490,10 @@ export default function SoloStudyPage() {
         <div className="flex items-center gap-2">
           <SoloStudySoundMixer isPlaying={isSessionActive && !isPaused} />
           <DistractionBlocker isSessionActive={isSessionActive && !isPaused} />
+          <NotificationStatusIndicator
+            hasPermission={hasNotificationPermission}
+            onRequestPermission={requestNotificationPermission}
+          />
           <button
             onClick={() => setShowSettings(true)}
             className="p-2.5 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-all"
@@ -404,6 +503,15 @@ export default function SoloStudyPage() {
           </button>
         </div>
       </header>
+
+      {/* Focus Session Reminder - notification permission prompt and welcome back message */}
+      <FocusSessionReminder
+        hasPermission={hasNotificationPermission}
+        onRequestPermission={requestNotificationPermission}
+        isSessionActive={isSessionActive}
+        isPaused={isPaused}
+        onResume={() => setIsPaused(false)}
+      />
 
       {/* Main Content */}
       <main className="min-h-screen flex flex-col items-center justify-center px-6 pt-20 pb-32">
@@ -494,6 +602,11 @@ export default function SoloStudyPage() {
         {/* Today's Progress */}
         <div className="mt-8 text-center text-white/60 text-sm">
           <span className="font-semibold text-white/90">{todayMinutes}</span> minutes studied today
+        </div>
+
+        {/* Always-visible motivational quote */}
+        <div className="mt-6 max-w-md w-full">
+          <MotivationalQuote alwaysVisible={true} />
         </div>
       </main>
 

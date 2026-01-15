@@ -21,8 +21,9 @@ import {
   Flame,
   ChevronRight,
   Clock,
-  Trophy,
   Sparkles,
+  Play,
+  RefreshCw,
 } from 'lucide-react'
 
 interface SoloStudyCardProps {
@@ -36,9 +37,18 @@ interface UserStats {
   todayMinutes: number
 }
 
+interface ActiveSession {
+  id: string
+  durationMinutes: number
+  startedAt: string
+  timeRemaining: number
+  sessionType: 'solo_study' | 'quick_focus'
+}
+
 export default function SoloStudyCard({ className = '' }: SoloStudyCardProps) {
   const router = useRouter()
   const [stats, setStats] = useState<UserStats | null>(null)
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Fetch user stats
@@ -63,12 +73,45 @@ export default function SoloStudyCard({ className = '' }: SoloStudyCardProps) {
     }
   }, [])
 
+  // Fetch active session (check if Solo Study session is active)
+  const fetchActiveSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/focus/stats')
+      if (response.ok) {
+        const data = await response.json()
+        // Only show if it's a Solo Study session
+        if (data.stats?.activeSession?.sessionType === 'solo_study') {
+          setActiveSession(data.stats.activeSession)
+        } else {
+          setActiveSession(null)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch active session:', error)
+    }
+  }, [])
+
   useEffect(() => {
     fetchStats()
-  }, [fetchStats])
+    fetchActiveSession()
+    // Poll for active session updates
+    const interval = setInterval(fetchActiveSession, 30000)
+    return () => clearInterval(interval)
+  }, [fetchStats, fetchActiveSession])
 
   const handleStartStudy = () => {
     router.push('/solo-study')
+  }
+
+  const handleContinueSession = () => {
+    router.push('/solo-study')
+  }
+
+  // Format time remaining
+  const formatTimeRemaining = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   return (
@@ -150,14 +193,38 @@ export default function SoloStudyCard({ className = '' }: SoloStudyCardProps) {
           )}
 
           {/* Action Button */}
-          <button
-            onClick={handleStartStudy}
-            className="w-full py-4 sm:py-5 bg-white hover:bg-purple-50 rounded-2xl font-bold text-lg sm:text-xl text-purple-700 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl flex items-center justify-center gap-3"
-          >
-            <BookOpen className="w-6 h-6 text-purple-600" />
-            <span>Enter Study Room</span>
-            <ChevronRight className="w-5 h-5 text-purple-600" />
-          </button>
+          {activeSession ? (
+            // Has active Solo Study session
+            <div className="space-y-3">
+              <button
+                onClick={handleContinueSession}
+                className="w-full py-4 sm:py-5 bg-white hover:bg-purple-50 rounded-2xl font-bold text-lg sm:text-xl text-purple-700 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl flex items-center justify-center gap-3"
+              >
+                <Play className="w-6 h-6 text-purple-600 fill-purple-600" />
+                <span>Continue</span>
+                <span className="text-purple-500 font-mono text-base">
+                  {formatTimeRemaining(activeSession.timeRemaining)}
+                </span>
+              </button>
+
+              <button
+                onClick={handleStartStudy}
+                className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium text-white/90 transition-all flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-5 h-5" />
+                <span>Start New Session</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleStartStudy}
+              className="w-full py-4 sm:py-5 bg-white hover:bg-purple-50 rounded-2xl font-bold text-lg sm:text-xl text-purple-700 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl flex items-center justify-center gap-3"
+            >
+              <BookOpen className="w-6 h-6 text-purple-600" />
+              <span>Enter Study Room</span>
+              <ChevronRight className="w-5 h-5 text-purple-600" />
+            </button>
+          )}
 
           {/* Benefits */}
           <div className="mt-4 text-center text-white/60 text-sm">

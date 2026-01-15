@@ -27,6 +27,13 @@ interface UseVideoCallOptions {
   audioOnly?: boolean // For audio-only calls (no video)
 }
 
+// Participant info from API
+interface ParticipantInfo {
+  name: string
+  avatarUrl: string | null
+  userId: string
+}
+
 export function useVideoCall({
   channelName,
   onUserJoined,
@@ -104,6 +111,52 @@ export function useVideoCall({
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastHeartbeatRef = useRef<number>(Date.now())
 
+  // Participant info cache (UID -> name/avatar)
+  const participantInfoRef = useRef<Map<number, ParticipantInfo>>(new Map())
+
+  /**
+   * Fetch participant info from API
+   */
+  const fetchParticipantInfo = useCallback(async (uids?: number[]) => {
+    try {
+      const response = await fetch('/api/call/participants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelName, uids }),
+      })
+
+      if (!response.ok) {
+        console.warn('[useVideoCall] Failed to fetch participant info')
+        return
+      }
+
+      const data = await response.json()
+      if (data.success && data.participants) {
+        // Update the cache
+        Object.entries(data.participants).forEach(([uid, info]) => {
+          participantInfoRef.current.set(Number(uid), info as ParticipantInfo)
+        })
+
+        // Update remote users with the fetched info
+        setRemoteUsers((prev) => {
+          const newMap = new Map(prev)
+          newMap.forEach((user, uid) => {
+            const info = participantInfoRef.current.get(Number(uid))
+            if (info) {
+              user.name = info.name
+              user.avatarUrl = info.avatarUrl
+              user.userId = info.userId
+            }
+          })
+          remoteUsersRef.current = newMap
+          return newMap
+        })
+      }
+    } catch (error) {
+      console.error('[useVideoCall] Error fetching participant info:', error)
+    }
+  }, [channelName])
+
   /**
    * Initialize Agora client and set up event listeners
    */
@@ -154,6 +207,10 @@ export function useVideoCall({
           console.log('Video track label:', videoTrack?.getMediaStreamTrack()?.label, 'isScreenShare:', isScreenShare)
         }
 
+        // Get cached participant info
+        const uid = Number(user.uid)
+        const cachedInfo = participantInfoRef.current.get(uid)
+
         // Update remote users state
         setRemoteUsers((prev) => {
           const newMap = new Map(prev)
@@ -162,6 +219,9 @@ export function useVideoCall({
             hasAudio: false,
             hasVideo: false,
             hasScreenShare: false,
+            name: cachedInfo?.name,
+            avatarUrl: cachedInfo?.avatarUrl,
+            userId: cachedInfo?.userId,
           }
 
           if (mediaType === 'video') {
@@ -230,15 +290,67 @@ export function useVideoCall({
     })
 
     // Event: User joined channel
-    agoraClient.on('user-joined', (user: IAgoraRTCRemoteUser) => {
+    agoraClient.on('user-joined', async (user: IAgoraRTCRemoteUser) => {
       console.log('User joined:', user.uid)
       onUserJoined?.(user.uid)
-      toast.success(`User ${user.uid} joined the call`)
+
+      // Fetch participant info for this user
+      const uid = Number(user.uid)
+      const cachedInfo = participantInfoRef.current.get(uid)
+
+      if (cachedInfo) {
+        // Show name from cache
+        toast.success(`${cachedInfo.name} joined the call`)
+      } else {
+        // Fetch from API and update
+        try {
+          const response = await fetch('/api/call/participants', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelName, uids: [uid] }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.participants && data.participants[uid]) {
+              const info = data.participants[uid] as ParticipantInfo
+              participantInfoRef.current.set(uid, info)
+              toast.success(`${info.name} joined the call`)
+
+              // Update remote user with name
+              setRemoteUsers((prev) => {
+                const newMap = new Map(prev)
+                const existingUser = newMap.get(user.uid)
+                if (existingUser) {
+                  existingUser.name = info.name
+                  existingUser.avatarUrl = info.avatarUrl
+                  existingUser.userId = info.userId
+                  newMap.set(user.uid, existingUser)
+                }
+                remoteUsersRef.current = newMap
+                return newMap
+              })
+            } else {
+              toast.success(`Someone joined the call`)
+            }
+          } else {
+            toast.success(`Someone joined the call`)
+          }
+        } catch (error) {
+          console.error('Error fetching participant info:', error)
+          toast.success(`Someone joined the call`)
+        }
+      }
     })
 
     // Event: User left channel
     agoraClient.on('user-left', (user: IAgoraRTCRemoteUser, reason: string) => {
       console.log('User left:', user.uid, reason)
+
+      // Get user name from cache before removing
+      const uid = Number(user.uid)
+      const cachedInfo = participantInfoRef.current.get(uid)
+      const userName = cachedInfo?.name || 'Someone'
 
       setRemoteUsers((prev) => {
         const newMap = new Map(prev)
@@ -255,8 +367,8 @@ export function useVideoCall({
       onUserLeft?.(user.uid)
 
       const message = reason === 'ServerTimeOut'
-        ? `User ${user.uid} lost connection`
-        : `User ${user.uid} left the call`
+        ? `${userName} lost connection`
+        : `${userName} left the call`
       toast(message)
     })
 
@@ -507,6 +619,9 @@ export function useVideoCall({
       isJoiningRef.current = false
       console.log('🎉 Call connection complete!')
       toast.success('Connected to call')
+
+      // Fetch all participant info for the channel
+      fetchParticipantInfo()
     } catch (error) {
       console.error('❌ Error joining call:', error)
 
@@ -539,6 +654,11 @@ export function useVideoCall({
         // Check for network errors
         if ('code' in error && error.code === 'NETWORK_ERROR') {
           errorMessage = 'Network connection failed. Please check your internet connection and try again.'
+        }
+
+        // Check for room full errors (from server-side participant limit)
+        if ('code' in error && error.code === 'ROOM_FULL') {
+          errorMessage = 'This call room is full. Please try again later or wait for someone to leave.'
         }
 
         // If we haven't set a specific error message yet, use the original message
@@ -589,11 +709,13 @@ export function useVideoCall({
   }, [
     isConnecting,
     isConnected,
+    isOnline,
     channelName,
     localVideoEnabled,
     localAudioEnabled,
     initializeClient,
     onError,
+    fetchParticipantInfo,
   ])
 
   /**
@@ -649,13 +771,18 @@ export function useVideoCall({
       const audioTrack = localTracksRef.current.audioTrack
 
       if (!audioTrack) {
-        console.warn('No audio track to toggle')
+        console.warn('No audio track to toggle - microphone not available')
+        toast.error('Microphone not available. Please check permissions.')
         return
       }
 
       const newState = !localAudioEnabled
+      console.log(`🎤 Toggling audio: ${localAudioEnabled} -> ${newState}`)
+
       await audioTrack.setEnabled(newState)
       setLocalAudioEnabled(newState)
+
+      console.log(`🎤 Audio track enabled state: ${newState}, actual track enabled: ${audioTrack.enabled}`)
 
       toast.success(newState ? 'Microphone unmuted' : 'Microphone muted', {
         icon: newState ? '🎤' : '🔇',
@@ -674,7 +801,8 @@ export function useVideoCall({
       const videoTrack = localTracksRef.current.videoTrack
 
       if (!videoTrack) {
-        console.warn('No video track to toggle')
+        console.warn('No video track to toggle - this is an audio-only call')
+        toast.error('Camera not available in audio-only mode')
         return
       }
 
@@ -979,7 +1107,7 @@ export function useVideoCall({
       return
     }
     
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    const handleBeforeUnload = (_event: BeforeUnloadEvent) => {
       // Attempt synchronous cleanup on page unload
       try {
         // Stop local tracks immediately

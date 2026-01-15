@@ -4,6 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { isRedisConfigured } from '@/lib/cache'
+import logger from '@/lib/logger'
+import { fetchWithBackoff } from '@/lib/api/timeout'
 
 // =====================================================
 // TYPES
@@ -165,7 +167,9 @@ class RateLimiter {
         return await this.checkLimitRedis(key, now)
       }
     } catch (error) {
-      console.warn('[RateLimiter] Redis unavailable, using in-memory store')
+      logger.warn('[RateLimiter] Redis unavailable, using in-memory store', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
 
     // Fallback to in-memory
@@ -180,12 +184,14 @@ class RateLimiter {
     const url = process.env.UPSTASH_REDIS_REST_URL!
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
     const ttlSeconds = Math.ceil(this.config.windowMs / 1000)
+    const encodedKey = encodeURIComponent(key)
 
     try {
       // Increment counter and get current value
-      const incrResponse = await fetch(`${url}/incr/${key}`, {
+      const incrResponse = await fetchWithBackoff(`${url}/incr/${encodedKey}`, {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-      })
+      }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
 
       if (!incrResponse.ok) {
         throw new Error('Redis INCR failed')
@@ -196,9 +202,10 @@ class RateLimiter {
 
       // Set expiry if this is the first request in the window
       if (count === 1) {
-        await fetch(`${url}/expire/${key}/${ttlSeconds}`, {
+        await fetchWithBackoff(`${url}/expire/${encodedKey}/${ttlSeconds}`, {
+          method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
-        })
+        }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
       }
 
       const resetTime = now + this.config.windowMs
@@ -211,7 +218,7 @@ class RateLimiter {
         retryAfter: allowed ? undefined : Math.ceil((resetTime - now) / 1000),
       }
     } catch (error) {
-      console.error('[RateLimiter] Redis error:', error)
+      logger.error('[RateLimiter] Redis error', error instanceof Error ? error : { error })
       // Fallback to memory on error
       return this.checkLimitMemory(key, now)
     }
@@ -324,7 +331,7 @@ export async function adminRateLimit(
   const result = await limiter.checkLimit(identifier)
 
   if (!result.allowed) {
-    console.warn(`[RateLimit] ${preset} limit exceeded for ${identifier}`)
+    logger.warn('[RateLimit] Admin preset limit exceeded', { preset, identifier })
     return limiter.getRateLimitedResponse(result)
   }
 
@@ -399,12 +406,13 @@ export async function clearRateLimit(identifier: string, preset: keyof typeof AD
       const url = process.env.UPSTASH_REDIS_REST_URL!
       const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-      await fetch(`${url}/del/${key}`, {
+      await fetchWithBackoff(`${url}/del/${encodeURIComponent(key)}`, {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-      })
+      }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
     }
   } catch (error) {
-    console.error('[RateLimiter] Error clearing rate limit:', error)
+    logger.error('[RateLimiter] Error clearing rate limit', error instanceof Error ? error : { error })
   }
 
   inMemoryStore.delete(key)

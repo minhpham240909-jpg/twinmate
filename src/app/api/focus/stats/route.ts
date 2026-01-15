@@ -58,7 +58,7 @@ export async function GET() {
     let userTodaySessions = 0
     let userTotalSessions = 0
     let userPercentile = 0
-    let activeSession: { id: string; durationMinutes: number; startedAt: string; timeRemaining: number } | null = null
+    let activeSession: { id: string; durationMinutes: number; startedAt: string; timeRemaining: number; sessionType: 'solo_study' | 'quick_focus' } | null = null
 
     if (user) {
       // Run user-specific queries in parallel (no expensive groupBy)
@@ -78,6 +78,7 @@ export async function GET() {
             id: true,
             durationMinutes: true,
             startedAt: true,
+            label: true,
           },
         }),
         // Get stored streak from profile
@@ -117,12 +118,16 @@ export async function GET() {
         const elapsed = Date.now() - startTime
         const remainingSeconds = Math.max(0, Math.ceil((durationMs - elapsed) / 1000))
 
+        // Determine session type based on label
+        const isSoloStudy = userActiveSession.label?.startsWith('Solo Study') || false
+
         if (remainingSeconds > 0) {
           activeSession = {
             id: userActiveSession.id,
             durationMinutes: userActiveSession.durationMinutes,
             startedAt: userActiveSession.startedAt.toISOString(),
             timeRemaining: remainingSeconds,
+            sessionType: isSoloStudy ? 'solo_study' : 'quick_focus',
           }
         } else {
           // Session has expired - auto-complete it in the background

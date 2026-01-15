@@ -4,13 +4,53 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Volume2, VolumeX, Volume1 } from 'lucide-react'
 
 // Sound types for mixing
+// Hybrid approach: Procedural noise as fallback + optional audio URLs for real sounds
+// Audio URLs from free sound libraries (Freesound, etc.) - replace with your own hosted files for production
 const SOUND_LAYERS = [
-  { id: 'rain', name: 'Rain', icon: '🌧️', noiseType: 'pink' as const },
-  { id: 'cafe', name: 'Cafe', icon: '☕', noiseType: 'brown' as const },
-  { id: 'forest', name: 'Forest', icon: '🌲', noiseType: 'pink' as const, hasChirps: true },
-  { id: 'ocean', name: 'Ocean', icon: '🌊', noiseType: 'brown' as const },
-  { id: 'white_noise', name: 'White Noise', icon: '📻', noiseType: 'white' as const },
-  { id: 'fireplace', name: 'Fireplace', icon: '🔥', noiseType: 'brown' as const },
+  {
+    id: 'rain',
+    name: 'Rain',
+    icon: '🌧️',
+    noiseType: 'pink' as const,
+    // Free rain ambient from freesound.org (CC0) - example URL
+    audioUrl: 'https://cdn.freesound.org/previews/531/531947_5766779-lq.mp3',
+  },
+  {
+    id: 'cafe',
+    name: 'Cafe',
+    icon: '☕',
+    noiseType: 'brown' as const,
+    audioUrl: 'https://cdn.freesound.org/previews/462/462361_9159316-lq.mp3',
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    icon: '🌲',
+    noiseType: 'pink' as const,
+    hasChirps: true,
+    audioUrl: 'https://cdn.freesound.org/previews/509/509026_10799555-lq.mp3',
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    icon: '🌊',
+    noiseType: 'brown' as const,
+    audioUrl: 'https://cdn.freesound.org/previews/573/573577_7869667-lq.mp3',
+  },
+  {
+    id: 'white_noise',
+    name: 'White Noise',
+    icon: '📻',
+    noiseType: 'white' as const,
+    // No audio URL - procedural white noise is perfect for this
+  },
+  {
+    id: 'fireplace',
+    name: 'Fireplace',
+    icon: '🔥',
+    noiseType: 'brown' as const,
+    audioUrl: 'https://cdn.freesound.org/previews/499/499071_10656503-lq.mp3',
+  },
 ]
 
 interface SoundLayer {
@@ -37,6 +77,7 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
   const audioContextRef = useRef<AudioContext | null>(null)
   const soundNodesRef = useRef<Map<string, {
     source: AudioBufferSourceNode | null
+    audioElement?: HTMLAudioElement
     gain: GainNode
     interval?: NodeJS.Timeout
   }>>(new Map())
@@ -118,6 +159,7 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
       try {
         existing.source?.stop()
         existing.source?.disconnect()
+        existing.audioElement?.pause()
         if (existing.interval) clearInterval(existing.interval)
       } catch {}
     }
@@ -127,6 +169,35 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
     gainNode.connect(audioContext.destination)
     gainNode.gain.value = volume * masterVolume * (isMuted ? 0 : 1)
 
+    // Try to use audio URL first (better quality), fall back to procedural noise
+    if (soundDef.audioUrl) {
+      // Use real audio file
+      const audio = new Audio(soundDef.audioUrl)
+      audio.loop = true
+      audio.volume = volume * masterVolume * (isMuted ? 0 : 1)
+      audio.crossOrigin = 'anonymous'
+
+      audio.play().catch(() => {
+        // If audio fails to load, fall back to procedural noise
+        console.log(`Audio failed for ${layerId}, using procedural noise`)
+        startProceduralSound(layerId, volume, soundDef, audioContext, gainNode)
+      })
+
+      soundNodesRef.current.set(layerId, { source: null, audioElement: audio, gain: gainNode })
+    } else {
+      // Use procedural noise
+      startProceduralSound(layerId, volume, soundDef, audioContext, gainNode)
+    }
+  }, [masterVolume, isMuted])
+
+  // Start procedural sound (fallback)
+  const startProceduralSound = useCallback((
+    layerId: string,
+    volume: number,
+    soundDef: typeof SOUND_LAYERS[0],
+    audioContext: AudioContext,
+    gainNode: GainNode
+  ) => {
     // Create noise source
     const buffer = createNoiseBuffer(audioContext, soundDef.noiseType)
     const source = audioContext.createBufferSource()
@@ -173,7 +244,7 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
     }
 
     soundNodesRef.current.set(layerId, { source, gain: gainNode, interval })
-  }, [masterVolume, isMuted, createNoiseBuffer])
+  }, [createNoiseBuffer, masterVolume])
 
   // Stop a sound layer
   const stopSoundLayer = useCallback((layerId: string) => {
@@ -182,6 +253,7 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
       try {
         node.source?.stop()
         node.source?.disconnect()
+        node.audioElement?.pause()
         node.gain.disconnect()
         if (node.interval) clearInterval(node.interval)
       } catch {}
@@ -234,10 +306,14 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
     setSoundLayers((prev) =>
       prev.map((layer) => {
         if (layer.id === layerId) {
-          // Update gain node if exists
+          // Update gain node or audio element if exists
           const node = soundNodesRef.current.get(layerId)
-          if (node && audioContextRef.current) {
-            node.gain.gain.setValueAtTime(volume * masterVolume * (isMuted ? 0 : 1), audioContextRef.current.currentTime)
+          if (node) {
+            if (node.audioElement) {
+              node.audioElement.volume = volume * masterVolume * (isMuted ? 0 : 1)
+            } else if (audioContextRef.current) {
+              node.gain.gain.setValueAtTime(volume * masterVolume * (isMuted ? 0 : 1), audioContextRef.current.currentTime)
+            }
           }
           return { ...layer, volume }
         }
@@ -251,8 +327,12 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
     setMasterVolume(volume)
     soundNodesRef.current.forEach((node, layerId) => {
       const layer = soundLayers.find((l) => l.id === layerId)
-      if (layer && audioContextRef.current) {
-        node.gain.gain.setValueAtTime(layer.volume * volume * (isMuted ? 0 : 1), audioContextRef.current.currentTime)
+      if (layer) {
+        if (node.audioElement) {
+          node.audioElement.volume = layer.volume * volume * (isMuted ? 0 : 1)
+        } else if (audioContextRef.current) {
+          node.gain.gain.setValueAtTime(layer.volume * volume * (isMuted ? 0 : 1), audioContextRef.current.currentTime)
+        }
       }
     })
   }
@@ -263,8 +343,12 @@ export default function SoloStudySoundMixer({ isPlaying }: SoloStudySoundMixerPr
       const newMuted = !prev
       soundNodesRef.current.forEach((node, layerId) => {
         const layer = soundLayers.find((l) => l.id === layerId)
-        if (layer && audioContextRef.current) {
-          node.gain.gain.setValueAtTime(newMuted ? 0 : layer.volume * masterVolume, audioContextRef.current.currentTime)
+        if (layer) {
+          if (node.audioElement) {
+            node.audioElement.volume = newMuted ? 0 : layer.volume * masterVolume
+          } else if (audioContextRef.current) {
+            node.gain.gain.setValueAtTime(newMuted ? 0 : layer.volume * masterVolume, audioContextRef.current.currentTime)
+          }
         }
       })
       return newMuted

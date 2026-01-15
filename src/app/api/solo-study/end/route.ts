@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * Update user's study streak (stored in Profile)
+ * Now supports streak shields to protect against missed days
  */
 async function updateStreak(userId: string) {
   try {
@@ -81,6 +82,32 @@ async function updateStreak(userId: string) {
 
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
+
+    const twoDaysAgo = new Date(today)
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
+
+    // Get current profile stats (including streak shields)
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      select: {
+        studyStreak: true,
+        lastStudyDate: true,
+        streakShields: true,
+      },
+    })
+
+    if (!profile) return
+
+    // Check if already studied today
+    if (profile.lastStudyDate) {
+      const lastStudy = new Date(profile.lastStudyDate)
+      lastStudy.setHours(0, 0, 0, 0)
+
+      if (lastStudy.getTime() === today.getTime()) {
+        // Already updated today, nothing to do
+        return
+      }
+    }
 
     // Check if user studied yesterday
     const yesterdaySession = await prisma.focusSession.findFirst({
@@ -94,50 +121,47 @@ async function updateStreak(userId: string) {
       },
     })
 
-    // Get current profile stats
-    const profile = await prisma.profile.findUnique({
-      where: { userId },
-      select: { studyStreak: true, lastStudyDate: true },
-    })
-
-    if (!profile) return
-
     let newStreak = 1
+    let shieldsToUse = 0
 
-    // If studied yesterday, increment streak
     if (yesterdaySession) {
+      // Studied yesterday - continue the streak
       newStreak = (profile.studyStreak || 0) + 1
-    } else {
-      // Check if already studied today (maintain streak)
-      const todaySession = await prisma.focusSession.findFirst({
-        where: {
-          userId,
-          status: 'COMPLETED',
-          startedAt: {
-            gte: today,
-          },
-        },
-      })
+    } else if (profile.lastStudyDate) {
+      // Didn't study yesterday - check if we can use a shield
+      const lastStudy = new Date(profile.lastStudyDate)
+      lastStudy.setHours(0, 0, 0, 0)
 
-      if (todaySession && profile.lastStudyDate) {
-        const lastStudy = new Date(profile.lastStudyDate)
-        lastStudy.setHours(0, 0, 0, 0)
+      // Calculate days missed
+      const daysMissed = Math.floor((today.getTime() - lastStudy.getTime()) / (1000 * 60 * 60 * 24)) - 1
 
-        if (lastStudy.getTime() === today.getTime()) {
-          // Already updated today
-          return
-        }
+      if (daysMissed > 0 && daysMissed <= (profile.streakShields || 0)) {
+        // Use shields to protect streak
+        shieldsToUse = daysMissed
+        newStreak = (profile.studyStreak || 0) + 1
+        console.log(`[Streak] Using ${shieldsToUse} shield(s) to protect streak for user ${userId}`)
+      } else if (daysMissed > 0) {
+        // No shields or not enough - streak resets
+        newStreak = 1
+        console.log(`[Streak] Streak reset for user ${userId} (missed ${daysMissed} days, had ${profile.streakShields || 0} shields)`)
       }
     }
 
-    // Update streak in Profile
+    // Update streak and shields in Profile
     await prisma.profile.update({
       where: { userId },
       data: {
         studyStreak: newStreak,
         lastStudyDate: new Date(),
+        ...(shieldsToUse > 0 && {
+          streakShields: { decrement: shieldsToUse },
+        }),
       },
     })
+
+    if (shieldsToUse > 0) {
+      console.log(`[Streak] Streak protected! Used ${shieldsToUse} shield(s). New streak: ${newStreak}`)
+    }
   } catch (error) {
     console.error('Update streak error:', error)
   }

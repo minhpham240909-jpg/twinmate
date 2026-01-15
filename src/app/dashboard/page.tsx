@@ -16,7 +16,6 @@ import SoloStudyCard from '@/components/SoloStudyCard'
 import {
   DashboardTopBar,
   DashboardStatsRow,
-  DashboardSearch,
   DashboardPartnersSection,
 } from '@/components/dashboard'
 
@@ -77,7 +76,6 @@ export default function DashboardPage() {
 
   // AI Partner suggestion modal state
   const [showAIPartnerModal, setShowAIPartnerModal] = useState(false)
-  const [searchQueryForModal, setSearchQueryForModal] = useState('')
 
   // Group IDs for real-time subscription
   const [groupIds, setGroupIds] = useState<string[]>([])
@@ -538,6 +536,7 @@ export default function DashboardPage() {
         newCommunityPostsCount={newCommunityPostsCount}
         onNotificationsClick={() => setShowNotifications(!showNotifications)}
         onChatClick={() => router.push('/chat')}
+        onShowAIPartnerModal={() => setShowAIPartnerModal(true)}
       />
 
       {/* Main Content */}
@@ -564,11 +563,6 @@ export default function DashboardPage() {
 
           {/* AI Partner Widget */}
           <DashboardAIWidget />
-
-          {/* Search */}
-          <DashboardSearch 
-            onShowAIPartnerModal={() => setShowAIPartnerModal(true)} 
-          />
 
           {/* Complete Profile Banner */}
           {showCompleteProfileBanner && (
@@ -610,7 +604,7 @@ export default function DashboardPage() {
         isOpen={showAIPartnerModal}
         onClose={() => setShowAIPartnerModal(false)}
         searchCriteria={{}}
-        searchQuery={searchQueryForModal}
+        searchQuery=""
         noResultsReason="name_not_found"
       />
     </div>

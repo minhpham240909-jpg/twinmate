@@ -8,7 +8,7 @@
  * - Using Redis for distributed tracking
  */
 
-import { getCached, setCached, invalidateCache } from './cache'
+import { getCached, setCached, invalidateCache, isRedisConfigured } from './cache'
 import logger from './logger'
 
 const LOCKOUT_CONFIG = {
@@ -23,11 +23,16 @@ interface LockoutData {
   lastAttempt: number
 }
 
+function normalizeIdentifier(identifier: string): string {
+  return identifier.trim().toLowerCase()
+}
+
 /**
  * Generate cache key for lockout tracking
  */
 function getLockoutKey(identifier: string): string {
-  return `lockout:${identifier}`
+  // Versioned prefix to avoid collisions across deployments
+  return `v1:auth-lockout:${normalizeIdentifier(identifier)}`
 }
 
 /**
@@ -35,6 +40,12 @@ function getLockoutKey(identifier: string): string {
  */
 export async function getLockoutData(identifier: string): Promise<LockoutData> {
   const key = getLockoutKey(identifier)
+
+  // In production, lockout MUST be distributed (Redis). Env validation should enforce this.
+  if (process.env.NODE_ENV === 'production' && !isRedisConfigured()) {
+    logger.error('Redis not configured in production for account lockout', { key })
+  }
+
   const data = await getCached<LockoutData>(key)
   
   if (!data) {
@@ -50,6 +61,8 @@ export async function getLockoutData(identifier: string): Promise<LockoutData> {
   const minutesSinceLastAttempt = (now - data.lastAttempt) / (1000 * 60)
   
   if (minutesSinceLastAttempt > LOCKOUT_CONFIG.ATTEMPT_WINDOW_MINUTES) {
+    // Reset attempts due to inactivity (and clear cached state)
+    await invalidateCache(key)
     // Reset attempts due to inactivity
     return {
       attempts: 0,

@@ -23,6 +23,8 @@
  */
 
 import { NextRequest } from 'next/server'
+import logger from '@/lib/logger'
+import { fetchWithBackoff } from '@/lib/api/timeout'
 
 export interface RateLimitConfig {
   /**
@@ -144,17 +146,16 @@ export async function rateLimit(
   // In production, Redis is REQUIRED for proper rate limiting across instances
   if (isProduction) {
     if (!redisWarningShown) {
-      console.error('🔴 CRITICAL: Redis not configured in production!')
-      console.error('   Rate limiting will NOT work correctly across server instances.')
-      console.error('   This leaves the application vulnerable to abuse.')
-      console.error('   Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN')
+      logger.error('CRITICAL: Redis not configured in production for rate limiting', {
+        required: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+      })
       redisWarningShown = true
     }
 
     // SECURITY: In production without Redis, apply strict rate limiting
     // Use much lower limits since we can't coordinate across instances
     const strictMax = Math.min(max, 3) // Maximum 3 requests per window per instance
-    console.warn(`⚠️  Rate limit using STRICT memory fallback (key: ${key}, limit: ${strictMax})`)
+    logger.warn('Rate limit using STRICT memory fallback (no Redis)', { key, strictMax })
     return rateLimitWithMemory(key, strictMax, windowMs)
   }
 
@@ -183,20 +184,18 @@ async function rateLimitWithRedis(
       ['TTL', key],
     ]
 
-    const response = await fetch(`${url}/pipeline`, {
+    const response = await fetchWithBackoff(`${url}/pipeline`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(pipeline),
-    })
+    }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
 
     if (!response.ok) {
       const errorText = await response.text()
-      if (typeof console !== 'undefined') {
-        console.error('Upstash Redis error:', errorText)
-      }
+      logger.error('Upstash Redis rate-limit pipeline error', { errorText })
       // Fallback to memory on Redis error
       return rateLimitWithMemory(key, max, windowMs)
     }
@@ -233,9 +232,7 @@ async function rateLimitWithRedis(
       headers,
     }
   } catch (error) {
-    if (typeof console !== 'undefined') {
-      console.error('Rate limit error:', error)
-    }
+    logger.error('Rate limit error', error instanceof Error ? error : { error })
     // Fallback to memory on error
     return rateLimitWithMemory(key, max, windowMs)
   }

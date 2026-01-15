@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect, ReactNode } from 'react'
+import { useState, ReactNode } from 'react'
+import Image from 'next/image'
 import { Image as ImageIcon, ChevronUp } from 'lucide-react'
 
 // Virtual backgrounds for Solo Study
+// Hybrid approach: CSS gradients for fallback + optional image URLs for premium quality
 export const SOLO_STUDY_BACKGROUNDS = [
   {
     id: 'library',
@@ -11,6 +13,8 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-gradient-to-br from-amber-900/90 via-neutral-900 to-neutral-950',
     previewColor: '#78350f',
     icon: '📚',
+    // Unsplash library image (free to use)
+    imageUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920&q=80',
   },
   {
     id: 'cafe',
@@ -18,6 +22,7 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-gradient-to-br from-orange-900/80 via-stone-900 to-neutral-950',
     previewColor: '#7c2d12',
     icon: '☕',
+    imageUrl: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?w=1920&q=80',
   },
   {
     id: 'nature',
@@ -25,6 +30,7 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-gradient-to-br from-green-900/80 via-emerald-950 to-neutral-950',
     previewColor: '#14532d',
     icon: '🌲',
+    imageUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80',
   },
   {
     id: 'ocean',
@@ -32,6 +38,7 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-gradient-to-br from-blue-900/80 via-cyan-950 to-neutral-950',
     previewColor: '#1e3a5f',
     icon: '🌊',
+    imageUrl: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1920&q=80',
   },
   {
     id: 'night',
@@ -39,6 +46,7 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-gradient-to-br from-indigo-950 via-purple-950 to-neutral-950',
     previewColor: '#1e1b4b',
     icon: '🌙',
+    imageUrl: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80',
   },
   {
     id: 'minimal',
@@ -46,6 +54,7 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-neutral-950',
     previewColor: '#0a0a0a',
     icon: '⬛',
+    // No image - pure CSS for minimal distraction
   },
 ]
 
@@ -68,16 +77,33 @@ export default function SoloStudyBackground({
   // If just rendering background without selector
   if (!showSelector) {
     return (
-      <div className={`min-h-screen ${currentBg.bgClass} transition-colors duration-700`}>
+      <div className={`min-h-screen ${currentBg.bgClass} transition-colors duration-700 relative`}>
+        {/* Background Image (if available) */}
+        {currentBg.imageUrl && (
+          <div className="fixed inset-0 z-0">
+            <Image
+              src={currentBg.imageUrl}
+              alt={currentBg.name}
+              fill
+              className="object-cover"
+              priority
+              unoptimized // Use Unsplash's CDN directly
+            />
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-black/60" />
+          </div>
+        )}
         {/* Subtle animated overlay for depth */}
-        <div className="fixed inset-0 pointer-events-none">
+        <div className="fixed inset-0 pointer-events-none z-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent" />
           <div className="absolute inset-0 opacity-30">
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
           </div>
         </div>
-        {children}
+        <div className="relative z-20">
+          {children}
+        </div>
       </div>
     )
   }

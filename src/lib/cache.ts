@@ -11,6 +11,9 @@
  * Automatically falls back to in-memory cache in development
  */
 
+import logger from '@/lib/logger'
+import { fetchWithBackoff, type FetchBackoffOptions } from '@/lib/api/timeout'
+
 interface CacheEntry<T> {
   data: T
   expiresAt: number
@@ -250,6 +253,23 @@ export const CACHE_PREFIX = {
   CONNECTIONS: `${CACHE_VERSION}:connections`,
 } as const
 
+const UPSTASH_BACKOFF: FetchBackoffOptions = {
+  // Keep this small: Upstash is low-latency; we mainly want resilience for brief blips/429s
+  maxRetries: 3,
+  initialDelayMs: 150,
+  maxDelayMs: 1500,
+  backoffMultiplier: 2,
+  jitterRatio: 0.2,
+  retryOnStatuses: [429, 500, 502, 503, 504],
+  respectRetryAfter: true,
+  timeoutPerAttemptMs: 5000,
+}
+
+function encodeUpstashPathSegment(value: string): string {
+  // Upstash REST encodes keys and patterns as path segments
+  return encodeURIComponent(value)
+}
+
 /**
  * Check if Redis/Upstash is configured
  */
@@ -266,9 +286,9 @@ export async function getCached<T>(key: string): Promise<T | null> {
       const url = process.env.UPSTASH_REDIS_REST_URL!
       const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-      const response = await fetch(`${url}/get/${key}`, {
+      const response = await fetchWithBackoff(`${url}/get/${encodeUpstashPathSegment(key)}`, {
         headers: { Authorization: `Bearer ${token}` },
-      })
+      }, UPSTASH_BACKOFF)
 
       if (!response.ok) return null
 
@@ -277,7 +297,7 @@ export async function getCached<T>(key: string): Promise<T | null> {
 
       return JSON.parse(result.result) as T
     } catch (error) {
-      console.error('Redis GET error:', error)
+      logger.error('Redis GET error', error instanceof Error ? error : { error })
       // Fallback to memory cache
       return cache.get<T>(key)
     }
@@ -297,11 +317,12 @@ export async function setCached<T>(key: string, data: T, ttl: number): Promise<v
       const token = process.env.UPSTASH_REDIS_REST_TOKEN!
       const value = JSON.stringify(data)
 
-      await fetch(`${url}/setex/${key}/${ttl}/${encodeURIComponent(value)}`, {
+      await fetchWithBackoff(`${url}/setex/${encodeUpstashPathSegment(key)}/${ttl}/${encodeURIComponent(value)}`, {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-      })
+      }, UPSTASH_BACKOFF)
     } catch (error) {
-      console.error('Redis SETEX error:', error)
+      logger.error('Redis SETEX error', error instanceof Error ? error : { error })
       // Fallback to memory cache
       cache.set(key, data, ttl)
     }
@@ -321,31 +342,32 @@ export async function invalidateCache(pattern: string): Promise<void> {
 
       if (pattern.includes('*')) {
         // Get matching keys
-        const scanResponse = await fetch(`${url}/keys/${pattern}`, {
+        const scanResponse = await fetchWithBackoff(`${url}/keys/${encodeUpstashPathSegment(pattern)}`, {
           headers: { Authorization: `Bearer ${token}` },
-        })
+        }, UPSTASH_BACKOFF)
 
         if (scanResponse.ok) {
           const keys = await scanResponse.json()
           if (keys.result && Array.isArray(keys.result) && keys.result.length > 0) {
             const pipeline = keys.result.map((key: string) => ['DEL', key])
-            await fetch(`${url}/pipeline`, {
+            await fetchWithBackoff(`${url}/pipeline`, {
               method: 'POST',
               headers: {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify(pipeline),
-            })
+            }, UPSTASH_BACKOFF)
           }
         }
       } else {
-        await fetch(`${url}/del/${pattern}`, {
+        await fetchWithBackoff(`${url}/del/${encodeUpstashPathSegment(pattern)}`, {
+          method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
-        })
+        }, UPSTASH_BACKOFF)
       }
     } catch (error) {
-      console.error('Redis invalidate error:', error)
+      logger.error('Redis invalidate error', error instanceof Error ? error : { error })
     }
   }
 
@@ -385,7 +407,10 @@ function enforceInFlightBounds(): void {
       inFlightRequests.delete(key)
       removed++
     }
-    console.warn(`[Cache] Pruned ${removed} in-flight requests (was at ${inFlightRequests.size + removed})`)
+    logger.warn('Cache pruned in-flight requests (high concurrency)', {
+      removed,
+      sizeAfter: inFlightRequests.size,
+    })
   }
 }
 
@@ -404,9 +429,10 @@ async function acquireLock(lockKey: string): Promise<boolean> {
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
     // SETNX with expiry - atomic operation
-    const response = await fetch(`${url}/set/${lockKey}/1/ex/${LOCK_TTL}/nx`, {
+    const response = await fetchWithBackoff(`${url}/set/${encodeUpstashPathSegment(lockKey)}/1/ex/${LOCK_TTL}/nx`, {
+      method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-    })
+    }, UPSTASH_BACKOFF)
 
     if (response.ok) {
       const result = await response.json()
@@ -428,9 +454,10 @@ async function releaseLock(lockKey: string): Promise<void> {
     const url = process.env.UPSTASH_REDIS_REST_URL!
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-    await fetch(`${url}/del/${lockKey}`, {
+    await fetchWithBackoff(`${url}/del/${encodeUpstashPathSegment(lockKey)}`, {
+      method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-    })
+    }, UPSTASH_BACKOFF)
   } catch {
     // Ignore errors - lock will expire anyway
   }
@@ -523,7 +550,9 @@ export async function getOrSetCachedWithStale<T>(
 
   if (stale !== null) {
     // Return stale data and refresh in background
-    getOrSetCached(key, ttl, fetchFn).catch(console.error)
+    getOrSetCached(key, ttl, fetchFn).catch((error) => {
+      logger.error('Cache background refresh failed', error instanceof Error ? error : { error })
+    })
     return stale
   }
 
@@ -610,14 +639,14 @@ export async function getMultipleCached<T>(keys: string[]): Promise<Map<string, 
 
       // Use Redis pipeline for batch get
       const pipeline = keys.map(key => ['GET', key])
-      const response = await fetch(`${url}/pipeline`, {
+      const response = await fetchWithBackoff(`${url}/pipeline`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(pipeline),
-      })
+      }, UPSTASH_BACKOFF)
 
       if (response.ok) {
         const data = await response.json()
@@ -632,7 +661,7 @@ export async function getMultipleCached<T>(keys: string[]): Promise<Map<string, 
         })
       }
     } catch (error) {
-      console.error('Redis MGET error:', error)
+      logger.error('Redis MGET error', error instanceof Error ? error : { error })
       // Fallback to memory cache
       for (const key of keys) {
         const value = cache.get<T>(key)
@@ -673,16 +702,16 @@ export async function setMultipleCached<T>(entries: Array<{ key: string; data: T
         JSON.stringify(data),
       ])
 
-      await fetch(`${url}/pipeline`, {
+      await fetchWithBackoff(`${url}/pipeline`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(pipeline),
-      })
+      }, UPSTASH_BACKOFF)
     } catch (error) {
-      console.error('Redis MSET error:', error)
+      logger.error('Redis MSET error', error instanceof Error ? error : { error })
       // Fallback to memory cache
       for (const { key, data, ttl } of entries) {
         cache.set(key, data, ttl)
@@ -886,23 +915,23 @@ export async function clearAllCaches(): Promise<{ success: boolean; cleared: num
       const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
       // Get all keys and delete them
-      const scanResponse = await fetch(`${url}/keys/*`, {
+      const scanResponse = await fetchWithBackoff(`${url}/keys/${encodeUpstashPathSegment('*')}`, {
         headers: { Authorization: `Bearer ${token}` },
-      })
+      }, UPSTASH_BACKOFF)
 
       if (scanResponse.ok) {
         const keys = await scanResponse.json()
         if (keys.result && Array.isArray(keys.result) && keys.result.length > 0) {
           clearedCount = keys.result.length
           const pipeline = keys.result.map((key: string) => ['DEL', key])
-          await fetch(`${url}/pipeline`, {
+          await fetchWithBackoff(`${url}/pipeline`, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(pipeline),
-          })
+          }, UPSTASH_BACKOFF)
         }
       }
     }
@@ -918,7 +947,7 @@ export async function clearAllCaches(): Promise<{ success: boolean; cleared: num
       message: `Successfully cleared ${clearedCount} cache entries`,
     }
   } catch (error) {
-    console.error('Error clearing caches:', error)
+    logger.error('Error clearing caches', error instanceof Error ? error : { error })
     // Still try to clear memory cache
     cache.clear()
     return {

@@ -1,46 +1,58 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Quote, RefreshCw, X } from 'lucide-react'
+import { Quote, RefreshCw } from 'lucide-react'
 import { MOTIVATIONAL_QUOTES, STORAGE_KEYS } from '@/lib/focus/constants'
 
 interface MotivationalQuoteProps {
   showAtStart?: boolean
+  /** If true, shows as an always-visible inline banner instead of popup */
+  alwaysVisible?: boolean
 }
 
-export default function MotivationalQuote({ showAtStart = true }: MotivationalQuoteProps) {
+export default function MotivationalQuote({ showAtStart = true, alwaysVisible = false }: MotivationalQuoteProps) {
   const [quote, setQuote] = useState<{ text: string; author: string } | null>(null)
   const [isVisible, setIsVisible] = useState(false)
   const [isEnabled, setIsEnabled] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Load preferences
+  // Load preferences and initial quote
   useEffect(() => {
     const enabled = localStorage.getItem(STORAGE_KEYS.QUOTES_ENABLED) !== 'false'
     setIsEnabled(enabled)
-    
+
+    // Always load a quote for alwaysVisible mode
+    if (alwaysVisible) {
+      const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]
+      setQuote(randomQuote)
+      setIsVisible(true)
+      return
+    }
+
     if (enabled && showAtStart) {
       // Show quote on start
       const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]
       setQuote(randomQuote)
       setIsVisible(true)
-      
+
       // Auto-hide after 8 seconds
       const timer = setTimeout(() => {
         setIsVisible(false)
       }, 8000)
-      
+
       return () => clearTimeout(timer)
     }
-  }, [showAtStart])
+  }, [showAtStart, alwaysVisible])
 
   const getNewQuote = useCallback(() => {
-    const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]
-    setQuote(randomQuote)
-    setIsVisible(true)
-  }, [])
-
-  const dismiss = useCallback(() => {
-    setIsVisible(false)
+    setIsRefreshing(true)
+    // Small delay for animation
+    setTimeout(() => {
+      const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]
+      setQuote(randomQuote)
+      setIsVisible(true)
+      setIsRefreshing(false)
+    }, 200)
   }, [])
 
   const toggleEnabled = useCallback(() => {
@@ -52,6 +64,36 @@ export default function MotivationalQuote({ showAtStart = true }: MotivationalQu
     }
   }, [isEnabled])
 
+  // Always-visible inline mode
+  if (alwaysVisible) {
+    if (!quote) return null
+
+    return (
+      <div className={`transition-opacity duration-200 ${isRefreshing ? 'opacity-50' : 'opacity-100'}`}>
+        <div className="flex items-center justify-center gap-3 px-4 py-3 bg-white/5 backdrop-blur-sm rounded-2xl">
+          <Quote className="w-5 h-5 text-white/40 flex-shrink-0" />
+          <blockquote className="text-center">
+            <p className="text-white/80 text-sm font-medium leading-relaxed">
+              &ldquo;{quote.text}&rdquo;
+            </p>
+            <cite className="text-white/50 text-xs not-italic">
+              — {quote.author}
+            </cite>
+          </blockquote>
+          <button
+            onClick={getNewQuote}
+            disabled={isRefreshing}
+            className="p-2 text-white/40 hover:text-white/70 hover:bg-white/10 rounded-lg transition-all flex-shrink-0 disabled:opacity-50"
+            title="New quote"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Original popup mode (for backward compatibility)
   if (!isVisible || !quote) {
     return (
       <button
@@ -94,11 +136,10 @@ export default function MotivationalQuote({ showAtStart = true }: MotivationalQu
             <span>New quote</span>
           </button>
           <button
-            onClick={dismiss}
+            onClick={() => setIsVisible(false)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-all"
           >
-            <X className="w-4 h-4" />
-            <span>Dismiss</span>
+            <span>Start Studying</span>
           </button>
         </div>
 

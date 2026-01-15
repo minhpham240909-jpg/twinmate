@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { fetchWithBackoff } from '@/lib/api/timeout'
 
 const requestSchema = z.object({
   city: z.string().optional(),
@@ -17,6 +18,10 @@ const requestSchema = z.object({
  * For manual entry: User types city/state/country → we get coordinates for matching
  */
 export async function POST(request: NextRequest) {
+  let fallbackCity: string | undefined
+  let fallbackState: string | undefined
+  let fallbackCountry: string | undefined
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()
@@ -41,6 +46,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { city, state, country, address } = validation.data
+    fallbackCity = city
+    fallbackState = state
+    fallbackCountry = country
 
     // Build address string for geocoding
     let addressString = address || ''
@@ -78,7 +86,7 @@ export async function POST(request: NextRequest) {
     // Call Google Maps Geocoding API
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressString)}&key=${apiKey}`
 
-    const geocodeResponse = await fetch(geocodeUrl)
+    const geocodeResponse = await fetchWithBackoff(geocodeUrl, {}, { timeoutPerAttemptMs: 8000, maxRetries: 3 })
     const geocodeData = await geocodeResponse.json()
 
     if (geocodeData.status !== 'OK' || !geocodeData.results || geocodeData.results.length === 0) {
@@ -146,16 +154,15 @@ export async function POST(request: NextRequest) {
     logger.error('[Forward Geocode] Error:', { error:  error })
 
     // Return graceful fallback - text-only matching will be used
-    const { city, state, country } = await request.json()
     return NextResponse.json({
       success: true,
       location: {
         lat: null,
         lng: null,
-        city: city || null,
-        state: state || null,
-        country: country || null,
-        formatted_address: [city, state, country].filter(Boolean).join(', '),
+        city: fallbackCity || null,
+        state: fallbackState || null,
+        country: fallbackCountry || null,
+        formatted_address: [fallbackCity, fallbackState, fallbackCountry].filter(Boolean).join(', '),
         geocoded: false,
       },
     })

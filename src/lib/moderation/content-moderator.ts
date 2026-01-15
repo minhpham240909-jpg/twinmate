@@ -20,6 +20,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import logger from '@/lib/logger'
 import { logModerationAction } from '@/lib/security/audit-logger'
+import { fetchWithBackoff } from '@/lib/api/timeout'
 
 // ===== TYPES =====
 
@@ -572,13 +573,18 @@ async function moderateWithAI(content: string): Promise<ModerationResult> {
   }
   
   try {
-    const response = await fetch('https://api.openai.com/v1/moderations', {
+    const response = await fetchWithBackoff('https://api.openai.com/v1/moderations', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ input: content }),
+    }, {
+      maxRetries: 3,
+      initialDelayMs: 300,
+      maxDelayMs: 5000,
+      timeoutPerAttemptMs: 15000,
     })
     
     if (!response.ok) {

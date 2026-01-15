@@ -3,6 +3,18 @@ import { RtcTokenBuilder, RtcRole } from 'agora-token'
 import { createClient } from '@/lib/supabase/server'
 import { corsHeaders, handleCorsPreFlight } from '@/lib/cors'
 import { prisma } from '@/lib/prisma'
+import { getCached, setCached } from '@/lib/cache'
+import logger from '@/lib/logger'
+
+// Maximum users per call room - prevents overload at scale
+const MAX_USERS_PER_CALL = {
+  dm: 2,      // DM calls are always 1-on-1
+  group: 8,   // Group calls limited to 8 for quality
+  study: 8,   // Study sessions limited to 8
+} as const
+
+// Cache Agora tokens briefly to reduce DB churn on repeated joins/refreshes
+const AGORA_TOKEN_CACHE_TTL_SECONDS = 10 * 60 // 10 minutes
 
 // Handle CORS preflight
 export async function OPTIONS(req: NextRequest) {
@@ -123,6 +135,61 @@ async function validateChannelAccess(
   return { valid: true, type: 'study' }
 }
 
+/**
+ * Check current participant count for a channel
+ * Uses UserPresence with currentActivity to track who's in a call
+ */
+async function getChannelParticipantCount(
+  channelName: string,
+  callType: 'dm' | 'group' | 'study'
+): Promise<number> {
+  try {
+    // For study sessions, we can check SessionParticipant with status JOINED
+    if (callType === 'study') {
+      const session = await prisma.studySession.findFirst({
+        where: { agoraChannel: channelName },
+        select: { id: true }
+      })
+
+      if (session) {
+        const count = await prisma.sessionParticipant.count({
+          where: {
+            sessionId: session.id,
+            status: 'JOINED',
+            // Only count users who joined recently (within last 5 minutes)
+            joinedAt: {
+              gte: new Date(Date.now() - 5 * 60 * 1000)
+            }
+          }
+        })
+        return count
+      }
+    }
+
+    // For DM and Group calls, check UserPresence with currentActivity containing the channel
+    // This is a best-effort check as presence data may be slightly stale
+    const activeUsers = await prisma.userPresence.count({
+      where: {
+        status: 'online',
+        isPrivate: false,
+        activityType: 'in_call',
+        activityDetails: {
+          contains: channelName
+        },
+        lastSeenAt: {
+          gte: new Date(Date.now() - 2 * 60 * 1000) // Active within last 2 minutes
+        }
+      }
+    })
+
+    return activeUsers
+  } catch (error) {
+    logger.error('[Agora Token] Error checking participant count', error instanceof Error ? error : { error })
+    // On error, return 0 to allow the call (fail open for better UX)
+    return 0
+  }
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
   const headers = corsHeaders(origin)
@@ -133,7 +200,7 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.error('[Agora Token] Auth error:', authError)
+      logger.warn('[Agora Token] Auth error', { error: authError?.message })
       return NextResponse.json(
         { error: 'Unauthorized', details: authError?.message },
         { status: 401, headers }
@@ -154,14 +221,38 @@ export async function POST(req: NextRequest) {
     const validation = await validateChannelAccess(channelName, user.id)
 
     if (!validation.valid) {
-      console.warn(`[Agora Token] Access denied for user ${user.id} to channel ${channelName}: ${validation.error}`)
+      logger.warn('[Agora Token] Access denied', {
+        userId: user.id,
+        channelName,
+        error: validation.error,
+      })
       return NextResponse.json(
         { error: validation.error },
         { status: 403, headers }
       )
     }
 
-    console.log(`[Agora Token] Access validated for ${validation.type} call:`, { channelName, userId: user.id })
+    logger.info('[Agora Token] Access validated', { type: validation.type, channelName, userId: user.id })
+
+    // Check participant limit before allowing join
+    const callType = validation.type!
+    const maxParticipants = MAX_USERS_PER_CALL[callType]
+    const currentParticipants = await getChannelParticipantCount(channelName, callType)
+
+    if (currentParticipants >= maxParticipants) {
+      logger.warn('[Agora Token] Call room full', { channelName, currentParticipants, maxParticipants, callType })
+      return NextResponse.json(
+        {
+          error: `This ${callType === 'dm' ? 'call' : 'room'} is full. Maximum ${maxParticipants} participants allowed.`,
+          code: 'ROOM_FULL',
+          currentParticipants,
+          maxParticipants,
+        },
+        { status: 403, headers }
+      )
+    }
+
+    logger.info('[Agora Token] Room capacity check passed', { channelName, currentParticipants, maxParticipants, callType })
 
     // Get Agora credentials
     const sanitize = (val: string | undefined) => val?.replace(/[\r\n\s]+/g, '').trim() || ''
@@ -169,7 +260,7 @@ export async function POST(req: NextRequest) {
     const appCertificate = sanitize(process.env.AGORA_APP_CERTIFICATE)
 
     if (!appId || !appCertificate) {
-      console.error('[Agora Token] Missing credentials!')
+      logger.error('[Agora Token] Missing credentials')
       return NextResponse.json(
         { error: 'Agora credentials not configured' },
         { status: 500, headers }
@@ -192,6 +283,22 @@ export async function POST(req: NextRequest) {
 
     const userUid = uid || generateConsistentUid(user.id)
 
+    // Token caching (5–10 minutes TTL)
+    const cacheKey = `v1:agora-token:${user.id}:${channelName}:${role}:${userUid}`
+    const nowSec = Math.floor(Date.now() / 1000)
+    const cached = await getCached<{
+      token: string
+      appId: string
+      channelName: string
+      uid: number
+      expiresAt: number
+      success: true
+    }>(cacheKey)
+
+    if (cached && cached.expiresAt > nowSec + 60) {
+      return NextResponse.json(cached, { headers })
+    }
+
     // Token expiration (24 hours)
     const expirationTimeInSeconds = 86400
     const currentTimestamp = Math.floor(Date.now() / 1000)
@@ -209,22 +316,26 @@ export async function POST(req: NextRequest) {
       privilegeExpiredTs
     )
 
-    console.log('[Agora Token] Token generated successfully for', validation.type, 'call')
+    logger.info('[Agora Token] Token generated', { type: validation.type, channelName, userId: user.id })
+
+    const payload = {
+      token,
+      appId,
+      channelName,
+      uid: userUid,
+      expiresAt: privilegeExpiredTs,
+      success: true as const,
+    }
+
+    await setCached(cacheKey, payload, AGORA_TOKEN_CACHE_TTL_SECONDS)
 
     return NextResponse.json(
-      {
-        token,
-        appId,
-        channelName,
-        uid: userUid,
-        expiresAt: privilegeExpiredTs,
-        success: true
-      },
+      payload,
       { headers }
     )
 
   } catch (error: unknown) {
-    console.error('[Agora Token] Fatal error:', error)
+    logger.error('[Agora Token] Fatal error', error instanceof Error ? error : { error })
     const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(
       { error: 'Failed to generate Agora token', details: errorMessage },

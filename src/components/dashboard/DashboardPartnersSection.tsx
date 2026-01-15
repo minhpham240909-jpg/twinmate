@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { BookOpen, Phone, Bot, Moon, Circle } from 'lucide-react'
 import PartnerAvatar from '@/components/PartnerAvatar'
 
 interface OnlinePartner {
@@ -28,18 +29,23 @@ export default function DashboardPartnersSection({
   const t = useTranslations('dashboard')
   const tCommon = useTranslations('common')
 
+  // Count partners who are actively studying
+  const studyingPartners = onlinePartners.filter(p =>
+    p.activityType === 'studying' || p.activityType === 'in_call' || p.activityType === 'with_ai'
+  )
+
   const getActivityDisplay = (activityType?: string) => {
     switch (activityType) {
       case 'studying':
-        return { icon: '📚', text: 'Studying', color: 'text-blue-500' }
+        return { icon: <BookOpen className="w-3 h-3" />, text: 'Studying now', color: 'text-blue-500', bgColor: 'bg-blue-500/10', pulse: true }
       case 'in_call':
-        return { icon: '📞', text: 'In Call', color: 'text-green-500' }
+        return { icon: <Phone className="w-3 h-3" />, text: 'In a study call', color: 'text-green-500', bgColor: 'bg-green-500/10', pulse: true }
       case 'with_ai':
-        return { icon: '🤖', text: 'With AI', color: 'text-purple-500' }
+        return { icon: <Bot className="w-3 h-3" />, text: 'With AI Partner', color: 'text-purple-500', bgColor: 'bg-purple-500/10', pulse: true }
       case 'idle':
-        return { icon: '💤', text: 'Away', color: 'text-yellow-500' }
+        return { icon: <Moon className="w-3 h-3" />, text: 'Away', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', pulse: false }
       default:
-        return { icon: '🟢', text: 'Online', color: 'text-emerald-500' }
+        return { icon: <Circle className="w-3 h-3 fill-current" />, text: 'Online', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', pulse: false }
     }
   }
 
@@ -86,15 +92,37 @@ export default function DashboardPartnersSection({
             <div className="flex-1">
               <h3 className="font-bold text-neutral-900 dark:text-white text-base sm:text-lg">{t('onlinePartners')}</h3>
               {!loadingOnlinePartners && onlinePartners.length > 0 && (
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{onlinePartners.length} online</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                  {studyingPartners.length > 0 ? (
+                    <span className="text-blue-500 font-medium">{studyingPartners.length} studying now</span>
+                  ) : (
+                    `${onlinePartners.length} online`
+                  )}
+                </p>
               )}
             </div>
             {!loadingOnlinePartners && onlinePartners.length > 0 && (
-              <span className="px-2.5 py-1 bg-gradient-to-r from-blue-100 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-full">
+              <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${studyingPartners.length > 0 ? 'bg-blue-500 text-white animate-pulse' : 'bg-gradient-to-r from-blue-100 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
                 {onlinePartners.length}
               </span>
             )}
           </div>
+
+          {/* "Partners studying now" banner */}
+          {!loadingOnlinePartners && studyingPartners.length > 0 && (
+            <div className="mb-3 p-2.5 bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-900/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <p className="text-xs text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+                {studyingPartners.length === 1
+                  ? `${studyingPartners[0].name} is studying right now!`
+                  : `${studyingPartners.length} partners are studying now!`
+                }
+              </p>
+            </div>
+          )}
 
           {/* Loading State */}
           {loadingOnlinePartners ? (
@@ -134,10 +162,16 @@ export default function DashboardPartnersSection({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-neutral-900 dark:text-white truncate group-hover:text-neutral-600 dark:group-hover:text-neutral-300 transition-colors text-xs sm:text-sm">{partner.name}</p>
-                      <p className={`text-xs ${activity.color} flex items-center gap-1`}>
-                        <span>{activity.icon}</span>
-                        <span>{activity.text}</span>
-                      </p>
+                      <div className={`inline-flex items-center gap-1 text-xs ${activity.color} ${activity.bgColor} px-1.5 py-0.5 rounded-full`}>
+                        {activity.pulse && (
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current"></span>
+                          </span>
+                        )}
+                        {activity.icon}
+                        <span className="font-medium">{activity.text}</span>
+                      </div>
                     </div>
                     <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-neutral-400 dark:text-neutral-500 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />

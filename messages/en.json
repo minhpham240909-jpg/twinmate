@@ -34,7 +34,9 @@
     "connect": "Connect",
     "message": "Message",
     "cancelRequest": "Cancel Request",
-    "send": "Send"
+    "send": "Send",
+    "viewProfile": "View Profile",
+    "editProfile": "Edit Profile"
   },
   "navigation": {
     "dashboard": "Dashboard",
