@@ -22,10 +22,11 @@ export async function GET(request: NextRequest) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { isAdmin: true },
+      select: { isAdmin: true, deactivatedAt: true },
     })
 
-    if (!dbUser?.isAdmin) {
+    // Check admin status and not deactivated
+    if (!dbUser?.isAdmin || dbUser.deactivatedAt) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -87,6 +88,14 @@ export async function GET(request: NextRequest) {
       ])
 
       // Also get actual flagged messages with images from Message table
+      // OPTIMIZATION: Limit the subquery to prevent unbounded memory usage
+      const flaggedContentIds = await prisma.flaggedContent.findMany({
+        where: { contentType: { in: ['DIRECT_MESSAGE', 'GROUP_MESSAGE'] } },
+        select: { contentId: true },
+        take: 1000, // Cap to prevent memory issues with large datasets
+        orderBy: { flaggedAt: 'desc' },
+      })
+
       const messageImageWhere: any = {
         OR: [
           { type: 'IMAGE' },
@@ -95,10 +104,7 @@ export async function GET(request: NextRequest) {
         ],
         // Only get messages that have been flagged (via FlaggedContent)
         id: {
-          in: await prisma.flaggedContent.findMany({
-            where: { contentType: { in: ['DIRECT_MESSAGE', 'GROUP_MESSAGE'] } },
-            select: { contentId: true },
-          }).then(f => f.map(x => x.contentId)),
+          in: flaggedContentIds.map(x => x.contentId),
         },
       }
 

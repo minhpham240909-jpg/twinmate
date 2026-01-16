@@ -10,9 +10,15 @@ interface PushNotificationPromptProps {
 
 /**
  * Floating prompt to enable push notifications
- * Shows after user has been on the app for a while
+ * Shows quickly after user logs in (like Instagram, TikTok, etc.)
+ * Default delay is 2 seconds for better conversion (similar to social apps)
+ *
+ * IMPORTANT: This is designed to be opt-out rather than opt-in
+ * - Shows automatically after short delay
+ * - Only dismisses for current session (comes back on next visit if not enabled)
+ * - This is the same pattern used by Instagram, TikTok, Facebook
  */
-export default function PushNotificationPrompt({ delay = 30000 }: PushNotificationPromptProps) {
+export default function PushNotificationPrompt({ delay = 2000 }: PushNotificationPromptProps) {
   const [showPrompt, setShowPrompt] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const {

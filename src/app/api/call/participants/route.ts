@@ -79,27 +79,33 @@ export async function POST(req: NextRequest) {
       }
     } else if (channelName.startsWith('grp')) {
       // Group call - get all group members
+      // Extract groupId from channel name to avoid N+1 query loop
+      // Channel format: grp{groupIdWithoutDashes} (first 60 chars)
+      const channelGroupPart = channelName.slice(3) // Remove 'grp' prefix
+
+      // Get user's groups with their full groupIds
       const userGroups = await prisma.groupMember.findMany({
         where: { userId: user.id },
         select: { groupId: true }
       })
 
-      for (const userGroup of userGroups) {
-        const expectedChannel = `grp${userGroup.groupId.replace(/-/g, '').slice(0, 60)}`
+      // Find matching group by comparing channel names
+      const matchingGroup = userGroups.find(ug => {
+        const expectedChannel = `grp${ug.groupId.replace(/-/g, '').slice(0, 60)}`
+        return expectedChannel === channelName
+      })
 
-        if (expectedChannel === channelName) {
-          const groupMembers = await prisma.groupMember.findMany({
-            where: { groupId: userGroup.groupId },
-            include: {
-              user: {
-                select: { id: true, name: true, avatarUrl: true }
-              }
+      if (matchingGroup) {
+        // Single query to get all group members
+        const groupMembers = await prisma.groupMember.findMany({
+          where: { groupId: matchingGroup.groupId },
+          include: {
+            user: {
+              select: { id: true, name: true, avatarUrl: true }
             }
-          })
-
-          participants = groupMembers.map(m => m.user)
-          break
-        }
+          }
+        })
+        participants = groupMembers.map(m => m.user)
       }
     } else {
       // Study session - get session participants

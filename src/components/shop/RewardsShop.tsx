@@ -1,34 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { Star, Shield, Palette, Volume2, Check, Lock, X, HelpCircle, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-interface ShopItem {
-  id: string
-  itemId: string
-  name: string
-  description: string | null
-  category: 'THEME' | 'SOUND' | 'STREAK_SHIELD' | 'FEATURE'
-  pointsCost: number
-  icon: string | null
-  isOwned: boolean
-  isActive: boolean
-  quantity: number
-  canAfford: boolean
-}
-
-interface ShopData {
-  items: {
-    THEME: ShopItem[]
-    SOUND: ShopItem[]
-    STREAK_SHIELD: ShopItem[]
-    FEATURE: ShopItem[]
-  }
-  userPoints: number
-  streakShields: number
-  totalCompletedSessions: number
-}
+import { useShopData, usePurchaseItem, useActivateItem } from '@/hooks/useShopData'
 
 interface RewardsShopProps {
   isOpen: boolean
@@ -39,76 +14,34 @@ interface RewardsShopProps {
 const MIN_SESSIONS_TO_SHOW = 3
 
 export default function RewardsShop({ isOpen, onClose }: RewardsShopProps) {
-  const [data, setData] = useState<ShopData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [purchasing, setPurchasing] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'THEME' | 'SOUND' | 'STREAK_SHIELD'>('THEME')
   const [showGuide, setShowGuide] = useState(false)
 
-  const fetchShopData = useCallback(async () => {
-    try {
-      const response = await fetch('/api/shop/items')
-      if (response.ok) {
-        const result = await response.json()
-        setData(result)
-      }
-    } catch (error) {
-      console.error('Failed to fetch shop data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchShopData()
-    }
-  }, [isOpen, fetchShopData])
+  // Use React Query hooks for cached data (prevents constant re-fetching)
+  const { data, isLoading: loading } = useShopData()
+  const purchaseMutation = usePurchaseItem()
+  const activateMutation = useActivateItem()
 
   const handlePurchase = async (itemId: string) => {
-    setPurchasing(itemId)
     try {
-      const response = await fetch('/api/shop/purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId }),
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        toast.success(result.message)
-        fetchShopData() // Refresh data
-      } else {
-        toast.error(result.error || 'Purchase failed')
-      }
+      const result = await purchaseMutation.mutateAsync(itemId)
+      toast.success(result.message || 'Item purchased!')
     } catch (error) {
-      toast.error('Something went wrong')
-    } finally {
-      setPurchasing(null)
+      toast.error(error instanceof Error ? error.message : 'Purchase failed')
     }
   }
 
   const handleActivate = async (itemId: string) => {
     try {
-      const response = await fetch('/api/shop/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId }),
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        toast.success(result.message)
-        fetchShopData()
-      } else {
-        toast.error(result.error || 'Activation failed')
-      }
+      const result = await activateMutation.mutateAsync(itemId)
+      toast.success(result.message || 'Item activated!')
     } catch (error) {
-      toast.error('Something went wrong')
+      toast.error(error instanceof Error ? error.message : 'Activation failed')
     }
   }
+
+  // Track which item is being purchased
+  const purchasing = purchaseMutation.isPending ? purchaseMutation.variables : null
 
   if (!isOpen) return null
 

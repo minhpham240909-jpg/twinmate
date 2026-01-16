@@ -90,20 +90,21 @@ export async function POST(
       (p) => p.status === 'INVITED' && p.userId !== user.id
     )
 
-    for (const participant of invitedParticipants) {
+    // Use batch insert instead of loop to avoid N+1 queries
+    if (invitedParticipants.length > 0) {
       try {
-        await prisma.notification.create({
-          data: {
+        await prisma.notification.createMany({
+          data: invitedParticipants.map((participant) => ({
             userId: participant.userId,
             type: 'SESSION_STARTED',
-            title: 'Study Session Started',
-            message: `"${session.title}" has started! Join now.`,
+            title: '🚀 Study Session is Live!',
+            message: `"${session.title}" just started! Your study partners are waiting for you.`,
             actionUrl: `/study-sessions/${sessionId}/call`,
             relatedUserId: user.id,
-          },
+          })),
         })
       } catch (error) {
-        console.error('Error creating notification:', error)
+        console.error('Error creating notifications:', error)
       }
     }
 

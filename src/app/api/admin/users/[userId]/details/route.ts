@@ -60,6 +60,9 @@ export async function GET(
       aiPartnerSessions,
       aiPartnerStats,
       aiPartnerFlaggedMessages,
+      // Solo mode and Quick focus session stats
+      soloSessionStats,
+      quickFocusStats,
     ] = await Promise.all([
       // 1. Core user data with profile
       prisma.user.findUnique({
@@ -420,6 +423,33 @@ export async function GET(
           }
         }
       }).catch(() => []),
+
+      // 17. Solo Mode Session Stats (Study Room - SOLO type)
+      // Only count COMPLETED sessions where the full duration was used
+      prisma.studySession.aggregate({
+        where: {
+          createdBy: userId,
+          type: 'SOLO',
+          status: 'COMPLETED', // Only count if fully completed
+        },
+        _count: true,
+        _sum: {
+          durationMinutes: true, // Total study time in solo mode (in minutes)
+        },
+      }).catch(() => ({ _count: 0, _sum: { durationMinutes: null } })),
+
+      // 18. Quick Focus Session Stats
+      // Only count COMPLETED sessions (user didn't abandon/end early)
+      prisma.focusSession.aggregate({
+        where: {
+          userId,
+          status: 'COMPLETED', // Only count if fully completed (not ABANDONED)
+        },
+        _count: true,
+        _sum: {
+          durationMinutes: true, // Total focus time
+        },
+      }).catch(() => ({ _count: 0, _sum: { durationMinutes: null } })),
     ])
 
     if (!userData) {
@@ -538,6 +568,12 @@ export async function GET(
           totalReportsAgainst,
           totalWarnings,
           accountAge: Math.floor((Date.now() - new Date(userData.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+          // Solo Mode Sessions (completed only)
+          completedSoloSessions: soloSessionStats._count || 0,
+          totalSoloStudyMinutes: soloSessionStats._sum?.durationMinutes || 0,
+          // Quick Focus Sessions (completed only)
+          completedQuickFocusSessions: quickFocusStats._count || 0,
+          totalQuickFocusMinutes: quickFocusStats._sum?.durationMinutes || 0,
         },
 
         // Detailed data

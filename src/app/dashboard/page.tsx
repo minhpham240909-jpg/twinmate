@@ -53,6 +53,7 @@ export default function DashboardPage() {
     onlineStatus: string
     activityType?: string
     activityDetails?: Record<string, unknown> | null
+    streak?: number
   }> => {
     if (typeof window === 'undefined') return []
     const cached = localStorage.getItem('dashboard_onlinePartners')
@@ -88,6 +89,7 @@ export default function DashboardPage() {
     onlineStatus: string
     activityType?: string
     activityDetails?: Record<string, unknown> | null
+    streak?: number
   }>>(() => getInitialOnlinePartners())
 
   // User stats state (streak, study time)
@@ -110,7 +112,9 @@ export default function DashboardPage() {
     return hasLoadedFlag || hasCachedPartners || hasCachedCounts
   }
   const hasLoadedOnceRef = useRef<boolean>(getHasLoadedOnce())
-  
+  // AbortController ref for refreshOnlinePartners to cancel in-flight requests
+  const refreshOnlinePartnersAbortRef = useRef<AbortController | null>(null)
+
   const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(() => {
     return !hasLoadedOnceRef.current
   })
@@ -195,7 +199,8 @@ export default function DashboardPage() {
               avatarUrl: p.avatarUrl,
               onlineStatus: p.onlineStatus,
               activityType: p.activityType || 'browsing',
-              activityDetails: p.activityDetails || null
+              activityDetails: p.activityDetails || null,
+              streak: p.streak || 0, // Include streak for profile cards
             })) || []
           setOnlinePartners(online)
           
@@ -236,31 +241,46 @@ export default function DashboardPage() {
   // Refresh online partners function for event-based updates
   const refreshOnlinePartners = useCallback(async () => {
     if (!user) return
-    
+
+    // Cancel any previous in-flight request
+    if (refreshOnlinePartnersAbortRef.current) {
+      refreshOnlinePartnersAbortRef.current.abort()
+    }
+
+    const abortController = new AbortController()
+    refreshOnlinePartnersAbortRef.current = abortController
+
     try {
-      const response = await fetch('/api/partners/active')
+      const response = await fetch('/api/partners/active', { signal: abortController.signal })
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.partners) {
           const online = data.partners
             ?.filter((p: { onlineStatus: string }) => p.onlineStatus === 'ONLINE')
-            .map((p: { id: string; name: string; avatarUrl: string | null; onlineStatus: string; activityType?: string; activityDetails?: Record<string, unknown> | null }) => ({
+            .map((p: { id: string; name: string; avatarUrl: string | null; onlineStatus: string; activityType?: string; activityDetails?: Record<string, unknown> | null; streak?: number }) => ({
               id: p.id,
               name: p.name,
               avatarUrl: p.avatarUrl,
               onlineStatus: p.onlineStatus,
               activityType: p.activityType || 'browsing',
-              activityDetails: p.activityDetails || null
+              activityDetails: p.activityDetails || null,
+              streak: p.streak || 0, // Include streak for profile cards
             })) || []
           setOnlinePartners(online)
-          
+
           if (typeof window !== 'undefined') {
             localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
           }
         }
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return
       console.error('Error refreshing online partners:', error)
+    } finally {
+      // Clear ref if this is the current controller
+      if (refreshOnlinePartnersAbortRef.current === abortController) {
+        refreshOnlinePartnersAbortRef.current = null
+      }
     }
   }, [user])
 
@@ -295,6 +315,11 @@ export default function DashboardPage() {
 
     return () => {
       clearInterval(onlinePartnersInterval)
+      // Cancel any in-flight refresh request on cleanup
+      if (refreshOnlinePartnersAbortRef.current) {
+        refreshOnlinePartnersAbortRef.current.abort()
+        refreshOnlinePartnersAbortRef.current = null
+      }
     }
   }, [user, refreshOnlinePartners])
 
@@ -319,9 +344,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return
 
+    const abortController = new AbortController()
+    let isMounted = true
+
     const fetchGroupIds = async () => {
       try {
-        const response = await fetch('/api/groups/my-groups')
+        const response = await fetch('/api/groups/my-groups', { signal: abortController.signal })
+        if (!isMounted) return
         if (response.ok) {
           const data = await response.json()
           if (data.success && data.groups) {
@@ -330,20 +359,30 @@ export default function DashboardPage() {
           }
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
         console.error('Error fetching group IDs:', error)
       }
     }
 
     fetchGroupIds()
+
+    return () => {
+      isMounted = false
+      abortController.abort()
+    }
   }, [user])
 
   // Fetch user stats (streak, study time) for dashboard display
   useEffect(() => {
     if (!user) return
 
+    const abortController = new AbortController()
+    let isMounted = true
+
     const fetchUserStats = async () => {
       try {
-        const response = await fetch('/api/user/stats')
+        const response = await fetch('/api/user/stats', { signal: abortController.signal })
+        if (!isMounted) return
         if (response.ok) {
           const data = await response.json()
           if (data.success && data.stats) {
@@ -351,6 +390,7 @@ export default function DashboardPage() {
           }
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
         console.error('Error fetching user stats:', error)
       }
     }
@@ -358,16 +398,24 @@ export default function DashboardPage() {
     fetchUserStats()
     const interval = setInterval(fetchUserStats, 5 * 60 * 1000)
 
-    return () => clearInterval(interval)
+    return () => {
+      isMounted = false
+      abortController.abort()
+      clearInterval(interval)
+    }
   }, [user])
 
   // Real-time subscription for unread message updates
   useEffect(() => {
     if (!user) return
 
+    const abortController = new AbortController()
+    let isMounted = true
+
     const refreshUnreadCounts = async () => {
       try {
-        const response = await fetch('/api/messages/unread-counts')
+        const response = await fetch('/api/messages/unread-counts', { signal: abortController.signal })
+        if (!isMounted) return
         if (response.ok) {
           const data = await response.json()
           const total = data.total || 0
@@ -377,12 +425,17 @@ export default function DashboardPage() {
           }
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
         console.error('Error refreshing unread counts:', error)
       }
     }
 
     const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts, groupIds.length > 0 ? groupIds : undefined)
-    return cleanup
+    return () => {
+      isMounted = false
+      abortController.abort()
+      cleanup()
+    }
   }, [user, groupIds])
 
   // Request notification permission on first visit after signup/login
@@ -566,9 +619,9 @@ export default function DashboardPage() {
 
           {/* Complete Profile Banner */}
           {showCompleteProfileBanner && (
-            <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-900/20 dark:to-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-2xl p-4 sm:p-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
@@ -579,7 +632,7 @@ export default function DashboardPage() {
                 </div>
                 <button
                   onClick={handleCompleteProfile}
-                  className="w-full sm:w-auto px-5 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg whitespace-nowrap text-sm sm:text-base"
+                  className="w-full sm:w-auto px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors whitespace-nowrap text-sm sm:text-base"
                 >
                   {t('completeProfile')}
                 </button>

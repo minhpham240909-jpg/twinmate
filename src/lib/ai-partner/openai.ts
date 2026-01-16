@@ -571,7 +571,7 @@ You are a study partner. Follow these rules strictly:
 
 EXAMPLES OF GOOD RESPONSES (no unnecessary questions):
 - "The mitochondria produces ATP through cellular respiration. It has an inner membrane with cristae that increases surface area for reactions."
-- "Here's how to solve quadratic equations using the formula: x = (-b ± √(b²-4ac)) / 2a. Let me show you an example..."
+- "Here's how to solve quadratic equations using the formula: $$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$ Let me show you an example..."
 - "Great work on that problem! The next topic in this chapter covers derivatives."
 
 EXAMPLES OF WHEN TO ASK (appropriate questions):
@@ -596,7 +596,14 @@ CORE RULES:
 5. Be encouraging but honest about areas that need improvement.
 6. If you don't know something, admit it and suggest resources.
 7. NEVER use quotation marks around subjects, topics, or names.
-8. EQUATIONS (MANDATORY): ANY equation, formula, or expression from ANY field MUST use LaTeX SOURCE CODE syntax wrapped in dollar signs. Use $...$ for inline math (e.g., $E = mc^2$), $$...$$ for display math. NEVER output HTML tags, NEVER output rendered KaTeX/MathML. Output ONLY the raw LaTeX text like "$\\frac{dy}{dx}$" - the frontend handles rendering.
+8. EQUATIONS (MANDATORY - ALWAYS FOLLOW):
+   - ALL mathematical expressions MUST use LaTeX syntax with dollar signs
+   - Inline math: $...$ (e.g., $E = mc^2$, $v = \\sqrt{2gH}$, $F = ma$)
+   - Display math (centered, block): $$...$$ (e.g., $$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$)
+   - Use proper LaTeX commands: \\frac{}{} for fractions, \\sqrt{} for roots, ^{} for superscripts, _{} for subscripts
+   - NEVER use plain text like "v = sqrt(2gH)" - ALWAYS use "$v = \\sqrt{2gH}$"
+   - NEVER output HTML, KaTeX tags, or MathML - only raw LaTeX source code
+   - Examples: $KE = \\frac{1}{2}mv^2$, $\\Delta x = v_0 t + \\frac{1}{2}at^2$, $$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$
 ${conversationRules}
 YOUR CAPABILITIES:
 - Explain concepts clearly at the appropriate level
@@ -1138,7 +1145,7 @@ export async function generateQuizQuestion(params: {
 
   // OPTIMIZED: Shorter system prompt for faster generation
   const systemPrompt = `Quiz generator. ${skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''}
-EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display.
+EQUATION RULE: ALL math MUST use LaTeX with $..$ or $$..$$. Use \\frac{}{}, \\sqrt{}, ^{}, _{}. Example: $v = \\sqrt{2gH}$, $$F = \\frac{Gm_1m_2}{r^2}$$. NEVER plain text math.
 Return JSON: {"question":"text","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}`
 
   const userPrompt = `${difficulty} quiz on ${subject}${topic ? `: ${topic}` : ''}${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}.${previousQuestions.length > 0 ? ` Avoid: ${previousQuestions.slice(-3).map(q => q.slice(0, 50)).join('; ')}` : ''}`
@@ -1308,7 +1315,7 @@ export async function generateFlashcards(params: {
   const diffHint = difficultyGuidance.split('\n')[0]
 
   const systemPrompt = `Flashcard generator. ${levelHint} ${diffHint}
-EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display. Frontend renders the LaTeX.
+EQUATION RULE: ALL math MUST use LaTeX with $..$ or $$..$$. Use \\frac{}{}, \\sqrt{}, ^{}, _{}. Example: $v = \\sqrt{2gH}$, $$F = \\frac{Gm_1m_2}{r^2}$$. NEVER plain text math.
 Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
   const userPrompt = `${count} ${difficulty} flashcards on ${subject}: "${topic}"${skillLevel ? ` (${skillLevel.toLowerCase()})` : ''}`
@@ -1395,7 +1402,7 @@ export async function generateFlashcardsFromChat(params: {
   const diffHint = difficultyGuidance.split('\n')[0]
 
   const systemPrompt = `Create flashcards from conversation. ${levelHint} ${diffHint}
-EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display. Frontend renders the LaTeX.
+EQUATION RULE: ALL math MUST use LaTeX with $..$ or $$..$$. Use \\frac{}{}, \\sqrt{}, ^{}, _{}. Example: $v = \\sqrt{2gH}$, $$F = \\frac{Gm_1m_2}{r^2}$$. NEVER plain text math.
 Return JSON: {"flashcards":[{"front":"Q","back":"A"}]}`
 
   // OPTIMIZED: Truncate conversation to key parts
@@ -1651,7 +1658,7 @@ export async function generateQuizFromChat(params: {
   // OPTIMIZED: Shorter prompt for faster generation
   const levelHint = skillLevel && skillLevelGuidance ? skillLevelGuidance.split('\n')[0] : ''
   const systemPrompt = `Quiz from conversation. ${levelHint}
-EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display.
+EQUATION RULE: ALL math MUST use LaTeX with $..$ or $$..$$. Use \\frac{}{}, \\sqrt{}, ^{}, _{}. Example: $v = \\sqrt{2gH}$, $$F = \\frac{Gm_1m_2}{r^2}$$. NEVER plain text math.
 Return JSON: {"questions":[{"question":"Q","options":["A","B","C","D"],"correctAnswer":0-3,"explanation":"why"}]}`
 
   // OPTIMIZED: Truncate conversation
@@ -2822,7 +2829,7 @@ export async function generateMixedQuizFromChat(params: {
   const excludeHint = excludeQuestions.length > 0 ? ` Avoid: ${excludeQuestions.slice(0, 3).map(q => q.slice(0, 30)).join('; ')}` : ''
 
   const systemPrompt = `Interactive quiz from conversation. ${levelHint}. ${typeHint}.${excludeHint}
-EQUATION RULE: Output LaTeX SOURCE CODE only (e.g., "$E = mc^2$", "$\\frac{dy}{dx}$"). NEVER output HTML, KaTeX tags, or MathML. Use $...$ for inline, $$...$$ for display.
+EQUATION RULE: ALL math MUST use LaTeX with $..$ or $$..$$. Use \\frac{}{}, \\sqrt{}, ^{}, _{}. Example: $v = \\sqrt{2gH}$, $$F = \\frac{Gm_1m_2}{r^2}$$. NEVER plain text math.
 Return JSON: {"questions":[{"question":"Q","type":"multiple_choice|open_ended","options":["A","B","C","D"],"correctAnswer":0-3,"correctAnswerText":"for open","explanation":"why"}]}`
 
   // OPTIMIZED: Truncate conversation

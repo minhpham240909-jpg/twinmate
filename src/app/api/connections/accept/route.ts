@@ -109,13 +109,14 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create notification for sender
+      // Create notification for sender - celebratory tone
+      // ✅ Inspire action: Celebrate the new connection
       await tx.notification.create({
         data: {
           userId: match.senderId,
           type: 'MATCH_ACCEPTED',
-          title: 'Connection Request Accepted',
-          message: `${match.receiver.name} accepted your connection request`,
+          title: '🎉 New Study Partner!',
+          message: `${match.receiver.name} is now your study partner! Start a conversation to plan your first study session.`,
           isRead: false,
           relatedUserId: user.id,
           relatedMatchId: match.id,

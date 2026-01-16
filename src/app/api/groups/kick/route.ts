@@ -84,13 +84,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send notification to kicked user
+    // Send notification to removed user - reframed positively
+    // ✅ Inspire action: Encourage finding other groups
+    // ❌ Never shame: Don't use harsh "kicked" language
     await prisma.notification.create({
       data: {
         userId: userId,
         type: 'GROUP_REMOVED',
-        title: 'Removed from Group',
-        message: `You have been removed from the group "${group.name}"`,
+        title: 'Group Membership Update',
+        message: `Your membership in "${group.name}" has ended. Explore other study groups that match your interests!`,
         actionUrl: '/groups',
       },
     })

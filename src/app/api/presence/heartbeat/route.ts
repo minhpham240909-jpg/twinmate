@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
     }
     
     // We have the lock - proceed with processing
-    const now = Date.now()
 
     // 3. Get client IP address
     const ipAddress = request.headers.get('x-forwarded-for') ||
@@ -206,7 +205,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Update user presence to "online"
-    // Note: UserPresence model only has 'status' field, not 'onlineStatus'
+    // IMPORTANT: Preserve activityType if user is studying/in_call/with_ai
+    // This ensures users remain visible on partner board while in sessions
+    // We DON'T update activityType here - that's done via /api/presence/activity
     let userPresence
     try {
       userPresence = await prisma.userPresence.upsert({
@@ -218,10 +219,13 @@ export async function POST(request: NextRequest) {
           lastActivityAt: nowDate,
           lastSeenAt: nowDate,
           updatedAt: nowDate,
+          // PRESERVE activityType - don't reset it during heartbeat
+          // This keeps users showing as "studying" on partner board
         },
         create: {
           userId: user.id,
           status: 'online',
+          activityType: 'browsing', // Default for new users
           lastActivityAt: nowDate,
           lastSeenAt: nowDate,
         },

@@ -103,16 +103,19 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create notification for sender
+      // Create notification for sender - reframed positively
+      // ✅ Inspire action: Encourage finding other partners
+      // ❌ Never shame: Don't focus on rejection, focus on opportunity
       await tx.notification.create({
         data: {
           userId: match.senderId,
           type: 'MATCH_DECLINED',
-          title: 'Connection Request Declined',
-          message: `${match.receiver.name} declined your connection request`,
+          title: 'Keep Exploring Study Partners',
+          message: `${match.receiver.name} isn't available right now. Check out other study partners who match your interests!`,
           isRead: false,
           relatedUserId: user.id,
-          relatedMatchId: match.id
+          relatedMatchId: match.id,
+          actionUrl: '/search'
         }
       })
 

@@ -1,16 +1,66 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, Suspense, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
 
 function ConfirmEmailContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const email = searchParams.get('email')
   const [resending, setResending] = useState(false)
   const [resendMessage, setResendMessage] = useState('')
   const [resendSuccess, setResendSuccess] = useState(false)
+  const [checkingStatus, setCheckingStatus] = useState(false)
+  const [verificationDetected, setVerificationDetected] = useState(false)
+
+  // Poll for email verification status
+  // When user clicks confirm link in another tab/window on same device,
+  // we detect the session and redirect automatically
+  const checkVerificationStatus = useCallback(async () => {
+    if (!email || checkingStatus || verificationDetected) return
+
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        // User is now logged in! Email was verified
+        setVerificationDetected(true)
+
+        // Small delay to show success state
+        setTimeout(() => {
+          router.push('/dashboard?auth_callback=true&email_verified=true')
+        }, 1000)
+      }
+    } catch {
+      // Silently fail - we'll try again
+    }
+  }, [email, checkingStatus, verificationDetected, router])
+
+  // Start polling when component mounts
+  useEffect(() => {
+    if (!email) return
+
+    // Check immediately
+    checkVerificationStatus()
+
+    // Poll every 3 seconds
+    const interval = setInterval(checkVerificationStatus, 3000)
+
+    // Also check on window focus (user might have confirmed in another tab)
+    const handleFocus = () => {
+      checkVerificationStatus()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [email, checkVerificationStatus])
 
   const handleResendEmail = async () => {
     if (!email || resending) return
@@ -41,6 +91,42 @@ function ConfirmEmailContent() {
     } finally {
       setResending(false)
     }
+  }
+
+  // Show success state when verification is detected
+  if (verificationDetected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950 px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-8 text-center">
+            <div className="flex justify-center mb-6">
+              <Image src="/logo.png" alt="Clerva" width={48} height={48} className="rounded-xl" />
+            </div>
+
+            <div className="mx-auto w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
+              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+              Email Verified!
+            </h1>
+            <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+              Your email has been confirmed. Redirecting you to the dashboard...
+            </p>
+
+            <div className="flex items-center justify-center gap-2 text-blue-600">
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-sm font-medium">Redirecting...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

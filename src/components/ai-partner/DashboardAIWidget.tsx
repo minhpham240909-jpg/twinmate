@@ -240,22 +240,19 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
       <motion.button
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={() => setIsExpanded(true)}
         className="relative group"
       >
-        {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
-
         {/* Main button */}
-        <div className="relative flex items-center gap-3 px-4 py-3 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700/50 shadow-xl cursor-pointer hover:border-blue-500/50 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg overflow-hidden">
+        <div className="relative flex items-center gap-3 px-4 py-3 bg-neutral-900 dark:bg-neutral-800 rounded-2xl border border-neutral-800 dark:border-neutral-700 shadow-lg cursor-pointer hover:border-blue-600 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center overflow-hidden">
             <Image src="/logo.png" alt="AI Partner" width={28} height={28} className="object-contain" />
           </div>
           <div className="text-left">
             <p className="text-white font-semibold text-sm">AI Partner</p>
-            <p className="text-slate-400 text-xs">
+            <p className="text-neutral-400 text-xs">
               {currentSession
                 ? currentSession.status === 'ACTIVE'
                   ? 'Active session'
@@ -268,8 +265,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
           {currentSession && (
             <div className={`w-2.5 h-2.5 rounded-full ${
               currentSession.status === 'ACTIVE'
-                ? 'bg-green-400 animate-pulse'
-                : 'bg-amber-400'
+                ? 'bg-blue-500 animate-pulse'
+                : 'bg-neutral-400'
             }`} />
           )}
         </div>
@@ -286,28 +283,18 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
         className="relative w-full max-w-sm"
       >
-        {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-blue-500/20 rounded-3xl blur-xl" />
-
         {/* Main card */}
-        <div className="relative bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden">
-          {/* Header with gradient */}
-          <div className="relative p-5 pb-4">
-            {/* Background pattern */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-blue-600/10 to-transparent" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/20 to-transparent rounded-full blur-2xl" />
-
-            <div className="relative flex items-center justify-between">
+        <div className="relative bg-neutral-900 dark:bg-neutral-800 rounded-2xl border border-neutral-800 dark:border-neutral-700 shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="p-5 pb-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl blur-md opacity-50" />
-                  <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg overflow-hidden">
-                    <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
-                  </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center overflow-hidden">
+                  <Image src="/logo.png" alt="AI Partner" width={32} height={32} className="object-contain" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-lg">AI Study Partner</h3>
-                  <p className="text-slate-400 text-xs flex items-center gap-1">
+                  <p className="text-neutral-400 text-xs flex items-center gap-1">
                     <Brain className="w-3 h-3 text-blue-400" />
                     Your personal study assistant
                   </p>
@@ -315,7 +302,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
               </div>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition-all"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 dark:hover:bg-neutral-700 rounded-xl transition-all"
               >
                 <ChevronUp className="w-5 h-5" />
               </button>
@@ -326,37 +313,37 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
           {currentSession && (
             <div className="px-5 pb-4">
               <div
-                className={`rounded-2xl p-4 ${
+                className={`rounded-xl p-4 ${
                   currentSession.status === 'ACTIVE'
-                    ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20'
-                    : 'bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20'
+                    ? 'bg-blue-600/10 border border-blue-600/20'
+                    : 'bg-neutral-800 dark:bg-neutral-700 border border-neutral-700 dark:border-neutral-600'
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <span
                     className={`text-xs font-semibold px-3 py-1 rounded-full ${
                       currentSession.status === 'ACTIVE'
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-amber-500/20 text-amber-400'
+                        ? 'bg-blue-600/20 text-blue-400'
+                        : 'bg-neutral-700 dark:bg-neutral-600 text-neutral-300'
                     }`}
                   >
                     {currentSession.status === 'ACTIVE' ? '● Active' : '◐ Paused'}
                   </span>
-                  <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                  <span className="text-xs text-neutral-400 flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5" />
                     {currentSession.messageCount}
                   </span>
                 </div>
 
                 <p className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-slate-400" />
+                  <BookOpen className="w-4 h-4 text-neutral-400" />
                   {currentSession.subject || 'General Study'}
                 </p>
 
                 {currentSession.status === 'ACTIVE' ? (
                   <button
                     onClick={() => router.push(`/ai-partner/${currentSession.id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all font-semibold shadow-lg shadow-green-500/25"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-semibold"
                   >
                     Continue Session
                     <ArrowRight className="w-4 h-4" />
@@ -365,7 +352,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                   <button
                     onClick={handleResumeSession}
                     disabled={isResuming}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-neutral-100 text-neutral-900 rounded-xl transition-colors font-semibold disabled:opacity-50"
                   >
                     {isResuming ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -385,17 +372,17 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
           {stats && stats.totalSessions > 0 && (
             <div className="px-5 pb-4">
               <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-3 bg-slate-700/30 rounded-xl">
+                <div className="text-center p-3 bg-neutral-800 dark:bg-neutral-700 rounded-xl">
                   <p className="text-xl font-bold text-white">{stats.totalSessions}</p>
-                  <p className="text-xs text-slate-400">Sessions</p>
+                  <p className="text-xs text-neutral-400">Sessions</p>
                 </div>
-                <div className="text-center p-3 bg-slate-700/30 rounded-xl">
+                <div className="text-center p-3 bg-neutral-800 dark:bg-neutral-700 rounded-xl">
                   <p className="text-xl font-bold text-white">{formatDuration(stats.totalDuration)}</p>
-                  <p className="text-xs text-slate-400">Time</p>
+                  <p className="text-xs text-neutral-400">Time</p>
                 </div>
-                <div className="text-center p-3 bg-slate-700/30 rounded-xl">
+                <div className="text-center p-3 bg-neutral-800 dark:bg-neutral-700 rounded-xl">
                   <p className="text-xl font-bold text-white">{stats.totalMessages}</p>
-                  <p className="text-xs text-slate-400">Messages</p>
+                  <p className="text-xs text-neutral-400">Messages</p>
                 </div>
               </div>
             </div>
@@ -406,7 +393,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
             <div className="px-5 pb-4">
               <button
                 onClick={handleQuickStart}
-                className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-semibold shadow-lg shadow-blue-500/25"
+                className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-semibold"
               >
                 <Sparkles className="w-5 h-5" />
                 Start Studying with AI
@@ -418,14 +405,14 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
           <div className="px-5 pb-5 flex items-center justify-between">
             <button
               onClick={() => router.push('/ai-partner')}
-              className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+              className="text-sm text-neutral-400 hover:text-white transition-colors flex items-center gap-1"
             >
               View all sessions
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setShowConfirmHide(true)}
-              className="text-sm text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1"
+              className="text-sm text-neutral-500 hover:text-neutral-300 transition-colors flex items-center gap-1"
             >
               <X className="w-3.5 h-3.5" />
               Remove
@@ -441,37 +428,37 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowConfirmHide(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-3xl p-6 max-w-sm w-full border border-slate-700 shadow-2xl"
+              className="bg-white dark:bg-neutral-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center">
-                  <Trash2 className="w-6 h-6 text-red-400" />
+                <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-neutral-600 dark:text-neutral-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Remove Widget?</h3>
-                  <p className="text-sm text-slate-400">From your dashboard</p>
+                  <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Remove Widget?</h3>
+                  <p className="text-sm text-neutral-500">From your dashboard</p>
                 </div>
               </div>
 
               <div className="space-y-2 mb-6">
-                <p className="text-slate-300 text-sm flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                <p className="text-neutral-600 dark:text-neutral-300 text-sm flex items-center gap-2">
+                  <span className="text-blue-600">✓</span>
                   Chat history will be saved
                 </p>
-                <p className="text-slate-300 text-sm flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                <p className="text-neutral-600 dark:text-neutral-300 text-sm flex items-center gap-2">
+                  <span className="text-blue-600">✓</span>
                   Access via /ai-partner anytime
                 </p>
-                <p className="text-slate-300 text-sm flex items-center gap-2">
-                  <span className="text-amber-400">!</span>
+                <p className="text-neutral-600 dark:text-neutral-300 text-sm flex items-center gap-2">
+                  <span className="text-neutral-400">!</span>
                   Active sessions will end
                 </p>
               </div>
@@ -479,14 +466,14 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowConfirmHide(false)}
-                  className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleHideWidget}
                   disabled={isHiding}
-                  className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isHiding ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -507,24 +494,24 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => !isStartingSession && setShowStudyOptions(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-3xl p-6 max-w-md w-full border border-slate-700 shadow-2xl"
+              className="bg-white dark:bg-neutral-900 rounded-2xl p-6 max-w-md w-full shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center overflow-hidden">
+                <div className="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center overflow-hidden">
                   <Image src="/logo.png" alt="AI Partner" width={38} height={38} className="object-contain" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">Start Studying</h3>
-                  <p className="text-sm text-slate-400">Choose how you want to begin</p>
+                  <h3 className="text-xl font-bold text-neutral-900 dark:text-white">Start Studying</h3>
+                  <p className="text-sm text-neutral-500">Choose how you want to begin</p>
                 </div>
               </div>
 
@@ -534,41 +521,41 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                 <button
                   onClick={() => handleStartSession('continue')}
                   disabled={isStartingSession || !lastCompletedSession?.subject}
-                  className={`w-full p-4 rounded-2xl transition-all text-left group disabled:opacity-50 ${
+                  className={`w-full p-4 rounded-xl transition-all text-left group disabled:opacity-50 ${
                     lastCompletedSession?.subject
-                      ? 'bg-gradient-to-r from-blue-500/10 to-blue-500/10 border border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/20'
-                      : 'bg-slate-700/30 border border-slate-600/50 cursor-not-allowed'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600'
+                      : 'bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 cursor-not-allowed'
                   }`}
                 >
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                       lastCompletedSession?.subject
-                        ? 'bg-blue-500/20 group-hover:bg-blue-500/30'
-                        : 'bg-slate-600/30'
+                        ? 'bg-blue-100 dark:bg-blue-900/30'
+                        : 'bg-neutral-200 dark:bg-neutral-700'
                     }`}>
-                      <History className={`w-6 h-6 ${lastCompletedSession?.subject ? 'text-blue-400' : 'text-slate-500'}`} />
+                      <History className={`w-6 h-6 ${lastCompletedSession?.subject ? 'text-blue-600 dark:text-blue-400' : 'text-neutral-400'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold mb-1 ${lastCompletedSession?.subject ? 'text-white' : 'text-slate-400'}`}>
+                      <p className={`font-semibold mb-1 ${lastCompletedSession?.subject ? 'text-neutral-900 dark:text-white' : 'text-neutral-400'}`}>
                         Continue Previous Topic
                       </p>
                       {lastCompletedSession?.subject ? (
                         <>
-                          <p className="text-sm text-slate-400 truncate">
-                            Resume studying: <span className="text-blue-400">{lastCompletedSession.subject}</span>
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400 truncate">
+                            Resume studying: <span className="text-blue-600 dark:text-blue-400">{lastCompletedSession.subject}</span>
                           </p>
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
                             AI will remember your progress and build on it
                           </p>
                         </>
                       ) : (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-neutral-400 dark:text-neutral-500">
                           No previous topic available
                         </p>
                       )}
                     </div>
                     {isStartingSession && lastCompletedSession?.subject && (
-                      <Loader2 className="w-5 h-5 text-blue-400 animate-spin flex-shrink-0" />
+                      <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -577,23 +564,23 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
                 <button
                   onClick={() => handleStartSession('new')}
                   disabled={isStartingSession}
-                  className="w-full p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl hover:border-blue-500/50 hover:bg-blue-500/20 transition-all text-left group disabled:opacity-50"
+                  className="w-full p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl hover:border-blue-400 dark:hover:border-blue-600 transition-all text-left group disabled:opacity-50"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/30 transition-colors">
-                      <Plus className="w-6 h-6 text-blue-400" />
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <Plus className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-white mb-1">Start New Topic</p>
-                      <p className="text-sm text-slate-400">
+                      <p className="font-semibold text-neutral-900 dark:text-white mb-1">Start New Topic</p>
+                      <p className="text-sm text-neutral-500 dark:text-neutral-400">
                         Begin a fresh study session on any subject
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
                         AI will ask what you&apos;d like to learn today
                       </p>
                     </div>
                     {isStartingSession && (
-                      <Loader2 className="w-5 h-5 text-blue-400 animate-spin flex-shrink-0" />
+                      <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -601,11 +588,11 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
 
               {/* Memory indicator */}
               {stats && stats.totalSessions > 0 && (
-                <div className="mt-5 p-3 bg-slate-700/30 rounded-xl">
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <Brain className="w-4 h-4 text-green-400" />
+                <div className="mt-5 p-3 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
+                  <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+                    <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     <span>
-                      AI remembers your <span className="text-white font-medium">{stats.totalSessions}</span> previous sessions
+                      AI remembers your <span className="text-neutral-900 dark:text-white font-medium">{stats.totalSessions}</span> previous sessions
                     </span>
                   </div>
                 </div>
@@ -615,7 +602,7 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
               <button
                 onClick={() => setShowStudyOptions(false)}
                 disabled={isStartingSession}
-                className="w-full mt-4 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition-colors text-sm disabled:opacity-50"
+                className="w-full mt-4 px-4 py-3 text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-colors text-sm disabled:opacity-50"
               >
                 Cancel
               </button>

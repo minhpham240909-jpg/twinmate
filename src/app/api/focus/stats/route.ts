@@ -62,6 +62,7 @@ export async function GET() {
 
     if (user) {
       // Run user-specific queries in parallel (no expensive groupBy)
+      // IMPORTANT: Only count QUICK FOCUS sessions (mode != 'solo')
       const [
         userActiveSession,
         userProfile,
@@ -79,35 +80,41 @@ export async function GET() {
             durationMinutes: true,
             startedAt: true,
             label: true,
+            mode: true,
           },
         }),
-        // Get stored streak from profile
+        // Get stored streak from profile - use QUICK FOCUS specific streak
         prisma.profile.findUnique({
           where: { userId: user.id },
-          select: { studyStreak: true },
+          select: {
+            studyStreak: true,
+            quickFocusStreak: true,
+          },
         }),
-        // User's sessions today (count only)
+        // User's QUICK FOCUS sessions today only (mode != 'solo')
         prisma.focusSession.count({
           where: {
             userId: user.id,
             status: 'COMPLETED',
+            mode: { not: 'solo' },
             completedAt: {
               gte: todayStart,
               lte: todayEnd,
             },
           },
         }),
-        // User's total completed sessions (count only)
+        // User's total QUICK FOCUS completed sessions (mode != 'solo')
         prisma.focusSession.count({
           where: {
             userId: user.id,
             status: 'COMPLETED',
+            mode: { not: 'solo' },
           },
         }),
       ])
 
-      // Extract values
-      userStreak = userProfile?.studyStreak || 0
+      // Extract values - use QUICK FOCUS specific streak
+      userStreak = userProfile?.quickFocusStreak || userProfile?.studyStreak || 0
       userTodaySessions = todayCount
       userTotalSessions = totalCount
 
@@ -118,8 +125,8 @@ export async function GET() {
         const elapsed = Date.now() - startTime
         const remainingSeconds = Math.max(0, Math.ceil((durationMs - elapsed) / 1000))
 
-        // Determine session type based on label
-        const isSoloStudy = userActiveSession.label?.startsWith('Solo Study') || false
+        // Determine session type based on mode field (more accurate than label)
+        const isSoloStudy = userActiveSession.mode === 'solo'
 
         if (remainingSeconds > 0) {
           activeSession = {

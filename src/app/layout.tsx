@@ -16,6 +16,7 @@ import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import BannedUserOverlay from "@/components/BannedUserOverlay";
 import AnalyticsProvider from "@/components/providers/AnalyticsProvider";
 import DeferredProviders from "@/components/providers/DeferredProviders";
+import QueryProvider from "@/providers/QueryProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -101,12 +102,13 @@ export default function RootLayout({
         <GlobalErrorHandler />
         <ErrorBoundary>
           <Suspense fallback={null}>
-            <PostHogProvider>
-              <ThemeProvider>
-                <NetworkProvider>
-                  <AuthProvider>
-                    <SettingsProvider>
-                      <IntlProvider>
+            <QueryProvider>
+              <PostHogProvider>
+                <ThemeProvider>
+                  <NetworkProvider>
+                    <AuthProvider>
+                      <SettingsProvider>
+                        <IntlProvider>
                         {/* DeferredProviders loads Presence, BackgroundSession, IncomingCall
                             AFTER first paint to improve initial load time */}
                         <DeferredProviders>
@@ -139,12 +141,13 @@ export default function RootLayout({
                             />
                           </BannedUserOverlay>
                         </DeferredProviders>
-                      </IntlProvider>
-                    </SettingsProvider>
-                  </AuthProvider>
-                </NetworkProvider>
-              </ThemeProvider>
-            </PostHogProvider>
+                        </IntlProvider>
+                      </SettingsProvider>
+                    </AuthProvider>
+                  </NetworkProvider>
+                </ThemeProvider>
+              </PostHogProvider>
+            </QueryProvider>
           </Suspense>
         </ErrorBoundary>
         <AnalyticsProvider />

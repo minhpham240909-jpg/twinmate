@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { invalidateUserCache } from '@/lib/redis'
 
 // Minimum completion percentage required for rewards (80%)
 const COMPLETION_THRESHOLD = 0.8
@@ -210,6 +211,9 @@ export async function PATCH(
         },
       })
     }
+
+    // Invalidate user cache (stats changed)
+    await invalidateUserCache(user.id)
 
     return NextResponse.json({
       success: true,

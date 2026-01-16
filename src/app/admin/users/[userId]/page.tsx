@@ -36,6 +36,8 @@ import {
   Bot,
   Sparkles,
   Star,
+  Timer,
+  Focus,
 } from 'lucide-react'
 
 interface UserDetails {
@@ -113,6 +115,12 @@ interface UserDetails {
     totalReportsAgainst: number
     totalWarnings: number
     accountAge: number
+    // Solo Mode Sessions (completed only - full duration used)
+    completedSoloSessions: number
+    totalSoloStudyMinutes: number
+    // Quick Focus Sessions (completed only - not abandoned)
+    completedQuickFocusSessions: number
+    totalQuickFocusMinutes: number
   }
   recentMessages: Array<{
     id: string
@@ -547,7 +555,8 @@ export default function AdminUserDetailPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mt-6">
               <div className="text-center p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg">
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">{activityStats.totalMessages}</div>
                 <div className="text-xs text-gray-500 dark:text-slate-400">Messages</div>
@@ -567,6 +576,36 @@ export default function AdminUserDetailPage() {
               <div className="text-center p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg">
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">{activityStats.accountAge}d</div>
                 <div className="text-xs text-gray-500 dark:text-slate-400">Account Age</div>
+              </div>
+              {/* Solo Mode Sessions (completed only) */}
+              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
+                <div className="flex items-center justify-center gap-1">
+                  <Timer className="w-4 h-4 text-blue-500" />
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{activityStats.completedSoloSessions || 0}</span>
+                </div>
+                <div className="text-xs text-blue-600 dark:text-blue-400">Solo Sessions</div>
+                {(activityStats.totalSoloStudyMinutes || 0) > 0 && (
+                  <div className="text-[10px] text-blue-500 dark:text-blue-500 mt-0.5">
+                    {activityStats.totalSoloStudyMinutes >= 60
+                      ? `${Math.floor(activityStats.totalSoloStudyMinutes / 60)}h ${activityStats.totalSoloStudyMinutes % 60}m`
+                      : `${activityStats.totalSoloStudyMinutes}m`} total
+                  </div>
+                )}
+              </div>
+              {/* Quick Focus Sessions (completed only) */}
+              <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800/50">
+                <div className="flex items-center justify-center gap-1">
+                  <Focus className="w-4 h-4 text-purple-500" />
+                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">{activityStats.completedQuickFocusSessions || 0}</span>
+                </div>
+                <div className="text-xs text-purple-600 dark:text-purple-400">Quick Focus</div>
+                {(activityStats.totalQuickFocusMinutes || 0) > 0 && (
+                  <div className="text-[10px] text-purple-500 dark:text-purple-500 mt-0.5">
+                    {activityStats.totalQuickFocusMinutes >= 60
+                      ? `${Math.floor(activityStats.totalQuickFocusMinutes / 60)}h ${activityStats.totalQuickFocusMinutes % 60}m`
+                      : `${activityStats.totalQuickFocusMinutes}m`} total
+                  </div>
+                )}
               </div>
             </div>
 

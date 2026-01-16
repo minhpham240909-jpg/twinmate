@@ -163,7 +163,7 @@ function getQuotaKey(userId: string): string {
 }
 
 /**
- * Get current usage from Redis
+ * Get current usage from Redis (reads from atomic keys)
  */
 async function getUsageFromRedis(userId: string): Promise<{
   tokens: number
@@ -174,16 +174,44 @@ async function getUsageFromRedis(userId: string): Promise<{
 
   try {
     const key = getQuotaKey(userId)
-    const data = await redisGet(key)
+    const tokenKey = `${key}:tokens`
+    const costKey = `${key}:cost`
+    const requestsKey = `${key}:requests`
 
-    if (!data) return { tokens: 0, cost: 0, requests: 0 }
+    const url = process.env.UPSTASH_REDIS_REST_URL!
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-    const parsed = JSON.parse(data)
-    return {
-      tokens: parsed.tokens || 0,
-      cost: parsed.cost || 0,
-      requests: parsed.requests || 0,
+    // Fetch all values in parallel
+    const [tokensRes, costRes, requestsRes] = await Promise.all([
+      fetchWithBackoff(`${url}/get/${encodeURIComponent(tokenKey)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 3000, maxRetries: 2 }),
+      fetchWithBackoff(`${url}/get/${encodeURIComponent(costKey)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 3000, maxRetries: 2 }),
+      fetchWithBackoff(`${url}/get/${encodeURIComponent(requestsKey)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 3000, maxRetries: 2 }),
+    ])
+
+    let tokens = 0
+    let cost = 0
+    let requests = 0
+
+    if (tokensRes.ok) {
+      const data = await tokensRes.json() as { result: string | null }
+      tokens = data.result ? parseInt(data.result, 10) : 0
     }
+    if (costRes.ok) {
+      const data = await costRes.json() as { result: string | null }
+      cost = data.result ? parseFloat(data.result) : 0
+    }
+    if (requestsRes.ok) {
+      const data = await requestsRes.json() as { result: string | null }
+      requests = data.result ? parseInt(data.result, 10) : 0
+    }
+
+    return { tokens, cost, requests }
   } catch (error) {
     logger.warn('[AI Quota] Redis get failed', { userId, error })
     return null
@@ -325,31 +353,79 @@ export async function recordUsage(
     const resetAt = getQuotaResetTime()
     const ttlSeconds = Math.ceil((resetAt.getTime() - Date.now()) / 1000)
 
-    // Get current usage
-    const currentData = await redisGet(key)
-    let current = { tokens: 0, cost: 0, requests: 0 }
+    // Use atomic INCRBY operations via Upstash REST API to prevent race conditions
+    // This avoids the read-modify-write race condition
+    const url = process.env.UPSTASH_REDIS_REST_URL!
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-    if (currentData) {
-      current = JSON.parse(currentData)
+    // Use HINCRBY for atomic increments on hash fields
+    // First, ensure the key has proper TTL
+    const tokenKey = `${key}:tokens`
+    const costKey = `${key}:cost`
+    const requestsKey = `${key}:requests`
+
+    // Execute atomic increments in parallel
+    const [tokensRes, costRes, requestsRes] = await Promise.all([
+      fetchWithBackoff(`${url}/incrby/${encodeURIComponent(tokenKey)}/${tokens}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 5000, maxRetries: 2 }),
+      fetchWithBackoff(`${url}/incrbyfloat/${encodeURIComponent(costKey)}/${cost}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 5000, maxRetries: 2 }),
+      fetchWithBackoff(`${url}/incrby/${encodeURIComponent(requestsKey)}/1`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 5000, maxRetries: 2 }),
+    ])
+
+    // Set TTL on all keys (fire and forget - they'll expire anyway)
+    Promise.all([
+      fetchWithBackoff(`${url}/expire/${encodeURIComponent(tokenKey)}/${Math.max(ttlSeconds, 1)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 3000, maxRetries: 1 }),
+      fetchWithBackoff(`${url}/expire/${encodeURIComponent(costKey)}/${Math.max(ttlSeconds, 1)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 3000, maxRetries: 1 }),
+      fetchWithBackoff(`${url}/expire/${encodeURIComponent(requestsKey)}/${Math.max(ttlSeconds, 1)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }, { timeoutPerAttemptMs: 3000, maxRetries: 1 }),
+    ]).catch(() => {
+      // TTL set is best effort - keys will be orphaned but eventually evicted
+    })
+
+    // Parse results for logging
+    let totalTokens = tokens
+    let totalCost = cost
+    let totalRequests = 1
+    try {
+      if (tokensRes.ok) {
+        const data = await tokensRes.json() as { result: number }
+        totalTokens = data.result
+      }
+      if (costRes.ok) {
+        const data = await costRes.json() as { result: string }
+        totalCost = parseFloat(data.result)
+      }
+      if (requestsRes.ok) {
+        const data = await requestsRes.json() as { result: number }
+        totalRequests = data.result
+      }
+    } catch {
+      // Logging parse error is non-critical
     }
 
-    // Update usage
-    const updated = {
-      tokens: current.tokens + tokens,
-      cost: current.cost + cost,
-      requests: current.requests + 1,
-    }
-
-    // Store with TTL (expires at reset time)
-    await redisSetEx(key, JSON.stringify(updated), Math.max(ttlSeconds, 1))
-
-    logger.debug('[AI Quota] Usage recorded', {
+    logger.debug('[AI Quota] Usage recorded atomically', {
       userId,
       tokens,
       cost,
-      totalTokens: updated.tokens,
-      totalCost: updated.cost,
-      totalRequests: updated.requests,
+      totalTokens,
+      totalCost,
+      totalRequests,
     })
   } catch (error) {
     logger.warn('[AI Quota] Failed to record usage in Redis', { userId, error })

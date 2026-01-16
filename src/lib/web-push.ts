@@ -316,6 +316,7 @@ export async function pushConnectionAccepted(
 
 /**
  * Send push notification for post like
+ * ✅ Celebratory tone - inspire engagement
  */
 export async function pushPostLike(
   userId: string,
@@ -323,8 +324,8 @@ export async function pushPostLike(
   postId: string
 ): Promise<void> {
   await sendPushToUser(userId, {
-    title: 'Someone liked your post',
-    body: `${likerName} liked your post`,
+    title: '❤️ Your post is getting love!',
+    body: `${likerName} appreciated your post`,
     type: 'POST_LIKE',
     url: `/community`,
     tag: `post-like-${postId}`,
@@ -336,6 +337,7 @@ export async function pushPostLike(
 
 /**
  * Send push notification for post comment
+ * ✅ Engaging tone - encourage conversation
  */
 export async function pushPostComment(
   userId: string,
@@ -344,7 +346,7 @@ export async function pushPostComment(
   postId: string
 ): Promise<void> {
   await sendPushToUser(userId, {
-    title: `${commenterName} commented on your post`,
+    title: `💬 New comment from ${commenterName}`,
     body: commentPreview.length > 100 ? commentPreview.substring(0, 100) + '...' : commentPreview,
     type: 'POST_COMMENT',
     url: `/community`,

@@ -89,7 +89,10 @@ export async function GET() {
                 availableDays: true,
                 availableHours: true,
                 aboutYourself: true,
-                aboutYourselfItems: true
+                aboutYourselfItems: true,
+                // Streak data for profile cards
+                soloStudyStreak: true,
+                quickFocusStreak: true,
               }
             }
           }
@@ -126,7 +129,10 @@ export async function GET() {
                 availableDays: true,
                 availableHours: true,
                 aboutYourself: true,
-                aboutYourselfItems: true
+                aboutYourselfItems: true,
+                // Streak data for profile cards
+                soloStudyStreak: true,
+                quickFocusStreak: true,
               }
             }
           }
@@ -189,6 +195,11 @@ export async function GET() {
         }
       }
 
+      // Calculate best streak from solo or quick focus
+      const soloStreak = (partner.profile as any)?.soloStudyStreak || 0
+      const quickStreak = (partner.profile as any)?.quickFocusStreak || 0
+      const bestStreak = Math.max(soloStreak, quickStreak)
+
       return {
         matchId: match.id,
         id: partner.id,
@@ -197,6 +208,10 @@ export async function GET() {
         onlineStatus,
         activityType,
         activityDetails,
+        // Streak data for display on profile cards
+        streak: bestStreak,
+        soloStudyStreak: soloStreak,
+        quickFocusStreak: quickStreak,
         profile: partner.profile ? {
           bio: partner.profile.bio,
           subjects: partner.profile.subjects,

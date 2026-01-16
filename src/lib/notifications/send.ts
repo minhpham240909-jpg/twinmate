@@ -377,12 +377,13 @@ export async function notifyPostLike(likerId: string, postOwnerId: string, postI
     })
     const likerName = liker?.name || 'Someone'
 
-    // Create in-app notification
+    // Create in-app notification - celebratory tone
+    // ✅ Inspire action: Make them feel good about engaging
     await createInAppNotification({
       userId: postOwnerId,
       type: 'POST_LIKE',
-      title: 'Someone liked your post',
-      message: `${likerName} liked your post`,
+      title: '❤️ Your post is getting love!',
+      message: `${likerName} appreciated your post`,
       actionUrl: `/community`,
       relatedUserId: likerId,
     })
@@ -414,11 +415,12 @@ export async function notifyPostComment(
     })
     const commenterName = commenter?.name || 'Someone'
 
-    // Create in-app notification
+    // Create in-app notification - engaging tone
+    // ✅ Inspire action: Encourage continued conversation
     await createInAppNotification({
       userId: postOwnerId,
       type: 'POST_COMMENT',
-      title: `${commenterName} commented on your post`,
+      title: `💬 New comment from ${commenterName}`,
       message: commentPreview.length > 100 ? commentPreview.substring(0, 100) + '...' : commentPreview,
       actionUrl: `/community`,
       relatedUserId: commenterId,

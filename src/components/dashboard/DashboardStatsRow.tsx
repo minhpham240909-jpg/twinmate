@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import { Flame, Clock, Calendar, Star, TrendingUp, Zap, ShoppingBag } from 'lucide-react'
+import { Flame, Clock, Calendar, Star, TrendingUp, ChevronRight } from 'lucide-react'
 import RewardsShop from '@/components/shop/RewardsShop'
 
 interface UserStats {
@@ -23,20 +23,11 @@ interface DashboardStatsRowProps {
 // Motivational messages based on streak
 const getStreakMessage = (streak: number): string => {
   if (streak === 0) return "Start your streak today!"
-  if (streak === 1) return "Great start! Keep it going!"
+  if (streak === 1) return "Great start!"
   if (streak < 7) return "Building momentum!"
-  if (streak < 14) return "You're on fire! 🔥"
+  if (streak < 14) return "You're on fire!"
   if (streak < 30) return "Incredible dedication!"
-  if (streak < 100) return "Unstoppable! 💪"
-  return "Legendary streak! 🏆"
-}
-
-// Get streak fire intensity
-const getStreakIntensity = (streak: number): string => {
-  if (streak === 0) return 'opacity-40'
-  if (streak < 3) return 'opacity-60'
-  if (streak < 7) return 'opacity-80'
-  return 'opacity-100 animate-pulse'
+  return "Unstoppable!"
 }
 
 export default function DashboardStatsRow({ userStats }: DashboardStatsRowProps) {
@@ -63,184 +54,179 @@ export default function DashboardStatsRow({ userStats }: DashboardStatsRowProps)
 
   return (
     <div className="space-y-4">
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        {/* Streak Card - Enhanced with fire animation */}
-        <div
-          className={`relative overflow-hidden bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer hover:scale-[1.02] transition-transform ${animateStreak ? 'ring-4 ring-orange-300 ring-opacity-50' : ''}`}
+      {/* Main Stats Grid - Clean 4-column layout */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Streak Card */}
+        <button
           onClick={() => userStats?.streak.current && userStats.streak.current > 0 && setShowCelebration(true)}
+          className={`relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 text-left hover:border-neutral-300 dark:hover:border-neutral-700 transition-all ${animateStreak ? 'ring-2 ring-blue-500' : ''}`}
         >
-          {/* Fire particles background effect */}
-          {userStats?.streak.current && userStats.streak.current >= 7 && (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute -top-4 left-1/4 w-2 h-2 bg-yellow-300 rounded-full animate-ping opacity-60" />
-              <div className="absolute -top-2 right-1/3 w-1.5 h-1.5 bg-orange-300 rounded-full animate-ping opacity-40 delay-300" />
-              <div className="absolute top-2 right-1/4 w-1 h-1 bg-yellow-200 rounded-full animate-ping opacity-50 delay-700" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+              <Flame className="w-5 h-5 text-neutral-900 dark:text-white" />
             </div>
-          )}
-
-          <div className="flex items-center gap-2 mb-2">
-            <Flame className={`w-5 h-5 sm:w-6 sm:h-6 ${getStreakIntensity(userStats?.streak.current || 0)}`} />
-            <span className="text-xs sm:text-sm font-medium opacity-90">{t('studyStreak') || 'Study Streak'}</span>
+            {userStats?.streak.current && userStats.streak.current >= 7 && (
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                Best: {userStats.streak.longest}
+              </span>
+            )}
           </div>
 
-          <p className={`text-3xl sm:text-4xl font-black ${animateStreak ? 'animate-bounce' : ''}`}>
+          <p className={`text-3xl font-black text-neutral-900 dark:text-white ${animateStreak ? 'animate-pulse' : ''}`}>
             {userStats?.streak.current || 0}
           </p>
-
-          <p className="text-xs opacity-90 mt-1 font-medium">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+            {t('studyStreak') || 'day streak'}
+          </p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
             {getStreakMessage(userStats?.streak.current || 0)}
           </p>
+        </button>
 
-          {userStats?.streak.current && userStats.streak.current > 0 && userStats.streak.longest > userStats.streak.current && (
-            <p className="text-xs opacity-70 mt-0.5">
-              Best: {userStats.streak.longest} days
-            </p>
-          )}
-        </div>
-
-        {/* Today's Study Time - With Progress Ring */}
-        <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="text-xs sm:text-sm font-medium opacity-90">{t('todayStudy') || 'Today'}</span>
+        {/* Today's Study Time */}
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+              <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
-            {/* Mini progress indicator */}
-            <div className="w-8 h-8 relative">
-              <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
-                <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+            {/* Progress ring */}
+            <div className="w-9 h-9 relative">
+              <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" className="text-neutral-200 dark:text-neutral-700" strokeWidth="3" />
                 <circle
-                  cx="16" cy="16" r="12"
+                  cx="18" cy="18" r="14"
                   fill="none"
-                  stroke="white"
+                  stroke="currentColor"
+                  className="text-blue-600 dark:text-blue-400"
                   strokeWidth="3"
                   strokeLinecap="round"
-                  strokeDasharray={`${dailyProgress * 0.754} 75.4`}
+                  strokeDasharray={`${dailyProgress * 0.88} 88`}
                 />
               </svg>
               {dailyProgress >= 100 && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs">✓</span>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400">✓</span>
               )}
             </div>
           </div>
 
-          <p className="text-3xl sm:text-4xl font-black">{userStats?.studyTime.today.display || '0m'}</p>
-
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-xs opacity-80">{userStats?.sessions.today || 0} sessions</p>
-            {actualTodayMinutes > 0 && (
-              <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-full">
-                {Math.round(dailyProgress)}% of goal
-              </span>
-            )}
-          </div>
+          <p className="text-3xl font-black text-neutral-900 dark:text-white">
+            {userStats?.studyTime.today.display || '0m'}
+          </p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+            {t('todayStudy') || 'today'}
+          </p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+            {userStats?.sessions.today || 0} sessions
+          </p>
         </div>
 
         {/* This Week */}
-        <div className="bg-gradient-to-br from-emerald-500 to-green-500 rounded-2xl p-4 sm:p-5 text-white shadow-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-xs sm:text-sm font-medium opacity-90">{t('thisWeek') || 'This Week'}</span>
-          </div>
-          <p className="text-3xl sm:text-4xl font-black">{userStats?.studyTime.thisWeek.display || '0m'}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-xs opacity-80">{userStats?.sessions.thisWeek || 0} sessions</p>
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-neutral-900 dark:text-white" />
+            </div>
             {userStats?.sessions.thisWeek && userStats.sessions.thisWeek > 0 && (
-              <TrendingUp className="w-3 h-3 opacity-80" />
+              <TrendingUp className="w-4 h-4 text-neutral-400" />
             )}
           </div>
+
+          <p className="text-3xl font-black text-neutral-900 dark:text-white">
+            {userStats?.studyTime.thisWeek.display || '0m'}
+          </p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+            {t('thisWeek') || 'this week'}
+          </p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+            {userStats?.sessions.thisWeek || 0} sessions
+          </p>
         </div>
 
-        {/* Total Points - With level indicator and shop button */}
-        <div
-          className="relative bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform"
+        {/* Points - Opens Shop */}
+        <button
           onClick={() => setShowShop(true)}
+          className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 text-left hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all group"
         >
-          {/* Level badge */}
-          {userStats?.points && userStats.points >= 100 && (
-            <div className="absolute top-2 right-2">
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">
-                Lvl {Math.floor((userStats.points || 0) / 100) + 1}
-              </span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <Star className="w-5 h-5 text-white" />
             </div>
-          )}
+            <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+          </div>
 
-          <div className="flex items-center gap-2 mb-2">
-            <Star className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-xs sm:text-sm font-medium opacity-90">{t('totalPoints') || 'Points'}</span>
-          </div>
-          <p className="text-3xl sm:text-4xl font-black">{userStats?.points || 0}</p>
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center gap-1">
-              <Zap className="w-3 h-3 opacity-80" />
-              <p className="text-xs opacity-80">{t('allTime') || 'all time'}</p>
-            </div>
-            <div className="flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
-              <ShoppingBag className="w-3 h-3" />
-              <span>Shop</span>
-            </div>
-          </div>
-        </div>
+          <p className="text-3xl font-black text-neutral-900 dark:text-white">
+            {userStats?.points || 0}
+          </p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+            {t('totalPoints') || 'points'}
+          </p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 group-hover:underline">
+            Open shop
+          </p>
+        </button>
       </div>
 
-      {/* Daily Goal Progress Bar (shown when user has activity) */}
+      {/* Daily Goal Progress Bar - Minimal */}
       {actualTodayMinutes > 0 && actualTodayMinutes < dailyGoalMinutes && (
         <div className="bg-white dark:bg-neutral-900 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              Daily Goal Progress
+            <span className="text-sm font-medium text-neutral-900 dark:text-white">
+              Daily Goal
             </span>
             <span className="text-sm text-neutral-500 dark:text-neutral-400">
               {actualTodayMinutes}m / {dailyGoalMinutes}m
             </span>
           </div>
-          <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500"
+              className="h-full bg-blue-600 rounded-full transition-all duration-500"
               style={{ width: `${dailyProgress}%` }}
             />
           </div>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-            {dailyGoalMinutes - actualTodayMinutes} more minutes to reach your daily goal! 💪
-          </p>
         </div>
       )}
 
-      {/* Celebration Modal for Streak */}
+      {/* Streak Celebration Modal - Clean design */}
       {showCelebration && userStats?.streak.current && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
           onClick={() => setShowCelebration(false)}
         >
           <div
-            className="bg-white dark:bg-neutral-900 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in duration-300"
+            className="bg-white dark:bg-neutral-900 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="text-6xl mb-4">🔥</div>
-            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
-              {userStats.streak.current} Day Streak!
+            <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Flame className="w-8 h-8 text-neutral-900 dark:text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">
+              {userStats.streak.current} Day Streak
             </h3>
-            <p className="text-neutral-600 dark:text-neutral-400 mb-4">
+            <p className="text-neutral-500 dark:text-neutral-400 mb-6">
               {getStreakMessage(userStats.streak.current)}
             </p>
-            <div className="flex justify-center gap-2 mb-4">
+
+            {/* Streak visualization */}
+            <div className="flex justify-center gap-1.5 mb-6">
               {Array.from({ length: Math.min(userStats.streak.current, 7) }).map((_, i) => (
-                <div key={i} className="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center">
+                <div key={i} className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Flame className="w-4 h-4 text-white" />
                 </div>
               ))}
               {userStats.streak.current > 7 && (
-                <span className="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                  +{userStats.streak.current - 7}
-                </span>
+                <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center">
+                  <span className="text-white dark:text-neutral-900 text-xs font-bold">
+                    +{userStats.streak.current - 7}
+                  </span>
+                </div>
               )}
             </div>
+
             <button
               onClick={() => setShowCelebration(false)}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-amber-600 transition-all"
+              className="w-full py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
             >
-              Keep it going! 🚀
+              Keep going
             </button>
           </div>
         </div>

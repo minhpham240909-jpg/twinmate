@@ -465,39 +465,75 @@ export async function invalidateAdminCaches() {
  * Get user activity breakdown for admin dashboard
  * Shows how many users are doing what (studying, in call, with AI, etc.)
  * OPTIMIZED: Single query with grouping
+ * FIXED: Uses correct tables (FocusSession) and proper online detection (3-min threshold)
  */
 export async function getUserActivityBreakdown() {
   const cacheKey = 'admin:activity:breakdown'
 
   return getOrSetCached(cacheKey, 30, async () => { // 30 seconds cache
     try {
-      // Get activity breakdown from presence data
+      // FIX: Use 3-minute threshold for online detection (matches partner board logic)
+      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000)
+
+      // Get activity breakdown from presence data - only users active in last 3 minutes
       const activityCounts = await prisma.userPresence.groupBy({
         by: ['activityType'],
         where: {
           status: 'online',
+          OR: [
+            { lastActivityAt: { gte: threeMinutesAgo } },
+            { lastSeenAt: { gte: threeMinutesAgo } },
+          ],
         },
         _count: { _all: true },
       })
 
-      // Get total online users
+      // Get total online users (active in last 3 minutes)
       const totalOnline = await prisma.userPresence.count({
-        where: { status: 'online' },
+        where: {
+          status: 'online',
+          OR: [
+            { lastActivityAt: { gte: threeMinutesAgo } },
+            { lastSeenAt: { gte: threeMinutesAgo } },
+          ],
+        },
       })
 
       // Get today's study statistics
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
-      const [todayStudySessions, todayStudyMinutes, topStreakers] = await Promise.all([
-        // Count completed sessions today
+      // FIX: Use FocusSession table (not StudySession) for Solo Study & Quick Focus
+      const [
+        todayFocusSessions,
+        todayFocusMinutes,
+        todayPartnerSessions,
+        todayPartnerMinutes,
+        topStreakers
+      ] = await Promise.all([
+        // Count completed FOCUS sessions today (Solo Study + Quick Focus)
+        prisma.focusSession.count({
+          where: {
+            status: 'COMPLETED',
+            completedAt: { gte: today },
+          },
+        }),
+        // Get total focus time today (from FocusSession.actualMinutes)
+        prisma.focusSession.aggregate({
+          where: {
+            status: 'COMPLETED',
+            completedAt: { gte: today },
+          },
+          _sum: { actualMinutes: true },
+        }).then(result => result._sum.actualMinutes || 0),
+        // Count completed PARTNER study sessions today (StudySession)
         prisma.studySession.count({
           where: {
             status: 'COMPLETED',
             endedAt: { gte: today },
           },
         }),
-        // Get total study time today (from completed sessions)
+        // Get total partner study time today
         prisma.studySession.findMany({
           where: {
             status: 'COMPLETED',
@@ -511,20 +547,26 @@ export async function getUserActivityBreakdown() {
           return sessions.reduce((total, session) => {
             if (session.startedAt && session.endedAt) {
               const diff = session.endedAt.getTime() - session.startedAt.getTime()
-              return total + Math.round(diff / (1000 * 60)) // Convert to minutes
+              return total + Math.round(diff / (1000 * 60))
             }
             return total
           }, 0)
         }),
-        // Get users with highest streaks (from Profile model)
+        // FIX: Get users with highest streaks - use MAX of soloStudyStreak and quickFocusStreak
         prisma.profile.findMany({
           where: {
-            studyStreak: { gt: 0 },
+            OR: [
+              { soloStudyStreak: { gt: 0 } },
+              { quickFocusStreak: { gt: 0 } },
+              { studyStreak: { gt: 0 } },
+            ],
             user: { deactivatedAt: null },
           },
           select: {
             userId: true,
             studyStreak: true,
+            soloStudyStreak: true,
+            quickFocusStreak: true,
             user: {
               select: {
                 id: true,
@@ -533,15 +575,28 @@ export async function getUserActivityBreakdown() {
               }
             }
           },
-          orderBy: { studyStreak: 'desc' },
-          take: 5,
-        }).then(profiles => profiles.map(p => ({
-          id: p.user.id,
-          name: p.user.name,
-          avatarUrl: p.user.avatarUrl,
-          studyStreak: p.studyStreak,
-        }))),
+          take: 20, // Fetch more to sort by combined streak
+        }).then(profiles => {
+          // Calculate max streak and sort
+          return profiles
+            .map(p => ({
+              id: p.user.id,
+              name: p.user.name,
+              avatarUrl: p.user.avatarUrl,
+              studyStreak: Math.max(
+                p.studyStreak || 0,
+                p.soloStudyStreak || 0,
+                p.quickFocusStreak || 0
+              ),
+            }))
+            .sort((a, b) => b.studyStreak - a.studyStreak)
+            .slice(0, 5)
+        }),
       ])
+
+      // Combined stats
+      const totalStudySessions = todayFocusSessions + todayPartnerSessions
+      const totalStudyMinutes = todayFocusMinutes + todayPartnerMinutes
 
       // Format activity breakdown
       const activityBreakdown: Record<string, number> = {
@@ -561,9 +616,9 @@ export async function getUserActivityBreakdown() {
         totalOnline,
         activityBreakdown,
         todayStats: {
-          studySessions: todayStudySessions,
-          studyMinutes: todayStudyMinutes,
-          studyHours: Math.round(todayStudyMinutes / 60 * 10) / 10, // 1 decimal place
+          studySessions: totalStudySessions,
+          studyMinutes: totalStudyMinutes,
+          studyHours: Math.round(totalStudyMinutes / 60 * 10) / 10,
         },
         topStreakers,
       }

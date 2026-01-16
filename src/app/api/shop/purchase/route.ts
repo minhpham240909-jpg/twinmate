@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { invalidateUserCache } from '@/lib/redis'
 
 /**
  * POST /api/shop/purchase - Purchase an unlockable item
+ * Invalidates user stats cache on successful purchase
  */
 export async function POST(req: NextRequest) {
   try {
@@ -92,6 +94,9 @@ export async function POST(req: NextRequest) {
             }),
       ])
 
+      // Invalidate user cache (points changed)
+      await invalidateUserCache(user.id)
+
       return NextResponse.json({
         success: true,
         message: 'Streak Shield purchased!',
@@ -122,6 +127,9 @@ export async function POST(req: NextRequest) {
           },
         }),
       ])
+
+      // Invalidate user cache (points changed)
+      await invalidateUserCache(user.id)
 
       return NextResponse.json({
         success: true,

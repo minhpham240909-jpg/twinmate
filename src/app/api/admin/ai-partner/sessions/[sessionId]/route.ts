@@ -18,7 +18,7 @@ interface RouteParams {
   params: Promise<{ sessionId: string }>
 }
 
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // Check if user is admin
     const supabase = await createClient()
@@ -33,10 +33,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     const adminUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { isAdmin: true, name: true, email: true }
+      select: { isAdmin: true, name: true, email: true, deactivatedAt: true }
     })
 
-    if (!adminUser?.isAdmin) {
+    // Check admin status and not deactivated
+    if (!adminUser?.isAdmin || adminUser.deactivatedAt) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -45,7 +46,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     const { sessionId } = await params
 
-    // Fetch session with all messages
+    // Parse pagination for messages
+    const searchParams = request.nextUrl.searchParams
+    const messagePage = Math.max(1, parseInt(searchParams.get('messagePage') || '1') || 1)
+    const messageLimit = Math.min(500, Math.max(1, parseInt(searchParams.get('messageLimit') || '200') || 200))
+    const messageSkip = (messagePage - 1) * messageLimit
+
+    // Fetch session with paginated messages
     const session = await prisma.aIPartnerSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -59,6 +66,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         },
         messages: {
           orderBy: { createdAt: 'asc' },
+          skip: messageSkip,
+          take: messageLimit,
           select: {
             id: true,
             role: true,
@@ -86,24 +95,29 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Get user details
-    const sessionUser = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        createdAt: true,
-        profile: {
-          select: {
-            school: true,
-            subjects: true,
-            skillLevel: true,
+    // Get user details and total message count in parallel
+    const [sessionUser, totalMessageCount] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          createdAt: true,
+          profile: {
+            select: {
+              school: true,
+              subjects: true,
+              skillLevel: true,
+            }
           }
         }
-      }
-    })
+      }),
+      prisma.aIPartnerMessage.count({
+        where: { sessionId: session.id }
+      })
+    ])
 
     // Calculate token statistics
     const tokenStats = session.messages.reduce(
@@ -185,6 +199,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         persona: session.persona,
         user: sessionUser,
         messages: session.messages,
+        messagePagination: {
+          total: totalMessageCount,
+          page: messagePage,
+          limit: messageLimit,
+          pages: Math.ceil(totalMessageCount / messageLimit),
+          hasMore: messageSkip + session.messages.length < totalMessageCount,
+        },
         messageStats,
         tokenStats: {
           ...tokenStats,

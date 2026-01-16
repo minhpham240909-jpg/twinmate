@@ -177,17 +177,18 @@ export async function POST(request: NextRequest) {
       select: { name: true }
     })
 
-    // Create notification for receiver
+    // Create notification for receiver - welcoming tone
+    // ✅ Inspire action: Encourage checking out the potential partner
     await prisma.notification.create({
       data: {
         userId: receiverId,
         type: 'MATCH_REQUEST',
-        title: 'New Connection Request',
-        message: `${senderProfile?.name || 'Someone'} wants to connect with you`,
+        title: '👋 New Study Partner Request',
+        message: `${senderProfile?.name || 'Someone'} wants to study with you! Check out their profile.`,
         isRead: false,
         relatedUserId: user.id,
         relatedMatchId: match.id,
-        actionUrl: `/partners`
+        actionUrl: `/profile/${user.id}`
       }
     })
 

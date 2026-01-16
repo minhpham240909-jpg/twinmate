@@ -93,13 +93,20 @@ export default function FocusTimerPage() {
   const confettiRef = useRef<HTMLCanvasElement | null>(null)
   const presenceUpdatedRef = useRef(false)
 
-  // Update presence activity
-  const updatePresenceActivity = useCallback(async (activityType: 'studying' | 'browsing') => {
+  // Update presence activity with optional subject/course information
+  const updatePresenceActivity = useCallback(async (
+    activityType: 'studying' | 'browsing',
+    subject?: string | null
+  ) => {
     try {
+      const activityDetails = activityType === 'studying' && subject
+        ? { subject, startedAt: new Date().toISOString() }
+        : undefined
+
       await fetch('/api/presence/activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activityType }),
+        body: JSON.stringify({ activityType, activityDetails }),
       })
     } catch (error) {
       console.error('Failed to update presence activity:', error)
@@ -339,10 +346,10 @@ export default function FocusTimerPage() {
 
   // Update presence when entering/leaving focus room
   useEffect(() => {
-    // Set activity to 'studying' when entering the room
+    // Set activity to 'studying' when entering the room (with subject if available)
     if (!presenceUpdatedRef.current && !isCompleted) {
       presenceUpdatedRef.current = true
-      updatePresenceActivity('studying')
+      updatePresenceActivity('studying', session?.taskSubject)
     }
 
     // Reset to 'browsing' when leaving the room
@@ -351,7 +358,7 @@ export default function FocusTimerPage() {
         updatePresenceActivity('browsing')
       }
     }
-  }, [updatePresenceActivity, isCompleted])
+  }, [updatePresenceActivity, isCompleted, session?.taskSubject])
 
   // Reset presence when session is completed or abandoned
   useEffect(() => {

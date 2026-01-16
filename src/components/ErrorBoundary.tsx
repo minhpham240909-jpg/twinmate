@@ -1,7 +1,16 @@
 'use client'
 
 import React, { Component, ErrorInfo, ReactNode } from 'react'
-import * as Sentry from '@sentry/nextjs'
+
+// Dynamically import Sentry to prevent module resolution issues
+let Sentry: typeof import('@sentry/nextjs') | null = null
+if (typeof window !== 'undefined') {
+  import('@sentry/nextjs').then((mod) => {
+    Sentry = mod
+  }).catch(() => {
+    // Sentry not available, continue without it
+  })
+}
 
 interface Props {
   children: ReactNode
@@ -45,14 +54,16 @@ export class ErrorBoundary extends Component<Props, State> {
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo)
 
-    // Send error to Sentry monitoring service
-    Sentry.captureException(error, {
-      contexts: {
-        react: {
-          componentStack: errorInfo.componentStack,
+    // Send error to Sentry monitoring service (if available)
+    if (Sentry) {
+      Sentry.captureException(error, {
+        contexts: {
+          react: {
+            componentStack: errorInfo.componentStack,
+          },
         },
-      },
-    })
+      })
+    }
   }
 
   handleReset = () => {

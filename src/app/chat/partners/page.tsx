@@ -92,11 +92,15 @@ function isFileMessage(msg: Message): { isFile: boolean; fileUrl: string | null;
   return { isFile: false, fileUrl: null, fileName: null }
 }
 
-// Helper to get activity display info
-function getActivityDisplay(activityType?: string) {
+// Helper to get activity display info with optional subject
+function getActivityDisplay(activityType?: string, activityDetails?: Record<string, unknown> | null) {
+  // Extract subject from activity details for studying status
+  const subject = activityDetails?.subject as string | undefined
+  
   switch (activityType) {
     case 'studying':
-      return { icon: '📚', text: 'Studying', color: 'text-blue-500' }
+      // Show "Studying [Subject]" if subject is available
+      return { icon: '📚', text: subject ? `Studying ${subject}` : 'Studying', color: 'text-blue-500' }
     case 'in_call':
       return { icon: '📞', text: 'In Call', color: 'text-green-500' }
     case 'with_ai':
@@ -713,9 +717,9 @@ function PartnersChatContent() {
                         <div className="flex items-center justify-between">
                           {/* Show activity status if online, otherwise show last message */}
                           {conv.onlineStatus === 'ONLINE' && conv.activityType && conv.activityType !== 'browsing' ? (
-                            <p className={`text-xs flex items-center gap-1 ${getActivityDisplay(conv.activityType).color}`}>
-                              <span>{getActivityDisplay(conv.activityType).icon}</span>
-                              <span>{getActivityDisplay(conv.activityType).text}</span>
+                            <p className={`text-xs flex items-center gap-1 ${getActivityDisplay(conv.activityType, conv.activityDetails).color}`}>
+                              <span>{getActivityDisplay(conv.activityType, conv.activityDetails).icon}</span>
+                              <span>{getActivityDisplay(conv.activityType, conv.activityDetails).text}</span>
                             </p>
                           ) : (
                             <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">{conv.lastMessage || t('noMessages')}</p>
@@ -753,9 +757,9 @@ function PartnersChatContent() {
                     <h3 className="font-medium text-neutral-900 dark:text-white">{selectedConversation.name}</h3>
                     {/* Show activity status with icon if online */}
                     {selectedConversation.onlineStatus === 'ONLINE' ? (
-                      <p className={`text-xs flex items-center gap-1 ${getActivityDisplay(selectedConversation.activityType).color}`}>
-                        <span>{getActivityDisplay(selectedConversation.activityType).icon}</span>
-                        <span>{getActivityDisplay(selectedConversation.activityType).text}</span>
+                      <p className={`text-xs flex items-center gap-1 ${getActivityDisplay(selectedConversation.activityType, selectedConversation.activityDetails).color}`}>
+                        <span>{getActivityDisplay(selectedConversation.activityType, selectedConversation.activityDetails).icon}</span>
+                        <span>{getActivityDisplay(selectedConversation.activityType, selectedConversation.activityDetails).text}</span>
                       </p>
                     ) : (
                       <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('offline')}</p>

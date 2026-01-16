@@ -1,7 +1,7 @@
 'use client'
 
 // Auth Context for Client-Side Authentication State
-import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -17,8 +17,14 @@ const isSupabaseConfigured = () => {
 const isProduction = process.env.NODE_ENV === 'production'
 
 // Fetch with timeout to prevent infinite loading
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<Response> => {
-  const controller = new AbortController()
+// Returns AbortController for cleanup
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 8000,
+  externalController?: AbortController
+): Promise<Response> => {
+  const controller = externalController || new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
@@ -90,12 +96,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [configError, setConfigError] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClient()
+
+  // Memoize supabase client to prevent recreation on every render
+  const supabase = useMemo(() => createClient(), [])
 
   // Debounce refs for profile fetch - prevents thundering herd on rapid auth changes
   const fetchProfileTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastFetchedUserIdRef = useRef<string | null>(null)
   const isFetchingRef = useRef(false)
+  // AbortController for canceling in-flight profile requests on unmount
+  const fetchAbortControllerRef = useRef<AbortController | null>(null)
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true)
 
   // Note: Presence heartbeat is handled by PresenceProvider in root layout
 
@@ -120,7 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Otherwise debounce for 500ms to coalesce rapid auth state changes
     fetchProfileTimeoutRef.current = setTimeout(() => {
-      fetchProfile(userId)
+      if (isMountedRef.current) {
+        fetchProfile(userId)
+      }
     }, 500)
   }, [])
 
@@ -128,22 +142,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Track fetch state to prevent duplicate requests
     isFetchingRef.current = true
     lastFetchedUserIdRef.current = userId
-    setProfileError(null)
+
+    // Cancel any previous in-flight request
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort()
+    }
+
+    // Create new AbortController for this request
+    const abortController = new AbortController()
+    fetchAbortControllerRef.current = abortController
+
+    if (isMountedRef.current) {
+      setProfileError(null)
+    }
+
     try {
       // Add cache: 'no-store' to bypass any caching and get fresh profile data
       // Use fetchWithTimeout to prevent infinite loading in production
-      const response = await fetchWithTimeout(`/api/users/${userId}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
+      const response = await fetchWithTimeout(
+        `/api/users/${userId}`,
+        {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
         },
-      }, 8000) // 8 second timeout (reduced from 15s)
+        8000, // 8 second timeout (reduced from 15s)
+        abortController
+      )
+
+      // Don't update state if component unmounted or request was aborted
+      if (!isMountedRef.current || abortController.signal.aborted) {
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
 
         // Merge user data with profile data
         // Ensure we have at least basic user info even if profile is null
-        if (data.user) {
+        if (data.user && isMountedRef.current) {
           // Extract Profile.role as profileRole (user position like 'Student', 'Professional')
           // This is separate from User.role which is subscription type ('FREE'/'PREMIUM')
           const profileRole = data.profile?.role || null
@@ -159,7 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setProfile(mergedProfile)
         }
-      } else {
+      } else if (isMountedRef.current) {
         // Log error but don't throw - let the UI handle it
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         if (!isProduction) {
@@ -168,6 +206,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfileError(`Failed to load profile: ${errorData.error || 'Server error'}`)
       }
     } catch (error) {
+      // Ignore abort errors - these are expected during cleanup
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+
+      if (!isMountedRef.current) {
+        return
+      }
+
       if (!isProduction) {
         console.error('Error fetching profile:', error)
       }
@@ -180,6 +227,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       // Clear fetching state
       isFetchingRef.current = false
+      // Clear abort controller reference if it's the same one
+      if (fetchAbortControllerRef.current === abortController) {
+        fetchAbortControllerRef.current = null
+      }
     }
   }
 
@@ -317,10 +368,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => {
+      // Mark component as unmounted to prevent state updates
+      isMountedRef.current = false
+
+      // Unsubscribe from auth state changes
       subscription.unsubscribe()
-      // Clear pending fetch on cleanup
+
+      // Clear pending fetch timeout
       if (fetchProfileTimeoutRef.current) {
         clearTimeout(fetchProfileTimeoutRef.current)
+        fetchProfileTimeoutRef.current = null
+      }
+
+      // Cancel any in-flight fetch requests
+      if (fetchAbortControllerRef.current) {
+        fetchAbortControllerRef.current.abort()
+        fetchAbortControllerRef.current = null
       }
     }
   }, [router, supabase, debouncedFetchProfile])

@@ -2,37 +2,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { adminRateLimit } from '@/lib/admin/rate-limit'
 
-// Helper to verify admin
+// Helper to verify admin with super admin check
 async function verifyAdmin(supabase: any) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
   const adminUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { isAdmin: true, id: true },
+    select: { isAdmin: true, isSuperAdmin: true, id: true, deactivatedAt: true },
   })
 
-  return adminUser?.isAdmin ? { ...user, dbId: adminUser.id } : null
+  // Check if admin and not deactivated
+  if (!adminUser?.isAdmin || adminUser.deactivatedAt) {
+    return null
+  }
+
+  return { ...user, dbId: adminUser.id, isSuperAdmin: adminUser.isSuperAdmin }
 }
 
 // GET - List audit logs
 export async function GET(request: NextRequest) {
+  // Rate limit audit log requests
+  const rateLimitResult = await adminRateLimit(request, 'default')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const admin = await verifyAdmin(supabase)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
-
-    // Verify admin status
-    const adminUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { isAdmin: true },
-    })
-
-    if (!adminUser?.isAdmin) {
+    if (!admin) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
@@ -138,6 +138,10 @@ export async function GET(request: NextRequest) {
 
 // DELETE - Delete audit logs (selected or all)
 export async function DELETE(request: NextRequest) {
+  // Rate limit delete requests
+  const rateLimitResult = await adminRateLimit(request, 'userActions')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const supabase = await createClient()
     const admin = await verifyAdmin(supabase)
@@ -153,14 +157,8 @@ export async function DELETE(request: NextRequest) {
       // SECURITY: Require explicit confirmation and super admin status for deleteAll
       const { confirmDelete, retentionDays } = body
 
-      // Check if current admin is super admin
-      const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
-      const currentAdmin = await prisma.user.findUnique({
-        where: { id: admin.id },
-        select: { email: true },
-      })
-
-      if (currentAdmin?.email !== superAdminEmail) {
+      // Check if current admin is super admin using isSuperAdmin field
+      if (!admin.isSuperAdmin) {
         return NextResponse.json({
           error: 'Only super admin can delete all audit logs'
         }, { status: 403 })

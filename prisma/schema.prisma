@@ -135,6 +135,9 @@ model User {
   // AI Partner preferences
   hideAIPartner         Boolean  @default(false) // User chose to hide AI Partner from dashboard
 
+  // Course enrollments (class-level social anchor)
+  courseEnrollments     CourseEnrollment[]
+
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -339,9 +342,10 @@ model Group {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  GroupMember[]
-  messages Message[]
-  invites  GroupInvite[]
+  members       GroupMember[]
+  messages      Message[]
+  invites       GroupInvite[]
+  studyCaptains StudyCaptain[]  // Weekly captain badges
 
   @@index([subject])
   @@index([privacy])
@@ -2553,6 +2557,7 @@ model StudyCircle {
   members         StudyCircleMember[]
   scheduledSessions CircleScheduledSession[]
   attendanceRecords CircleAttendance[]
+  studyCaptains   StudyCaptain[]    // Weekly captain badges
 
   @@index([createdById])
   @@index([status])
@@ -2661,6 +2666,54 @@ model CircleAttendance {
   @@index([date])
   @@index([didAttend])
   @@map("circle_attendance")
+}
+
+// ==========================================
+// STUDY CAPTAIN - Weekly Recognition Badge
+// ==========================================
+// Tracks the top performer in each study circle/group weekly
+// Strengthens class-level identity and accountability
+
+model StudyCaptain {
+  id              String            @id @default(uuid())
+  
+  // Which circle/group this captain belongs to
+  circleId        String?           // Study Circle ID
+  circle          StudyCircle?      @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  
+  groupId         String?           // Group ID (for study groups)
+  group           Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // The user who earned the badge
+  userId          String
+  
+  // Week identification (ISO week format)
+  weekStart       DateTime          @db.Date  // Monday of the week
+  weekEnd         DateTime          @db.Date  // Sunday of the week
+  
+  // Achievement stats for this week
+  totalStudyMinutes Int             @default(0)  // Total study time this week
+  sessionsAttended  Int             @default(0)  // Sessions attended
+  streakDays        Int             @default(0)  // Consecutive days studied
+  
+  // Recognition message (inspirational)
+  achievementMessage String?        @db.Text  // "Led the team with 12 hours of study!"
+  
+  // Whether this badge is currently active (latest week)
+  isActive        Boolean           @default(true)
+  
+  createdAt       DateTime          @default(now())
+  
+  // Unique constraint: one captain per circle/group per week
+  @@unique([circleId, weekStart])
+  @@unique([groupId, weekStart])
+  @@index([userId])
+  @@index([circleId])
+  @@index([groupId])
+  @@index([weekStart])
+  @@index([isActive])
+  @@index([userId, isActive]) // Find user's active captain badges
+  @@map("study_captains")
 }
 
 // ==========================================
@@ -3211,4 +3264,99 @@ model UserUnlock {
   @@index([unlockableId])
   @@index([isActive])
   @@map("user_unlocks")
+}
+
+// ==========================================
+// COURSE/CLASS SYSTEM
+// The social anchor that creates "classmates" context
+// ==========================================
+
+enum CourseRole {
+  STUDENT
+  TA          // Teaching Assistant
+  INSTRUCTOR
+}
+
+model Course {
+  id          String   @id @default(uuid())
+
+  // Course identification
+  name        String   // "Calculus I", "Introduction to Computer Science"
+  code        String   // "MATH101", "CS101"
+  section     String?  // "Section A", "001"
+
+  // Institution context
+  institution String   // "Stanford University"
+  department  String?  // "Mathematics", "Computer Science"
+
+  // Semester/Term
+  semester    String?  // "Spring 2026", "Fall 2025"
+  year        Int?     // 2026
+
+  // Course details
+  description String?  @db.Text
+  credits     Int?     // 3, 4 credits
+
+  // Settings
+  isActive    Boolean  @default(true)  // Course is currently running
+  isPublic    Boolean  @default(false) // Can anyone join or invite-only
+
+  // Join code for easy enrollment
+  joinCode    String?  @unique // "ABC123" - students enter to join
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  enrollments CourseEnrollment[]
+
+  // Unique constraint: same course code can exist at different institutions
+  @@unique([institution, code, semester])
+  @@index([institution])
+  @@index([code])
+  @@index([semester])
+  @@index([isActive])
+  @@index([joinCode])
+  @@map("courses")
+}
+
+model CourseEnrollment {
+  id        String     @id @default(uuid())
+
+  // Relations
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId  String
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Role in the course
+  role      CourseRole @default(STUDENT)
+
+  // Engagement tracking (for micro-leaderboards)
+  totalStudyMinutes  Int @default(0)  // Total minutes studied in this course
+  sessionsCompleted  Int @default(0)  // Sessions completed for this course
+  currentStreak      Int @default(0)  // Current streak for this course
+  longestStreak      Int @default(0)  // Longest streak for this course
+  lastStudiedAt      DateTime?        // Last time studied this course
+
+  // Weekly tracking (resets every Sunday for micro-leaderboards)
+  weeklyStudyMinutes Int @default(0)
+  weeklySessions     Int @default(0)
+  weekStartDate      DateTime?        // Start of current week tracking
+
+  // Timestamps
+  joinedAt  DateTime   @default(now())
+  leftAt    DateTime?  // null if still enrolled
+
+  // Each user can only enroll once per course
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([role])
+  @@index([currentStreak])
+  @@index([weeklyStudyMinutes])
+  @@index([lastStudiedAt])
+  @@map("course_enrollments")
 }
