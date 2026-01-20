@@ -116,6 +116,13 @@ export default function SoloStudyPage() {
   const [showRoadmap, setShowRoadmap] = useState(false)
   const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null)
 
+  // Away time tracking state
+  const [showAwayModal, setShowAwayModal] = useState(false)
+  const [awayMinutes, setAwayMinutes] = useState(0)
+  const [awayActivity, setAwayActivity] = useState('')
+  const [awayMessage, setAwayMessage] = useState<{ type: 'success' | 'warning'; text: string } | null>(null)
+  const awayStartTimeRef = useRef<number | null>(null)
+
   // Stats
   const [todayMinutes, setTodayMinutes] = useState(0)
   const [streak, setStreak] = useState(0)
@@ -318,9 +325,23 @@ export default function SoloStudyPage() {
     // Handle page visibility change (tab switch, minimize)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isSessionActive && !isPaused) {
-        // Pause the timer when page becomes hidden
+        // Pause the timer when page becomes hidden and track when they left
+        awayStartTimeRef.current = Date.now()
         setIsPaused(true)
         saveSessionState()
+      } else if (document.visibilityState === 'visible' && isSessionActive && isPaused && awayStartTimeRef.current) {
+        // User returned - calculate how long they were away
+        const awayTimeMs = Date.now() - awayStartTimeRef.current
+        const awayMins = Math.round(awayTimeMs / 60000)
+
+        // Only show modal if away for at least 1 minute
+        if (awayMins >= 1) {
+          setAwayMinutes(awayMins)
+          setAwayActivity('')
+          setAwayMessage(null)
+          setShowAwayModal(true)
+        }
+        awayStartTimeRef.current = null
       }
     }
 
@@ -624,6 +645,74 @@ export default function SoloStudyPage() {
   // Reset timer
   const handleResetTimer = () => {
     setTimeRemaining(isBreak ? breakMinutes * 60 : focusMinutes * 60)
+  }
+
+  // Productive activities that count as study time
+  const PRODUCTIVE_KEYWORDS = [
+    'homework', 'assignment', 'study', 'studying', 'reading', 'research',
+    'tutorial', 'course', 'lecture', 'learning', 'practice', 'exercise',
+    'notes', 'flashcard', 'review', 'quiz', 'test', 'exam', 'project',
+    'writing', 'essay', 'paper', 'coding', 'programming', 'documentation',
+    'khan', 'coursera', 'udemy', 'edx', 'textbook', 'article', 'solving',
+    'problem', 'math', 'science', 'history', 'language', 'vocabulary'
+  ]
+
+  // Non-productive activities
+  const NON_PRODUCTIVE_KEYWORDS = [
+    'game', 'gaming', 'youtube', 'netflix', 'tiktok', 'instagram', 'facebook',
+    'twitter', 'reddit', 'twitch', 'discord', 'video', 'movie', 'show',
+    'social media', 'browsing', 'scrolling', 'chatting', 'texting', 'nothing',
+    'break', 'rest', 'snack', 'food', 'eating', 'bathroom', 'phone'
+  ]
+
+  // Handle away activity submission
+  const handleAwayActivitySubmit = () => {
+    const activityLower = awayActivity.toLowerCase().trim()
+
+    if (!activityLower) {
+      setAwayMessage({ type: 'warning', text: 'Please tell us what you did.' })
+      return
+    }
+
+    // Check if activity is productive
+    const isProductive = PRODUCTIVE_KEYWORDS.some(keyword => activityLower.includes(keyword))
+    const isNonProductive = NON_PRODUCTIVE_KEYWORDS.some(keyword => activityLower.includes(keyword))
+
+    if (isProductive && !isNonProductive) {
+      // Add away time to the timer
+      const secondsToAdd = awayMinutes * 60
+      setTimeRemaining(prev => prev + secondsToAdd)
+      setTodayMinutes(prev => prev + awayMinutes)
+
+      setAwayMessage({
+        type: 'success',
+        text: `Great work! Added ${awayMinutes} ${awayMinutes === 1 ? 'minute' : 'minutes'} to your session.`
+      })
+
+      // Close modal after showing success message
+      setTimeout(() => {
+        setShowAwayModal(false)
+        setIsPaused(false) // Auto-resume after productive activity
+      }, 2000)
+    } else {
+      // Don't add time
+      setAwayMessage({
+        type: 'warning',
+        text: 'Keep studying! Time not added, but you can get back to it now.'
+      })
+
+      // Close modal after showing message
+      setTimeout(() => {
+        setShowAwayModal(false)
+        // Stay paused - user needs to manually resume
+      }, 2000)
+    }
+  }
+
+  // Skip the away activity prompt (user doesn't want to explain)
+  const handleSkipAwayActivity = () => {
+    setShowAwayModal(false)
+    // Stay paused - user can manually resume
   }
 
   // Save settings
@@ -995,6 +1084,135 @@ export default function SoloStudyPage() {
             plan={studyPlan}
             onClose={() => setShowRoadmap(false)}
           />
+        </div>
+      )}
+
+      {/* Away Time Modal - shown when user returns after leaving the tab */}
+      {showAwayModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-300">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">👋</span>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Welcome back!</h2>
+              <p className="text-neutral-400">
+                You were away for{' '}
+                <span className="text-amber-400 font-semibold">
+                  {awayMinutes} {awayMinutes === 1 ? 'minute' : 'minutes'}
+                </span>
+              </p>
+            </div>
+
+            {/* Activity Input */}
+            {!awayMessage && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-neutral-400 mb-2">
+                    What did you do while away?
+                  </label>
+                  <input
+                    type="text"
+                    value={awayActivity}
+                    onChange={(e) => setAwayActivity(e.target.value)}
+                    placeholder="e.g., Doing homework, Watching tutorial, Playing games..."
+                    className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder:text-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAwayActivitySubmit()
+                    }}
+                    autoFocus
+                  />
+                  <p className="text-xs text-neutral-500 mt-2">
+                    If you were doing something productive (homework, tutorial, reading), that time will be added to your session!
+                  </p>
+                </div>
+
+                {/* Quick Select Options */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setAwayActivity('Doing homework')}
+                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                      awayActivity === 'Doing homework'
+                        ? 'bg-green-500/30 text-green-300 border border-green-500/50'
+                        : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                    }`}
+                  >
+                    📚 Homework
+                  </button>
+                  <button
+                    onClick={() => setAwayActivity('Watching tutorial')}
+                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                      awayActivity === 'Watching tutorial'
+                        ? 'bg-green-500/30 text-green-300 border border-green-500/50'
+                        : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                    }`}
+                  >
+                    🎬 Tutorial
+                  </button>
+                  <button
+                    onClick={() => setAwayActivity('Reading textbook')}
+                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                      awayActivity === 'Reading textbook'
+                        ? 'bg-green-500/30 text-green-300 border border-green-500/50'
+                        : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                    }`}
+                  >
+                    📖 Reading
+                  </button>
+                  <button
+                    onClick={() => setAwayActivity('Taking a break')}
+                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                      awayActivity === 'Taking a break'
+                        ? 'bg-amber-500/30 text-amber-300 border border-amber-500/50'
+                        : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                    }`}
+                  >
+                    ☕ Break
+                  </button>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSkipAwayActivity}
+                    className="flex-1 py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl font-medium transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleAwayActivitySubmit}
+                    className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    Submit
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Result Message */}
+            {awayMessage && (
+              <div className="text-center py-4">
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                    awayMessage.type === 'success'
+                      ? 'bg-green-500/20'
+                      : 'bg-amber-500/20'
+                  }`}
+                >
+                  <span className="text-3xl">
+                    {awayMessage.type === 'success' ? '✅' : '💪'}
+                  </span>
+                </div>
+                <p
+                  className={`font-medium ${
+                    awayMessage.type === 'success' ? 'text-green-300' : 'text-amber-300'
+                  }`}
+                >
+                  {awayMessage.text}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

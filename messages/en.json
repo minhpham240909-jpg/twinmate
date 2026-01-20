@@ -36,7 +36,8 @@
     "cancelRequest": "Cancel Request",
     "send": "Send",
     "viewProfile": "View Profile",
-    "editProfile": "Edit Profile"
+    "editProfile": "Edit Profile",
+    "feedback": "Feedback"
   },
   "navigation": {
     "dashboard": "Dashboard",

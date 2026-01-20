@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
 
 // Validation schema for settings update
 const updateSettingsSchema = z.object({
@@ -145,12 +146,12 @@ export async function POST(request: NextRequest) {
     // Parse and validate request body
     const body = await request.json()
 
-    console.log('[Settings Update] Received body:', JSON.stringify(body, null, 2))
+    logger.info('[Settings Update] Received body', { body })
 
     const validation = updateSettingsSchema.safeParse(body)
 
     if (!validation.success) {
-      console.error('[Settings Update] Validation failed:', validation.error.issues)
+      logger.error('[Settings Update] Validation failed', { issues: validation.error.issues })
       return NextResponse.json(
         {
           error: 'Invalid data',
@@ -163,58 +164,73 @@ export async function POST(request: NextRequest) {
 
     const updates = validation.data
 
-    // Update settings using Supabase (RLS will ensure user can only update their own)
-    const { data: updatedSettings, error } = await supabase
+    // First, check if settings exist for this user
+    const { data: existingSettings, error: checkError } = await supabase
       .from('UserSettings')
-      .update({
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      })
+      .select('id')
       .eq('userId', user.id)
-      .select('*')
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      // If settings don't exist, create them with the updates
-      if (error.code === 'PGRST116') {
-        const { data: newSettings, error: createError } = await supabase
-          .from('UserSettings')
-          .insert({
-            userId: user.id,
-            ...updates,
-          })
-          .select('*')
-          .single()
-
-        if (createError) {
-          console.error('[Settings Update] Error creating settings:', createError)
-          return NextResponse.json(
-            { error: 'Failed to create settings' },
-            { status: 500 }
-          )
-        }
-
-        return NextResponse.json({
-          success: true,
-          settings: newSettings,
-          message: 'Settings created successfully',
-        })
-      }
-
-      console.error('[Settings Update] Error updating settings:', error)
+    if (checkError) {
+      logger.error('[Settings Update] Error checking existing settings', { error: checkError })
       return NextResponse.json(
-        { error: 'Failed to update settings' },
+        { error: 'Failed to check settings' },
         { status: 500 }
       )
     }
 
+    let finalSettings
+
+    if (existingSettings) {
+      // Settings exist - update them
+      const { data: updatedSettings, error: updateError } = await supabase
+        .from('UserSettings')
+        .update({
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('userId', user.id)
+        .select('*')
+        .single()
+
+      if (updateError) {
+        logger.error('[Settings Update] Error updating settings', { error: updateError })
+        return NextResponse.json(
+          { error: 'Failed to update settings' },
+          { status: 500 }
+        )
+      }
+
+      finalSettings = updatedSettings
+    } else {
+      // Settings don't exist - create them
+      const { data: newSettings, error: createError } = await supabase
+        .from('UserSettings')
+        .insert({
+          userId: user.id,
+          ...updates,
+        })
+        .select('*')
+        .single()
+
+      if (createError) {
+        logger.error('[Settings Update] Error creating settings', { error: createError })
+        return NextResponse.json(
+          { error: 'Failed to create settings' },
+          { status: 500 }
+        )
+      }
+
+      finalSettings = newSettings
+    }
+
     return NextResponse.json({
       success: true,
-      settings: updatedSettings,
-      message: 'Settings updated successfully',
+      settings: finalSettings,
+      message: existingSettings ? 'Settings updated successfully' : 'Settings created successfully',
     })
   } catch (error) {
-    console.error('[Settings Update] Error:', error)
+    logger.error('[Settings Update] Error', { error: error instanceof Error ? error : String(error) })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

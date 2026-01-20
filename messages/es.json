@@ -36,7 +36,8 @@
     "cancelRequest": "Cancelar Solicitud",
     "send": "Enviar",
     "viewProfile": "Ver Perfil",
-    "editProfile": "Editar Perfil"
+    "editProfile": "Editar Perfil",
+    "feedback": "Comentarios"
   },
   "navigation": {
     "dashboard": "Panel",
