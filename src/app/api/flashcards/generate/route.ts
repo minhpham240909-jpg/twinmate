@@ -17,6 +17,16 @@ interface GeneratedCard {
   multipleChoiceOptions?: { id: string; text: string; isCorrect: boolean }[]
 }
 
+// Study plan context from "Guide Me" flow
+interface StudyPlanContext {
+  subject: string
+  steps: Array<{
+    title: string
+    description: string
+    tips?: string[]
+  }>
+}
+
 /**
  * POST /api/flashcards/generate - Generate flashcards from text using AI
  */
@@ -38,11 +48,23 @@ export async function POST(request: NextRequest) {
       difficulty = 'mixed', // 'easy', 'medium', 'hard', 'mixed'
       questionTypes = ['FLIP'], // Types of questions to generate
       createDeck = true, // Whether to create a deck with the cards
-    } = body
+      studyPlanContext,  // Optional study plan context from "Guide Me" flow
+    } = body as {
+      content: string
+      title?: string
+      subject?: string
+      cardCount?: number
+      difficulty?: string
+      questionTypes?: string[]
+      createDeck?: boolean
+      studyPlanContext?: StudyPlanContext
+    }
 
-    if (!content || typeof content !== 'string' || content.trim().length < 50) {
+    // Allow shorter content if study plan context is provided (the context adds value)
+    const minContentLength = studyPlanContext ? 20 : 50
+    if (!content || typeof content !== 'string' || content.trim().length < minContentLength) {
       return NextResponse.json(
-        { error: 'Content must be at least 50 characters' },
+        { error: `Content must be at least ${minContentLength} characters` },
         { status: 400 }
       )
     }
@@ -56,9 +78,37 @@ export async function POST(request: NextRequest) {
       ? 'Mix difficulties (EASY, MEDIUM, HARD) appropriately based on concept complexity.'
       : `Set all cards to ${difficulty.toUpperCase()} difficulty.`
 
+    // Build study plan context section if available
+    let studyPlanSection = ''
+    if (studyPlanContext && studyPlanContext.subject && studyPlanContext.steps?.length > 0) {
+      const stepsText = studyPlanContext.steps
+        .map((step, i) => {
+          let text = `  Step ${i + 1}: ${step.title} - ${step.description}`
+          if (step.tips?.length) {
+            text += ` (Tips: ${step.tips.join('; ')})`
+          }
+          return text
+        })
+        .join('\n')
+
+      studyPlanSection = `
+
+IMPORTANT CONTEXT - The student has a personalized study plan:
+Subject: ${studyPlanContext.subject}
+Study Plan Steps:
+${stepsText}
+
+Use this study plan to:
+- Focus flashcards on concepts mentioned in the study plan steps
+- Prioritize the key topics from the student's personalized plan
+- Create cards that help the student master each step of their plan
+- Make the content highly relevant to their ${studyPlanContext.subject} study goals`
+    }
+
     const systemPrompt = `You are an expert educational content creator specializing in creating effective flashcards for studying.
 
 Your task is to analyze the provided text and create ${cardCount} high-quality flashcards.
+${studyPlanSection}
 
 Guidelines:
 1. Extract the most important concepts, definitions, facts, and relationships

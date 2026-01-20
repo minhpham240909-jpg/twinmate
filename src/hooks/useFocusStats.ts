@@ -27,9 +27,10 @@ interface FocusStatsResponse {
 
 /**
  * React Query hook for focus stats (Quick Focus)
- * - Used by QuickFocusCard
+ * - Used by QuickFocusCard and SoloStudyCard
  * - Caches data for 30 seconds
  * - Shows cached data immediately on navigation
+ * - Prevents flickering with placeholderData
  */
 export function useFocusStats() {
   return useQuery<FocusStatsResponse>({
@@ -49,6 +50,10 @@ export function useFocusStats() {
     retry: 1,
     // Refetch every 30 seconds in background when component is mounted
     refetchInterval: 30 * 1000,
+    // Return previous data while refetching to prevent UI flickering
+    placeholderData: (previousData) => previousData,
+    // Refetch when window regains focus (user comes back to app)
+    refetchOnWindowFocus: true,
   })
 }
 

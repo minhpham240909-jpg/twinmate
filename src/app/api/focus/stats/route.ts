@@ -125,8 +125,9 @@ export async function GET() {
         const elapsed = Date.now() - startTime
         const remainingSeconds = Math.max(0, Math.ceil((durationMs - elapsed) / 1000))
 
-        // Determine session type based on mode field (more accurate than label)
-        const isSoloStudy = userActiveSession.mode === 'solo'
+        // Determine session type based on label - Solo Study sessions have "Solo Study" prefix
+        // Both Quick Focus and Solo Study use mode='solo', so we check the label instead
+        const isSoloStudy = userActiveSession.label?.startsWith('Solo Study') ?? false
 
         if (remainingSeconds > 0) {
           activeSession = {

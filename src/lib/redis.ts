@@ -17,6 +17,10 @@
  * - User stats: Invalidate on session complete
  * - Shop items: Invalidate on purchase/activate
  * - Online counts: Short TTL (15 seconds)
+ *
+ * PRODUCTION REQUIREMENT:
+ * Redis is REQUIRED in production for proper scaling.
+ * Without Redis, rate limiting and caching will be severely degraded.
  */
 
 import { Redis } from '@upstash/redis'
@@ -26,6 +30,19 @@ const isRedisConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL &&
   process.env.UPSTASH_REDIS_REST_TOKEN
 )
+
+// PRODUCTION: Warn if Redis is not configured
+const isProduction = process.env.NODE_ENV === 'production'
+let redisWarningLogged = false
+
+if (isProduction && !isRedisConfigured && !redisWarningLogged) {
+  console.error(
+    '[Redis] CRITICAL: Redis is not configured in production! ' +
+    'This will severely impact performance and rate limiting. ' +
+    'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
+  )
+  redisWarningLogged = true
+}
 
 // Create Redis client (lazy initialization)
 let redisClient: Redis | null = null
@@ -45,6 +62,14 @@ function getRedis(): Redis | null {
   return redisClient
 }
 
+/**
+ * Check if Redis is required but not available (production without Redis)
+ * Returns true if this is a critical configuration issue
+ */
+export function isRedisMissingInProduction(): boolean {
+  return isProduction && !isRedisConfigured
+}
+
 // Cache key prefixes
 export const CacheKeys = {
   USER_STATS: (userId: string) => `user:stats:${userId}`,
@@ -55,8 +80,14 @@ export const CacheKeys = {
   LEADERBOARD: (type: string) => `leaderboard:${type}`,
   FOCUS_STATS: (userId: string) => `focus:stats:${userId}`,
   ADMIN_STATS: () => `admin:stats`,
-  // Course leaderboards (per-course, per-type)
-  COURSE_LEADERBOARD: (courseId: string, type: string) => `course:leaderboard:${courseId}:${type}`,
+  // PERF: Cache online partners presence per user
+  ONLINE_PARTNERS: (userId: string) => `presence:partners:${userId}`,
+  // SCALE: Cache partnerships for 2000-3000 user scale
+  USER_PARTNERSHIPS: (userId: string) => `user:partnerships:${userId}`,
+  // Global leaderboard (24h refresh)
+  GLOBAL_LEADERBOARD: () => `leaderboard:global:daily`,
+  DASHBOARD_COUNTS: (userId: string) => `dashboard:counts:${userId}`,
+  STUDY_SUGGESTIONS: (userId: string) => `study:suggestions:${userId}`,
 } as const
 
 // Default TTLs in seconds
@@ -69,7 +100,12 @@ export const CacheTTL = {
   LEADERBOARD: 60,        // 1 minute - computed data
   FOCUS_STATS: 30,        // 30 seconds - active session data
   ADMIN_STATS: 60,        // 1 minute - admin dashboard
-  COURSE_LEADERBOARD: 120, // 2 minutes - doesn't change frequently
+  ONLINE_PARTNERS: 10,    // 10 seconds - presence needs to be fresh but cache helps at scale
+  // SCALE: Longer TTLs for high-traffic data (2000-3000 users)
+  USER_PARTNERSHIPS: 60,  // 1 minute - partnerships don't change often
+  GLOBAL_LEADERBOARD: 86400, // 24 hours - refreshes daily
+  DASHBOARD_COUNTS: 30,   // 30 seconds - notification counts
+  STUDY_SUGGESTIONS: 300, // 5 minutes - suggestions don't need real-time updates
 } as const
 
 /**

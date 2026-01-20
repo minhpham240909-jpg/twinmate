@@ -2444,7 +2444,7 @@ function AccessibilitySettings({ settings, updateSetting }: { settings: UserSett
         <SelectSetting
           label={t('fontSize')}
           description={t('adjustTextSize')}
-          value={settings.fontSize || 'MEDIUM'}
+          value={settings.fontSize || 'SMALL'}
           options={[
             { value: 'SMALL', label: t('small') },
             { value: 'MEDIUM', label: t('mediumDefault') },

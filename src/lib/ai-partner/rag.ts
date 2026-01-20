@@ -7,14 +7,49 @@
  * - Search conversation history for context
  * - Search study session notes
  * - Combine with AI for enhanced responses
+ * - SEMANTIC SEARCH: Uses OpenAI embeddings for intelligent matching
+ *
+ * SCALABILITY: Designed for 1000-3000 concurrent users with:
+ * - Parallel query execution (Promise.all)
+ * - Embedding caching (24hr TTL)
+ * - Fallback to keyword search on failures
+ * - No N+1 queries
  */
 
 import { prisma } from '@/lib/prisma'
-import OpenAI from 'openai'
+import {
+  generateEmbedding,
+  cosineSimilarity,
+  normalizeText,
+} from '@/lib/embeddings/openai-embeddings'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// =============================================================================
+// SEMANTIC SEARCH CONFIGURATION
+// =============================================================================
+
+/**
+ * SCALABILITY: Feature flags for gradual rollout
+ */
+const RAG_CONFIG = {
+  // Enable semantic search (embeddings-based)
+  useSemanticSearch: process.env.RAG_SEMANTIC_SEARCH !== 'false', // Default ON
+
+  // Minimum similarity threshold for semantic matches (0-1)
+  minSemanticSimilarity: 0.65,
+
+  // Weight for semantic vs keyword score (0-1)
+  semanticWeight: 0.7,
+  keywordWeight: 0.3,
+
+  // Fallback to keyword search on embedding errors
+  fallbackOnError: true,
+
+  // Max items to embed per search (for rate limiting)
+  maxEmbeddingBatchSize: 50,
+
+  // Enable debug logging
+  debug: process.env.NODE_ENV === 'development' || process.env.RAG_DEBUG === 'true',
+} as const
 
 // Types
 export interface RAGSearchResult {
@@ -37,6 +72,7 @@ export interface RAGContext {
 
 /**
  * Search user's flashcards for relevant content
+ * ENHANCED: Uses semantic search with embeddings for better matching
  */
 async function searchFlashcards(
   userId: string,
@@ -56,23 +92,118 @@ async function searchFlashcards(
       },
     },
     orderBy: { createdAt: 'desc' },
-    take: 100, // Get recent flashcards to search
+    take: RAG_CONFIG.maxEmbeddingBatchSize, // Limit for embedding batch size
   })
 
   if (flashcards.length === 0) return []
 
-  // Simple keyword matching (can be enhanced with embeddings later)
-  const queryLower = query.toLowerCase()
-  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2)
+  // Try semantic search first
+  if (RAG_CONFIG.useSemanticSearch) {
+    try {
+      return await searchFlashcardsWithEmbeddings(flashcards, query, limit)
+    } catch (error) {
+      if (RAG_CONFIG.debug) {
+        console.warn('[RAG] Semantic flashcard search failed, falling back to keyword:', error)
+      }
+      if (!RAG_CONFIG.fallbackOnError) throw error
+      // Fall through to keyword search
+    }
+  }
 
-  const scoredFlashcards = flashcards.map(fc => {
+  // Fallback: Keyword-based search
+  return searchFlashcardsWithKeywords(flashcards, query, limit)
+}
+
+/**
+ * SEMANTIC SEARCH: Search flashcards using embeddings
+ * SCALABILITY: Uses cached embeddings, rate-limited API calls
+ */
+async function searchFlashcardsWithEmbeddings(
+  flashcards: Array<{
+    id: string
+    front: string
+    back: string
+    createdAt: Date
+    session: { subject: string | null } | null
+  }>,
+  query: string,
+  limit: number
+): Promise<RAGSearchResult[]> {
+  // Generate query embedding (uses cache)
+  const { embedding: queryEmbedding } = await generateEmbedding(
+    normalizeText(query),
+    'rag-flashcard-search'
+  )
+
+  // Calculate semantic similarity for each flashcard
+  const scoredFlashcards = await Promise.all(
+    flashcards.map(async (fc) => {
+      const cardText = normalizeText(`${fc.front} ${fc.back}`)
+
+      // Generate embedding for flashcard (uses cache)
+      const { embedding: cardEmbedding } = await generateEmbedding(
+        cardText,
+        'rag-flashcard-content'
+      )
+
+      // Calculate cosine similarity
+      const semanticScore = cosineSimilarity(queryEmbedding, cardEmbedding)
+
+      // Also calculate keyword score for hybrid ranking
+      const keywordScore = calculateKeywordScore(query, cardText)
+
+      // Hybrid score: weighted combination
+      const hybridScore =
+        semanticScore * RAG_CONFIG.semanticWeight +
+        keywordScore * RAG_CONFIG.keywordWeight
+
+      return { flashcard: fc, semanticScore, keywordScore, hybridScore }
+    })
+  )
+
+  // Filter by minimum similarity and sort by hybrid score
+  const relevant = scoredFlashcards
+    .filter((f) => f.semanticScore >= RAG_CONFIG.minSemanticSimilarity || f.keywordScore > 0)
+    .sort((a, b) => b.hybridScore - a.hybridScore)
+    .slice(0, limit)
+
+  return relevant.map(({ flashcard, hybridScore }) => ({
+    type: 'flashcard' as const,
+    content: `Q: ${flashcard.front}\nA: ${flashcard.back}`,
+    metadata: {
+      id: flashcard.id,
+      source: flashcard.session?.subject || 'Flashcard',
+      relevanceScore: hybridScore,
+      createdAt: flashcard.createdAt,
+    },
+  }))
+}
+
+/**
+ * FALLBACK: Keyword-based flashcard search
+ */
+function searchFlashcardsWithKeywords(
+  flashcards: Array<{
+    id: string
+    front: string
+    back: string
+    createdAt: Date
+    session: { subject: string | null } | null
+  }>,
+  query: string,
+  limit: number
+): RAGSearchResult[] {
+  const queryLower = query.toLowerCase()
+  const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 2)
+
+  const scoredFlashcards = flashcards.map((fc) => {
     const frontLower = fc.front.toLowerCase()
     const backLower = fc.back.toLowerCase()
     const combined = `${frontLower} ${backLower}`
 
     // Calculate relevance score
     let score = 0
-    queryWords.forEach(word => {
+    queryWords.forEach((word) => {
       if (combined.includes(word)) score += 1
       if (frontLower.includes(word)) score += 0.5 // Bonus for front match
     })
@@ -85,7 +216,7 @@ async function searchFlashcards(
 
   // Filter and sort by score
   const relevant = scoredFlashcards
-    .filter(f => f.score > 0)
+    .filter((f) => f.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
 
@@ -102,7 +233,32 @@ async function searchFlashcards(
 }
 
 /**
+ * Calculate keyword match score (for hybrid search)
+ */
+function calculateKeywordScore(query: string, text: string): number {
+  const queryLower = query.toLowerCase()
+  const textLower = text.toLowerCase()
+  const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 2)
+
+  if (queryWords.length === 0) return 0
+
+  let matchCount = 0
+  queryWords.forEach((word) => {
+    if (textLower.includes(word)) matchCount++
+  })
+
+  // Normalize to 0-1 range
+  const wordMatchRatio = matchCount / queryWords.length
+
+  // Exact phrase match bonus
+  const exactMatchBonus = textLower.includes(queryLower) ? 0.3 : 0
+
+  return Math.min(1, wordMatchRatio + exactMatchBonus)
+}
+
+/**
  * Search conversation history for relevant messages
+ * ENHANCED: Uses semantic search with embeddings for better matching
  */
 async function searchConversations(
   userId: string,
@@ -127,19 +283,120 @@ async function searchConversations(
       },
     },
     orderBy: { createdAt: 'desc' },
-    take: 200, // Recent messages
+    take: RAG_CONFIG.maxEmbeddingBatchSize, // Limit for embedding performance
   })
 
   if (messages.length === 0) return []
 
-  const queryLower = query.toLowerCase()
-  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2)
+  // Try semantic search first
+  if (RAG_CONFIG.useSemanticSearch) {
+    try {
+      return await searchConversationsWithEmbeddings(messages, query, limit)
+    } catch (error) {
+      if (RAG_CONFIG.debug) {
+        console.warn('[RAG] Semantic conversation search failed, falling back to keyword:', error)
+      }
+      if (!RAG_CONFIG.fallbackOnError) throw error
+      // Fall through to keyword search
+    }
+  }
 
-  const scoredMessages = messages.map(msg => {
+  // Fallback: Keyword-based search
+  return searchConversationsWithKeywords(messages, query, limit)
+}
+
+/**
+ * SEMANTIC SEARCH: Search conversations using embeddings
+ */
+async function searchConversationsWithEmbeddings(
+  messages: Array<{
+    id: string
+    content: string
+    role: string
+    messageType: string
+    createdAt: Date
+    session: { subject: string | null } | null
+  }>,
+  query: string,
+  limit: number
+): Promise<RAGSearchResult[]> {
+  // Generate query embedding (uses cache)
+  const { embedding: queryEmbedding } = await generateEmbedding(
+    normalizeText(query),
+    'rag-conversation-search'
+  )
+
+  // Calculate semantic similarity for each message
+  const scoredMessages = await Promise.all(
+    messages.map(async (msg) => {
+      const msgText = normalizeText(msg.content.slice(0, 1000)) // Limit content length
+
+      // Generate embedding for message (uses cache)
+      const { embedding: msgEmbedding } = await generateEmbedding(
+        msgText,
+        'rag-conversation-content'
+      )
+
+      // Calculate cosine similarity
+      const semanticScore = cosineSimilarity(queryEmbedding, msgEmbedding)
+
+      // Also calculate keyword score for hybrid ranking
+      const keywordScore = calculateKeywordScore(query, msgText)
+
+      // Boost assistant messages (more informative)
+      const roleBoost = msg.role === 'ASSISTANT' ? 1.1 : 1.0
+
+      // Hybrid score: weighted combination with role boost
+      const hybridScore =
+        (semanticScore * RAG_CONFIG.semanticWeight +
+          keywordScore * RAG_CONFIG.keywordWeight) *
+        roleBoost
+
+      return { message: msg, semanticScore, keywordScore, hybridScore }
+    })
+  )
+
+  // Filter by minimum similarity and sort by hybrid score
+  const relevant = scoredMessages
+    .filter((m) => m.semanticScore >= RAG_CONFIG.minSemanticSimilarity || m.keywordScore > 0)
+    .sort((a, b) => b.hybridScore - a.hybridScore)
+    .slice(0, limit)
+
+  return relevant.map(({ message, hybridScore }) => ({
+    type: 'conversation' as const,
+    content: message.content.slice(0, 500), // Truncate long messages
+    metadata: {
+      id: message.id,
+      source: message.session?.subject || 'Conversation',
+      relevanceScore: hybridScore,
+      createdAt: message.createdAt,
+    },
+  }))
+}
+
+/**
+ * FALLBACK: Keyword-based conversation search
+ */
+function searchConversationsWithKeywords(
+  messages: Array<{
+    id: string
+    content: string
+    role: string
+    messageType: string
+    createdAt: Date
+    session: { subject: string | null } | null
+  }>,
+  query: string,
+  limit: number
+): RAGSearchResult[] {
+  const queryLower = query.toLowerCase()
+  const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 2)
+
+  const scoredMessages = messages.map((msg) => {
     const contentLower = msg.content.toLowerCase()
 
     let score = 0
-    queryWords.forEach(word => {
+    queryWords.forEach((word) => {
       if (contentLower.includes(word)) score += 1
     })
 
@@ -153,7 +410,7 @@ async function searchConversations(
   })
 
   const relevant = scoredMessages
-    .filter(m => m.score > 0)
+    .filter((m) => m.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
 

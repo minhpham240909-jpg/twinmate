@@ -11,6 +11,9 @@ interface UserStats {
     today: { value: number; unit: string; display: string }
     thisWeek: { value: number; unit: string; display: string }
     allTime: { value: number; unit: string; display: string }
+    todayMinutes?: number
+    weekMinutes?: number
+    allTimeMinutes?: number
   }
   sessions: { today: number; thisWeek: number; allTime: number }
   points: number
@@ -47,9 +50,8 @@ export default function DashboardStatsRow({ userStats }: DashboardStatsRowProps)
 
   // Calculate daily goal progress (default 30 min/day goal)
   const dailyGoalMinutes = 30
-  const todayMinutes = userStats?.studyTime.today.value || 0
-  const todayUnit = userStats?.studyTime.today.unit || 'min'
-  const actualTodayMinutes = todayUnit === 'hr' ? todayMinutes * 60 : todayMinutes
+  // Use todayMinutes (raw minutes) directly - more accurate than converting from hours
+  const actualTodayMinutes = userStats?.studyTime.todayMinutes || 0
   const dailyProgress = Math.min((actualTodayMinutes / dailyGoalMinutes) * 100, 100)
 
   return (

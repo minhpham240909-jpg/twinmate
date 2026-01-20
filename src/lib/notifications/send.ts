@@ -16,6 +16,8 @@ import {
   pushIncomingCall,
   pushPostLike,
   pushPostComment,
+  pushPartnerStartedStudying,
+  pushLeaderboardRankDrop,
   PushNotificationType,
 } from '@/lib/web-push'
 
@@ -430,5 +432,116 @@ export async function notifyPostComment(
     await pushPostComment(postOwnerId, commenterName, commentPreview, postId)
   } catch (error) {
     logger.error('Failed to send post comment notification', error as Error)
+  }
+}
+
+// ==========================================
+// SOCIAL ENGAGEMENT NOTIFICATIONS
+// Pull users back to the app
+// ==========================================
+
+/**
+ * Notify partners when a user starts studying
+ * Creates FOMO to pull users back to the app
+ *
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Only notifies connected partners (not all users)
+ * - Batches notifications to prevent N+1
+ * - Limits to closest partners (max 10) to avoid spam
+ * - Uses rate limiting to prevent notification fatigue
+ */
+export async function notifyPartnersStartedStudying(
+  userId: string,
+  activityType: 'focus' | 'solo_study' | 'study_session' | 'flashcards',
+  subject?: string
+) {
+  try {
+    // Get user info and their accepted matches (connections) in parallel
+    const [user, matches] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      }),
+      // Get accepted matches (bidirectional - user can be sender or receiver)
+      prisma.match.findMany({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { senderId: userId },
+            { receiverId: userId },
+          ],
+        },
+        select: {
+          senderId: true,
+          receiverId: true,
+        },
+        take: 10, // Limit to prevent spam
+      }),
+    ])
+
+    if (!user || matches.length === 0) return
+
+    // Get partner IDs (the other person in each match)
+    const partnerIds = matches.map((m) =>
+      m.senderId === userId ? m.receiverId : m.senderId
+    )
+
+    // Send push notifications to all partners in parallel
+    // No in-app notification to avoid clutter - push only for pull-back
+    await Promise.all(
+      partnerIds.map((partnerId) =>
+        pushPartnerStartedStudying(partnerId, user.name, activityType, subject)
+      )
+    )
+
+    logger.info('Partner studying notifications sent', {
+      userId,
+      partnerCount: partnerIds.length,
+      activityType,
+    })
+  } catch (error) {
+    // Don't throw - notifications are not critical
+    logger.error('Failed to send partner studying notifications', error as Error)
+  }
+}
+
+/**
+ * Notify user when they drop in leaderboard ranking
+ * Creates competitive urgency to bring them back
+ *
+ * CALL THIS: When leaderboard is recalculated (every 24h)
+ */
+export async function notifyLeaderboardRankDrop(
+  userId: string,
+  newRank: number,
+  previousRank: number
+) {
+  try {
+    // Only notify if they actually dropped and were in top 10
+    if (newRank <= previousRank || previousRank > 10) return
+
+    const positionsDown = newRank - previousRank
+
+    // Create in-app notification
+    // Note: LEADERBOARD_RANK_DROP type added to schema, run prisma generate if type error
+    await createInAppNotification({
+      userId,
+      type: 'LEADERBOARD_RANK_DROP' as NotificationType,
+      title: '📉 Someone passed you!',
+      message: `You dropped from #${previousRank} to #${newRank}. Study now to reclaim your spot!`,
+      actionUrl: '/dashboard',
+    })
+
+    // Send push notification
+    await pushLeaderboardRankDrop(userId, newRank, previousRank)
+
+    logger.info('Leaderboard rank drop notification sent', {
+      userId,
+      previousRank,
+      newRank,
+      positionsDown,
+    })
+  } catch (error) {
+    logger.error('Failed to send leaderboard rank drop notification', error as Error)
   }
 }

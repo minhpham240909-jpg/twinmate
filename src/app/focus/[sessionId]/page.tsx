@@ -22,13 +22,34 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { X, Check, Flame, Trophy, Users, RotateCcw } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { X, Check, Flame, Trophy, Users, RotateCcw, Map, Pause, Play } from 'lucide-react'
 import { subscribeToFocusSessionParticipants } from '@/lib/supabase/realtime'
 import {
-  AmbientSoundPlayer,
   MotivationalQuote,
   DistractionBlocker,
+  StudyRoadmapPanel,
 } from '@/components/focus'
+import SoloStudySoundMixer from '@/components/solo-study/SoloStudySoundMixer'
+import { handleSessionEnd } from '@/lib/session/events'
+
+// Study plan types for "I'm Stuck" roadmap
+interface StudyPlanStep {
+  id: string
+  order: number
+  duration: number
+  title: string
+  description: string
+  tips?: string[]
+}
+
+interface StudyPlan {
+  id: string
+  subject: string
+  totalMinutes: number
+  encouragement: string
+  steps: StudyPlanStep[]
+}
 
 interface FocusSession {
   id: string
@@ -62,6 +83,7 @@ interface Participant {
 
 export default function FocusTimerPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const params = useParams()
   const sessionId = params.sessionId as string
 
@@ -87,6 +109,10 @@ export default function FocusTimerPage() {
 
   // Participants
   const [participants, setParticipants] = useState<Participant[]>([])
+
+  // Study Roadmap (from "I'm Stuck" flow)
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null)
+  const [showRoadmap, setShowRoadmap] = useState(false)
 
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -291,13 +317,23 @@ export default function FocusTimerPage() {
         }),
       })
 
+      // Determine session type based on label - Solo Study sessions have "Solo Study" prefix
+      const isSoloStudy = session.label?.startsWith('Solo Study') ?? false
+
+      // Clear all session caches and notify other components (e.g., dashboard)
+      await handleSessionEnd(queryClient, {
+        sessionId,
+        sessionType: isSoloStudy ? 'solo_study' : 'quick_focus',
+        reason: 'completed',
+      })
+
       playSound('complete')
       triggerConfetti()
       fetchStats()
     } catch (err) {
       console.error('Failed to complete session', err)
     }
-  }, [session, sessionId, playSound, triggerConfetti, fetchStats])
+  }, [session, sessionId, queryClient, playSound, triggerConfetti, fetchStats])
 
   // Load session
   useEffect(() => {
@@ -322,6 +358,20 @@ export default function FocusTimerPage() {
         if (sessionData.status !== 'ACTIVE' || remaining === 0) {
           setIsCompleted(true)
           setIsRunning(false)
+        }
+
+        // Load study plan from sessionStorage (from "I'm Stuck" flow)
+        try {
+          const savedPlan = sessionStorage.getItem('imstuck_study_plan')
+          if (savedPlan && sessionData.mode === 'ai_guided') {
+            const plan = JSON.parse(savedPlan) as StudyPlan
+            setStudyPlan(plan)
+            setShowRoadmap(true)
+            // Clear after loading to avoid stale data on refresh
+            // Keep in sessionStorage for page refreshes during same session
+          }
+        } catch {
+          // Ignore parse errors
         }
 
         fetchStats()
@@ -435,6 +485,16 @@ export default function FocusTimerPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'ABANDONED', actualMinutes }),
+      })
+
+      // Determine session type based on label - Solo Study sessions have "Solo Study" prefix
+      const isSoloStudy = session.label?.startsWith('Solo Study') ?? false
+
+      // Clear all session caches and notify other components (e.g., dashboard)
+      await handleSessionEnd(queryClient, {
+        sessionId,
+        sessionType: isSoloStudy ? 'solo_study' : 'quick_focus',
+        reason: 'ended_early',
       })
 
       router.push('/dashboard')
@@ -551,7 +611,22 @@ export default function FocusTimerPage() {
         {/* Focus Tools - Simplified for Quick Focus */}
         {!isCompleted && (
           <div className="flex items-center gap-2">
-            <AmbientSoundPlayer isPlaying={isRunning && !isCompleted} />
+            {/* Roadmap toggle button - only show if we have a study plan */}
+            {studyPlan && (
+              <button
+                onClick={() => setShowRoadmap(!showRoadmap)}
+                className={`p-2 rounded-xl transition-colors ${
+                  showRoadmap
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'hover:bg-white/10 text-neutral-400 hover:text-neutral-200'
+                }`}
+                aria-label={showRoadmap ? 'Hide study plan' : 'Show study plan'}
+                title={showRoadmap ? 'Hide study plan' : 'Show study plan'}
+              >
+                <Map className="w-5 h-5" />
+              </button>
+            )}
+            <SoloStudySoundMixer isPlaying={isRunning && !isCompleted} />
             <DistractionBlocker isSessionActive={isRunning && !isCompleted} />
           </div>
         )}
@@ -676,6 +751,24 @@ export default function FocusTimerPage() {
                 <span className="font-mono text-7xl sm:text-8xl font-bold tracking-tight">
                   {formatTime(timeRemaining)}
                 </span>
+                {/* Pause/Resume Button */}
+                <button
+                  onClick={() => setIsRunning(!isRunning)}
+                  className="mt-4 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full text-sm text-white/70 hover:text-white transition-all"
+                  aria-label={isRunning ? 'Pause timer' : 'Resume timer'}
+                >
+                  {isRunning ? (
+                    <>
+                      <Pause className="w-4 h-4" />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      <span>Resume</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -700,6 +793,18 @@ export default function FocusTimerPage() {
           </>
         )}
       </main>
+
+      {/* Study Roadmap Panel - Slides in from right */}
+      {studyPlan && showRoadmap && !isCompleted && (
+        <div className="fixed right-0 top-0 bottom-0 w-full sm:w-96 z-40 animate-in slide-in-from-right duration-300">
+          <div className="h-full overflow-y-auto p-4 bg-neutral-950/80 backdrop-blur-xl">
+            <StudyRoadmapPanel
+              plan={studyPlan}
+              onClose={() => setShowRoadmap(false)}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,6 +19,7 @@ import {
   Plus,
   Brain,
 } from 'lucide-react'
+import { subscribeToSessionEnd, clearSessionLocalStorage } from '@/lib/session/events'
 
 interface CurrentSession {
   id: string
@@ -98,11 +99,8 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
   const [showStudyOptions, setShowStudyOptions] = useState(false)
   const [isStartingSession, setIsStartingSession] = useState(false)
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  const fetchDashboardData = async () => {
+  // Memoize fetchDashboardData to use in effects
+  const fetchDashboardDataCallback = useCallback(async () => {
     try {
       const res = await fetch('/api/ai-partner/dashboard')
       const data = await res.json()
@@ -129,7 +127,26 @@ export default function DashboardAIWidget({ onHidden }: DashboardAIWidgetProps) 
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchDashboardDataCallback()
+  }, [fetchDashboardDataCallback])
+
+  // Listen for session end events to refresh data
+  useEffect(() => {
+    const unsubscribe = subscribeToSessionEnd(() => {
+      // Clear localStorage caches for AI partner
+      clearSessionLocalStorage()
+      // Clear local state
+      setCurrentSession(null)
+      // Refetch fresh data from server
+      fetchDashboardDataCallback()
+    })
+
+    return unsubscribe
+  }, [fetchDashboardDataCallback])
+
 
   // Handle quick start - shows modal with options
   const handleQuickStart = () => {

@@ -52,15 +52,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(
               {
                 error: 'Settings table not initialized',
-                message: 'Please run the database migration to create the UserSettings table. See SETTINGS_DEPLOYMENT_GUIDE.md',
-                details: createError
+                message: 'Database migration required. Contact support if this persists.',
               },
               { status: 500 }
             )
           }
 
+          // SECURITY: Don't expose internal error details
           return NextResponse.json(
-            { error: 'Failed to create settings', details: createError },
+            { error: 'Failed to create settings' },
             { status: 500 }
           )
         }
@@ -80,8 +80,9 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      // SECURITY: Don't expose internal error details
       return NextResponse.json(
-        { error: 'Failed to fetch settings', details: error },
+        { error: 'Failed to fetch settings' },
         { status: 500 }
       )
     }

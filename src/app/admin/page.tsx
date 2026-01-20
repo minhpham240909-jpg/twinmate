@@ -26,6 +26,10 @@ import {
   Wifi,
   WifiOff,
   Loader2,
+  Flame,
+  Target,
+  Repeat,
+  GraduationCap,
 } from 'lucide-react'
 import { useAdminRealtime } from '@/hooks/useAdminRealtime'
 import Link from 'next/link'
@@ -116,6 +120,28 @@ interface ActivityBreakdown {
   }>
 }
 
+// Vision Metrics - Aligned with new Clerva vision
+interface VisionMetrics {
+  habitLoop: {
+    day2ReturnRate: number
+    week1ReturnRate: number
+    usersSignedUpYesterday: number
+    usersReturnedDay2: number
+    firstSessionsToday: number
+    streaksAbove7Days: number
+  }
+  socialGravity: {
+    activeCoursesWithStudy: number
+    usersStudyingNow: number
+    totalEnrollments: number
+    studyPartnerships: number
+  }
+  sessions: {
+    totalToday: number
+    avgDuration: number
+  }
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [growthData, setGrowthData] = useState<GrowthDataPoint[]>([])
@@ -130,6 +156,9 @@ export default function AdminDashboard() {
 
   // Activity breakdown (studying, in call, with AI, etc.)
   const [activityBreakdown, setActivityBreakdown] = useState<ActivityBreakdown | null>(null)
+
+  // Vision metrics (habit loop, social gravity)
+  const [visionMetrics, setVisionMetrics] = useState<VisionMetrics | null>(null)
 
   // Real-time WebSocket connection for live updates
   // Replaces polling with Supabase Realtime for ~80% reduction in database load
@@ -171,6 +200,9 @@ export default function AdminDashboard() {
         setRecentSignups(data.data.recentSignups)
         if (data.data.activityBreakdown) {
           setActivityBreakdown(data.data.activityBreakdown)
+        }
+        if (data.data.visionMetrics) {
+          setVisionMetrics(data.data.visionMetrics)
         }
         setLastUpdated(new Date())
       }
@@ -703,6 +735,148 @@ export default function AdminDashboard() {
                 No active streaks yet
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Vision Metrics - Habit Loop & Social Gravity */}
+      {visionMetrics && (
+        <div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 rounded-xl border border-indigo-500/30 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-indigo-500/20 rounded-lg">
+              <Target className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Vision Metrics</h2>
+              <p className="text-xs text-gray-400">Habit Loop &amp; Social Gravity tracking</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Habit Loop Metrics */}
+            <div className="bg-gray-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Repeat className="w-4 h-4 text-orange-400" />
+                <h3 className="font-medium text-white">Habit Loop</h3>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Day 2 Return Rate</span>
+                  <span className={`text-xl font-bold ${visionMetrics.habitLoop.day2ReturnRate >= 30 ? 'text-green-400' : visionMetrics.habitLoop.day2ReturnRate >= 15 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {visionMetrics.habitLoop.day2ReturnRate}%
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {visionMetrics.habitLoop.usersReturnedDay2}/{visionMetrics.habitLoop.usersSignedUpYesterday} users returned
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Week 1 Retention</span>
+                    <span className={`text-lg font-bold ${visionMetrics.habitLoop.week1ReturnRate >= 20 ? 'text-green-400' : visionMetrics.habitLoop.week1ReturnRate >= 10 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {visionMetrics.habitLoop.week1ReturnRate}%
+                    </span>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">7+ Day Streaks</span>
+                    <div className="flex items-center gap-1">
+                      <Flame className="w-4 h-4 text-orange-400" />
+                      <span className="text-lg font-bold text-orange-400">{visionMetrics.habitLoop.streaksAbove7Days}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Users with habits formed</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Gravity Metrics */}
+            <div className="bg-gray-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-4 h-4 text-green-400" />
+                <h3 className="font-medium text-white">Social Gravity</h3>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Studying Now</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-xl font-bold text-green-400">{visionMetrics.socialGravity.usersStudyingNow}</span>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Active Courses</span>
+                    <div className="flex items-center gap-1">
+                      <GraduationCap className="w-4 h-4 text-blue-400" />
+                      <span className="text-lg font-bold text-blue-400">{visionMetrics.socialGravity.activeCoursesWithStudy}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Courses with study activity (7d)</div>
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Course Enrollments</span>
+                    <span className="text-lg font-bold text-white">{visionMetrics.socialGravity.totalEnrollments}</span>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Study Partners</span>
+                    <div className="flex items-center gap-1">
+                      <Heart className="w-4 h-4 text-pink-400" />
+                      <span className="text-lg font-bold text-pink-400">{visionMetrics.socialGravity.studyPartnerships}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Session Metrics */}
+            <div className="bg-gray-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen className="w-4 h-4 text-blue-400" />
+                <h3 className="font-medium text-white">Sessions Today</h3>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Sessions Started</span>
+                  <span className="text-xl font-bold text-blue-400">{visionMetrics.sessions.totalToday}</span>
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Avg Duration</span>
+                    <span className="text-lg font-bold text-white">{visionMetrics.sessions.avgDuration} min</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Last 30 days average</div>
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">First Sessions Today</span>
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="w-4 h-4 text-yellow-400" />
+                      <span className="text-lg font-bold text-yellow-400">{visionMetrics.habitLoop.firstSessionsToday}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">New users first session</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Key insight */}
+          <div className="mt-4 p-3 bg-gray-800/30 rounded-lg flex items-start gap-3">
+            <Target className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-gray-300">
+              <span className="font-medium text-white">Vision Goal:</span> Day 2 return rate target is 30%+. Current habit loop shows{' '}
+              {visionMetrics.habitLoop.day2ReturnRate >= 30 ? (
+                <span className="text-green-400">healthy retention</span>
+              ) : visionMetrics.habitLoop.day2ReturnRate >= 15 ? (
+                <span className="text-yellow-400">moderate retention - focus on Quick Win celebrations</span>
+              ) : (
+                <span className="text-red-400">low retention - prioritize first session experience</span>
+              )}.
+            </div>
           </div>
         </div>
       )}

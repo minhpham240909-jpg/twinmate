@@ -10,19 +10,50 @@ interface Message {
   timestamp: Date
 }
 
-interface SoloStudyAITutorProps {
-  onClose: () => void
+// Study plan types (from "Guide Me" flow)
+interface StudyPlanStep {
+  id: string
+  order: number
+  duration: number
+  title: string
+  description: string
+  tips?: string[]
 }
 
-// Quick action prompts
-const QUICK_ACTIONS = [
-  { label: 'Explain this concept', prompt: 'Can you explain this concept in simple terms?' },
-  { label: 'Give me an example', prompt: 'Can you give me a practical example?' },
-  { label: 'Quiz me', prompt: 'Quiz me on what I\'m studying' },
-  { label: 'Study tips', prompt: 'What are some effective study techniques for this topic?' },
-]
+interface StudyPlan {
+  id: string
+  subject: string
+  totalMinutes: number
+  encouragement: string
+  steps: StudyPlanStep[]
+}
 
-export default function SoloStudyAITutor({ onClose }: SoloStudyAITutorProps) {
+interface SoloStudyAITutorProps {
+  onClose: () => void
+  studyPlan?: StudyPlan | null
+}
+
+// Dynamic quick actions based on whether there's a study plan
+const getQuickActions = (hasStudyPlan: boolean) => {
+  const baseActions = [
+    { label: 'Explain this concept', prompt: 'Can you explain this concept in simple terms?' },
+    { label: 'Give me an example', prompt: 'Can you give me a practical example?' },
+    { label: 'Quiz me', prompt: 'Quiz me on what I\'m studying' },
+    { label: 'Study tips', prompt: 'What are some effective study techniques for this topic?' },
+  ]
+
+  if (hasStudyPlan) {
+    return [
+      { label: 'Help with my plan', prompt: 'Can you help me understand the current step in my study plan?' },
+      { label: 'Explain this step', prompt: 'Can you explain the concept I\'m currently working on from my study plan?' },
+      ...baseActions.slice(0, 2),
+    ]
+  }
+
+  return baseActions
+}
+
+export default function SoloStudyAITutor({ onClose, studyPlan }: SoloStudyAITutorProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -39,19 +70,23 @@ export default function SoloStudyAITutor({ onClose }: SoloStudyAITutorProps) {
     inputRef.current?.focus()
   }, [])
 
-  // Add initial greeting
+  // Add initial greeting (context-aware based on study plan)
   useEffect(() => {
     if (messages.length === 0) {
+      const greeting = studyPlan
+        ? `Hi! I'm your AI study tutor, and I can see you're working on "${studyPlan.subject}". I have access to your study plan and can help you with any step. What would you like help with?`
+        : "Hi! I'm your AI study tutor. I can help explain concepts, quiz you, or provide study tips. What would you like help with?"
+
       setMessages([
         {
           id: 'greeting',
           role: 'assistant',
-          content: "Hi! I'm your AI study tutor. I can help explain concepts, quiz you, or provide study tips. What would you like help with?",
+          content: greeting,
           timestamp: new Date(),
         },
       ])
     }
-  }, [])
+  }, [studyPlan])
 
   // Send message
   const handleSend = async (messageText?: string) => {
@@ -79,6 +114,17 @@ export default function SoloStudyAITutor({ onClose }: SoloStudyAITutorProps) {
             role: m.role,
             content: m.content,
           })),
+          // Pass study plan context if available
+          studyPlan: studyPlan ? {
+            subject: studyPlan.subject,
+            totalMinutes: studyPlan.totalMinutes,
+            steps: studyPlan.steps.map((s) => ({
+              title: s.title,
+              description: s.description,
+              duration: s.duration,
+              tips: s.tips,
+            })),
+          } : undefined,
         }),
       })
 
@@ -191,7 +237,7 @@ export default function SoloStudyAITutor({ onClose }: SoloStudyAITutorProps) {
       {messages.length <= 2 && (
         <div className="px-4 pb-2">
           <div className="flex flex-wrap gap-2">
-            {QUICK_ACTIONS.map((action) => (
+            {getQuickActions(!!studyPlan).map((action) => (
               <button
                 key={action.label}
                 onClick={() => handleSend(action.prompt)}

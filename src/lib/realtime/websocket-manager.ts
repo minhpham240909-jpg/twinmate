@@ -347,31 +347,82 @@ export class WebSocketManager {
   }
 }
 
-// Singleton instance
-let wsManager: WebSocketManager | null = null;
+// FIX: Track singleton per userId to prevent cross-user contamination
+// Each user gets their own isolated WebSocket manager
+const wsManagers = new Map<string, WebSocketManager>();
+
+// FIX: Maximum number of cached managers to prevent memory leak
+const MAX_CACHED_MANAGERS = 10;
 
 /**
- * Get or create WebSocket manager instance
+ * Get or create WebSocket manager instance for a specific user
+ * FIX: No longer a global singleton - each user gets their own manager
  */
 export function getWebSocketManager(options?: ConnectionOptions): WebSocketManager {
-  if (!wsManager && options) {
+  if (!options) {
+    throw new Error('WebSocket manager requires options with userId.');
+  }
+
+  const userId = options.userId;
+
+  // Check if we already have a manager for this user
+  let manager = wsManagers.get(userId);
+
+  if (manager) {
+    // Check if the existing manager is still valid (not destroyed)
+    const status = manager.getStatus();
+    if (!status.isConnected && !status.isReconnecting && status.reconnectAttempts >= (options.maxReconnectAttempts ?? 5)) {
+      // Manager is exhausted, clean it up and create new one
+      manager.disconnect();
+      wsManagers.delete(userId);
+      manager = undefined;
+    }
+  }
+
+  if (!manager) {
+    // FIX: Evict oldest manager if we hit the limit (LRU-style)
+    if (wsManagers.size >= MAX_CACHED_MANAGERS) {
+      const oldestUserId = wsManagers.keys().next().value;
+      if (oldestUserId) {
+        const oldManager = wsManagers.get(oldestUserId);
+        oldManager?.disconnect();
+        wsManagers.delete(oldestUserId);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WebSocket] Evicted manager for user:', oldestUserId);
+        }
+      }
+    }
+
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
-    wsManager = new WebSocketManager(wsUrl, options);
+    manager = new WebSocketManager(wsUrl, options);
+    wsManagers.set(userId, manager);
   }
 
-  if (!wsManager) {
-    throw new Error('WebSocket manager not initialized. Call with options first.');
-  }
-
-  return wsManager;
+  return manager;
 }
 
 /**
- * Disconnect and cleanup WebSocket manager
+ * Disconnect and cleanup WebSocket manager for a specific user
  */
-export function disconnectWebSocket(): void {
-  if (wsManager) {
-    wsManager.disconnect();
-    wsManager = null;
+export function disconnectWebSocket(userId?: string): void {
+  if (userId) {
+    const manager = wsManagers.get(userId);
+    if (manager) {
+      manager.disconnect();
+      wsManagers.delete(userId);
+    }
+  } else {
+    // FIX: Disconnect all managers (cleanup on app unmount)
+    for (const [id, manager] of wsManagers.entries()) {
+      manager.disconnect();
+      wsManagers.delete(id);
+    }
   }
+}
+
+/**
+ * Get current manager count (for monitoring/debugging)
+ */
+export function getWebSocketManagerCount(): number {
+  return wsManagers.size;
 }

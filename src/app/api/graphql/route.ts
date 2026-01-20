@@ -1,6 +1,6 @@
 import { ApolloServer } from '@apollo/server'
 import { startServerAndCreateNextHandler } from '@as-integrations/next'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { typeDefs } from '@/graphql/schema'
 import { resolvers } from '@/graphql/resolvers'
 import { createClient } from '@/lib/supabase/server'
@@ -22,9 +22,25 @@ const handler = startServerAndCreateNextHandler<NextRequest>(server, {
 })
 
 export async function GET(request: NextRequest) {
-  return handler(request)
+  try {
+    return await handler(request)
+  } catch (error) {
+    console.error('[GraphQL] GET error:', error)
+    return NextResponse.json(
+      { errors: [{ message: 'Internal server error' }] },
+      { status: 500 }
+    )
+  }
 }
 
 export async function POST(request: NextRequest) {
-  return handler(request)
+  try {
+    return await handler(request)
+  } catch (error) {
+    console.error('[GraphQL] POST error:', error)
+    return NextResponse.json(
+      { errors: [{ message: 'Internal server error' }] },
+      { status: 500 }
+    )
+  }
 }

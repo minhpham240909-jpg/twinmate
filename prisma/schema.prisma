@@ -135,9 +135,6 @@ model User {
   // AI Partner preferences
   hideAIPartner         Boolean  @default(false) // User chose to hide AI Partner from dashboard
 
-  // Course enrollments (class-level social anchor)
-  courseEnrollments     CourseEnrollment[]
-
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -801,6 +798,8 @@ enum NotificationType {
   POST_COMMENT           // Someone commented on user's post
   POST_REPOST            // Someone reposted user's post
   FOUNDER_MESSAGE        // Messages from founder
+  PARTNER_STARTED_STUDYING // Study partner started a session - pull back notification
+  LEADERBOARD_RANK_DROP  // User dropped in leaderboard rank - competitive engagement
 }
 
 model Notification {
@@ -1162,6 +1161,22 @@ model UserSettings {
   performanceMode   PerformanceMode @default(BALANCED)
   analyticsEnabled  Boolean         @default(true)
 
+  // Pro/Silent Mode - Minimal UI experience
+  proModeEnabled        Boolean @default(false) // Hides gamification, streaks, leaderboards
+  silentModeEnabled     Boolean @default(false) // No notifications, badges, celebrations
+  
+  // Gamification Layer Controls
+  showStreakBadges      Boolean @default(true)  // Show streak fire badges
+  showLeaderboards      Boolean @default(true)  // Show course/circle leaderboards
+  showXPAnimations      Boolean @default(true)  // Show XP gain animations
+  showAchievementPopups Boolean @default(true)  // Show achievement unlock popups
+  showStudyCaptainBadge Boolean @default(true)  // Show Study Captain crown
+  
+  // Weekly Summary Preferences
+  weeklyReflectionEnabled Boolean @default(true) // Enable end-of-week reflection
+  weeklyReflectionDay     String  @default("Sunday") // Day to send reflection prompt
+  weeklyReflectionTime    String  @default("18:00")  // Time to send (24hr format)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1332,6 +1347,7 @@ model UserPresence {
   @@index([lastSeenAt]) // For presence timeout/cleanup queries
   @@index([status, lastSeenAt]) // For finding stale online users
   @@index([lastActivityAt]) // PERF: Cleanup stale presence records
+  @@index([status, activityType, lastSeenAt]) // PERF: Classmates studying query
   @@map("user_presence")
 }
 
@@ -2676,34 +2692,34 @@ model CircleAttendance {
 
 model StudyCaptain {
   id              String            @id @default(uuid())
-  
+
   // Which circle/group this captain belongs to
   circleId        String?           // Study Circle ID
   circle          StudyCircle?      @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  
+
   groupId         String?           // Group ID (for study groups)
   group           Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
+
   // The user who earned the badge
   userId          String
-  
+
   // Week identification (ISO week format)
   weekStart       DateTime          @db.Date  // Monday of the week
   weekEnd         DateTime          @db.Date  // Sunday of the week
-  
+
   // Achievement stats for this week
   totalStudyMinutes Int             @default(0)  // Total study time this week
   sessionsAttended  Int             @default(0)  // Sessions attended
   streakDays        Int             @default(0)  // Consecutive days studied
-  
+
   // Recognition message (inspirational)
   achievementMessage String?        @db.Text  // "Led the team with 12 hours of study!"
-  
+
   // Whether this badge is currently active (latest week)
   isActive        Boolean           @default(true)
-  
+
   createdAt       DateTime          @default(now())
-  
+
   // Unique constraint: one captain per circle/group per week
   @@unique([circleId, weekStart])
   @@unique([groupId, weekStart])
@@ -2738,6 +2754,8 @@ model FocusSession {
   // Timing
   startedAt       DateTime     @default(now())
   completedAt     DateTime?    // When session was completed or abandoned
+  pausedAt        DateTime?    // When session was paused (null if running)
+  pausedTimeRemaining Int?     // Seconds remaining when paused
 
   // Status tracking
   status          FocusSessionStatus @default(ACTIVE)
@@ -3267,96 +3285,176 @@ model UserUnlock {
 }
 
 // ==========================================
-// COURSE/CLASS SYSTEM
-// The social anchor that creates "classmates" context
+// STUDY DEBT SYSTEM
 // ==========================================
+// Tracks missed study sessions that users want to "pay back"
+// Creates accountability without shame - users queue their own debt
 
-enum CourseRole {
-  STUDENT
-  TA          // Teaching Assistant
-  INSTRUCTOR
+enum StudyDebtStatus {
+  QUEUED       // User added to their debt queue
+  IN_PROGRESS  // Currently being worked on
+  COMPLETED    // Debt paid back
+  FORGIVEN     // User decided to forgive this debt
+  EXPIRED      // Auto-expired after too long
 }
 
-model Course {
-  id          String   @id @default(uuid())
-
-  // Course identification
-  name        String   // "Calculus I", "Introduction to Computer Science"
-  code        String   // "MATH101", "CS101"
-  section     String?  // "Section A", "001"
-
-  // Institution context
-  institution String   // "Stanford University"
-  department  String?  // "Mathematics", "Computer Science"
-
-  // Semester/Term
-  semester    String?  // "Spring 2026", "Fall 2025"
-  year        Int?     // 2026
-
-  // Course details
-  description String?  @db.Text
-  credits     Int?     // 3, 4 credits
-
-  // Settings
-  isActive    Boolean  @default(true)  // Course is currently running
-  isPublic    Boolean  @default(false) // Can anyone join or invite-only
-
-  // Join code for easy enrollment
-  joinCode    String?  @unique // "ABC123" - students enter to join
-
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  enrollments CourseEnrollment[]
-
-  // Unique constraint: same course code can exist at different institutions
-  @@unique([institution, code, semester])
-  @@index([institution])
-  @@index([code])
-  @@index([semester])
-  @@index([isActive])
-  @@index([joinCode])
-  @@map("courses")
+enum StudyDebtSource {
+  MISSED_SESSION      // Missed a scheduled session
+  BROKEN_STREAK       // Broke a streak
+  INCOMPLETE_GOAL     // Didn't complete daily/weekly goal
+  SELF_ADDED          // User manually added
 }
 
-model CourseEnrollment {
-  id        String     @id @default(uuid())
-
-  // Relations
+model StudyDebt {
+  id        String          @id @default(uuid())
   userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  courseId  String
-  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // What created this debt
+  source    StudyDebtSource
+  status    StudyDebtStatus @default(QUEUED)
 
-  // Role in the course
-  role      CourseRole @default(STUDENT)
+  // Description of the debt
+  title       String         // "Missed Monday Math study"
+  description String?   @db.Text // Optional details
 
-  // Engagement tracking (for micro-leaderboards)
-  totalStudyMinutes  Int @default(0)  // Total minutes studied in this course
-  sessionsCompleted  Int @default(0)  // Sessions completed for this course
-  currentStreak      Int @default(0)  // Current streak for this course
-  longestStreak      Int @default(0)  // Longest streak for this course
-  lastStudiedAt      DateTime?        // Last time studied this course
+  // Target study time to pay back
+  debtMinutes      Int        // How many minutes owed
+  paidMinutes      Int        @default(0) // How many minutes paid back
+  
+  // Progress tracking (0-100%)
+  progressPercent  Float      @default(0)
 
-  // Weekly tracking (resets every Sunday for micro-leaderboards)
-  weeklyStudyMinutes Int @default(0)
-  weeklySessions     Int @default(0)
-  weekStartDate      DateTime?        // Start of current week tracking
+  // Optional course/subject association
+  courseId    String?        // Link to course if course-related
+  subject     String?        // Subject area
 
+  // Priority in queue (lower = higher priority)
+  priority    Int            @default(0)
+
+  // Expiration
+  expiresAt   DateTime?      // Optional expiration date
+  
   // Timestamps
-  joinedAt  DateTime   @default(now())
-  leftAt    DateTime?  // null if still enrolled
+  createdAt   DateTime       @default(now())
+  startedAt   DateTime?      // When user started paying back
+  completedAt DateTime?      // When fully paid back
+  updatedAt   DateTime       @updatedAt
 
-  // Each user can only enroll once per course
-  @@unique([userId, courseId])
   @@index([userId])
-  @@index([courseId])
-  @@index([role])
-  @@index([currentStreak])
-  @@index([weeklyStudyMinutes])
-  @@index([lastStudiedAt])
-  @@map("course_enrollments")
+  @@index([status])
+  @@index([source])
+  @@index([userId, status])
+  @@index([priority])
+  @@index([expiresAt])
+  @@map("study_debts")
+}
+
+// ==========================================
+// WEEKLY SUMMARY & REFLECTION
+// ==========================================
+// End-of-week reflection and summary for retention
+
+model WeeklySummary {
+  id        String   @id @default(uuid())
+  userId    String
+
+  // Week identification
+  weekStart DateTime @db.Date  // Monday of the week
+  weekEnd   DateTime @db.Date  // Sunday of the week
+  year      Int                // Year (2026)
+  weekNumber Int               // ISO week number (1-52)
+
+  // Study Stats for the Week
+  totalStudyMinutes   Int      @default(0)
+  totalSessions       Int      @default(0)
+  totalFlashcards     Int      @default(0)
+  totalQuizzes        Int      @default(0)
+  
+  // Streak tracking
+  streakAtWeekEnd     Int      @default(0)
+  streakMaintained    Boolean  @default(false)
+  
+  // Goals
+  goalMinutes         Int?     // Weekly goal in minutes
+  goalAchieved        Boolean  @default(false)
+  goalAchievementPercent Float @default(0)
+
+  // Top subjects studied
+  topSubjects         String[] @default([])
+  
+  // Partners interaction
+  sessionsWithPartners Int     @default(0)
+  newPartnersConnected Int     @default(0)
+
+  // Study Debt
+  debtsPaidOff        Int      @default(0)
+  newDebtsCreated     Int      @default(0)
+  currentDebtMinutes  Int      @default(0)
+
+  // ==========================================
+  // END-OF-WEEK REFLECTION
+  // ==========================================
+  
+  // Reflection prompt shown to user
+  reflectionPrompt    String?  @db.Text // AI-generated personalized prompt
+  
+  // User's reflection response
+  reflectionResponse  String?  @db.Text // User's written reflection
+  reflectionCompletedAt DateTime?
+  
+  // Reflection analysis (AI-generated insights)
+  reflectionInsights  Json?    // AI analysis of reflection
+  
+  // Mood/Satisfaction rating (1-5)
+  weekSatisfactionRating Int?  // How satisfied with the week
+  
+  // Next week intentions
+  nextWeekIntentions  String?  @db.Text // What user plans for next week
+
+  // Summary status
+  isComplete          Boolean  @default(false)
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId])
+  @@index([weekStart])
+  @@index([year, weekNumber])
+  @@index([isComplete])
+  @@index([userId, isComplete]) // PERF: Admin retention analytics groupBy
+  @@index([isComplete, reflectionCompletedAt]) // PERF: Monthly reflection counts
+  @@map("weekly_summaries")
+}
+
+// ==========================================
+// GAMIFICATION LAYER TRACKING
+// ==========================================
+// Tracks which gamification elements are active for analytics
+
+model GamificationEvent {
+  id        String   @id @default(uuid())
+  userId    String
+
+  // Event type
+  eventType String   // "xp_earned", "streak_maintained", "badge_earned", "leaderboard_rank_change"
+  
+  // Event details
+  eventData Json     // Flexible data for different event types
+  
+  // XP/Points related
+  xpEarned  Int?
+  
+  // Whether user had gamification visible
+  wasVisible Boolean @default(true) // Was gamification UI visible when this happened
+  
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([userId, eventType])
+  @@map("gamification_events")
 }

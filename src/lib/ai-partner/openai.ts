@@ -722,7 +722,7 @@ export async function sendChatMessage(
         console.error('[AI Partner] Retry also failed:', retryError)
       }
     }
-    
+
     throw new Error('Failed to get AI response. Please try again.')
   }
 }

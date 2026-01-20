@@ -1,9 +1,22 @@
-// API Route: Diagnose Settings Database Setup
+/**
+ * API Route: Diagnose Settings Database Setup
+ *
+ * SECURITY: This endpoint is DISABLED in production to prevent information disclosure.
+ * In development, it helps debug database setup issues.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  // SECURITY: Disable diagnostic endpoint in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'This endpoint is disabled in production' },
+      { status: 403 }
+    )
+  }
+
   // SCALABILITY: Rate limit diagnose endpoint (strict - admin/debug operation)
   const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
   if (!rateLimitResult.success) {
@@ -44,27 +57,29 @@ export async function GET(request: NextRequest) {
       if (error) {
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
           diagnostics.checks.tableExists = false
-          diagnostics.errors.push('UserSettings table does not exist in the database')
+          diagnostics.errors.push('UserSettings table does not exist')
         } else if (error.code === 'PGRST116') {
           diagnostics.checks.tableExists = true
           diagnostics.checks.userSettingsExists = false
           diagnostics.checks.settingsData = null
         } else {
           diagnostics.checks.tableExists = 'unknown'
-          diagnostics.errors.push(`Supabase error: ${error.message} (${error.code})`)
+          // SECURITY: Don't expose raw error codes/messages
+          diagnostics.errors.push('Database query failed')
         }
       } else {
         diagnostics.checks.tableExists = true
         diagnostics.checks.userSettingsExists = data !== null
-        diagnostics.checks.settingsData = data
+        // SECURITY: Only return field names, not actual data
+        diagnostics.checks.settingsData = data ? '[exists]' : null
 
         if (data) {
           diagnostics.checks.fieldCount = Object.keys(data).length
           diagnostics.checks.fields = Object.keys(data)
         }
       }
-    } catch (err: any) {
-      diagnostics.errors.push(`Exception checking table: ${err.message}`)
+    } catch {
+      diagnostics.errors.push('Exception checking table')
     }
 
     // Check if we can create settings
@@ -73,15 +88,14 @@ export async function GET(request: NextRequest) {
         const { data: newSettings, error: createError } = await supabase
           .from('UserSettings')
           .insert({ userId: user.id })
-          .select('*')
+          .select('id')
           .single()
 
         if (createError) {
           diagnostics.checks.canCreateSettings = false
-          diagnostics.errors.push(`Cannot create settings: ${createError.message}`)
+          diagnostics.errors.push('Cannot create settings')
         } else {
           diagnostics.checks.canCreateSettings = true
-          diagnostics.checks.createdSettings = newSettings
 
           // Clean up test settings
           await supabase
@@ -89,8 +103,8 @@ export async function GET(request: NextRequest) {
             .delete()
             .eq('id', newSettings.id)
         }
-      } catch (err: any) {
-        diagnostics.errors.push(`Exception creating settings: ${err.message}`)
+      } catch {
+        diagnostics.errors.push('Exception creating settings')
       }
     }
 
@@ -101,14 +115,12 @@ export async function GET(request: NextRequest) {
     diagnostics.recommendations = []
     if (!diagnostics.checks.tableExists) {
       diagnostics.recommendations.push(
-        'Run the database migration SQL script to create the UserSettings table',
-        'Check SETTINGS_DEPLOYMENT_GUIDE.md for instructions'
+        'Run database migrations to create UserSettings table'
       )
     }
 
     if (diagnostics.checks.tableExists && !diagnostics.checks.userSettingsExists) {
       diagnostics.recommendations.push(
-        'Settings table exists but no settings for this user',
         'Settings will be auto-created on first save'
       )
     }
@@ -120,11 +132,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Settings Diagnostic] Error:', error)
+    // SECURITY: Don't expose internal error details
     return NextResponse.json(
       {
         status: 'error',
         error: 'Failed to run diagnostics',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     )

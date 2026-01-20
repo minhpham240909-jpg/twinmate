@@ -156,81 +156,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfileError(null)
     }
 
-    try {
-      // Add cache: 'no-store' to bypass any caching and get fresh profile data
-      // Use fetchWithTimeout to prevent infinite loading in production
-      const response = await fetchWithTimeout(
-        `/api/users/${userId}`,
-        {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        },
-        8000, // 8 second timeout (reduced from 15s)
-        abortController
-      )
+    // Retry logic with exponential backoff for better reliability
+    const maxRetries = 3
+    let lastError: Error | null = null
 
-      // Don't update state if component unmounted or request was aborted
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      // Check if aborted before each attempt
       if (!isMountedRef.current || abortController.signal.aborted) {
+        isFetchingRef.current = false
         return
       }
 
-      if (response.ok) {
-        const data = await response.json()
+      try {
+        const response = await fetchWithTimeout(
+          `/api/users/${userId}`,
+          {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          },
+          15000, // 15 second timeout (increased for reliability on slow networks)
+          abortController
+        )
 
-        // Merge user data with profile data
-        // Ensure we have at least basic user info even if profile is null
-        if (data.user && isMountedRef.current) {
-          // Extract Profile.role as profileRole (user position like 'Student', 'Professional')
-          // This is separate from User.role which is subscription type ('FREE'/'PREMIUM')
-          const profileRole = data.profile?.role || null
+        // Check again after fetch
+        if (!isMountedRef.current || abortController.signal.aborted) {
+          isFetchingRef.current = false
+          return
+        }
 
-          const mergedProfile = {
-            ...data.user,
-            ...(data.profile || {}), // Use empty object if profile is null
-            // Ensure subscription role is preserved from user data
-            role: data.user.role,
-            // Map Profile.role to profileRole to avoid confusion
-            profileRole,
+        if (response.ok) {
+          const data = await response.json()
+
+          if (data.user && isMountedRef.current) {
+            const profileRole = data.profile?.role || null
+
+            const mergedProfile = {
+              ...data.user,
+              ...(data.profile || {}),
+              role: data.user.role,
+              profileRole,
+            }
+
+            setProfile(mergedProfile)
           }
+          // Success - clear fetching state and exit
+          isFetchingRef.current = false
+          if (fetchAbortControllerRef.current === abortController) {
+            fetchAbortControllerRef.current = null
+          }
+          return
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          if (!isProduction) {
+            console.error('Error fetching profile:', response.status, errorData)
+          }
+          lastError = new Error(errorData.error || 'Server error')
 
-          setProfile(mergedProfile)
+          // Don't retry on 4xx client errors (except 408 Request Timeout, 429 Too Many Requests)
+          if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+            break
+          }
         }
-      } else if (isMountedRef.current) {
-        // Log error but don't throw - let the UI handle it
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          isFetchingRef.current = false
+          return
+        }
+        lastError = error instanceof Error ? error : new Error('Unknown error')
         if (!isProduction) {
-          console.error('Error fetching profile:', response.status, errorData)
+          console.log(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries} failed:`, lastError.message)
         }
-        setProfileError(`Failed to load profile: ${errorData.error || 'Server error'}`)
-      }
-    } catch (error) {
-      // Ignore abort errors - these are expected during cleanup
-      if (error instanceof Error && error.name === 'AbortError') {
-        return
       }
 
-      if (!isMountedRef.current) {
-        return
+      // Wait before retry with exponential backoff (1s, 2s, 4s)
+      if (attempt < maxRetries - 1 && isMountedRef.current && !abortController.signal.aborted) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)))
       }
+    }
 
-      if (!isProduction) {
-        console.error('Error fetching profile:', error)
-      }
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    // All retries failed - set error
+    if (isMountedRef.current && lastError) {
+      const errorMessage = lastError.message
       if (errorMessage.includes('timed out')) {
-        setProfileError('Connection timed out. Please check your internet connection.')
+        setProfileError('Connection timed out. Please check your internet connection and try again.')
       } else {
-        setProfileError(`Failed to load profile: ${errorMessage}`)
+        setProfileError(`Connection failed. Please refresh the page.`)
       }
-    } finally {
-      // Clear fetching state
-      isFetchingRef.current = false
-      // Clear abort controller reference if it's the same one
-      if (fetchAbortControllerRef.current === abortController) {
-        fetchAbortControllerRef.current = null
-      }
+    }
+
+    // Clear fetching state
+    isFetchingRef.current = false
+    if (fetchAbortControllerRef.current === abortController) {
+      fetchAbortControllerRef.current = null
     }
   }
 
@@ -264,8 +283,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isFromAuthCallback = urlParams.get('auth_callback') === 'true'
 
       // Use more retries and longer delay if coming from auth callback
-      const maxRetries = isFromAuthCallback ? 5 : 2
-      const retryDelay = isFromAuthCallback ? 500 : 300
+      const maxRetries = isFromAuthCallback ? 6 : 3
+      const retryDelay = isFromAuthCallback ? 800 : 500
 
       const getUserWithRetry = async (retries = maxRetries, delayMs = retryDelay): Promise<{ user: any; error: any }> => {
         for (let attempt = 0; attempt < retries; attempt++) {
@@ -307,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Create a timeout promise - longer timeout for auth callback
-      const timeoutMs = isFromAuthCallback ? 8000 : 5000
+      const timeoutMs = isFromAuthCallback ? 15000 : 10000
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Auth initialization timed out')), timeoutMs)
       })

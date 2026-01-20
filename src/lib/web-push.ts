@@ -31,6 +31,9 @@ export type PushNotificationType =
   | 'ANNOUNCEMENT'
   | 'BADGE_EARNED'
   | 'STREAK_REMINDER'
+  | 'LEADERBOARD_RANK'  // You moved up in the global leaderboard
+  | 'PARTNER_STARTED_STUDYING'  // Pull-back notification
+  | 'LEADERBOARD_RANK_DROP'  // Competitive engagement
 
 export interface PushNotificationPayload {
   title: string
@@ -441,5 +444,96 @@ export async function pushStreakReminder(
     body: `You have a ${currentStreak} day streak. Study today to keep it going!`,
     type: 'STREAK_REMINDER',
     url: '/dashboard',
+  })
+}
+
+// ==========================================
+// GLOBAL LEADERBOARD NOTIFICATIONS
+// ==========================================
+
+/**
+ * Send push notification when user moves up in the global leaderboard
+ */
+export async function pushGlobalLeaderboardRank(
+  userId: string,
+  newRank: number,
+  previousRank: number
+): Promise<void> {
+  const positionsUp = previousRank - newRank
+  const rankEmoji = newRank === 1 ? '🥇' : newRank === 2 ? '🥈' : newRank === 3 ? '🥉' : '📈'
+
+  await sendPushToUser(userId, {
+    title: `${rankEmoji} You're climbing the leaderboard!`,
+    body: `You moved up ${positionsUp} spot${positionsUp > 1 ? 's' : ''} to #${newRank} globally!`,
+    type: 'LEADERBOARD_RANK',
+    url: '/dashboard',
+    data: {
+      newRank,
+      previousRank,
+    },
+  })
+}
+
+/**
+ * Send push notification when user drops in leaderboard
+ * Creates competitive urgency to bring them back
+ */
+export async function pushLeaderboardRankDrop(
+  userId: string,
+  newRank: number,
+  previousRank: number
+): Promise<void> {
+  const positionsDown = newRank - previousRank
+
+  await sendPushToUser(userId, {
+    title: `📉 Someone passed you!`,
+    body: `You dropped from #${previousRank} to #${newRank}. Study now to reclaim your spot!`,
+    type: 'LEADERBOARD_RANK_DROP',
+    url: '/dashboard',
+    data: {
+      newRank,
+      previousRank,
+      positionsDown,
+    },
+  })
+}
+
+// ==========================================
+// SOCIAL ENGAGEMENT NOTIFICATIONS
+// ==========================================
+
+/**
+ * Send push notification when study partner starts studying
+ * Creates FOMO to pull users back to the app
+ *
+ * PERFORMANCE: Use sparingly - only notify close partners, not all connections
+ */
+export async function pushPartnerStartedStudying(
+  userId: string,
+  partnerName: string,
+  activityType: 'focus' | 'solo_study' | 'study_session' | 'flashcards',
+  subject?: string
+): Promise<void> {
+  // Activity-specific messaging
+  const activityMessages: Record<string, { emoji: string; action: string }> = {
+    focus: { emoji: '🎯', action: 'started a focus session' },
+    solo_study: { emoji: '📚', action: 'is studying solo' },
+    study_session: { emoji: '👥', action: 'joined a study session' },
+    flashcards: { emoji: '🃏', action: 'is reviewing flashcards' },
+  }
+
+  const activity = activityMessages[activityType] || { emoji: '📖', action: 'started studying' }
+  const subjectText = subject ? ` (${subject})` : ''
+
+  await sendPushToUser(userId, {
+    title: `${activity.emoji} ${partnerName} is studying!`,
+    body: `${partnerName} ${activity.action}${subjectText}. Join them?`,
+    type: 'PARTNER_STARTED_STUDYING',
+    url: '/dashboard',
+    tag: 'partner-studying', // Group multiple partner notifications
+    data: {
+      activityType,
+      subject,
+    },
   })
 }

@@ -32,73 +32,74 @@ export async function POST(request: NextRequest) {
 
     const query = searchQuery.trim().toLowerCase()
 
-    // Get user's groups only (groups where user is a member)
-    const userGroups = await prisma.group.findMany({
-      where: {
-        members: {
-          some: {
-            userId: user.id
-          }
-        },
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
-          { subject: { contains: query, mode: 'insensitive' } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        subject: true,
-        avatarUrl: true,
-        _count: {
-          select: {
-            members: true
-          }
-        }
-      },
-      take: 10
-    })
-
-    // Also search messages within user's groups
+    // PERFORMANCE: Get user's group IDs first (needed for both searches)
     const userGroupIds = await prisma.groupMember.findMany({
       where: { userId: user.id },
       select: { groupId: true }
     }).then(members => members.map(m => m.groupId))
 
-    let additionalGroups: typeof userGroups = []
-
-    if (userGroupIds.length > 0) {
-      // Search group messages that match query
-      const messagesMatching = await prisma.message.findMany({
+    // PERFORMANCE: Run both searches in parallel
+    const [userGroups, messagesMatching] = await Promise.all([
+      // Search 1: Groups matching by name/description/subject
+      prisma.group.findMany({
         where: {
-          content: {
-            contains: query,
-            mode: 'insensitive'
-          },
-          groupId: { in: userGroupIds }
+          id: { in: userGroupIds },
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } },
+            { subject: { contains: query, mode: 'insensitive' } }
+          ]
         },
         select: {
-          groupId: true,
-          group: {
+          id: true,
+          name: true,
+          description: true,
+          subject: true,
+          avatarUrl: true,
+          _count: {
             select: {
-              id: true,
-              name: true,
-              description: true,
-              subject: true,
-              avatarUrl: true,
-              _count: {
-                select: {
-                  members: true
-                }
-              }
+              members: true
             }
           }
         },
-        take: 20,
-        orderBy: { createdAt: 'desc' }
-      })
+        take: 10
+      }),
+      // Search 2: Groups with matching messages
+      userGroupIds.length > 0
+        ? prisma.message.findMany({
+            where: {
+              content: {
+                contains: query,
+                mode: 'insensitive'
+              },
+              groupId: { in: userGroupIds }
+            },
+            select: {
+              groupId: true,
+              group: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  subject: true,
+                  avatarUrl: true,
+                  _count: {
+                    select: {
+                      members: true
+                    }
+                  }
+                }
+              }
+            },
+            take: 20,
+            orderBy: { createdAt: 'desc' }
+          })
+        : Promise.resolve([])
+    ])
+
+    let additionalGroups: typeof userGroups = []
+
+    if (messagesMatching.length > 0) {
 
       // Extract unique groups from messages that aren't already in userGroups
       const existingIds = new Set(userGroups.map(g => g.id))

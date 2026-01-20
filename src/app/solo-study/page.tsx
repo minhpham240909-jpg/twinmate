@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   Play,
@@ -34,8 +35,11 @@ import {
   X,
   Check,
   Layers,
+  Map,
+  BookOpen,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth/context'
+import { handleSessionEnd } from '@/lib/session/events'
 import SoloStudyBackground from '@/components/solo-study/SoloStudyBackground'
 import SoloStudySoundMixer from '@/components/solo-study/SoloStudySoundMixer'
 import SoloStudyWhiteboard from '@/components/solo-study/SoloStudyWhiteboard'
@@ -43,8 +47,27 @@ import SoloStudyAITutor from '@/components/solo-study/SoloStudyAITutor'
 import FlashcardPanel from '@/components/solo-study/FlashcardPanel'
 import FlashcardFullScreen from '@/components/solo-study/FlashcardFullScreen'
 import FocusSessionReminder, { NotificationStatusIndicator } from '@/components/solo-study/FocusSessionReminder'
+import StudyMaterialsPanel from '@/components/solo-study/StudyMaterialsPanel'
 import { useFocusReminders } from '@/lib/hooks/useFocusReminders'
-import { DistractionBlocker, MotivationalQuote } from '@/components/focus'
+import { DistractionBlocker, MotivationalQuote, StudyRoadmapPanel } from '@/components/focus'
+
+// Types for study plan from "I'm Stuck" flow
+interface StudyPlanStep {
+  id: string
+  order: number
+  duration: number
+  title: string
+  description: string
+  tips?: string[]
+}
+
+interface StudyPlan {
+  id: string
+  subject: string
+  totalMinutes: number
+  encouragement: string
+  steps: StudyPlanStep[]
+}
 
 // Storage keys for Solo Study
 const SOLO_STUDY_STORAGE = {
@@ -62,6 +85,7 @@ const DEFAULT_BREAK_MINUTES = 5
 
 export default function SoloStudyPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user } = useAuth()
 
   // Session state
@@ -82,8 +106,11 @@ export default function SoloStudyPage() {
   const [showWhiteboard, setShowWhiteboard] = useState(false)
   const [showAITutor, setShowAITutor] = useState(false)
   const [showFlashcards, setShowFlashcards] = useState(false)
+  const [showMaterials, setShowMaterials] = useState(false)
   const [flashcardFullScreen, setFlashcardFullScreen] = useState<{ deckId: string; title: string } | null>(null)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
+  const [showRoadmap, setShowRoadmap] = useState(false)
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null)
 
   // Stats
   const [todayMinutes, setTodayMinutes] = useState(0)
@@ -94,6 +121,7 @@ export default function SoloStudyPage() {
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const sessionIdRef = useRef<string | null>(null)
+  const isEndingSessionRef = useRef(false) // Prevent saving session when ending
 
   // Focus reminders - gentle notifications when user leaves during session
   const {
@@ -123,6 +151,61 @@ export default function SoloStudyPage() {
     }
     if (savedBreak) setBreakMinutes(parseInt(savedBreak))
 
+    // Check for "I'm Stuck" auto-start first (takes priority for new sessions)
+    const savedPlan = sessionStorage.getItem('imstuck_study_plan')
+    const shouldAutoStart = sessionStorage.getItem('imstuck_auto_start') === 'true'
+
+    // Clear the flags immediately to prevent re-triggering on refresh
+    sessionStorage.removeItem('imstuck_study_plan')
+    sessionStorage.removeItem('imstuck_auto_start')
+
+    if (savedPlan && shouldAutoStart) {
+      try {
+        const plan = JSON.parse(savedPlan)
+        if (plan && plan.id && plan.steps && plan.steps.length > 0) {
+          setStudyPlan(plan)
+          setShowRoadmap(true)
+          const planMinutes = plan.totalMinutes || DEFAULT_FOCUS_MINUTES
+          setFocusMinutes(planMinutes)
+          setTimeRemaining(planMinutes * 60)
+
+          // Auto-start the session
+          setTimeout(() => {
+            setIsSessionActive(true)
+            setIsPaused(false)
+            setSessionStartTime(new Date())
+
+            fetch('/api/solo-study/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                focusMinutes: planMinutes,
+                breakMinutes: DEFAULT_BREAK_MINUTES,
+                background: localStorage.getItem(SOLO_STUDY_STORAGE.BACKGROUND) || 'library',
+                label: plan.subject,
+              }),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                if (data.sessionId) {
+                  sessionIdRef.current = data.sessionId
+                }
+              })
+              .catch((err) => console.error('Failed to start session:', err))
+
+            fetch('/api/presence/activity', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ activityType: 'studying' }),
+            }).catch(() => {})
+          }, 100)
+        }
+      } catch {
+        // Invalid plan data, continue with normal flow
+      }
+      return // Don't try to restore existing session if auto-starting new one
+    }
+
     // Restore active session if exists (user navigated away and came back)
     const savedSession = localStorage.getItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
     if (savedSession) {
@@ -130,16 +213,33 @@ export default function SoloStudyPage() {
         const session = JSON.parse(savedSession)
         // Validate session data
         if (session.sessionId && session.timeRemaining > 0) {
-          sessionIdRef.current = session.sessionId
-          setTimeRemaining(session.timeRemaining)
-          setIsBreak(session.isBreak || false)
-          setCompletedPomodoros(session.completedPomodoros || 0)
-          setSessionStartTime(session.sessionStartTime ? new Date(session.sessionStartTime) : new Date())
-          setFocusMinutes(session.focusMinutes || DEFAULT_FOCUS_MINUTES)
-          setBreakMinutes(session.breakMinutes || DEFAULT_BREAK_MINUTES)
-          // Start in paused state so user can resume when ready
-          setIsSessionActive(true)
-          setIsPaused(true)
+          // Verify session is still active on server before restoring
+          fetch('/api/study/last-session')
+            .then((res) => res.json())
+            .then((data) => {
+              // Only restore if server confirms session is still active
+              if (data.hasActiveSession && data.activeSession?.id === session.sessionId) {
+                sessionIdRef.current = session.sessionId
+                // Use the paused time from server if available, otherwise use localStorage
+                const serverTime = data.activeSession.timeRemaining
+                setTimeRemaining(serverTime > 0 ? serverTime : session.timeRemaining)
+                setIsBreak(session.isBreak || false)
+                setCompletedPomodoros(session.completedPomodoros || 0)
+                setSessionStartTime(session.sessionStartTime ? new Date(session.sessionStartTime) : new Date())
+                setFocusMinutes(session.focusMinutes || DEFAULT_FOCUS_MINUTES)
+                setBreakMinutes(session.breakMinutes || DEFAULT_BREAK_MINUTES)
+                // Start in paused state so user can resume when ready
+                setIsSessionActive(true)
+                setIsPaused(true)
+              } else {
+                // Session was ended or doesn't exist, clear localStorage
+                localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
+              }
+            })
+            .catch(() => {
+              // On error, don't restore session to be safe
+              localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
+            })
         }
       } catch {
         // Invalid session data, clear it
@@ -159,7 +259,8 @@ export default function SoloStudyPage() {
           const data = await response.json()
           if (data.success && data.stats) {
             setStreak(data.stats.streak?.current || 0)
-            setTodayMinutes(data.stats.studyTime?.today?.value || 0)
+            // Use todayMinutes (raw minutes) not today.value (which is hours if >= 60)
+            setTodayMinutes(data.stats.studyTime?.todayMinutes || 0)
             setTotalXP(data.stats.points || 0)
             // Calculate level (100 XP per level)
             setLevel(Math.floor((data.stats.points || 0) / 100) + 1)
@@ -175,8 +276,12 @@ export default function SoloStudyPage() {
 
   // Save session state when leaving page (pause on navigate away)
   useEffect(() => {
-    const saveSessionState = () => {
+    const saveSessionState = async () => {
+      // Don't save if session is being ended (prevents race condition)
+      if (isEndingSessionRef.current) return
+
       if (isSessionActive && sessionIdRef.current && timeRemaining > 0) {
+        // Save to localStorage for quick restore
         const sessionState = {
           sessionId: sessionIdRef.current,
           timeRemaining,
@@ -188,6 +293,21 @@ export default function SoloStudyPage() {
           savedAt: new Date().toISOString(),
         }
         localStorage.setItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION, JSON.stringify(sessionState))
+
+        // Also save to database so dashboard shows correct paused time
+        try {
+          await fetch('/api/solo-study/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: sessionIdRef.current,
+              action: 'pause',
+              timeRemaining,
+            }),
+          })
+        } catch {
+          // Ignore errors - localStorage backup is enough
+        }
       }
     }
 
@@ -202,12 +322,33 @@ export default function SoloStudyPage() {
 
     // Handle before unload (page refresh, close)
     const handleBeforeUnload = () => {
-      saveSessionState()
+      // Use sendBeacon for reliable delivery during page unload
+      if (isSessionActive && sessionIdRef.current && timeRemaining > 0 && !isEndingSessionRef.current) {
+        const data = JSON.stringify({
+          sessionId: sessionIdRef.current,
+          action: 'pause',
+          timeRemaining,
+        })
+        navigator.sendBeacon('/api/solo-study/pause', new Blob([data], { type: 'application/json' }))
+
+        // Also save to localStorage
+        const sessionState = {
+          sessionId: sessionIdRef.current,
+          timeRemaining,
+          isBreak,
+          completedPomodoros,
+          sessionStartTime: sessionStartTime?.toISOString(),
+          focusMinutes,
+          breakMinutes,
+          savedAt: new Date().toISOString(),
+        }
+        localStorage.setItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION, JSON.stringify(sessionState))
+      }
     }
 
     // Handle route change (Next.js navigation)
     const handleRouteChange = () => {
-      if (isSessionActive) {
+      if (isSessionActive && !isEndingSessionRef.current) {
         setIsPaused(true)
         saveSessionState()
       }
@@ -362,37 +503,91 @@ export default function SoloStudyPage() {
   }
 
   // Pause/resume
-  const handleTogglePause = () => {
-    setIsPaused((prev) => !prev)
+  const handleTogglePause = async () => {
+    const newPausedState = !isPaused
+    setIsPaused(newPausedState)
+
+    // Update pause state in database
+    if (sessionIdRef.current) {
+      try {
+        if (newPausedState) {
+          // Pausing - save current time remaining
+          await fetch('/api/solo-study/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: sessionIdRef.current,
+              action: 'pause',
+              timeRemaining,
+            }),
+          })
+        } else {
+          // Resuming - clear paused state
+          await fetch('/api/solo-study/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: sessionIdRef.current,
+              action: 'resume',
+            }),
+          })
+        }
+      } catch {
+        // Ignore errors - local state is updated
+      }
+    }
   }
 
   // End session
   const handleEndSession = async () => {
+    // Mark session as ending to prevent race conditions with save handlers
+    isEndingSessionRef.current = true
+
+    const currentSessionId = sessionIdRef.current
+
+    // Clear saved session state FIRST (session is ending properly)
+    localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
+    sessionIdRef.current = null
+
+    // Reset all session state
     setIsSessionActive(false)
     setIsPaused(false)
+    setIsBreak(false)
+    setCompletedPomodoros(0)
+    setSessionStartTime(null)
+    // Reset timer to default focus time
+    setTimeRemaining(focusMinutes * 60)
+
+    // Show completion modal
     setShowCompletionModal(true)
 
-    // Clear saved session state (session is ending properly)
-    localStorage.removeItem(SOLO_STUDY_STORAGE.ACTIVE_SESSION)
-
-    // Calculate total time
+    // Calculate total time for stats
     const totalMinutes = sessionStartTime
       ? Math.round((Date.now() - sessionStartTime.getTime()) / 60000)
       : 0
 
     // End session in backend
-    try {
-      await fetch('/api/solo-study/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionIdRef.current,
-          totalMinutes,
-          completedPomodoros,
-        }),
-      })
-    } catch (error) {
-      console.error('Failed to end session:', error)
+    if (currentSessionId) {
+      try {
+        await fetch('/api/solo-study/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: currentSessionId,
+            totalMinutes,
+            completedPomodoros,
+          }),
+        })
+
+        // Clear all session caches and notify other components (e.g., dashboard)
+        await handleSessionEnd(queryClient, {
+          sessionId: currentSessionId,
+          sessionType: 'solo_study',
+          reason: totalMinutes >= focusMinutes * 0.8 ? 'completed' : 'ended_early',
+        })
+      } catch (error) {
+        console.error('Failed to end session:', error)
+      }
     }
 
     // Update presence
@@ -406,7 +601,8 @@ export default function SoloStudyPage() {
       // Ignore presence errors
     }
 
-    sessionIdRef.current = null
+    // Reset the ending flag so new sessions can start
+    isEndingSessionRef.current = false
   }
 
   // Reset timer
@@ -468,23 +664,26 @@ export default function SoloStudyPage() {
           <span className="hidden sm:inline">Back</span>
         </button>
 
-        <div className="flex items-center gap-3">
-          {/* Stats badges */}
-          {streak > 0 && (
-            <div className="flex items-center gap-1.5 bg-orange-500/20 text-orange-300 rounded-full px-3 py-1.5 text-sm">
-              <Flame className="w-4 h-4" />
-              <span>{streak}</span>
+        {/* Stats badges - HIDDEN during active session to keep focus on learning */}
+        {/* Show only when session is NOT active (before starting or after completing) */}
+        {!isSessionActive && (
+          <div className="flex items-center gap-3">
+            {streak > 0 && (
+              <div className="flex items-center gap-1.5 bg-orange-500/20 text-orange-300 rounded-full px-3 py-1.5 text-sm">
+                <Flame className="w-4 h-4" />
+                <span>{streak}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 bg-purple-500/20 text-purple-300 rounded-full px-3 py-1.5 text-sm">
+              <Star className="w-4 h-4" />
+              <span>Lv {level}</span>
             </div>
-          )}
-          <div className="flex items-center gap-1.5 bg-purple-500/20 text-purple-300 rounded-full px-3 py-1.5 text-sm">
-            <Star className="w-4 h-4" />
-            <span>Lv {level}</span>
+            <div className="flex items-center gap-1.5 bg-amber-500/20 text-amber-300 rounded-full px-3 py-1.5 text-sm">
+              <Zap className="w-4 h-4" />
+              <span>{totalXP} XP</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 bg-amber-500/20 text-amber-300 rounded-full px-3 py-1.5 text-sm">
-            <Zap className="w-4 h-4" />
-            <span>{totalXP} XP</span>
-          </div>
-        </div>
+        )}
 
         {/* Tools */}
         <div className="flex items-center gap-2">
@@ -613,6 +812,13 @@ export default function SoloStudyPage() {
       {/* Floating Action Buttons */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
         <button
+          onClick={() => setShowMaterials(true)}
+          className="p-4 bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm hover:from-purple-500/30 hover:to-blue-500/30 text-purple-300 rounded-2xl transition-all shadow-lg"
+          title="Study Materials"
+        >
+          <BookOpen className="w-6 h-6" />
+        </button>
+        <button
           onClick={() => setShowFlashcards(true)}
           className="p-4 bg-blue-500/20 backdrop-blur-sm hover:bg-blue-500/30 text-blue-300 rounded-2xl transition-all shadow-lg"
           title="Flashcards"
@@ -633,6 +839,20 @@ export default function SoloStudyPage() {
         >
           <MessageSquare className="w-6 h-6" />
         </button>
+        {/* Roadmap toggle - only show if there's a study plan */}
+        {studyPlan && (
+          <button
+            onClick={() => setShowRoadmap(!showRoadmap)}
+            className={`p-4 backdrop-blur-sm rounded-2xl transition-all shadow-lg ${
+              showRoadmap
+                ? 'bg-amber-500/30 text-amber-300'
+                : 'bg-white/10 hover:bg-white/20 text-white'
+            }`}
+            title="Study Roadmap"
+          >
+            <Map className="w-6 h-6" />
+          </button>
+        )}
       </div>
 
       {/* Background Selector */}
@@ -715,12 +935,23 @@ export default function SoloStudyPage() {
         <SoloStudyWhiteboard onClose={() => setShowWhiteboard(false)} />
       )}
 
-      {/* AI Tutor Panel */}
+      {/* AI Tutor Panel - with study plan context if available */}
       {showAITutor && (
-        <SoloStudyAITutor onClose={() => setShowAITutor(false)} />
+        <SoloStudyAITutor
+          onClose={() => setShowAITutor(false)}
+          studyPlan={studyPlan}
+        />
       )}
 
-      {/* Flashcard Panel */}
+      {/* Study Materials Panel - AI-powered content explanation */}
+      {showMaterials && (
+        <StudyMaterialsPanel
+          onClose={() => setShowMaterials(false)}
+          studyPlan={studyPlan}
+        />
+      )}
+
+      {/* Flashcard Panel - with study plan context if available */}
       {showFlashcards && (
         <FlashcardPanel
           onClose={() => setShowFlashcards(false)}
@@ -728,6 +959,7 @@ export default function SoloStudyPage() {
             setShowFlashcards(false)
             setFlashcardFullScreen({ deckId, title: 'Flashcards' })
           }}
+          studyPlan={studyPlan}
         />
       )}
 
@@ -738,6 +970,16 @@ export default function SoloStudyPage() {
           deckTitle={flashcardFullScreen.title}
           onClose={() => setFlashcardFullScreen(null)}
         />
+      )}
+
+      {/* Study Roadmap Panel */}
+      {showRoadmap && studyPlan && (
+        <div className="fixed top-20 right-6 z-40 w-96 max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <StudyRoadmapPanel
+            plan={studyPlan}
+            onClose={() => setShowRoadmap(false)}
+          />
+        </div>
       )}
 
       {/* Completion Modal */}

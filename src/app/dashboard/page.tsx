@@ -1,505 +1,296 @@
 'use client'
 
+/**
+ * Dashboard Page - Redesigned for Vision
+ *
+ * Core principle: ONE primary CTA, remove decision paralysis
+ *
+ * Layout:
+ * 1. Primary CTA: "Continue Studying" or "Start Studying"
+ * 2. Social Gravity: "X classmates studying now"
+ * 3. Secondary actions: "I'm stuck", Quick Focus, Solo Study
+ * 4. Stats (collapsed/subtle)
+ *
+ * Everything serves the goal: Get user to START studying
+ */
+
 import { useAuth } from '@/lib/auth/context'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState, useRef } from 'react'
 import NotificationPanel from '@/components/NotificationPanel'
 import { useUserSync } from '@/hooks/useUserSync'
+import { useDashboardStats, useActiveSession, useDashboardCounts, useOnlinePartners } from '@/hooks/useUserStats'
 import { useTranslations } from 'next-intl'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
 import PushNotificationPrompt from '@/components/PushNotificationPrompt'
-import { AIPartnerSuggestionModal } from '@/components/ai-partner'
-import DashboardAIWidget from '@/components/ai-partner/DashboardAIWidget'
-import QuickFocusCard from '@/components/QuickFocusCard'
-import SoloStudyCard from '@/components/SoloStudyCard'
+import QuickWinModal from '@/components/QuickWinModal'
 import {
   DashboardTopBar,
-  DashboardStatsRow,
+  StartStudyingCTA,
+  ClassmatesStudying,
+  ImStuckFlow,
   DashboardPartnersSection,
+  StudySuggestions,
+  GlobalLeaderboard,
+  // Progressive Disclosure
+  calculateUserTier,
+  shouldShowFeature,
+  NewUserWelcome,
+  UnlockTeasersSection,
+  FeatureGate,
 } from '@/components/dashboard'
+import { Flame, Clock, Star, Zap } from 'lucide-react'
 
-// Profile completion check function
-const isProfileComplete = (profile: any): boolean => {
-  if (!profile) return false
-
-  const hasBio = Boolean(profile.bio && typeof profile.bio === 'string' && profile.bio.trim().length > 0)
-  const hasSubjects = Boolean(Array.isArray(profile.subjects) && profile.subjects.length > 0)
-  const hasInterests = Boolean(Array.isArray(profile.interests) && profile.interests.length > 0)
-  const hasAge = profile.age !== null && profile.age !== undefined && typeof profile.age === 'number'
-  const hasRole = Boolean(profile.profileRole && typeof profile.profileRole === 'string' && profile.profileRole.trim().length > 0)
-
-  return hasBio && hasSubjects && hasInterests && hasAge && hasRole
+// Types
+interface StudyingPartner {
+  id: string
+  name: string
+  avatarUrl: string | null
+  subject?: string
+  activityType?: string
 }
 
 export default function DashboardPage() {
-  const { user, profile, loading, configError, profileError, signOut } = useAuth()
+  const { user, profile, loading, configError, profileError, signOut, refreshUser } = useAuth()
   const router = useRouter()
-  const t = useTranslations('dashboard')
+  const pathname = usePathname()
+  const lastPathnameRef = useRef(pathname)
   const tCommon = useTranslations('common')
   const { requestPermission, hasBeenAsked, isGranted, isSupported } = useNotificationPermission()
-  
-  // Initialize states from localStorage cache to prevent flickering
-  const getInitialCount = (key: string): number => {
-    if (typeof window === 'undefined') return 0
-    const cached = localStorage.getItem(`dashboard_${key}`)
-    return cached ? parseInt(cached, 10) : 0
-  }
 
-  const getInitialOnlinePartners = (): Array<{
-    id: string
-    name: string
-    avatarUrl: string | null
-    onlineStatus: string
-    activityType?: string
-    activityDetails?: Record<string, unknown> | null
-    streak?: number
-  }> => {
-    if (typeof window === 'undefined') return []
-    const cached = localStorage.getItem('dashboard_onlinePartners')
-    if (!cached) return []
-    try {
-      return JSON.parse(cached)
-    } catch {
-      return []
-    }
-  }
-
-  // Bell notification count managed by NotificationPanel (critical notifications only)
+  // Notification state
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [partnersCount, setPartnersCount] = useState(() => getInitialCount('partnersCount'))
-  const [pendingInvitesCount, setPendingInvitesCount] = useState(() => getInitialCount('pendingInvitesCount'))
-  const [connectionRequestsCount, setConnectionRequestsCount] = useState(() => getInitialCount('connectionRequestsCount'))
-  const [groupInvitesCount, setGroupInvitesCount] = useState(() => getInitialCount('groupInvitesCount'))
-  const [newCommunityPostsCount, setNewCommunityPostsCount] = useState(() => getInitialCount('newCommunityPostsCount'))
-  const [unreadMessagesCount, setUnreadMessagesCount] = useState(() => getInitialCount('unreadMessagesCount'))
 
-  // AI Partner suggestion modal state
-  const [showAIPartnerModal, setShowAIPartnerModal] = useState(false)
+  // Dashboard counts - using React Query for caching (replaces 5 separate API calls with 1)
+  const { data: countsData, refetch: refetchCounts } = useDashboardCounts()
+  const pendingInvitesCount = countsData?.counts?.pendingInvites || 0
+  const connectionRequestsCount = countsData?.counts?.connectionRequests || 0
+  const groupInvitesCount = countsData?.counts?.groupInvites || 0
+  const newCommunityPostsCount = countsData?.counts?.newCommunityPosts || 0
+  const unreadMessagesCount = countsData?.counts?.unreadMessages?.total || 0
 
-  // Group IDs for real-time subscription
-  const [groupIds, setGroupIds] = useState<string[]>([])
+  // Session state - using React Query for caching (prevents flickering on navigation)
+  const { activeSession, lastSession, refetch: refetchSessionData } = useActiveSession()
 
-  // Online partners state - initialize from cache
-  const [onlinePartners, setOnlinePartners] = useState<Array<{
-    id: string
-    name: string
-    avatarUrl: string | null
-    onlineStatus: string
-    activityType?: string
-    activityDetails?: Record<string, unknown> | null
-    streak?: number
-  }>>(() => getInitialOnlinePartners())
+  // Social gravity state
+  const [studyingPartners, setStudyingPartners] = useState<StudyingPartner[]>([])
+  const [totalStudying, setTotalStudying] = useState(0)
 
-  // User stats state (streak, study time)
-  const [userStats, setUserStats] = useState<{
-    streak: { current: number; longest: number }
+  // Stats - using React Query for caching (prevents disappearing on navigation)
+  const { stats: dashboardStats, refetch: refetchStats } = useDashboardStats()
+
+  // Partner data - using React Query for caching and automatic polling
+  const { onlinePartners, partnersCount, isLoading: loadingPartners } = useOnlinePartners()
+
+  // Transform dashboardStats to match DashboardStatsRow expected format
+  const userStats = dashboardStats ? {
+    streak: { current: dashboardStats.streak, longest: dashboardStats.streak },
     studyTime: {
-      today: { value: number; unit: string; display: string }
-      thisWeek: { value: number; unit: string; display: string }
-      allTime: { value: number; unit: string; display: string }
-    }
-    sessions: { today: number; thisWeek: number; allTime: number }
-    points: number
-  } | null>(null)
-  
-  const getHasLoadedOnce = (): boolean => {
-    if (typeof window === 'undefined') return false
-    const hasLoadedFlag = localStorage.getItem('dashboard_hasLoadedOnce') === 'true'
-    const hasCachedPartners = getInitialOnlinePartners().length > 0
-    const hasCachedCounts = localStorage.getItem('dashboard_partnersCount') !== null
-    return hasLoadedFlag || hasCachedPartners || hasCachedCounts
-  }
-  const hasLoadedOnceRef = useRef<boolean>(getHasLoadedOnce())
-  // AbortController ref for refreshOnlinePartners to cancel in-flight requests
-  const refreshOnlinePartnersAbortRef = useRef<AbortController | null>(null)
+      today: { value: dashboardStats.todayMinutes, unit: dashboardStats.todayMinutes >= 60 ? 'hr' : 'min', display: dashboardStats.todayFormatted },
+      thisWeek: { value: dashboardStats.weekMinutes, unit: dashboardStats.weekMinutes >= 60 ? 'hr' : 'min', display: dashboardStats.weekFormatted },
+      allTime: { value: dashboardStats.allTimeMinutes, unit: dashboardStats.allTimeMinutes >= 60 ? 'hr' : 'min', display: `${Math.floor(dashboardStats.allTimeMinutes / 60)}h` },
+    },
+    sessions: { today: dashboardStats.todaySessions, thisWeek: dashboardStats.weekSessions, allTime: dashboardStats.allTimeSessions },
+    points: dashboardStats.points,
+  } : null
 
-  const [loadingOnlinePartners, setLoadingOnlinePartners] = useState(() => {
-    return !hasLoadedOnceRef.current
-  })
+  // Quick Win modal state
+  const [showQuickWin, setShowQuickWin] = useState(false)
+  const [quickWinType, setQuickWinType] = useState<'first_session' | 'streak_started' | 'streak_milestone'>('first_session')
+
+  // Group IDs for real-time
+  const [groupIds, setGroupIds] = useState<string[]>([])
 
   useUserSync()
 
-  // Check profile completion and banner visibility
-  const [showCompleteProfileBanner, setShowCompleteProfileBanner] = useState(false)
-
+  // Refetch session data on visibility change, focus, and storage changes
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    const bannerDismissed = localStorage.getItem('profileCompletionBannerDismissed') === 'true'
-    
-    if (bannerDismissed) {
-      setShowCompleteProfileBanner(false)
-      return
-    }
-    
-    if (!profile) {
-      setShowCompleteProfileBanner(true)
-      return
+    if (!user || loading) return
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refetchSessionData()
+      }
     }
 
-    const profileComplete = isProfileComplete(profile)
-    setShowCompleteProfileBanner(!profileComplete)
-  }, [profile])
+    const handleFocus = () => {
+      refetchSessionData()
+    }
 
-  // Fetch data and cache to localStorage
+    // Listen for storage changes (when session is cleared in another component)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'solo_study_active_session' && e.newValue === null) {
+        refetchSessionData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [user, loading, refetchSessionData])
+
+  // Refresh session data when navigating back to dashboard from another page
+  useEffect(() => {
+    if (pathname === '/dashboard' && lastPathnameRef.current !== '/dashboard') {
+      refetchSessionData()
+    }
+    lastPathnameRef.current = pathname
+  }, [pathname, refetchSessionData])
+
+  // Fetch social gravity data (classmates studying)
   useEffect(() => {
     if (!user || loading) return
 
     const abortController = new AbortController()
-    let isMounted = true
 
-    const fetchData = async () => {
-      if (!isMounted) return
-
+    const fetchPresenceData = async () => {
       try {
-        const results = await Promise.allSettled([
-          fetch('/api/partners/count', { signal: abortController.signal }).then(r => r.json()),
-          fetch('/api/study-sessions/pending-invites', { signal: abortController.signal }).then(r => r.json()),
-          fetch('/api/connections?type=received', { signal: abortController.signal }).then(r => r.json()),
-          fetch('/api/partners/active', { signal: abortController.signal }).then(r => r.json()),
-          fetch('/api/groups/invites/pending', { signal: abortController.signal }).then(r => r.ok ? r.json() : { count: 0 }),
-          fetch('/api/community/new-posts-count', { signal: abortController.signal }).then(r => r.ok ? r.json() : { count: 0 }),
-          fetch('/api/messages/unread-counts', { signal: abortController.signal }).then(r => r.ok ? r.json() : { total: 0 })
-        ])
-
-        if (!isMounted) return
-
-        const partners = results[0].status === 'fulfilled' ? results[0].value : { count: 0 }
-        const invites = results[1].status === 'fulfilled' ? results[1].value : { invites: [] }
-        const connections = results[2].status === 'fulfilled' ? results[2].value : { receivedCount: 0 }
-        const activePartners = results[3].status === 'fulfilled' ? results[3].value : { partners: [] }
-        const groupInvites = results[4].status === 'fulfilled' ? results[4].value : { count: 0 }
-        const communityPosts = results[5].status === 'fulfilled' ? results[5].value : { count: 0 }
-        const unreadMessages = results[6].status === 'fulfilled' ? results[6].value : { total: 0 }
-
-        if (!isMounted) return
-
-        const partners_count = partners.count || 0
-        const pending = invites.invites?.length || 0
-        const requests = connections.receivedCount || 0
-        const groupInvitesCountVal = groupInvites.count || 0
-        const communityPostsCount = communityPosts.count || 0
-        const unreadMessagesTotal = unreadMessages.total || 0
-
-        if (isMounted) {
-          setPartnersCount(partners_count)
-          setPendingInvitesCount(pending)
-          setConnectionRequestsCount(requests)
-          setGroupInvitesCount(groupInvitesCountVal)
-          setNewCommunityPostsCount(communityPostsCount)
-          setUnreadMessagesCount(unreadMessagesTotal)
-
-          const online = activePartners.partners
-            ?.filter((p: any) => p.onlineStatus === 'ONLINE')
-            .map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              avatarUrl: p.avatarUrl,
-              onlineStatus: p.onlineStatus,
-              activityType: p.activityType || 'browsing',
-              activityDetails: p.activityDetails || null,
-              streak: p.streak || 0, // Include streak for profile cards
-            })) || []
-          setOnlinePartners(online)
-          
-          hasLoadedOnceRef.current = true
-          setLoadingOnlinePartners(false)
-
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('dashboard_partnersCount', String(partners_count))
-            localStorage.setItem('dashboard_pendingInvitesCount', String(pending))
-            localStorage.setItem('dashboard_connectionRequestsCount', String(requests))
-            localStorage.setItem('dashboard_groupInvitesCount', String(groupInvitesCountVal))
-            localStorage.setItem('dashboard_newCommunityPostsCount', String(communityPostsCount))
-            localStorage.setItem('dashboard_unreadMessagesCount', String(unreadMessagesTotal))
-            localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
-            localStorage.setItem('dashboard_hasLoadedOnce', 'true')
-          }
+        const response = await fetch('/api/presence/classmates', {
+          signal: abortController.signal,
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setStudyingPartners(data.studyingPartners || [])
+          setTotalStudying(data.totalStudying || 0)
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return
-        
-        console.error('Error fetching dashboard data:', error)
-        if (isMounted && !hasLoadedOnceRef.current) {
-          setLoadingOnlinePartners(false)
-        }
+        console.error('Error fetching presence data:', error)
       }
     }
 
-    fetchData()
-    const interval = setInterval(fetchData, 60000)
-    
+    fetchPresenceData()
+    const interval = setInterval(fetchPresenceData, 15000) // Refresh every 15s
+
     return () => {
-      isMounted = false
       abortController.abort()
       clearInterval(interval)
     }
   }, [user, loading])
 
-  // Refresh online partners function for event-based updates
-  const refreshOnlinePartners = useCallback(async () => {
-    if (!user) return
-
-    // Cancel any previous in-flight request
-    if (refreshOnlinePartnersAbortRef.current) {
-      refreshOnlinePartnersAbortRef.current.abort()
-    }
-
-    const abortController = new AbortController()
-    refreshOnlinePartnersAbortRef.current = abortController
-
-    try {
-      const response = await fetch('/api/partners/active', { signal: abortController.signal })
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.partners) {
-          const online = data.partners
-            ?.filter((p: { onlineStatus: string }) => p.onlineStatus === 'ONLINE')
-            .map((p: { id: string; name: string; avatarUrl: string | null; onlineStatus: string; activityType?: string; activityDetails?: Record<string, unknown> | null; streak?: number }) => ({
-              id: p.id,
-              name: p.name,
-              avatarUrl: p.avatarUrl,
-              onlineStatus: p.onlineStatus,
-              activityType: p.activityType || 'browsing',
-              activityDetails: p.activityDetails || null,
-              streak: p.streak || 0, // Include streak for profile cards
-            })) || []
-          setOnlinePartners(online)
-
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('dashboard_onlinePartners', JSON.stringify(online))
-          }
-        }
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return
-      console.error('Error refreshing online partners:', error)
-    } finally {
-      // Clear ref if this is the current controller
-      if (refreshOnlinePartnersAbortRef.current === abortController) {
-        refreshOnlinePartnersAbortRef.current = null
-      }
-    }
-  }, [user])
-
-  // Listen for session/call end events to refresh online partners immediately
+  // Refetch stats and counts when page becomes visible (user navigates back)
   useEffect(() => {
-    if (!user) return
-
-    const handleSessionEnd = () => {
-      setTimeout(() => {
-        refreshOnlinePartners()
-      }, 1000)
-    }
-
-    window.addEventListener('ai-partner-session-ended', handleSessionEnd)
-    window.addEventListener('study-session-ended', handleSessionEnd)
-    window.addEventListener('call-ended', handleSessionEnd)
-
-    return () => {
-      window.removeEventListener('ai-partner-session-ended', handleSessionEnd)
-      window.removeEventListener('study-session-ended', handleSessionEnd)
-      window.removeEventListener('call-ended', handleSessionEnd)
-    }
-  }, [user, refreshOnlinePartners])
-
-  // More frequent polling for online partners (30 seconds)
-  useEffect(() => {
-    if (!user) return
-
-    const onlinePartnersInterval = setInterval(() => {
-      refreshOnlinePartners()
-    }, 30000)
-
-    return () => {
-      clearInterval(onlinePartnersInterval)
-      // Cancel any in-flight refresh request on cleanup
-      if (refreshOnlinePartnersAbortRef.current) {
-        refreshOnlinePartnersAbortRef.current.abort()
-        refreshOnlinePartnersAbortRef.current = null
-      }
-    }
-  }, [user, refreshOnlinePartners])
-
-  // Refresh online partners when user returns to page
-  useEffect(() => {
-    if (!user) return
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        refreshOnlinePartners()
+        refetchStats()
+        refetchCounts()
       }
     }
-
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [refetchStats, refetchCounts])
 
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [user, refreshOnlinePartners])
-
-  // Fetch user's group IDs for real-time subscription
+  // Fetch group IDs for real-time
   useEffect(() => {
     if (!user) return
 
     const abortController = new AbortController()
-    let isMounted = true
 
     const fetchGroupIds = async () => {
       try {
         const response = await fetch('/api/groups/my-groups', { signal: abortController.signal })
-        if (!isMounted) return
         if (response.ok) {
           const data = await response.json()
           if (data.success && data.groups) {
-            const ids = data.groups.map((g: { id: string }) => g.id)
-            setGroupIds(ids)
+            setGroupIds(data.groups.map((g: { id: string }) => g.id))
           }
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return
-        console.error('Error fetching group IDs:', error)
       }
     }
 
     fetchGroupIds()
 
     return () => {
-      isMounted = false
       abortController.abort()
     }
   }, [user])
 
-  // Fetch user stats (streak, study time) for dashboard display
+  // Real-time message subscription - refetch counts when new messages arrive
   useEffect(() => {
     if (!user) return
 
-    const abortController = new AbortController()
-    let isMounted = true
-
-    const fetchUserStats = async () => {
-      try {
-        const response = await fetch('/api/user/stats', { signal: abortController.signal })
-        if (!isMounted) return
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.stats) {
-            setUserStats(data.stats)
-          }
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return
-        console.error('Error fetching user stats:', error)
-      }
-    }
-
-    fetchUserStats()
-    const interval = setInterval(fetchUserStats, 5 * 60 * 1000)
+    const cleanup = subscribeToUnreadMessages(user.id, () => refetchCounts(), groupIds.length > 0 ? groupIds : undefined)
 
     return () => {
-      isMounted = false
-      abortController.abort()
-      clearInterval(interval)
-    }
-  }, [user])
-
-  // Real-time subscription for unread message updates
-  useEffect(() => {
-    if (!user) return
-
-    const abortController = new AbortController()
-    let isMounted = true
-
-    const refreshUnreadCounts = async () => {
-      try {
-        const response = await fetch('/api/messages/unread-counts', { signal: abortController.signal })
-        if (!isMounted) return
-        if (response.ok) {
-          const data = await response.json()
-          const total = data.total || 0
-          setUnreadMessagesCount(total)
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('dashboard_unreadMessagesCount', String(total))
-          }
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return
-        console.error('Error refreshing unread counts:', error)
-      }
-    }
-
-    const cleanup = subscribeToUnreadMessages(user.id, refreshUnreadCounts, groupIds.length > 0 ? groupIds : undefined)
-    return () => {
-      isMounted = false
-      abortController.abort()
       cleanup()
     }
-  }, [user, groupIds])
+  }, [user, groupIds, refetchCounts])
 
-  // Request notification permission on first visit after signup/login
+  // Request notification permission
   useEffect(() => {
     if (!user || !isSupported || hasBeenAsked() || isGranted) return
 
     const timer = setTimeout(() => {
       requestPermission()
-    }, 3000)
+    }, 5000)
 
     return () => clearTimeout(timer)
   }, [user, isSupported, hasBeenAsked, isGranted, requestPermission])
 
+  // Redirect if not logged in
   useEffect(() => {
     if (!loading && !user) {
       const urlParams = new URLSearchParams(window.location.search)
       const isFromAuthCallback = urlParams.get('auth_callback') === 'true'
 
-      if (isFromAuthCallback) {
-        console.log('[Dashboard] From auth callback, waiting for auth sync...')
-        return
+      if (!isFromAuthCallback) {
+        router.push('/auth')
       }
-
-      router.push('/auth')
     }
   }, [user, loading, router])
 
-  const handleCompleteProfile = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('profileCompletionBannerClicked', 'true')
-    }
-    router.push('/profile/edit')
-  }
+  // Check for quick win (first session, streak milestone)
+  useEffect(() => {
+    if (!userStats || typeof window === 'undefined') return
 
-  // Show configuration error if Supabase is not set up
+    const hasShownFirstWin = localStorage.getItem('clerva_first_win_shown') === 'true'
+    const lastStreakMilestoneShown = parseInt(localStorage.getItem('clerva_streak_milestone') || '0', 10)
+
+    // First session ever
+    if (userStats.sessions.allTime === 1 && !hasShownFirstWin) {
+      setQuickWinType('first_session')
+      setShowQuickWin(true)
+      localStorage.setItem('clerva_first_win_shown', 'true')
+      return
+    }
+
+    // Streak milestones (7, 14, 30, 60, 100)
+    const milestones = [7, 14, 30, 60, 100]
+    const currentStreak = userStats.streak.current
+    for (const milestone of milestones) {
+      if (currentStreak >= milestone && lastStreakMilestoneShown < milestone) {
+        setQuickWinType('streak_milestone')
+        setShowQuickWin(true)
+        localStorage.setItem('clerva_streak_milestone', String(milestone))
+        break
+      }
+    }
+  }, [userStats])
+
+  // Error states
   if (configError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
         <div className="text-center max-w-lg p-8">
-          <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg className="w-10 h-10 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-3">Configuration Required</h2>
           <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-            The app is not properly configured. Please ensure all required environment variables are set in your Vercel dashboard.
+            Please ensure all required environment variables are set.
           </p>
-          <div className="bg-neutral-900 dark:bg-neutral-800 rounded-xl p-4 text-left mb-6">
-            <p className="text-sm text-neutral-400 mb-2">Required variables:</p>
-            <ul className="text-sm text-neutral-300 space-y-1 font-mono">
-              <li>• NEXT_PUBLIC_SUPABASE_URL</li>
-              <li>• NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
-              <li>• DATABASE_URL</li>
-            </ul>
-          </div>
-          <a
-            href="https://vercel.com/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
-          >
-            Open Vercel Dashboard
-          </a>
         </div>
       </div>
     )
@@ -517,64 +308,38 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
         <div className="text-center max-w-md p-8">
-          <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
           <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Connection Error</h2>
           <p className="text-neutral-600 dark:text-neutral-400 mb-6">{profileError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
-          >
-            {tCommon('refreshPage')}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (user && !profile && !profileError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-        <div className="text-center">
-          <div className="w-16 h-16 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-neutral-600 dark:text-neutral-400">{t('loadingProfile')}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
-  }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-        <div className="text-center max-w-md p-8">
-          <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => refreshUser()}
+              className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl font-semibold"
+            >
+              {tCommon('refreshPage')}
+            </button>
           </div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">{tCommon('failedToLoad')}</h2>
-          <p className="text-neutral-600 dark:text-neutral-400 mb-6">{tCommon('pleaseTryRefreshing')}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
-          >
-            {tCommon('refreshPage')}
-          </button>
         </div>
+      </div>
+    )
+  }
+
+  if (!user || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="w-16 h-16 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-      {/* Top Bar with Menu */}
+      {/* Top Bar */}
       <DashboardTopBar
         profileName={profile.name}
         profileAvatarUrl={profile.avatarUrl ?? null}
@@ -589,57 +354,158 @@ export default function DashboardPage() {
         newCommunityPostsCount={newCommunityPostsCount}
         onNotificationsClick={() => setShowNotifications(!showNotifications)}
         onChatClick={() => router.push('/chat')}
-        onShowAIPartnerModal={() => setShowAIPartnerModal(true)}
       />
 
-      {/* Main Content */}
-      <main className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
-        <div className="space-y-6">
-          {/* Study Options - Quick Focus and Solo Study */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Quick Focus - Short sessions (5-10 min) */}
-            <QuickFocusCard />
+      {/* Main Content - Progressive Disclosure Based on User Tier */}
+      <main className="px-4 sm:px-6 lg:px-8 py-4 max-w-4xl mx-auto">
+        {(() => {
+          // Calculate user tier for progressive disclosure
+          const totalSessions = userStats?.sessions.allTime || 0
+          const userTier = calculateUserTier(totalSessions)
+          const isNewUser = userTier === 'new_user'
 
-            {/* Solo Study - Full virtual study room */}
-            <SoloStudyCard />
-          </div>
+          return (
+            <div className="space-y-4">
+              {/* NEW USER WELCOME - Only shown for users with < 3 sessions */}
+              {isNewUser && (
+                <NewUserWelcome
+                  userName={profile.name}
+                  sessionsCompleted={totalSessions}
+                />
+              )}
 
-          {/* Stats Row */}
-          <DashboardStatsRow userStats={userStats} />
-
-          {/* Partners Section */}
-          <DashboardPartnersSection
-            partnersCount={partnersCount}
-            onlinePartners={onlinePartners}
-            loadingOnlinePartners={loadingOnlinePartners}
-          />
-
-          {/* AI Partner Widget */}
-          <DashboardAIWidget />
-
-          {/* Complete Profile Banner */}
-          {showCompleteProfileBanner && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+              {/* ROW 1: Main CTA + Quick Stats side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* PRIMARY CTA: Start/Continue Studying - ALWAYS VISIBLE */}
+                <div className={isNewUser ? 'lg:col-span-3' : 'lg:col-span-2'}>
+                  <StartStudyingCTA
+                    userName={profile.name}
+                    activeSession={activeSession}
+                    lastSession={lastSession}
+                    onEndSession={() => refetchSessionData()}
+                  />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-neutral-900 dark:text-white mb-1">{t('readyToStartJourney')}</h3>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">{t('connectWithPartners')}</p>
-                </div>
-                <button
-                  onClick={handleCompleteProfile}
-                  className="w-full sm:w-auto px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors whitespace-nowrap text-sm sm:text-base"
-                >
-                  {t('completeProfile')}
-                </button>
+
+                {/* Quick Stats Card - Hidden for new users (< 5 sessions) */}
+                <FeatureGate feature="quick_stats" sessionsCompleted={totalSessions}>
+                  {userStats && (
+                    <div className="lg:col-span-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
+                      <div className="grid grid-cols-3 gap-2 h-full">
+                        {/* Streak */}
+                        <div className="text-center flex flex-col justify-center">
+                          <div className="w-9 h-9 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center mx-auto mb-1.5">
+                            <Flame className="w-4 h-4 text-neutral-900 dark:text-white" />
+                          </div>
+                          <p className="text-xl font-black text-neutral-900 dark:text-white">{userStats.streak.current}</p>
+                          <p className="text-[10px] text-neutral-500">streak</p>
+                        </div>
+                        {/* Today */}
+                        <div className="text-center flex flex-col justify-center border-x border-neutral-200 dark:border-neutral-700">
+                          <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mx-auto mb-1.5">
+                            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <p className="text-xl font-black text-neutral-900 dark:text-white">{userStats.studyTime.today.display}</p>
+                          <p className="text-[10px] text-neutral-500">today</p>
+                        </div>
+                        {/* Points */}
+                        <div className="text-center flex flex-col justify-center">
+                          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1.5">
+                            <Star className="w-4 h-4 text-white" />
+                          </div>
+                          <p className="text-xl font-black text-neutral-900 dark:text-white">{userStats.points}</p>
+                          <p className="text-[10px] text-neutral-500">points</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </FeatureGate>
               </div>
+
+              {/* AI Study Suggestions - Always show but limited for new users */}
+              <StudySuggestions maxSuggestions={isNewUser ? 1 : undefined} />
+
+              {/* UNLOCK TEASERS - Shows what's coming next */}
+              {isNewUser && (
+                <UnlockTeasersSection sessionsCompleted={totalSessions} />
+              )}
+
+              {/* ROW 2: Quick Actions + Classmates - Hidden for new users */}
+              <FeatureGate feature="quick_actions" sessionsCompleted={totalSessions}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Quick Actions */}
+                  <div className="flex flex-wrap gap-2">
+                    <ImStuckFlow />
+                    <button
+                      onClick={() => router.push('/focus/quick-session')}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-xl transition-colors"
+                    >
+                      <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium text-sm text-neutral-900 dark:text-white">Quick Session</span>
+                    </button>
+                  </div>
+
+                  {/* Partners Studying */}
+                  <FeatureGate feature="classmates" sessionsCompleted={totalSessions}>
+                    <ClassmatesStudying
+                      studyingPartners={studyingPartners}
+                      totalStudying={totalStudying}
+                    />
+                  </FeatureGate>
+                </div>
+              </FeatureGate>
+
+              {/* ROW 3: Partners + Weekly Stats - Hidden for new users */}
+              <FeatureGate feature="partners" sessionsCompleted={totalSessions}>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Partners Section */}
+                  <div className="lg:col-span-2">
+                    <DashboardPartnersSection
+                      partnersCount={partnersCount}
+                      onlinePartners={onlinePartners.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        avatarUrl: p.avatarUrl,
+                        onlineStatus: p.onlineStatus,
+                        activityType: p.activityType,
+                        activityDetails: p.activityDetails,
+                        streak: p.streak,
+                      }))}
+                      loadingOnlinePartners={loadingPartners}
+                    />
+                  </div>
+
+                  {/* Weekly Stats */}
+                  <FeatureGate feature="weekly_stats" sessionsCompleted={totalSessions}>
+                    {userStats && (
+                      <div className="lg:col-span-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
+                        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-3">This Week</h3>
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400">Study time</span>
+                            <span className="text-base font-bold text-neutral-900 dark:text-white">{userStats.studyTime.thisWeek.display}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400">Sessions</span>
+                            <span className="text-base font-bold text-neutral-900 dark:text-white">{userStats.sessions.thisWeek}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-neutral-200 dark:border-neutral-700">
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400">All time</span>
+                            <span className="text-base font-bold text-neutral-900 dark:text-white">{userStats.studyTime.allTime.display}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </FeatureGate>
+                </div>
+              </FeatureGate>
+
+              {/* ROW 4: Global Leaderboard - Progressive disclosure with locked state */}
+              <GlobalLeaderboard
+                isLocked={!shouldShowFeature('leaderboard', totalSessions)}
+              />
             </div>
-          )}
-        </div>
+          )
+        })()}
       </main>
 
       {/* Notification Panel */}
@@ -650,15 +516,16 @@ export default function DashboardPage() {
       />
 
       {/* Push Notification Prompt */}
-      <PushNotificationPrompt delay={3000} />
+      <PushNotificationPrompt delay={5000} />
 
-      {/* AI Partner Suggestion Modal */}
-      <AIPartnerSuggestionModal
-        isOpen={showAIPartnerModal}
-        onClose={() => setShowAIPartnerModal(false)}
-        searchCriteria={{}}
-        searchQuery=""
-        noResultsReason="name_not_found"
+      {/* Quick Win Modal */}
+      <QuickWinModal
+        isOpen={showQuickWin}
+        onClose={() => setShowQuickWin(false)}
+        winType={quickWinType}
+        streakCount={userStats?.streak.current || 1}
+        sessionCount={userStats?.sessions.allTime || 1}
+        studyMinutes={userStats?.studyTime.allTime.value || 0}
       />
     </div>
   )

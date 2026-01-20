@@ -462,6 +462,148 @@ export async function invalidateAdminCaches() {
 }
 
 /**
+ * Get Vision Metrics for admin dashboard
+ * Tracks key metrics aligned with the new Clerva vision:
+ * - Habit Loop: Day 1 → Day 2 return rate
+ * - Social Gravity: Classmates studying together, course activity
+ * - AI Guidance: "I'm Stuck" flow usage
+ */
+export async function getVisionMetrics() {
+  const cacheKey = 'admin:vision:metrics'
+
+  return getOrSetCached(cacheKey, CACHE_TTL.ANALYTICS, async () => {
+    try {
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+      const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+      const [
+        // Day 1 → Day 2 Return Rate
+        usersSignedUpYesterday,
+        usersReturnedDay2,
+        usersSignedUp7DaysAgo,
+        usersReturnedWeek,
+        // Social Gravity
+        usersStudyingNow,
+        studyPartnerships,
+        // Session Metrics
+        firstSessionsToday,
+        totalSessionsToday,
+        avgSessionDuration,
+        streaksAbove7Days,
+      ] = await Promise.all([
+        // Users who signed up yesterday
+        prisma.user.count({
+          where: {
+            createdAt: { gte: yesterday, lt: today },
+            deactivatedAt: null,
+          },
+        }),
+        // Of those, how many logged in today (Day 2 return)
+        prisma.user.count({
+          where: {
+            createdAt: { gte: yesterday, lt: today },
+            lastLoginAt: { gte: today },
+            deactivatedAt: null,
+          },
+        }),
+        // Users who signed up 7 days ago (for week retention)
+        prisma.user.count({
+          where: {
+            createdAt: { gte: new Date(sevenDaysAgo.getTime() - 24 * 60 * 60 * 1000), lt: sevenDaysAgo },
+            deactivatedAt: null,
+          },
+        }),
+        // Of those, how many have been active this week
+        prisma.user.count({
+          where: {
+            createdAt: { gte: new Date(sevenDaysAgo.getTime() - 24 * 60 * 60 * 1000), lt: sevenDaysAgo },
+            lastLoginAt: { gte: sevenDaysAgo },
+            deactivatedAt: null,
+          },
+        }),
+        // Users currently studying with presence
+        prisma.userPresence.count({
+          where: {
+            status: 'online',
+            activityType: { in: ['studying', 'focus', 'solo_study', 'quick_focus'] },
+            lastSeenAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }, // Active in last 5 min
+          },
+        }),
+        // Study partnerships (accepted matches)
+        prisma.match.count({
+          where: { status: 'ACCEPTED' },
+        }),
+        // First-ever sessions today - use raw query to join tables
+        prisma.$queryRaw<[{ count: bigint }]>`
+          SELECT COUNT(DISTINCT fs."userId") as count
+          FROM focus_sessions fs
+          JOIN "User" u ON fs."userId" = u.id
+          WHERE fs."startedAt" >= ${today}
+          AND u."createdAt" >= ${yesterday}
+        `.then(result => Number(result[0]?.count || 0)),
+        // Total sessions started today
+        prisma.focusSession.count({
+          where: {
+            startedAt: { gte: today },
+          },
+        }),
+        // Average session duration (last 30 days)
+        prisma.focusSession.aggregate({
+          where: {
+            status: 'COMPLETED',
+            completedAt: { gte: thirtyDaysAgo },
+          },
+          _avg: { actualMinutes: true },
+        }).then(result => Math.round(result._avg.actualMinutes || 0)),
+        // Users with streaks > 7 days (habit formed)
+        prisma.profile.count({
+          where: {
+            OR: [
+              { studyStreak: { gte: 7 } },
+              { soloStudyStreak: { gte: 7 } },
+              { quickFocusStreak: { gte: 7 } },
+            ],
+          },
+        }),
+      ])
+
+      // Calculate rates
+      const day2ReturnRate = usersSignedUpYesterday > 0
+        ? Math.round((usersReturnedDay2 / usersSignedUpYesterday) * 100)
+        : 0
+      const week1ReturnRate = usersSignedUp7DaysAgo > 0
+        ? Math.round((usersReturnedWeek / usersSignedUp7DaysAgo) * 100)
+        : 0
+
+      return {
+        habitLoop: {
+          day2ReturnRate,
+          week1ReturnRate,
+          usersSignedUpYesterday,
+          usersReturnedDay2,
+          firstSessionsToday,
+          streaksAbove7Days,
+        },
+        socialGravity: {
+          usersStudyingNow,
+          studyPartnerships,
+        },
+        sessions: {
+          totalToday: totalSessionsToday,
+          avgDuration: avgSessionDuration,
+        },
+      }
+    } catch (error) {
+      console.error('[Admin] Error getting vision metrics:', error)
+      return null
+    }
+  })
+}
+
+/**
  * Get user activity breakdown for admin dashboard
  * Shows how many users are doing what (studying, in call, with AI, etc.)
  * OPTIMIZED: Single query with grouping

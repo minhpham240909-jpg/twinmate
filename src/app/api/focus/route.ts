@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { notifyPartnersStartedStudying } from '@/lib/notifications/send'
 
 // Schema for creating a focus session
 const createFocusSessionSchema = z.object({
@@ -96,6 +97,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Notify partners that user started studying (async, don't wait)
+    // This creates FOMO and pulls partners back to the app
+    notifyPartnersStartedStudying(user.id, 'focus', label).catch(err => {
+      logger.warn('Failed to notify partners of focus session', { error: err })
+    })
+
     return NextResponse.json({
       success: true,
       session,
@@ -125,48 +132,53 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50)
 
-    // Get active session if any
-    const activeSession = await prisma.focusSession.findFirst({
-      where: {
-        userId: user.id,
-        status: 'ACTIVE',
-      },
-    })
-
-    // Get recent completed sessions
-    const recentSessions = await prisma.focusSession.findMany({
-      where: {
-        userId: user.id,
-        status: 'COMPLETED',
-      },
-      orderBy: { completedAt: 'desc' },
-      take: limit,
-    })
-
-    // Calculate stats
+    // Calculate today's start time
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const todaySessions = await prisma.focusSession.findMany({
-      where: {
-        userId: user.id,
-        status: 'COMPLETED',
-        completedAt: { gte: today },
-      },
-    })
+    // OPTIMIZED: Run all queries in parallel
+    const [activeSession, recentSessions, todaySessions, allTimeSessions] = await Promise.all([
+      // Get active session if any
+      prisma.focusSession.findFirst({
+        where: {
+          userId: user.id,
+          status: 'ACTIVE',
+        },
+      }),
+
+      // Get recent completed sessions
+      prisma.focusSession.findMany({
+        where: {
+          userId: user.id,
+          status: 'COMPLETED',
+        },
+        orderBy: { completedAt: 'desc' },
+        take: limit,
+      }),
+
+      // Get today's completed sessions for stats
+      prisma.focusSession.findMany({
+        where: {
+          userId: user.id,
+          status: 'COMPLETED',
+          completedAt: { gte: today },
+        },
+      }),
+
+      // Count all time sessions
+      prisma.focusSession.count({
+        where: {
+          userId: user.id,
+          status: 'COMPLETED',
+        },
+      }),
+    ])
 
     const todayMinutes = todaySessions.reduce(
       (sum: number, s: { actualMinutes: number | null; durationMinutes: number }) =>
         sum + (s.actualMinutes || s.durationMinutes),
       0
     )
-
-    const allTimeSessions = await prisma.focusSession.count({
-      where: {
-        userId: user.id,
-        status: 'COMPLETED',
-      },
-    })
 
     return NextResponse.json({
       success: true,

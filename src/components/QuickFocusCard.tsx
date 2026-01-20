@@ -13,8 +13,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Flame, Zap, Play, RefreshCw, Loader2, X, Edit3 } from 'lucide-react'
 import { useFocusStats, useStudyingCount } from '@/hooks/useFocusStats'
+import { subscribeToSessionEnd, handleSessionEnd } from '@/lib/session/events'
 
 interface QuickFocusCardProps {
   className?: string
@@ -28,11 +30,24 @@ const DURATION_OPTIONS = [
 
 export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isStarting, setIsStarting] = useState(false)
 
   // Use React Query hooks for cached data (prevents constant re-fetching)
-  const { data: focusData } = useFocusStats()
+  const { data: focusData, refetch: refetchFocusData } = useFocusStats()
   const { data: studyingCountData } = useStudyingCount()
+
+  // Listen for session end events to refresh data
+  useEffect(() => {
+    const unsubscribe = subscribeToSessionEnd(() => {
+      // Refetch focus stats when any session ends
+      refetchFocusData()
+      // Also invalidate the query to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['focusStats'] })
+    })
+
+    return unsubscribe
+  }, [refetchFocusData, queryClient])
 
   const stats = focusData?.stats
   const studyingCount = studyingCountData?.count
@@ -152,6 +167,13 @@ export default function QuickFocusCard({ className = '' }: QuickFocusCardProps) 
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'ABANDONED', actualMinutes: 0 }),
+        })
+
+        // Clear all session caches and notify other components
+        await handleSessionEnd(queryClient, {
+          sessionId: stats.activeSession.id,
+          sessionType: 'quick_focus',
+          reason: 'ended_early',
         })
       }
       // After abandoning, show duration picker for new quick start

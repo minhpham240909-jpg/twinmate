@@ -99,11 +99,9 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       console.error('[Delete Account] Error:', error)
+      // SECURITY: Don't expose internal error details to client
       return NextResponse.json(
-        {
-          error: 'Failed to delete account',
-          details: error instanceof Error ? error.message : 'Unknown error',
-        },
+        { error: 'Failed to delete account. Please try again or contact support.' },
         { status: 500 }
       )
     }

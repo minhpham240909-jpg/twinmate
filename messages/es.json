@@ -49,7 +49,8 @@
     "home": "Inicio",
     "studyWithPartner": "Estudiar con Compañero",
     "findPartner": "Encontrar Compañero",
-    "studyGroups": "Grupos de Estudio"
+    "studyGroups": "Grupos de Estudio",
+    "courses": "Cursos"
   },
   "settings": {
     "title": "Configuración",
@@ -287,8 +288,8 @@
     "dark": "Oscuro",
     "systemDefault": "Predeterminado del Sistema",
     "adjustTextSize": "Ajusta el tamaño del texto para mejor legibilidad",
-    "small": "Pequeño",
-    "mediumDefault": "Mediano (Predeterminado)",
+    "small": "Pequeño (Predeterminado)",
+    "mediumDefault": "Mediano",
     "large": "Grande",
     "extraLarge": "Extra Grande",
     "increaseContrast": "Aumenta el contraste para mejor visibilidad",

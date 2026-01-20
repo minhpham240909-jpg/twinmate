@@ -2,12 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { ReportType } from '@prisma/client'
+import { rateLimit } from '@/lib/rate-limit'
 
 // SECURITY: Content limits for report submissions
 const MAX_DESCRIPTION_LENGTH = 2000 // Reasonable limit for report descriptions
 
 // POST /api/reports - Create a new report
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 reports per hour to prevent spam reports
+  const rateLimitResult = await rateLimit(request, {
+    max: 5,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'report-submit',
+  })
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { success: false, error: 'Too many reports submitted. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const {

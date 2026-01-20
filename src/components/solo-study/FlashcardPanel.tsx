@@ -47,14 +47,33 @@ interface FlashcardCard {
   } | null
 }
 
+// Study plan types (from "Guide Me" flow)
+interface StudyPlanStep {
+  id: string
+  order: number
+  duration: number
+  title: string
+  description: string
+  tips?: string[]
+}
+
+interface StudyPlan {
+  id: string
+  subject: string
+  totalMinutes: number
+  encouragement: string
+  steps: StudyPlanStep[]
+}
+
 interface FlashcardPanelProps {
   onClose: () => void
   onOpenFullScreen?: (deckId: string) => void
+  studyPlan?: StudyPlan | null
 }
 
 type PanelView = 'decks' | 'create' | 'study' | 'generate'
 
-export default function FlashcardPanel({ onClose, onOpenFullScreen }: FlashcardPanelProps) {
+export default function FlashcardPanel({ onClose, onOpenFullScreen, studyPlan }: FlashcardPanelProps) {
   const [view, setView] = useState<PanelView>('decks')
   const [decks, setDecks] = useState<FlashcardDeck[]>([])
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null)
@@ -167,8 +186,10 @@ export default function FlashcardPanel({ onClose, onOpenFullScreen }: FlashcardP
   }
 
   const handleGenerateFlashcards = async () => {
-    if (!generateText.trim() || generateText.length < 50) {
-      setError('Please enter at least 50 characters of content')
+    // Allow shorter content if using study plan context
+    const minLength = studyPlan ? 20 : 50
+    if (!generateText.trim() || generateText.length < minLength) {
+      setError(`Please enter at least ${minLength} characters of content`)
       return
     }
 
@@ -176,15 +197,30 @@ export default function FlashcardPanel({ onClose, onOpenFullScreen }: FlashcardP
     setError(null)
 
     try {
+      // Build request with optional study plan context
+      const requestBody: Record<string, unknown> = {
+        content: generateText,
+        title: generateTitle || undefined,
+        cardCount: 10,
+        questionTypes: ['FLIP', 'MULTIPLE_CHOICE'],
+      }
+
+      // If there's a study plan, include it for context-aware generation
+      if (studyPlan) {
+        requestBody.studyPlanContext = {
+          subject: studyPlan.subject,
+          steps: studyPlan.steps.map((s) => ({
+            title: s.title,
+            description: s.description,
+            tips: s.tips,
+          })),
+        }
+      }
+
       const response = await fetch('/api/flashcards/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: generateText,
-          title: generateTitle || undefined,
-          cardCount: 10,
-          questionTypes: ['FLIP', 'MULTIPLE_CHOICE'],
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
@@ -382,6 +418,21 @@ export default function FlashcardPanel({ onClose, onOpenFullScreen }: FlashcardP
                 Paste your notes, textbook content, or any study material and AI will generate flashcards for you.
               </p>
             </div>
+
+            {/* Study Plan Context Badge */}
+            {studyPlan && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-3">
+                <div className="p-1.5 bg-amber-500/20 rounded-lg">
+                  <Brain className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-amber-300">Study Plan Connected</p>
+                  <p className="text-xs text-amber-400/70">
+                    Flashcards will be tailored to your "{studyPlan.subject}" study plan for better relevance.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">

@@ -15,6 +15,7 @@ import { broadcastNewMessage } from '@/lib/realtime/broadcast'
 // Maps idempotency key -> { messageId, timestamp }
 const idempotencyCache = new Map<string, { messageId: string; timestamp: number }>()
 const IDEMPOTENCY_TTL = 5 * 60 * 1000 // 5 minutes
+const IDEMPOTENCY_MAX_SIZE = 50000 // SCALABILITY: Prevent unbounded memory growth at scale
 
 // Cleanup old idempotency keys periodically
 if (typeof setInterval !== 'undefined') {
@@ -22,6 +23,16 @@ if (typeof setInterval !== 'undefined') {
     const now = Date.now()
     for (const [key, value] of idempotencyCache.entries()) {
       if (now - value.timestamp > IDEMPOTENCY_TTL) {
+        idempotencyCache.delete(key)
+      }
+    }
+
+    // SCALABILITY: If still too large after TTL cleanup, remove oldest entries
+    if (idempotencyCache.size > IDEMPOTENCY_MAX_SIZE) {
+      const entries = Array.from(idempotencyCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)
+      const toRemove = entries.slice(0, entries.length - IDEMPOTENCY_MAX_SIZE)
+      for (const [key] of toRemove) {
         idempotencyCache.delete(key)
       }
     }

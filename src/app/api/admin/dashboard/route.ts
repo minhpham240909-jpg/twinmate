@@ -8,6 +8,7 @@ import {
   getUserGrowthData,
   getRecentSignups,
   getUserActivityBreakdown,
+  getVisionMetrics,
 } from '@/lib/admin/utils'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
 
@@ -58,11 +59,12 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all dashboard data (uses cached queries with indexes)
-    const [stats, growthData, recentSignups, activityBreakdown] = await Promise.all([
+    const [stats, growthData, recentSignups, activityBreakdown, visionMetrics] = await Promise.all([
       getAdminDashboardStats(),
       getUserGrowthData(30),
       getRecentSignups(10),
       getUserActivityBreakdown(),
+      getVisionMetrics(),
     ])
 
     return NextResponse.json({
@@ -72,6 +74,7 @@ export async function GET(req: NextRequest) {
         growthData,
         recentSignups,
         activityBreakdown,
+        visionMetrics,
         generatedAt: new Date().toISOString(),
       },
     })

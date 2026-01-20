@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { cacheGet } from '@/lib/redis'
 
 // Pagination defaults
 const DEFAULT_PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
+
+// PERF: Cache TTLs for conversation data
+// Conversations list is called every 5-10 sec, cache to reduce load
+const CONVERSATIONS_META_CACHE_TTL = 10 // 10 seconds - short because messages change
+
+// Cache key builders
+const getConversationsMetaCacheKey = (userId: string) => `conversations:meta:${userId}`
 
 export async function GET(request: Request) {
   try {
@@ -31,64 +39,92 @@ export async function GET(request: Request) {
 
     const userId = user.id
 
-    // Execute all queries in parallel for maximum performance
-    // Note: We fetch matches once and extract partner IDs from it (avoiding duplicate query)
-    const [matches, groupMemberships] = await Promise.all([
-      // Get all accepted partners with their profiles in one query
-      prisma.match.findMany({
-        where: {
-          OR: [
-            { senderId: userId, status: 'ACCEPTED' },
-            { receiverId: userId, status: 'ACCEPTED' }
-          ]
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              avatarUrl: true
-            }
-          },
-          receiver: {
-            select: {
-              id: true,
-              name: true,
-              avatarUrl: true
-            }
-          }
-        },
-        orderBy: {
-          updatedAt: 'desc'
-        }
-      }),
-      // Get all groups with member count in one query
-      // FIX: Filter out deleted groups so they don't appear in chat
-      prisma.groupMember.findMany({
-        where: {
-          userId: userId,
-          group: {
-            isDeleted: false, // Only show non-deleted groups
-          },
-        },
-        include: {
-          group: {
-            select: {
-              id: true,
-              name: true,
-              avatarUrl: true,
-              isDeleted: true, // Include for safety check
-              _count: {
-                select: { members: true }
+    // PERF: Cache conversation metadata (partners + groups list)
+    // This rarely changes, so caching for 10s reduces DB load significantly
+    interface CachedMatch {
+      id: string
+      senderId: string
+      receiverId: string
+      updatedAt: Date
+      sender: { id: string; name: string | null; avatarUrl: string | null }
+      receiver: { id: string; name: string | null; avatarUrl: string | null }
+    }
+    interface CachedGroupMembership {
+      userId: string
+      groupId: string
+      joinedAt: Date
+      group: {
+        id: string
+        name: string
+        avatarUrl: string | null
+        isDeleted: boolean
+        _count: { members: number }
+      }
+    }
+    
+    const [matches, groupMemberships] = await cacheGet<[CachedMatch[], CachedGroupMembership[]]>(
+      getConversationsMetaCacheKey(userId),
+      async () => {
+        const results = await Promise.all([
+          // Get all accepted partners with their profiles in one query
+          prisma.match.findMany({
+            where: {
+              OR: [
+                { senderId: userId, status: 'ACCEPTED' },
+                { receiverId: userId, status: 'ACCEPTED' }
+              ]
+            },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true
+                }
+              },
+              receiver: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true
+                }
               }
+            },
+            orderBy: {
+              updatedAt: 'desc'
             }
-          }
-        },
-        orderBy: {
-          joinedAt: 'desc'
-        }
-      })
-    ])
+          }),
+          // Get all groups with member count in one query
+          // FIX: Filter out deleted groups so they don't appear in chat
+          prisma.groupMember.findMany({
+            where: {
+              userId: userId,
+              group: {
+                isDeleted: false, // Only show non-deleted groups
+              },
+            },
+            include: {
+              group: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true,
+                  isDeleted: true, // Include for safety check
+                  _count: {
+                    select: { members: true }
+                  }
+                }
+              }
+            },
+            orderBy: {
+              joinedAt: 'desc'
+            }
+          })
+        ])
+        return results as [CachedMatch[], CachedGroupMembership[]]
+      },
+      CONVERSATIONS_META_CACHE_TTL
+    )
 
     // Extract partner IDs from matches (no duplicate query needed)
     const partnerIdsFromMatches = matches.map(match =>

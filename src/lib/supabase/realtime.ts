@@ -4,15 +4,122 @@
 import { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from './client'
 import { RealtimeConnection, ConnectionStatus } from './realtime-client'
-import { 
-  checkRealtimeRateLimit, 
+import {
+  checkRealtimeRateLimit,
   RealtimeRateLimitPresets,
-  createTypingIndicatorSender 
+  createTypingIndicatorSender
 } from './realtime-rate-limit'
 
 export type MessageHandler<T = Record<string, unknown>> = (payload: T) => void
 export type ConnectionStatusCallback = (status: ConnectionStatus) => void
 export type { ConnectionStatus } from './realtime-client'
+
+// ===== REALTIME CONNECTION MONITORING =====
+// Tracks overall health of Supabase Realtime connections for observability
+
+interface RealtimeMetrics {
+  activeChannels: number
+  totalSubscriptions: number
+  errors: number
+  lastError: string | null
+  lastErrorAt: number | null
+  reconnects: number
+}
+
+class RealtimeConnectionMonitor {
+  private metrics: RealtimeMetrics = {
+    activeChannels: 0,
+    totalSubscriptions: 0,
+    errors: 0,
+    lastError: null,
+    lastErrorAt: null,
+    reconnects: 0,
+  }
+
+  private subscribers: Set<(metrics: RealtimeMetrics) => void> = new Set()
+
+  /**
+   * Record a new channel subscription
+   */
+  recordSubscription(channelName: string): void {
+    this.metrics.activeChannels++
+    this.metrics.totalSubscriptions++
+    this.notifySubscribers()
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Realtime Monitor] Channel opened: ${channelName} (${this.metrics.activeChannels} active)`)
+    }
+  }
+
+  /**
+   * Record a channel being removed
+   */
+  recordUnsubscription(channelName: string): void {
+    this.metrics.activeChannels = Math.max(0, this.metrics.activeChannels - 1)
+    this.notifySubscribers()
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Realtime Monitor] Channel closed: ${channelName} (${this.metrics.activeChannels} active)`)
+    }
+  }
+
+  /**
+   * Record an error
+   */
+  recordError(error: string): void {
+    this.metrics.errors++
+    this.metrics.lastError = error
+    this.metrics.lastErrorAt = Date.now()
+    this.notifySubscribers()
+
+    console.error(`[Realtime Monitor] Error: ${error} (total errors: ${this.metrics.errors})`)
+  }
+
+  /**
+   * Record a reconnection attempt
+   */
+  recordReconnect(): void {
+    this.metrics.reconnects++
+    this.notifySubscribers()
+
+    console.log(`[Realtime Monitor] Reconnection attempt (total: ${this.metrics.reconnects})`)
+  }
+
+  /**
+   * Get current metrics
+   */
+  getMetrics(): RealtimeMetrics {
+    return { ...this.metrics }
+  }
+
+  /**
+   * Subscribe to metric changes
+   */
+  subscribe(callback: (metrics: RealtimeMetrics) => void): () => void {
+    this.subscribers.add(callback)
+    return () => this.subscribers.delete(callback)
+  }
+
+  /**
+   * Check if system is healthy
+   * Returns false if there are too many errors or no active channels when expected
+   */
+  isHealthy(): boolean {
+    // If we have recent errors (last 5 minutes), flag as unhealthy
+    if (this.metrics.lastErrorAt && Date.now() - this.metrics.lastErrorAt < 5 * 60 * 1000) {
+      return false
+    }
+    return true
+  }
+
+  private notifySubscribers(): void {
+    const metrics = this.getMetrics()
+    this.subscribers.forEach(callback => callback(metrics))
+  }
+}
+
+// Singleton monitor
+export const realtimeMonitor = new RealtimeConnectionMonitor()
 
 /**
  * Subscribe to real-time messages in a group channel

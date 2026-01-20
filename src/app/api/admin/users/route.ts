@@ -64,8 +64,9 @@ export async function GET(request: NextRequest) {
       where.deactivatedAt = { not: null }
     }
 
-    // FIX N+1: Fetch users and count in parallel, then bans separately
-    const [users, total] = await Promise.all([
+    // PERF: Fetch users, count, and all bans in parallel
+    // Note: We fetch ALL bans for this page's potential users to avoid sequential query
+    const [users, total, allBans] = await Promise.all([
       prisma.user.findMany({
         where,
         select: {
@@ -96,19 +97,27 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.user.count({ where }),
+      // PERF: Fetch only active bans (not expired), filter in JS after
+      prisma.userBan.findMany({
+        where: {
+          OR: [
+            { expiresAt: null }, // Permanent bans
+            { expiresAt: { gt: new Date() } }, // Not yet expired
+          ],
+        },
+        select: {
+          userId: true,
+          type: true,
+          expiresAt: true,
+          reason: true,
+        },
+        take: 500, // Reduced limit since we filter out expired
+      }),
     ])
 
-    // FIX N+1: Fetch all bans for the current page of users in a single query
-    const userIds = users.map((u) => u.id)
-    const bans = await prisma.userBan.findMany({
-      where: { userId: { in: userIds } },
-      select: {
-        userId: true,
-        type: true,
-        expiresAt: true,
-        reason: true,
-      },
-    })
+    // Create a map for O(1) lookup
+    const userIds = new Set(users.map((u) => u.id))
+    const bans = allBans.filter(b => userIds.has(b.userId))
 
     // Create a map for O(1) lookup
     const bansByUserId = new Map(bans.map((b) => [b.userId, b]))

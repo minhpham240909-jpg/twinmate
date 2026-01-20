@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { notifyPartnersStartedStudying } from '@/lib/notifications/send'
 
 /**
  * POST /api/solo-study/start - Start a Solo Study session
@@ -35,6 +36,9 @@ export async function POST(request: NextRequest) {
         status: true,
       },
     })
+
+    // Notify partners that user started studying (async, don't wait)
+    notifyPartnersStartedStudying(user.id, 'solo_study').catch(() => {})
 
     return NextResponse.json({
       success: true,

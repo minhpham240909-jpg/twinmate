@@ -5,6 +5,11 @@ import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { PAGINATION, CONTENT_LIMITS, ENGAGEMENT_WEIGHTS, UPLOAD_LIMITS } from '@/lib/constants'
 import { validatePaginationLimit, validateContent } from '@/lib/validation'
 import { moderateContent, flagContent } from '@/lib/moderation/content-moderator'
+import { cacheGet, CacheKeys, CacheTTL } from '@/lib/redis'
+
+// Cache key for user connections (partner IDs)
+const getUserConnectionsCacheKey = (userId: string) => `feed:connections:${userId}`
+const CONNECTIONS_CACHE_TTL = 60 // 1 minute - connections don't change often
 
 // GET /api/posts - Get feed posts
 export async function GET(req: NextRequest) {
@@ -70,22 +75,35 @@ export async function GET(req: NextRequest) {
       feedAlgorithm = settings?.feedAlgorithm || 'RECOMMENDED'
     }
 
-    // PERF: Get ALL user connections in one query (avoid duplicate match query later)
-    // This query includes both ACCEPTED (for partner posts) and PENDING (for connection status)
-    const userConnections = await prisma.match.findMany({
-      where: {
-        OR: [
-          { senderId: user.id },
-          { receiverId: user.id },
-        ],
+    // PERF: Cache user connections to reduce DB load
+    // Connections don't change frequently, so 1 minute cache is safe
+    interface CachedConnection {
+      id: string
+      senderId: string
+      receiverId: string
+      status: string
+    }
+    
+    const userConnections = await cacheGet<CachedConnection[]>(
+      getUserConnectionsCacheKey(user.id),
+      async () => {
+        return prisma.match.findMany({
+          where: {
+            OR: [
+              { senderId: user.id },
+              { receiverId: user.id },
+            ],
+          },
+          select: {
+            id: true,
+            senderId: true,
+            receiverId: true,
+            status: true,
+          },
+        })
       },
-      select: {
-        id: true,
-        senderId: true,
-        receiverId: true,
-        status: true,
-      },
-    })
+      CONNECTIONS_CACHE_TTL
+    )
 
     // Extract partner IDs from accepted matches only (for post visibility)
     const partnerIds = userConnections

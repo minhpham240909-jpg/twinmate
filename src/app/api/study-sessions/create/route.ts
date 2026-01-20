@@ -53,35 +53,40 @@ export async function POST(request: NextRequest) {
     const waitingStartedAt = new Date()
     const waitingExpiresAt = new Date(waitingStartedAt.getTime() + 30 * 60 * 1000) // 30 minutes
 
-    // Create study session in WAITING status
-    const session = await prisma.studySession.create({
-      data: {
-        title,
-        description: description || null,
-        type,
-        status: 'WAITING', // Start in waiting lobby
-        createdBy: user.id,
-        userId: user.id, // For backward compatibility
-        subject: subject || null,
-        tags: tags || [],
-        agoraChannel,
-        maxParticipants: 10,
-        isPublic: false,
-        waitingStartedAt,
-        waitingExpiresAt,
-        startedAt: null, // Will be set when host clicks "Start"
-      },
-    })
+    // Create study session in WAITING status with HOST participant atomically
+    // Use transaction to prevent orphaned sessions if participant creation fails
+    const session = await prisma.$transaction(async (tx) => {
+      const newSession = await tx.studySession.create({
+        data: {
+          title,
+          description: description || null,
+          type,
+          status: 'WAITING', // Start in waiting lobby
+          createdBy: user.id,
+          userId: user.id, // For backward compatibility
+          subject: subject || null,
+          tags: tags || [],
+          agoraChannel,
+          maxParticipants: 10,
+          isPublic: false,
+          waitingStartedAt,
+          waitingExpiresAt,
+          startedAt: null, // Will be set when host clicks "Start"
+        },
+      })
 
-    // Add creator as first participant (HOST)
-    await prisma.sessionParticipant.create({
-      data: {
-        sessionId: session.id,
-        userId: user.id,
-        role: 'HOST',
-        status: 'JOINED',
-        joinedAt: new Date(),
-      },
+      // Add creator as first participant (HOST)
+      await tx.sessionParticipant.create({
+        data: {
+          sessionId: newSession.id,
+          userId: user.id,
+          role: 'HOST',
+          status: 'JOINED',
+          joinedAt: new Date(),
+        },
+      })
+
+      return newSession
     })
 
     // SECURITY: Validate and invite other users if provided

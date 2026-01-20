@@ -5,10 +5,30 @@ import { z } from 'zod'
 import logger from '@/lib/logger'
 import OpenAI from 'openai'
 
+// Study plan step schema (from "I'm Stuck" flow)
+const studyPlanStepSchema = z.object({
+  id: z.string(),
+  order: z.number(),
+  duration: z.number(),
+  title: z.string(),
+  description: z.string(),
+  tips: z.array(z.string()).optional(),
+})
+
+// Study plan schema
+const studyPlanSchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  totalMinutes: z.number(),
+  encouragement: z.string(),
+  steps: z.array(studyPlanStepSchema),
+})
+
 // Schema for request
 const startSmartSchema = z.object({
   durationMinutes: z.number().min(1).max(60).default(10),
   userTask: z.string().min(1).max(500).optional(),
+  studyPlan: studyPlanSchema.optional(),
 })
 
 // Initialize OpenAI
@@ -204,7 +224,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { durationMinutes, userTask } = validation.data
+    const { durationMinutes, userTask, studyPlan } = validation.data
 
     // Check for existing active session
     const existingSession = await prisma.focusSession.findFirst({
@@ -261,9 +281,25 @@ export async function POST(request: NextRequest) {
       // Ignore - context is optional
     }
 
-    // Generate smart task
-    const taskLabel = userTask || 'Quick focus'
-    const taskPrompt = await generateSmartTask(userTask, durationMinutes, userContext)
+    // Generate smart task or use study plan
+    let taskLabel: string
+    let taskPrompt: string
+    let taskSubject: string
+
+    if (studyPlan) {
+      // Use the study plan from "I'm Stuck" flow
+      taskLabel = studyPlan.subject
+      taskSubject = studyPlan.subject
+      // Create a summary prompt from the study plan steps
+      taskPrompt = studyPlan.steps
+        .map((step, i) => `${i + 1}. ${step.title} (${step.duration}min)`)
+        .join(' → ')
+    } else {
+      // Generate smart task as before
+      taskLabel = userTask || 'Quick focus'
+      taskSubject = taskLabel
+      taskPrompt = await generateSmartTask(userTask, durationMinutes, userContext)
+    }
 
     // Create the focus session
     const session = await prisma.focusSession.create({
@@ -272,9 +308,9 @@ export async function POST(request: NextRequest) {
         durationMinutes,
         status: 'ACTIVE',
         startedAt: new Date(),
-        mode: userTask ? 'ai_guided' : 'solo',
+        mode: studyPlan || userTask ? 'ai_guided' : 'solo',
         label: taskLabel,
-        taskSubject: taskLabel,
+        taskSubject,
         taskPrompt,
         taskDifficulty: 'medium',
       },
@@ -296,6 +332,7 @@ export async function POST(request: NextRequest) {
       task: taskLabel,
       duration: durationMinutes,
       hasUserTask: !!userTask,
+      hasStudyPlan: !!studyPlan,
     })
 
     return NextResponse.json({

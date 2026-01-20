@@ -50,6 +50,7 @@
     "studyWithPartner": "Study with Partner",
     "findPartner": "Find Partner",
     "studyGroups": "Study Groups",
+    "courses": "Courses",
     "settings": "Settings",
     "help": "Help"
   },
@@ -289,8 +290,8 @@
     "dark": "Dark",
     "systemDefault": "System Default",
     "adjustTextSize": "Adjust text size for better readability",
-    "small": "Small",
-    "mediumDefault": "Medium (Default)",
+    "small": "Small (Default)",
+    "mediumDefault": "Medium",
     "large": "Large",
     "extraLarge": "Extra Large",
     "increaseContrast": "Increase contrast for better visibility",

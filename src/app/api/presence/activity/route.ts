@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 /**
  * POST /api/presence/activity
@@ -11,10 +12,24 @@ import { prisma } from '@/lib/prisma'
  * - Join/leave a call
  * - Start/end an AI partner session
  *
+ * PERF: Rate limited to prevent DB spam (realtime preset: 500/min)
  * NO N+1: Single upsert query
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit activity updates to prevent DB spam
+    // Uses realtime preset (500 req/min) - appropriate for presence updates
+    const rateLimitResult = await rateLimit(request, { 
+      ...RateLimitPresets.realtime, 
+      keyPrefix: 'presence-activity' 
+    })
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many activity updates. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

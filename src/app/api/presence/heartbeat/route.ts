@@ -19,7 +19,9 @@ interface HeartbeatEntry {
 
 const recentHeartbeats = new Map<string, HeartbeatEntry>()
 const DEDUP_WINDOW_MS = 10000 // 10 seconds
-const MAX_CACHE_SIZE = 10000 // Prevent unbounded growth
+// PERF: Increased to 50K for 3000 concurrent users (each user + device = 1 entry)
+// At 3000 users with avg 2 devices = 6000 entries, so 50K gives 8x headroom
+const MAX_CACHE_SIZE = 50000 // Prevent unbounded growth
 
 // Cleanup old entries every minute
 if (typeof setInterval !== 'undefined') {

@@ -1,8 +1,22 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Volume2, VolumeX, Volume1 } from 'lucide-react'
+import { Volume2, VolumeX, Volume1, Lock, Star, ShoppingBag } from 'lucide-react'
 import { AMBIENT_SOUNDS, STORAGE_KEYS } from '@/lib/focus/constants'
+import { useCustomizations, type CustomizationItem } from '@/hooks/useCustomizations'
+import { usePurchaseItem } from '@/hooks/useShopData'
+import { useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+
+// Map sound IDs to itemIds for the shop system
+const SOUND_ITEM_MAP: Record<string, string> = {
+  'none': 'sound_none', // Always free
+  'rain': 'sound_rain',
+  'cafe': 'sound_cafe',
+  'white_noise': 'sound_white_noise', // Free default
+  'piano': 'sound_piano',
+  'forest': 'sound_forest',
+}
 
 interface AmbientSoundPlayerProps {
   isPlaying: boolean

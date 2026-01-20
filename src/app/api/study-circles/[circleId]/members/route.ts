@@ -23,6 +23,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const { action, inviteCode, userId: targetUserId } = body
 
     // Get circle info
+    // PERF: Added take limit to prevent loading 1000+ members into memory
     const circle = await prisma.studyCircle.findUnique({
       where: { id: circleId },
       select: {
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         members: {
           where: { status: 'ACTIVE' },
           select: { userId: true, role: true },
+          take: 500, // PERF: Limit to max reasonable circle size
         },
       },
     })
@@ -237,6 +239,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     const targetUserId = searchParams.get('userId')
 
     // Get circle and membership info
+    // PERF: Added take limit to prevent loading 1000+ members into memory
     const circle = await prisma.studyCircle.findUnique({
       where: { id: circleId },
       select: {
@@ -245,6 +248,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
         members: {
           where: { status: 'ACTIVE' },
           select: { userId: true, role: true },
+          take: 500, // PERF: Limit to max reasonable circle size
         },
       },
     })
@@ -362,6 +366,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     // Get circle and membership info
+    // PERF: Added take limit to prevent loading 1000+ members into memory
     const circle = await prisma.studyCircle.findUnique({
       where: { id: circleId },
       select: {
@@ -369,6 +374,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         members: {
           where: { status: 'ACTIVE' },
           select: { userId: true, role: true },
+          take: 500, // PERF: Limit to max reasonable circle size
         },
       },
     })

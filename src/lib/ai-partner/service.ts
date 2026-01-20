@@ -83,21 +83,56 @@ export type { ImageGenerationStyle }
 export { VALID_IMAGE_STYLES }
 
 // H8 FIX: Request deduplication cache to prevent rapid duplicate requests
-const recentRequestsCache = new Map<string, { timestamp: number; content: string }>()
+// MEMORY FIX: Use bounded cache to prevent memory leaks in long-running instances
 const REQUEST_GRACE_PERIOD_MS = 500 // 500ms grace period for duplicate requests
-const CACHE_CLEANUP_INTERVAL = 60000 // Clean cache every minute
+const CACHE_CLEANUP_INTERVAL = 30000 // Clean cache every 30 seconds
+const MAX_CACHE_SIZE = 1000 // Maximum entries to prevent unbounded growth
 
-// H8 FIX: Cleanup old cache entries periodically
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now()
-    for (const [key, value] of recentRequestsCache.entries()) {
-      if (now - value.timestamp > 5000) { // Remove entries older than 5 seconds
-        recentRequestsCache.delete(key)
+// Bounded cache with automatic eviction
+class BoundedDeduplicationCache {
+  private cache = new Map<string, { timestamp: number; content: string }>()
+  private cleanupInterval: NodeJS.Timeout | null = null
+
+  constructor() {
+    // Start cleanup interval in Node.js environment
+    if (typeof setInterval !== 'undefined') {
+      this.cleanupInterval = setInterval(() => this.cleanup(), CACHE_CLEANUP_INTERVAL)
+      // Prevent interval from keeping process alive
+      if (this.cleanupInterval.unref) {
+        this.cleanupInterval.unref()
       }
     }
-  }, CACHE_CLEANUP_INTERVAL)
+  }
+
+  get(key: string): { timestamp: number; content: string } | undefined {
+    return this.cache.get(key)
+  }
+
+  set(key: string, value: { timestamp: number; content: string }): void {
+    // Evict oldest entries if at capacity
+    if (this.cache.size >= MAX_CACHE_SIZE) {
+      const entriesToDelete = Math.floor(MAX_CACHE_SIZE * 0.2) // Remove 20%
+      let deleted = 0
+      for (const [oldKey] of this.cache) {
+        if (deleted >= entriesToDelete) break
+        this.cache.delete(oldKey)
+        deleted++
+      }
+    }
+    this.cache.set(key, value)
+  }
+
+  private cleanup(): void {
+    const now = Date.now()
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > 5000) { // Remove entries older than 5 seconds
+        this.cache.delete(key)
+      }
+    }
+  }
 }
+
+const recentRequestsCache = new BoundedDeduplicationCache()
 
 /**
  * H8 FIX: Check if request is a duplicate within grace period

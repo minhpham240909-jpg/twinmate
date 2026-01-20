@@ -13,7 +13,9 @@
  * - Whiteboard
  */
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   BookOpen,
   Star,
@@ -26,6 +28,7 @@ import {
 } from 'lucide-react'
 import { useSoloStudyStats } from '@/hooks/useUserStats'
 import { useFocusStats } from '@/hooks/useFocusStats'
+import { subscribeToSessionEnd } from '@/lib/session/events'
 
 interface SoloStudyCardProps {
   className?: string
@@ -41,16 +44,29 @@ interface ActiveSession {
 
 export default function SoloStudyCard({ className = '' }: SoloStudyCardProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   // Use React Query hooks for cached data (prevents constant re-fetching)
   const { stats, isLoading } = useSoloStudyStats()
-  const { data: focusData } = useFocusStats()
+  const { data: focusData, refetch: refetchFocusData } = useFocusStats()
 
   // Only show active session if it's a Solo Study session
   const activeSession: ActiveSession | null =
     focusData?.stats?.activeSession?.sessionType === 'solo_study'
       ? focusData.stats.activeSession
       : null
+
+  // Listen for session end events to refresh data
+  useEffect(() => {
+    const unsubscribe = subscribeToSessionEnd(() => {
+      // Refetch focus stats when any session ends
+      refetchFocusData()
+      // Also invalidate the query to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['focusStats'] })
+    })
+
+    return unsubscribe
+  }, [refetchFocusData, queryClient])
 
   const handleStartStudy = () => {
     router.push('/solo-study')

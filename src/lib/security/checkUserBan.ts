@@ -33,10 +33,12 @@ export async function checkUserBan(userId: string): Promise<BanStatus> {
     if (ban.type === 'TEMPORARY' && ban.expiresAt) {
       const now = new Date()
       if (ban.expiresAt < now) {
-        // Ban has expired - clean it up and return not banned
-        await prisma.userBan.delete({
-          where: { userId },
-        })
+        // Ban has expired - return not banned
+        // NOTE: Cleanup is handled by cron job (/api/cron/cleanup-expired-bans)
+        // to avoid synchronous delete on every request which causes:
+        // 1. Extra write operations on hot path
+        // 2. Potential race conditions
+        // 3. Unnecessary database contention
         return { isBanned: false }
       }
     }

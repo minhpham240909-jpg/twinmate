@@ -166,7 +166,7 @@ const defaultSettings: UserSettings = {
   tagPrivacy: 'EVERYONE',
   contentFiltering: [],
   theme: 'LIGHT',
-  fontSize: 'MEDIUM',
+  fontSize: 'SMALL',
   highContrast: false,
   reducedMotion: false,
   keyboardShortcuts: true,

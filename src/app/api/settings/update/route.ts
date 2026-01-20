@@ -101,6 +101,22 @@ const updateSettingsSchema = z.object({
   betaFeatures: z.boolean().optional(),
   performanceMode: z.enum(['LOW_POWER', 'BALANCED', 'PERFORMANCE']).optional(),
   analyticsEnabled: z.boolean().optional(),
+
+  // Pro/Silent Mode - Minimal UI experience
+  proModeEnabled: z.boolean().optional(), // Hides gamification, streaks, leaderboards
+  silentModeEnabled: z.boolean().optional(), // No notifications, badges, celebrations
+
+  // Gamification Layer Controls
+  showStreakBadges: z.boolean().optional(), // Show streak fire badges
+  showLeaderboards: z.boolean().optional(), // Show course/circle leaderboards
+  showXPAnimations: z.boolean().optional(), // Show XP gain animations
+  showAchievementPopups: z.boolean().optional(), // Show achievement unlock popups
+  showStudyCaptainBadge: z.boolean().optional(), // Show Study Captain crown
+
+  // Weekly Summary Preferences
+  weeklyReflectionEnabled: z.boolean().optional(), // Enable end-of-week reflection
+  weeklyReflectionDay: z.string().optional(), // Day to send reflection prompt
+  weeklyReflectionTime: z.string().optional(), // Time to send (24hr format)
 }).strip() // Strip unknown fields instead of rejecting them
 
 export async function POST(request: NextRequest) {

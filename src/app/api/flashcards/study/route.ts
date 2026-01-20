@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { notifyPartnersStartedStudying } from '@/lib/notifications/send'
 
 /**
  * POST /api/flashcards/study - Start a study session
@@ -45,42 +46,50 @@ export async function POST(request: NextRequest) {
     })
 
     // Get cards for study based on mode
+    // PERF: Added limits to prevent loading thousands of cards into memory
+    // PERF: Run spaced repetition queries in parallel with Promise.all
+    const MAX_CARDS_PER_SESSION = 100 // Reasonable limit for a study session
+
     let cards
     if (studyMode === 'spaced') {
       // Spaced repetition: get due cards first, then new cards
-      const dueCards = await prisma.flashcardCard.findMany({
-        where: {
-          deckId,
-          userProgress: {
-            some: {
-              userId: user.id,
-              nextReviewDate: { lte: new Date() },
+      // PERF: Run both queries in parallel instead of sequential
+      const [dueCards, newCards] = await Promise.all([
+        prisma.flashcardCard.findMany({
+          where: {
+            deckId,
+            userProgress: {
+              some: {
+                userId: user.id,
+                nextReviewDate: { lte: new Date() },
+              },
             },
           },
-        },
-        include: {
-          userProgress: {
-            where: { userId: user.id },
-            take: 1,
+          include: {
+            userProgress: {
+              where: { userId: user.id },
+              take: 1,
+            },
           },
-        },
-        orderBy: { position: 'asc' },
-      })
-
-      const newCards = await prisma.flashcardCard.findMany({
-        where: {
-          deckId,
-          userProgress: {
-            none: { userId: user.id },
+          orderBy: { position: 'asc' },
+          take: MAX_CARDS_PER_SESSION, // PERF: Limit due cards
+        }),
+        prisma.flashcardCard.findMany({
+          where: {
+            deckId,
+            userProgress: {
+              none: { userId: user.id },
+            },
           },
-        },
-        take: 10, // Limit new cards per session
-        orderBy: { position: 'asc' },
-      })
+          take: 10, // Limit new cards per session
+          orderBy: { position: 'asc' },
+        }),
+      ])
 
       cards = [...dueCards, ...newCards.map((c) => ({ ...c, userProgress: [] }))]
     } else {
-      // Regular flip/quiz: get all cards
+      // Regular flip/quiz: get cards with limit
+      // PERF: Added take limit to prevent loading 1000s of cards
       cards = await prisma.flashcardCard.findMany({
         where: { deckId },
         include: {
@@ -90,6 +99,7 @@ export async function POST(request: NextRequest) {
           },
         },
         orderBy: { position: 'asc' },
+        take: MAX_CARDS_PER_SESSION, // PERF: Limit cards per session
       })
     }
 
@@ -99,6 +109,9 @@ export async function POST(request: NextRequest) {
       progress: card.userProgress?.[0] || null,
       userProgress: undefined,
     }))
+
+    // Notify partners that user started studying flashcards (async)
+    notifyPartnersStartedStudying(user.id, 'flashcards').catch(() => {})
 
     return NextResponse.json({
       success: true,

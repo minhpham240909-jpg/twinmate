@@ -731,9 +731,11 @@ async function performTraditionalSearch(params: TraditionalSearchParams) {
   const additionalIds = arrayMatchProfileIds.filter(id => !textMatchIds.has(id))
 
   let additionalProfiles: typeof textMatchProfiles = []
-  if (additionalIds.length > 0) {
+  // PERF: Limit additional profiles to prevent memory explosion with large result sets
+  const limitedAdditionalIds = additionalIds.slice(0, limit)
+  if (limitedAdditionalIds.length > 0) {
     additionalProfiles = await prisma.profile.findMany({
-      where: { id: { in: additionalIds } },
+      where: { id: { in: limitedAdditionalIds } },
       select: {
         id: true,
         userId: true,
