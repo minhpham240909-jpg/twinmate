@@ -679,14 +679,14 @@ export default function SoloStudyPage() {
     const isNonProductive = NON_PRODUCTIVE_KEYWORDS.some(keyword => activityLower.includes(keyword))
 
     if (isProductive && !isNonProductive) {
-      // Add away time to the timer
-      const secondsToAdd = awayMinutes * 60
-      setTimeRemaining(prev => prev + secondsToAdd)
+      // Subtract away time from remaining time (credit progress for productive time)
+      const secondsToSubtract = awayMinutes * 60
+      setTimeRemaining(prev => Math.max(0, prev - secondsToSubtract))
       setTodayMinutes(prev => prev + awayMinutes)
 
       setAwayMessage({
         type: 'success',
-        text: `Great work! Added ${awayMinutes} ${awayMinutes === 1 ? 'minute' : 'minutes'} to your session.`
+        text: `Great work! ${awayMinutes} ${awayMinutes === 1 ? 'minute' : 'minutes'} of study time credited!`
       })
 
       // Close modal after showing success message
