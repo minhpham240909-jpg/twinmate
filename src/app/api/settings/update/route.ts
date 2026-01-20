@@ -13,7 +13,6 @@ const updateSettingsSchema = z.object({
 
   // Privacy & Visibility
   profileVisibility: z.enum(['EVERYONE', 'CONNECTIONS_ONLY', 'PRIVATE']).optional(),
-  postPrivacy: z.enum(['PUBLIC', 'PARTNERS_ONLY']).optional(),
   searchVisibility: z.boolean().optional(),
   showOnlineStatus: z.boolean().optional(),
   showLastSeen: z.boolean().optional(),
@@ -82,7 +81,7 @@ const updateSettingsSchema = z.object({
   contentFiltering: z.array(z.string()).nullable().optional().transform(val => val ?? []),
 
   // Accessibility
-  theme: z.enum(['LIGHT', 'DARK']).optional(),
+  theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),
   fontSize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'XLARGE']).optional(),
   highContrast: z.boolean().optional(),
   reducedMotion: z.boolean().optional(),
@@ -172,9 +171,14 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (checkError) {
-      logger.error('[Settings Update] Error checking existing settings', { error: checkError })
+      logger.error('[Settings Update] Error checking existing settings', {
+        error: checkError,
+        code: checkError.code,
+        message: checkError.message,
+        details: checkError.details
+      })
       return NextResponse.json(
-        { error: 'Failed to check settings' },
+        { error: 'Failed to check settings', details: checkError.message },
         { status: 500 }
       )
     }
@@ -194,9 +198,14 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (updateError) {
-        logger.error('[Settings Update] Error updating settings', { error: updateError })
+        logger.error('[Settings Update] Error updating settings', {
+          error: updateError,
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details
+        })
         return NextResponse.json(
-          { error: 'Failed to update settings' },
+          { error: 'Failed to update settings', details: updateError.message },
           { status: 500 }
         )
       }
@@ -214,9 +223,14 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (createError) {
-        logger.error('[Settings Update] Error creating settings', { error: createError })
+        logger.error('[Settings Update] Error creating settings', {
+          error: createError,
+          code: createError.code,
+          message: createError.message,
+          details: createError.details
+        })
         return NextResponse.json(
-          { error: 'Failed to create settings' },
+          { error: 'Failed to create settings', details: createError.message },
           { status: 500 }
         )
       }
