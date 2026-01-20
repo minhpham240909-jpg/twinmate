@@ -18,7 +18,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -85,8 +85,12 @@ const DEFAULT_BREAK_MINUTES = 5
 
 export default function SoloStudyPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { user } = useAuth()
+
+  // Get subject from URL query param (from study suggestions)
+  const subjectFromUrl = searchParams.get('subject')
 
   // Session state
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -382,12 +386,20 @@ export default function SoloStudyPage() {
             playSound('focus')
             return focusMinutes * 60
           } else {
-            // Focus ended, start break
+            // Focus ended
             setCompletedPomodoros((p) => p + 1)
-            setIsBreak(true)
-            playSound('break')
             handlePomodoroComplete()
-            return breakMinutes * 60
+
+            // Skip break if breakMinutes is 0 (user chose "None")
+            if (breakMinutes === 0) {
+              playSound('focus')
+              return focusMinutes * 60
+            } else {
+              // Start break
+              setIsBreak(true)
+              playSound('break')
+              return breakMinutes * 60
+            }
           }
         }
         return prev - 1
@@ -480,6 +492,7 @@ export default function SoloStudyPage() {
           focusMinutes,
           breakMinutes,
           background: selectedBackground,
+          subject: subjectFromUrl || undefined,
         }),
       })
       if (response.ok) {
@@ -495,7 +508,10 @@ export default function SoloStudyPage() {
       await fetch('/api/presence/activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activityType: 'studying' }),
+        body: JSON.stringify({
+          activityType: 'studying',
+          activityDetails: subjectFromUrl ? { subject: subjectFromUrl } : undefined,
+        }),
       })
     } catch {
       // Ignore presence errors
@@ -882,12 +898,12 @@ export default function SoloStudyPage() {
               {/* Focus Duration */}
               <div>
                 <label className="block text-sm text-neutral-400 mb-2">Focus Duration</label>
-                <div className="flex gap-2">
-                  {[15, 25, 30, 45, 60].map((mins) => (
+                <div className="flex flex-wrap gap-2">
+                  {[10, 15, 25, 30, 45, 60].map((mins) => (
                     <button
                       key={mins}
                       onClick={() => setFocusMinutes(mins)}
-                      className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                      className={`flex-1 min-w-[48px] py-3 rounded-xl font-medium transition-all ${
                         focusMinutes === mins
                           ? 'bg-blue-500 text-white'
                           : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
@@ -901,19 +917,19 @@ export default function SoloStudyPage() {
 
               {/* Break Duration */}
               <div>
-                <label className="block text-sm text-neutral-400 mb-2">Break Duration</label>
-                <div className="flex gap-2">
-                  {[5, 10, 15, 20].map((mins) => (
+                <label className="block text-sm text-neutral-400 mb-2">Break Duration (optional)</label>
+                <div className="flex flex-wrap gap-2">
+                  {[0, 5, 10, 15, 20].map((mins) => (
                     <button
                       key={mins}
                       onClick={() => setBreakMinutes(mins)}
-                      className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                      className={`flex-1 min-w-[48px] py-3 rounded-xl font-medium transition-all ${
                         breakMinutes === mins
-                          ? 'bg-green-500 text-white'
+                          ? mins === 0 ? 'bg-neutral-600 text-white' : 'bg-green-500 text-white'
                           : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
                       }`}
                     >
-                      {mins}m
+                      {mins === 0 ? 'None' : `${mins}m`}
                     </button>
                   ))}
                 </div>

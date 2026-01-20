@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { nanoid } from 'nanoid'
+import logger from '@/lib/logger'
 
 // GET /api/study-circles - Get user's study circles
 export async function GET(req: NextRequest) {
@@ -153,7 +154,7 @@ export async function GET(req: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[Study Circles] GET Error:', error)
+    logger.error('Study Circles GET Error', { error })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -281,7 +282,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[Study Circles] POST Error:', error)
+    logger.error('Study Circles POST Error', { error })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

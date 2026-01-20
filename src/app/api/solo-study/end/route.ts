@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import logger from '@/lib/logger'
 
 // Minimum completion percentage required for rewards (80%)
 const COMPLETION_THRESHOLD = 0.8
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
         : `Session ended early (${Math.round(completionRatio * 100)}% completed). Complete at least 80% to earn rewards.`,
     })
   } catch (error) {
-    console.error('End solo study error:', error)
+    logger.error('End solo study error', { error })
     return NextResponse.json(
       { error: 'Failed to end session' },
       { status: 500 }
@@ -172,11 +173,11 @@ async function updateSoloStudyStreak(userId: string) {
         // Use shields to protect streak
         shieldsToUse = daysMissed
         newStreak = (profile.soloStudyStreak || 0) + 1
-        console.log(`[Solo Study Streak] Using ${shieldsToUse} shield(s) to protect streak for user ${userId}`)
+        logger.info('Solo Study Streak - using shields to protect streak', { userId, shieldsUsed: shieldsToUse })
       } else if (daysMissed > 0) {
         // No shields or not enough - streak resets
         newStreak = 1
-        console.log(`[Solo Study Streak] Streak reset for user ${userId} (missed ${daysMissed} days, had ${profile.streakShields || 0} shields)`)
+        logger.info('Solo Study Streak - streak reset', { userId, daysMissed, shields: profile.streakShields || 0 })
       }
     }
 
@@ -193,9 +194,9 @@ async function updateSoloStudyStreak(userId: string) {
     })
 
     if (shieldsToUse > 0) {
-      console.log(`[Solo Study Streak] Streak protected! Used ${shieldsToUse} shield(s). New streak: ${newStreak}`)
+      logger.info('Solo Study Streak - streak protected', { userId, shieldsUsed: shieldsToUse, newStreak })
     }
   } catch (error) {
-    console.error('Update solo study streak error:', error)
+    logger.error('Update solo study streak error', { error })
   }
 }

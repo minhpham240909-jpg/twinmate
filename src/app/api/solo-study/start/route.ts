@@ -17,7 +17,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { focusMinutes = 25, breakMinutes = 5, background = 'library' } = body
+    const { focusMinutes = 25, breakMinutes = 5, background = 'library', subject } = body
+
+    // Generate label - use subject if provided, otherwise use background
+    const label = subject
+      ? `Solo Study: ${subject}`
+      : `Solo Study - ${background}`
 
     // Create focus session record (using existing FocusSession model)
     const session = await prisma.focusSession.create({
@@ -27,7 +32,8 @@ export async function POST(request: NextRequest) {
         startedAt: new Date(),
         status: 'ACTIVE',
         mode: 'solo',
-        label: `Solo Study - ${background}`,
+        label,
+        taskSubject: subject || null,
       },
       select: {
         id: true,

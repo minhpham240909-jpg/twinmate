@@ -45,7 +45,7 @@ export function calculateUserTier(totalSessions: number): UserTier {
 }
 
 export function shouldShowFeature(
-  feature: 'partners' | 'classmates' | 'suggestions' | 'quick_stats' | 'weekly_stats' | 'quick_actions' | 'leaderboard',
+  feature: 'partners' | 'classmates' | 'suggestions' | 'quick_stats' | 'weekly_stats' | 'quick_actions' | 'quick_session' | 'im_stuck' | 'leaderboard',
   totalSessions: number
 ): boolean {
   const tier = calculateUserTier(totalSessions)
@@ -54,9 +54,16 @@ export function shouldShowFeature(
     case 'suggestions':
       // Always show 1 suggestion, but limit count for new users
       return true
+    case 'quick_session':
+      // Quick Session is unlocked from Day 1 - low barrier entry point
+      return true
+    case 'im_stuck':
+      // "I'm Stuck" requires context from previous sessions
+      return tier !== 'new_user'
     case 'classmates':
     case 'partners':
     case 'quick_actions':
+      // Legacy: quick_actions still works for backwards compatibility
       return tier !== 'new_user'
     case 'quick_stats':
       return totalSessions >= DISCLOSURE_THRESHOLDS.TIER_3_STATS
@@ -243,7 +250,7 @@ export function UnlockTeasersSection({ sessionsCompleted }: UnlockTeasersSection
 // =============================================================================
 
 interface FeatureGateProps {
-  feature: 'partners' | 'classmates' | 'suggestions' | 'quick_stats' | 'weekly_stats' | 'quick_actions' | 'leaderboard'
+  feature: 'partners' | 'classmates' | 'suggestions' | 'quick_stats' | 'weekly_stats' | 'quick_actions' | 'quick_session' | 'im_stuck' | 'leaderboard'
   sessionsCompleted: number
   children: ReactNode
   fallback?: ReactNode

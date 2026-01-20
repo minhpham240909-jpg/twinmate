@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
 
 /**
  * Generate consistent UID from userId (same as in agora-token/route.ts)
@@ -26,6 +28,15 @@ function generateConsistentUid(userId: string): number {
  * - participants: Map of UID -> { name, avatarUrl, userId }
  */
 export async function POST(req: NextRequest) {
+  // Rate limit: 60 requests per minute (lenient - called during calls)
+  const rateLimitResult = await rateLimit(req, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

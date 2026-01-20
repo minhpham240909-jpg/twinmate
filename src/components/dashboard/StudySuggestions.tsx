@@ -1,12 +1,16 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { useStudySuggestions } from '@/hooks/useUserStats'
 import { AlertCircle, BookOpen, RefreshCw, Sparkles, Flame } from 'lucide-react'
+import StudyGuideModal from './StudyGuideModal'
 
 /**
  * Study Suggestions Component
  * Shows personalized AI-powered study recommendations
+ *
+ * When clicked, shows a professional AI-generated study guide modal
+ * before navigating to the solo study room.
  *
  * Examples:
  * - "Review Chemistry - You haven't studied this in 3 days"
@@ -17,13 +21,23 @@ import { AlertCircle, BookOpen, RefreshCw, Sparkles, Flame } from 'lucide-react'
  * - maxSuggestions: Limit number of suggestions shown (for progressive disclosure)
  */
 
+interface Suggestion {
+  id: string
+  type: 'review_needed' | 'continue' | 'new_topic' | 'streak'
+  title: string
+  description: string
+  subject?: string
+  actionUrl?: string
+}
+
 interface StudySuggestionsProps {
   maxSuggestions?: number
 }
 
 export default function StudySuggestions({ maxSuggestions }: StudySuggestionsProps = {}) {
-  const router = useRouter()
   const { data, isLoading, error } = useStudySuggestions()
+  const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null)
+  const [showGuideModal, setShowGuideModal] = useState(false)
 
   // Apply maxSuggestions limit if provided
   const allSuggestions = data?.suggestions || []
@@ -85,32 +99,58 @@ export default function StudySuggestions({ maxSuggestions }: StudySuggestionsPro
     }
   }
 
+  const handleSuggestionClick = (suggestion: Suggestion) => {
+    // Extract subject from title (e.g., "Review: Chemistry" -> "Chemistry")
+    const subject = suggestion.subject ||
+      suggestion.title.replace(/^(Review|Continue|Start):\s*/i, '').trim()
+
+    setSelectedSuggestion({ ...suggestion, subject })
+    setShowGuideModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowGuideModal(false)
+    setSelectedSuggestion(null)
+  }
+
   return (
-    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Suggested for you</h3>
+    <>
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Suggested for you</h3>
+        </div>
+
+        <div className="space-y-2">
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion.id}
+              onClick={() => handleSuggestionClick(suggestion as Suggestion)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${getTypeColor(suggestion.type)}`}
+            >
+              {getTypeIcon(suggestion.type)}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+                  {suggestion.title}
+                </p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                  {suggestion.description}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        {suggestions.map((suggestion) => (
-          <button
-            key={suggestion.id}
-            onClick={() => suggestion.actionUrl && router.push(suggestion.actionUrl)}
-            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${getTypeColor(suggestion.type)}`}
-          >
-            {getTypeIcon(suggestion.type)}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-                {suggestion.title}
-              </p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                {suggestion.description}
-              </p>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
+      {/* Study Guide Modal */}
+      {selectedSuggestion && (
+        <StudyGuideModal
+          isOpen={showGuideModal}
+          onClose={handleCloseModal}
+          subject={selectedSuggestion.subject || ''}
+          suggestionType={selectedSuggestion.type}
+        />
+      )}
+    </>
   )
 }

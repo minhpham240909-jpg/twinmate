@@ -6,6 +6,7 @@ import { PAGINATION, CONTENT_LIMITS, ENGAGEMENT_WEIGHTS, UPLOAD_LIMITS } from '@
 import { validatePaginationLimit, validateContent } from '@/lib/validation'
 import { moderateContent, flagContent } from '@/lib/moderation/content-moderator'
 import { cacheGet, CacheKeys, CacheTTL } from '@/lib/redis'
+import logger from '@/lib/logger'
 
 // Cache key for user connections (partner IDs)
 const getUserConnectionsCacheKey = (userId: string) => `feed:connections:${userId}`
@@ -355,7 +356,7 @@ export async function GET(req: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Error fetching posts:', error)
+    logger.error('Error fetching posts', { error })
     return NextResponse.json(
       { error: 'Failed to fetch posts' },
       { status: 500 }
@@ -567,7 +568,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, post }, { status: 201 })
   } catch (error) {
-    console.error('Error creating post:', error)
+    logger.error('Error creating post', { error })
     return NextResponse.json(
       { error: 'Failed to create post' },
       { status: 500 }

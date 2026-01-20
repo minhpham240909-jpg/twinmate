@@ -36,6 +36,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 let redisWarningLogged = false
 
 if (isProduction && !isRedisConfigured && !redisWarningLogged) {
+  // Use console here since logger may not be initialized yet during module load
   console.error(
     '[Redis] CRITICAL: Redis is not configured in production! ' +
     'This will severely impact performance and rate limiting. ' +

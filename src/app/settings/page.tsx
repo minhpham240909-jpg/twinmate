@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/lib/auth/context'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -140,12 +140,16 @@ type TabId =
 export default function SettingsPage() {
   const { user, loading, profile } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { theme: currentTheme, setTheme: setGlobalTheme } = useTheme()
   const { settings: globalSettings, loading: loadingSettings, refreshSettings } = useSettings()
   const { csrfToken } = useCsrfToken()
   const t = useTranslations('settings')
   const tCommon = useTranslations('common')
-  const [activeTab, setActiveTab] = useState<TabId>('account')
+
+  // Get initial tab from URL query param (e.g., /settings?tab=feedback)
+  const tabFromUrl = searchParams.get('tab') as TabId | null
+  const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl || 'account')
   const [settings, setSettings] = useState<UserSettings>(globalSettings)
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
@@ -158,6 +162,13 @@ export default function SettingsPage() {
       router.replace('/auth')
     }
   }, [user, loading, router])
+
+  // Handle tab changes from URL (e.g., when navigating from avatar dropdown)
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl)
+    }
+  }, [tabFromUrl])
 
   // Sync with global settings from context and load location visibility from profile
   useEffect(() => {

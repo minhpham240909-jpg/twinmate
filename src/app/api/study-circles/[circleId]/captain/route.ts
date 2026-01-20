@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import logger from '@/lib/logger'
 
 // Get start and end of current ISO week (Monday to Sunday)
 function getCurrentWeekBounds(): { weekStart: Date; weekEnd: Date } {
@@ -122,7 +123,7 @@ export async function GET(
       weekBounds: { weekStart, weekEnd },
     })
   } catch (error) {
-    console.error('[Study Captain GET] Error:', error)
+    logger.error('Study Captain GET Error', { error })
     return NextResponse.json(
       { error: 'Failed to fetch captains' },
       { status: 500 }
@@ -272,7 +273,7 @@ export async function POST(
       },
     })
   } catch (error) {
-    console.error('[Study Captain POST] Error:', error)
+    logger.error('Study Captain POST Error', { error })
     return NextResponse.json(
       { error: 'Failed to calculate captain' },
       { status: 500 }

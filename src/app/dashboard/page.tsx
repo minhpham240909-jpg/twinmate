@@ -72,7 +72,7 @@ export default function DashboardPage() {
   const unreadMessagesCount = countsData?.counts?.unreadMessages?.total || 0
 
   // Session state - using React Query for caching (prevents flickering on navigation)
-  const { activeSession, lastSession, refetch: refetchSessionData } = useActiveSession()
+  const { activeSession, refetch: refetchSessionData } = useActiveSession()
 
   // Social gravity state
   const [studyingPartners, setStudyingPartners] = useState<StudyingPartner[]>([])
@@ -381,7 +381,6 @@ export default function DashboardPage() {
                   <StartStudyingCTA
                     userName={profile.name}
                     activeSession={activeSession}
-                    lastSession={lastSession}
                     onEndSession={() => refetchSessionData()}
                   />
                 </div>
@@ -429,30 +428,33 @@ export default function DashboardPage() {
                 <UnlockTeasersSection sessionsCompleted={totalSessions} />
               )}
 
-              {/* ROW 2: Quick Actions + Classmates - Hidden for new users */}
-              <FeatureGate feature="quick_actions" sessionsCompleted={totalSessions}>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Quick Actions */}
-                  <div className="flex flex-wrap gap-2">
-                    <ImStuckFlow />
-                    <button
-                      onClick={() => router.push('/focus/quick-session')}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-xl transition-colors"
-                    >
-                      <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span className="font-medium text-sm text-neutral-900 dark:text-white">Quick Session</span>
-                    </button>
-                  </div>
+              {/* ROW 2: Quick Actions + Classmates */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Quick Actions - Quick Session always visible, I'm Stuck gated */}
+                <div className="flex flex-wrap gap-2">
+                  {/* Quick Session - Available from Day 1 (low barrier entry point) */}
+                  <button
+                    onClick={() => router.push('/focus/quick-session')}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-xl transition-colors"
+                  >
+                    <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="font-medium text-sm text-neutral-900 dark:text-white">Quick Session</span>
+                  </button>
 
-                  {/* Partners Studying */}
-                  <FeatureGate feature="classmates" sessionsCompleted={totalSessions}>
-                    <ClassmatesStudying
-                      studyingPartners={studyingPartners}
-                      totalStudying={totalStudying}
-                    />
+                  {/* I'm Stuck - Requires context from previous sessions */}
+                  <FeatureGate feature="im_stuck" sessionsCompleted={totalSessions}>
+                    <ImStuckFlow />
                   </FeatureGate>
                 </div>
-              </FeatureGate>
+
+                {/* Partners Studying */}
+                <FeatureGate feature="classmates" sessionsCompleted={totalSessions}>
+                  <ClassmatesStudying
+                    studyingPartners={studyingPartners}
+                    totalStudying={totalStudying}
+                  />
+                </FeatureGate>
+              </div>
 
               {/* ROW 3: Partners + Weekly Stats - Hidden for new users */}
               <FeatureGate feature="partners" sessionsCompleted={totalSessions}>

@@ -5,6 +5,7 @@ import { corsHeaders, handleCorsPreFlight } from '@/lib/cors'
 import { prisma } from '@/lib/prisma'
 import { getCached, setCached } from '@/lib/cache'
 import logger from '@/lib/logger'
+import { rateLimit } from '@/lib/rate-limit'
 
 // Maximum users per call room - prevents overload at scale
 const MAX_USERS_PER_CALL = {
@@ -193,6 +194,15 @@ async function getChannelParticipantCount(
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
   const headers = corsHeaders(origin)
+
+  // Rate limit: 10 token requests per minute (strict - tokens are sensitive)
+  const rateLimitResult = await rateLimit(req, { max: 10, windowMs: 60 * 1000, keyPrefix: 'agora-token' })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many token requests. Please wait.' },
+      { status: 429, headers: { ...headers, ...rateLimitResult.headers } }
+    )
+  }
 
   try {
     // Verify user is authenticated

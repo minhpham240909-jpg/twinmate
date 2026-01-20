@@ -9,6 +9,7 @@ export { default as StartStudyingCTA } from './StartStudyingCTA'
 export { default as ClassmatesStudying } from './ClassmatesStudying'
 export { default as ImStuckFlow } from './ImStuckFlow'
 export { default as StudySuggestions } from './StudySuggestions'
+export { default as StudyGuideModal } from './StudyGuideModal'
 export { default as GlobalLeaderboard } from './GlobalLeaderboard'
 
 // Progressive Disclosure System

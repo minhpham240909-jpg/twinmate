@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import logger from '@/lib/logger'
 
 /**
  * GET /api/shop/items - Get all available unlockable items with user's unlock status
@@ -84,7 +85,7 @@ export async function GET() {
       totalCompletedSessions,
     })
   } catch (error) {
-    console.error('[Shop Items] Error:', error)
+    logger.error('[Shop Items] Error', { error })
     return NextResponse.json(
       { error: 'Failed to fetch shop items' },
       { status: 500 }

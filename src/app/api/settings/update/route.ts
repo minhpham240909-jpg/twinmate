@@ -12,6 +12,7 @@ const updateSettingsSchema = z.object({
 
   // Privacy & Visibility
   profileVisibility: z.enum(['EVERYONE', 'CONNECTIONS_ONLY', 'PRIVATE']).optional(),
+  postPrivacy: z.enum(['PUBLIC', 'PARTNERS_ONLY']).optional(),
   searchVisibility: z.boolean().optional(),
   showOnlineStatus: z.boolean().optional(),
   showLastSeen: z.boolean().optional(),

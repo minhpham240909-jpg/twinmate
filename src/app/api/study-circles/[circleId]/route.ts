@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import logger from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ circleId: string }>

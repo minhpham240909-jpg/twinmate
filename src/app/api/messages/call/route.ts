@@ -3,8 +3,19 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { CallType, CallStatus, NotificationType } from '@prisma/client'
 import { callMessageSchema, validateRequest } from '@/lib/validation'
+import { rateLimit } from '@/lib/rate-limit'
+import logger from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 call operations per minute
+  const rateLimitResult = await rateLimit(req, { max: 10, windowMs: 60 * 1000, keyPrefix: 'call' })
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many call requests. Please wait.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()
@@ -251,7 +262,7 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error handling call message:', error)
+    logger.error('Error handling call message', { error })
     return NextResponse.json(
       { error: 'Failed to handle call message' },
       { status: 500 }
