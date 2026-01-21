@@ -16,11 +16,11 @@ import {
   Plus,
   Users,
   ArrowRight,
+  ArrowLeft,
   Gamepad2,
   Zap,
   Target,
   Play,
-  Clock,
   LogOut,
   Loader2,
 } from 'lucide-react'
@@ -47,9 +47,29 @@ export default function ArenaPage() {
   const [loadingSessions, setLoadingSessions] = useState(true)
   const [leavingSessionId, setLeavingSessionId] = useState<string | null>(null)
 
-  // Fetch active sessions on mount
+  // Fetch active sessions on mount and refetch on window focus
   useEffect(() => {
     fetchActiveSessions()
+
+    // Refetch when window regains focus to ensure stale sessions are removed
+    const handleFocus = () => {
+      fetchActiveSessions()
+    }
+
+    // Refetch when page becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchActiveSessions()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   const fetchActiveSessions = async () => {
@@ -92,6 +112,13 @@ export default function ArenaPage() {
       <header className="bg-white dark:bg-black border-b border-neutral-200 dark:border-neutral-800">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+            </button>
             <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/25">
               <Gamepad2 className="w-7 h-7 text-white" />
             </div>

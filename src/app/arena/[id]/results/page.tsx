@@ -195,7 +195,7 @@ export default function ArenaResultsPage() {
       <header className="border-b border-neutral-800">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
-            onClick={() => router.push('/arena')}
+            onClick={() => router.back()}
             className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

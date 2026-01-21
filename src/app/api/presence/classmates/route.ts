@@ -56,13 +56,20 @@ export async function GET() {
     )
 
     // Get online partners who are studying
+    // Valid studying activity types must match /api/presence/activity (line 47):
+    // 'browsing', 'studying', 'in_call', 'with_ai', 'idle'
+    // Count as studying: 'studying', 'in_call', 'with_ai'
+    const studyingActivityTypes = ['studying', 'in_call', 'with_ai']
+    // Only show partners active within last 3 minutes for accuracy
+    const partnerActivityThreshold = new Date(Date.now() - 3 * 60 * 1000)
     const onlinePartners = partnerIds.length > 0
       ? await prisma.user.findMany({
           where: {
             id: { in: partnerIds },
             presence: {
               status: 'online',
-              activityType: { in: ['studying', 'focus', 'solo_study', 'quick_focus', 'in_call'] },
+              activityType: { in: studyingActivityTypes },
+              lastActivityAt: { gte: partnerActivityThreshold },
             },
           },
           select: {
@@ -105,13 +112,17 @@ export async function GET() {
     })
 
     // Get total studying count (cached)
+    // Uses same activity types as above for consistency
+    // Only count users active within last 3 minutes for accuracy
+    const activityThreshold = new Date(Date.now() - 3 * 60 * 1000)
     const totalStudying = await cacheGet<number>(
       'presence:studying_count',
       async () => {
         return prisma.userPresence.count({
           where: {
             status: 'online',
-            activityType: { in: ['studying', 'focus', 'solo_study', 'quick_focus', 'in_call'] },
+            activityType: { in: studyingActivityTypes },
+            lastActivityAt: { gte: activityThreshold },
           },
         })
       },
