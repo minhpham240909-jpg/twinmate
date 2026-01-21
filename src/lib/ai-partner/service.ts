@@ -37,6 +37,7 @@ import {
 } from './openai'
 import { uploadBase64Image } from './image-storage'
 import logger from '@/lib/logger'
+import { trackUsage, type AIOperation } from './monitoring'
 
 // Intelligence System
 import { INTELLIGENCE_VERSION, INITIAL_ADAPTIVE_STATE } from './intelligence'
@@ -2557,11 +2558,31 @@ export async function generateImageForSession(params: {
   }
 
   // Generate the image
+  const startTime = Date.now()
   const result = await generateEducationalImage({
     prompt,
     subject: session.subject || undefined,
     skillLevel: session.skillLevel || undefined,
     style,
+  })
+  const latencyMs = Date.now() - startTime
+
+  // SCALE: Track DALL-E cost for monitoring and quota management
+  // DALL-E 3 pricing: $0.04 per image (standard quality, 1024x1024)
+  const DALLE_3_COST_PER_IMAGE = 0.04
+  await trackUsage({
+    userId,
+    sessionId,
+    model: 'dall-e-3',
+    operation: 'image_generation' as AIOperation,
+    promptTokens: 0, // DALL-E doesn't use tokens
+    completionTokens: 0,
+    totalTokens: 0,
+    estimatedCost: DALLE_3_COST_PER_IMAGE,
+    latencyMs,
+    cached: false,
+    success: true,
+    metadata: { style, promptLength: prompt.length },
   })
 
   // Save as message

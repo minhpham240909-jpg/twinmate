@@ -12,10 +12,12 @@
  * - Session count
  * - 24h refresh indicator
  * - Locked state for new users
+ * - Auto-retry on failure with exponential backoff
+ * - Graceful error handling
  */
 
-import { useState, useEffect } from 'react'
-import { Trophy, Lock, Clock, RefreshCw, User, Flame } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Trophy, Lock, Clock, RefreshCw, User, Flame, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 
 interface LeaderboardEntry {
@@ -39,6 +41,11 @@ interface GlobalLeaderboardProps {
   className?: string
 }
 
+// Retry configuration
+const MAX_RETRIES = 3
+const INITIAL_RETRY_DELAY = 1000 // 1 second
+const MAX_RETRY_DELAY = 10000 // 10 seconds
+
 export default function GlobalLeaderboard({
   isLocked = false,
   className = '',
@@ -48,35 +55,126 @@ export default function GlobalLeaderboard({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const [isRetrying, setIsRetrying] = useState(false)
 
-  // Fetch leaderboard data
-  useEffect(() => {
-    if (isLocked) {
-      setIsLoading(false)
-      return
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true)
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch leaderboard with retry logic
+  const fetchLeaderboard = useCallback(async (isRetry = false) => {
+    if (!isMountedRef.current) return
+
+    if (isRetry) {
+      setIsRetrying(true)
+    } else {
+      setIsLoading(true)
     }
+    setError(null)
 
-    const fetchLeaderboard = async () => {
-      try {
-        const response = await fetch('/api/leaderboard')
-        if (response.ok) {
-          const data = await response.json()
-          setLeaderboard(data.leaderboard || [])
-          setCurrentUser(data.currentUser || null)
-          setLastUpdated(data.lastUpdated)
-        } else {
-          setError('Failed to load leaderboard')
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+
+      const response = await fetch('/api/leaderboard', {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!isMountedRef.current) return
+
+      const data = await response.json()
+
+      // Check for success flag from API
+      if (data.success === false && data.error) {
+        throw new Error(data.error)
+      }
+
+      // Even if response is not "ok" status, check if we got valid data
+      if (data.leaderboard) {
+        setLeaderboard(data.leaderboard)
+        setCurrentUser(data.currentUser || null)
+        setLastUpdated(data.lastUpdated)
+        setRetryCount(0) // Reset retry count on success
+        setError(null)
+      } else if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+    } catch (err) {
+      if (!isMountedRef.current) return
+
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      console.error('Error fetching leaderboard:', errorMessage)
+
+      // Check if it's a network/abort error
+      const isNetworkError = err instanceof Error && (
+        err.name === 'AbortError' ||
+        err.message.includes('fetch') ||
+        err.message.includes('network')
+      )
+
+      // Retry logic with exponential backoff
+      if (retryCount < MAX_RETRIES) {
+        const delay = Math.min(
+          INITIAL_RETRY_DELAY * Math.pow(2, retryCount),
+          MAX_RETRY_DELAY
+        )
+
+        setRetryCount(prev => prev + 1)
+
+        // Clear any existing retry timeout
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current)
         }
-      } catch (err) {
-        console.error('Error fetching leaderboard:', err)
-        setError('Failed to load leaderboard')
-      } finally {
+
+        retryTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            fetchLeaderboard(true)
+          }
+        }, delay)
+
+        // Show temporary error while retrying
+        setError(isNetworkError ? 'Connection issue, retrying...' : 'Loading...')
+      } else {
+        // Max retries reached
+        setError('Unable to load leaderboard')
+      }
+    } finally {
+      if (isMountedRef.current) {
         setIsLoading(false)
+        setIsRetrying(false)
       }
     }
+  }, [retryCount])
 
-    fetchLeaderboard()
-  }, [isLocked])
+  // Manual retry function
+  const handleManualRetry = useCallback(() => {
+    setRetryCount(0)
+    fetchLeaderboard(true)
+  }, [fetchLeaderboard])
+
+  // Fetch on mount
+  useEffect(() => {
+    isMountedRef.current = true
+
+    if (!isLocked) {
+      fetchLeaderboard()
+    } else {
+      setIsLoading(false)
+    }
+
+    return () => {
+      isMountedRef.current = false
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+      }
+    }
+  }, [isLocked, fetchLeaderboard])
 
   // Format minutes to readable string
   const formatMinutes = (minutes: number): string => {
@@ -195,7 +293,7 @@ export default function GlobalLeaderboard({
   }
 
   // Loading state
-  if (isLoading) {
+  if (isLoading && !isRetrying) {
     return (
       <div className={`bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 ${className}`}>
         <div className="flex items-center gap-2 mb-4">
@@ -218,23 +316,35 @@ export default function GlobalLeaderboard({
     )
   }
 
-  // Error state
-  if (error) {
+  // Error state (after all retries exhausted)
+  if (error && retryCount >= MAX_RETRIES) {
     return (
       <div className={`bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 ${className}`}>
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="w-5 h-5 text-yellow-500" />
           <h3 className="font-semibold text-neutral-900 dark:text-white">Leaderboard</h3>
         </div>
-        <div className="text-center py-6 text-neutral-500 dark:text-neutral-400">
-          {error}
+        <div className="text-center py-6">
+          <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+            <AlertCircle className="w-6 h-6 text-red-500" />
+          </div>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-3">
+            {error}
+          </p>
+          <button
+            onClick={handleManualRetry}
+            className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 inline-block mr-1" />
+            Try again
+          </button>
         </div>
       </div>
     )
   }
 
   // Empty state
-  if (leaderboard.length === 0) {
+  if (leaderboard.length === 0 && !isLoading && !isRetrying) {
     return (
       <div className={`bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 ${className}`}>
         <div className="flex items-center gap-2 mb-4">
@@ -255,6 +365,9 @@ export default function GlobalLeaderboard({
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-yellow-500" />
           <h3 className="font-semibold text-neutral-900 dark:text-white">Top Studiers</h3>
+          {isRetrying && (
+            <RefreshCw className="w-3 h-3 text-neutral-400 animate-spin" />
+          )}
         </div>
         {lastUpdated && (
           <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">

@@ -10,6 +10,7 @@ import {
   Search,
   UserPlus,
   Globe,
+  Gamepad2,
 } from 'lucide-react'
 
 interface NavItem {
@@ -86,6 +87,12 @@ export default function DashboardMenuDropdown({
       icon: <Globe className="w-5 h-5" />,
       href: '/community',
       badge: newCommunityPostsCount > 0 ? -1 : undefined, // -1 = dot indicator
+    },
+    {
+      id: 'arcade',
+      labelKey: 'arcade',
+      icon: <Gamepad2 className="w-5 h-5" />,
+      href: '/arena',
     },
   ]
 

@@ -15,6 +15,7 @@ import {
   Brain,
   Zap,
 } from 'lucide-react'
+import MathRenderer from '@/components/MathRenderer'
 
 interface FlashcardDeck {
   id: string
@@ -524,14 +525,14 @@ export default function FlashcardPanel({ onClose, onOpenFullScreen, studyPlan }:
                     <span className="text-xs text-neutral-500">Tap to flip</span>
                   </div>
                   <div className="flex-1 flex items-center justify-center">
-                    <p className="text-xl text-white text-center font-medium">
-                      {currentCard.front}
-                    </p>
+                    <div className="text-xl text-white text-center font-medium">
+                      <MathRenderer content={currentCard.front} />
+                    </div>
                   </div>
                   {currentCard.hint && (
-                    <p className="text-sm text-neutral-500 text-center mt-4">
-                      💡 {currentCard.hint}
-                    </p>
+                    <div className="text-sm text-neutral-500 text-center mt-4">
+                      💡 <MathRenderer content={currentCard.hint} />
+                    </div>
                   )}
                 </div>
 
@@ -542,14 +543,14 @@ export default function FlashcardPanel({ onClose, onOpenFullScreen, studyPlan }:
                     <span className="text-xs text-neutral-500">Tap to flip back</span>
                   </div>
                   <div className="flex-1 flex items-center justify-center">
-                    <p className="text-xl text-white text-center font-medium">
-                      {currentCard.back}
-                    </p>
+                    <div className="text-xl text-white text-center font-medium">
+                      <MathRenderer content={currentCard.back} />
+                    </div>
                   </div>
                   {currentCard.explanation && (
-                    <p className="text-sm text-neutral-400 text-center mt-4">
-                      {currentCard.explanation}
-                    </p>
+                    <div className="text-sm text-neutral-400 text-center mt-4">
+                      <MathRenderer content={currentCard.explanation} />
+                    </div>
                   )}
                 </div>
               </div>

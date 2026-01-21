@@ -16,8 +16,11 @@ import { prisma } from '@/lib/prisma'
 import { cacheGet, CacheTTL } from '@/lib/redis'
 import OpenAI from 'openai'
 
+// SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30000,
+  maxRetries: 2,
 })
 
 interface GuideRequest {

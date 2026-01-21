@@ -135,6 +135,10 @@ model User {
   // AI Partner preferences
   hideAIPartner         Boolean  @default(false) // User chose to hide AI Partner from dashboard
 
+  // Practice Arena relations
+  hostedArenas          ArenaSession[]       @relation("ArenaHost")
+  arenaWeeklyStats      ArenaWeeklyStats[]   @relation("ArenaWeeklyStats")
+
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -3457,4 +3461,192 @@ model GamificationEvent {
   @@index([createdAt])
   @@index([userId, eventType])
   @@map("gamification_events")
+}
+
+// ==========================================
+// PRACTICE ARENA - Competitive Learning
+// ==========================================
+// Gimkit/Kahoot-style live quiz battles with friends
+
+enum ArenaStatus {
+  LOBBY           // Waiting for players
+  STARTING        // Countdown before first question
+  IN_PROGRESS     // Game is active
+  BETWEEN_ROUNDS  // Showing results between questions
+  COMPLETED       // Game finished
+  CANCELLED       // Host cancelled
+}
+
+enum ArenaContentSource {
+  UPLOAD          // Host uploaded notes/PDF
+  AI_GENERATED    // AI generated from topic
+  STUDY_HISTORY   // From user's flashcards/sessions
+  DECK            // From existing FlashcardDeck
+  CUSTOM          // Host manually creates questions (host becomes spectator)
+}
+
+// Main Arena Session
+model ArenaSession {
+  id              String             @id @default(uuid())
+  hostId          String
+  title           String
+  inviteCode      String             @unique // 6-char code for joining
+
+  // Content source
+  contentSource   ArenaContentSource
+  sourceTopic     String?            // For AI_GENERATED
+  sourceFileUrl   String?            // For UPLOAD (PDF/notes URL)
+  sourceDeckId    String?            // For DECK
+
+  // Game settings
+  questionCount   Int                @default(10)
+  timePerQuestion Int                @default(20) // Seconds per question
+  maxPlayers      Int                @default(20)
+  hostIsSpectator Boolean            @default(false) // True for CUSTOM mode - host watches but doesn't play
+
+  // Status
+  status          ArenaStatus        @default(LOBBY)
+  currentQuestion Int                @default(0)
+
+  // Timing
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  host            User               @relation("ArenaHost", fields: [hostId], references: [id], onDelete: Cascade)
+  participants    ArenaParticipant[]
+  questions       ArenaQuestion[]
+
+  @@index([inviteCode])
+  @@index([hostId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("arena_sessions")
+}
+
+// Players in an Arena
+model ArenaParticipant {
+  id              String         @id @default(uuid())
+  arenaId         String
+  userId          String
+
+  // Cached user info for display (avoid N+1)
+  userName        String
+  userAvatarUrl   String?
+
+  // Game stats
+  totalScore      Int            @default(0)
+  correctAnswers  Int            @default(0)
+  currentStreak   Int            @default(0)
+  bestStreak      Int            @default(0)
+
+  // Timing
+  joinedAt        DateTime       @default(now())
+
+  // Final ranking (set when game ends)
+  finalRank       Int?
+  xpEarned        Int            @default(0)
+
+  // Connection state
+  isConnected     Boolean        @default(true)
+
+  // Relations
+  arena           ArenaSession   @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+  answers         ArenaAnswer[]
+
+  @@unique([arenaId, userId])
+  @@index([userId])
+  @@index([arenaId])
+  @@index([totalScore])
+  @@map("arena_participants")
+}
+
+// Questions for an Arena
+model ArenaQuestion {
+  id              String         @id @default(uuid())
+  arenaId         String
+
+  // Question order
+  questionNumber  Int
+
+  // Content
+  question        String         @db.Text
+  options         Json           // ["A", "B", "C", "D"]
+  correctAnswer   Int            // Index 0-3
+  explanation     String?        @db.Text
+
+  // Scoring
+  basePoints      Int            @default(1000)
+
+  // Source tracking
+  sourceCardId    String?        // If from flashcard
+
+  createdAt       DateTime       @default(now())
+
+  // Relations
+  arena           ArenaSession   @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+  answers         ArenaAnswer[]
+
+  @@unique([arenaId, questionNumber])
+  @@index([arenaId])
+  @@map("arena_questions")
+}
+
+// Individual answers
+model ArenaAnswer {
+  id              String           @id @default(uuid())
+  questionId      String
+  participantId   String
+
+  // Answer
+  selectedAnswer  Int              // Index for MC (0-3)
+  isCorrect       Boolean
+
+  // Scoring
+  responseTimeMs  Int              // Time to answer in ms
+  basePoints      Int              @default(0)
+  timeBonus       Int              @default(0)
+  streakBonus     Int              @default(0)
+  totalPoints     Int              @default(0)
+
+  answeredAt      DateTime         @default(now())
+
+  // Relations
+  question        ArenaQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  participant     ArenaParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, participantId])
+  @@index([participantId])
+  @@index([questionId]) // PERF: Answer lookups by question (scale audit fix)
+  @@map("arena_answers")
+}
+
+// Weekly Arena Stats for Leaderboard
+model ArenaWeeklyStats {
+  id              String   @id @default(uuid())
+  userId          String
+  weekStart       DateTime // Monday 00:00 UTC
+
+  // Stats
+  totalXP         Int      @default(0)
+  correctAnswers  Int      @default(0)
+  bestStreak      Int      @default(0)
+  gamesPlayed     Int      @default(0)
+  gamesWon        Int      @default(0)
+
+  // Combined score for ranking
+  // Formula: (totalXP * 0.4) + (correctAnswers * 0.3) + (bestStreak * 100 * 0.3)
+  combinedScore   Float    @default(0)
+
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User     @relation("ArenaWeeklyStats", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([weekStart, combinedScore])
+  @@index([userId]) // PERF: User stat lookups (scale audit fix)
+  @@map("arena_weekly_stats")
 }

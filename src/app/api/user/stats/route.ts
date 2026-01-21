@@ -52,10 +52,11 @@ export async function GET() {
 
 /**
  * Fetch user stats from database (called on cache miss)
- * OPTIMIZED: Reduced from 13 queries to 5 queries
+ * OPTIMIZED: 6 parallel queries - no N+1 issues
  * - Uses date filters at DB level for recent data (today/week)
- * - Only fetches aggregates for all-time stats (no full table scan)
+ * - Fetches actual durations for all-time stats (no estimates)
  * - Handles timezone correctly using Monday as week start
+ * - Properly aggregates ALL non-solo modes for quick focus
  */
 async function fetchUserStats(userId: string) {
   const now = new Date()
@@ -74,8 +75,8 @@ async function fetchUserStats(userId: string) {
   const twoYearsAgo = new Date(now)
   twoYearsAgo.setFullYear(now.getFullYear() - 2)
 
-  // OPTIMIZED: 5 parallel queries - filtered at DB level for scale
-  const [userData, focusSessions, studySessions, aiSessions, allTimeCounts] = await Promise.all([
+  // OPTIMIZED: 6 parallel queries - filtered at DB level for scale
+  const [userData, focusSessions, studySessions, aiSessions, allTimeCounts, allTimeSessionDurations] = await Promise.all([
     // 1. User profile (streaks, points)
     prisma.user.findUnique({
       where: { id: userId },
@@ -136,7 +137,7 @@ async function fetchUserStats(userId: string) {
         _count: true,
         _sum: { actualMinutes: true, durationMinutes: true }
       }),
-      // Study sessions all-time
+      // Study sessions all-time count
       prisma.studySession.count({
         where: {
           OR: [{ createdBy: userId }, { participants: { some: { userId } } }],
@@ -144,9 +145,30 @@ async function fetchUserStats(userId: string) {
           endedAt: { gte: twoYearsAgo }
         }
       }),
-      // AI sessions all-time
+      // AI sessions all-time count
       prisma.aIPartnerSession.count({
         where: { userId, status: 'COMPLETED', endedAt: { gte: twoYearsAgo } }
+      }),
+    ]),
+    // 6. All-time actual durations for StudySession and AIPartnerSession (no estimates!)
+    Promise.all([
+      // StudySession all-time durations - fetch actual startedAt/endedAt
+      prisma.studySession.findMany({
+        where: {
+          OR: [{ createdBy: userId }, { participants: { some: { userId } } }],
+          status: 'COMPLETED',
+          endedAt: { gte: twoYearsAgo }
+        },
+        select: { startedAt: true, endedAt: true }
+      }),
+      // AIPartnerSession all-time durations
+      prisma.aIPartnerSession.findMany({
+        where: {
+          userId,
+          status: 'COMPLETED',
+          endedAt: { gte: twoYearsAgo }
+        },
+        select: { startedAt: true, endedAt: true }
       }),
     ])
   ])
@@ -157,6 +179,7 @@ async function fetchUserStats(userId: string) {
 
   // Extract all-time aggregates
   const [focusAggregate, focusByMode, allTimeStudyCount, allTimeAICount] = allTimeCounts
+  const [allTimeStudySessions, allTimeAISessions] = allTimeSessionDurations
 
   const studyStreak = userData.profile?.studyStreak || 0
   const totalPoints = userData.profile?.totalPoints || 0
@@ -185,16 +208,21 @@ async function fetchUserStats(userId: string) {
     return sessions.reduce((total, session) => {
       if (session.startedAt && session.endedAt) {
         const diff = session.endedAt.getTime() - session.startedAt.getTime()
-        return total + Math.round(diff / (1000 * 60))
+        // Clamp to reasonable values (0-480 minutes = 8 hours max per session)
+        const minutes = Math.max(0, Math.min(480, Math.round(diff / (1000 * 60))))
+        return total + minutes
       }
       return total
     }, 0)
   }
 
   // Calculate minutes from focus sessions (actualMinutes or durationMinutes)
+  // FIX: Handle actualMinutes being 0 correctly (use durationMinutes only if actualMinutes is null)
   const calculateFocusMinutes = (sessions: { actualMinutes: number | null; durationMinutes: number }[]) => {
     return sessions.reduce((total, session) => {
-      return total + (session.actualMinutes || session.durationMinutes)
+      // Use actualMinutes if not null, otherwise fall back to durationMinutes
+      const minutes = session.actualMinutes !== null ? session.actualMinutes : session.durationMinutes
+      return total + minutes
     }, 0)
   }
 
@@ -216,7 +244,16 @@ async function fetchUserStats(userId: string) {
 
   // ALL-TIME stats from aggregates (efficient DB-level calculation)
   const soloModeStats = focusByMode.find(m => m.mode === 'solo')
-  const quickModeStats = focusByMode.find(m => m.mode !== 'solo') // 'quick' or other modes
+
+  // FIX: Aggregate ALL non-solo modes (not just the first one found)
+  const quickModeStatsList = focusByMode.filter(m => m.mode !== 'solo')
+  const quickModeStatsAggregated = {
+    _count: quickModeStatsList.reduce((sum, s) => sum + (s._count || 0), 0),
+    _sum: {
+      actualMinutes: quickModeStatsList.reduce((sum, s) => sum + (s._sum?.actualMinutes || 0), 0),
+      durationMinutes: quickModeStatsList.reduce((sum, s) => sum + (s._sum?.durationMinutes || 0), 0),
+    }
+  }
 
   // Calculate all-time minutes: prefer actualMinutes, fall back to durationMinutes
   // actualMinutes = actual time spent (may be less if user ended early)
@@ -230,19 +267,19 @@ async function fetchUserStats(userId: string) {
   }
 
   const allTimeSoloStudyMins = calculateAllTimeMinutes(soloModeStats)
-  const allTimeQuickFocusMins = calculateAllTimeMinutes(quickModeStats)
+  const allTimeQuickFocusMins = calculateAllTimeMinutes(quickModeStatsAggregated)
 
   // Total focus minutes (both modes)
   const totalFocusMinutes = (focusAggregate._sum?.actualMinutes || 0) || (focusAggregate._sum?.durationMinutes || 0)
 
-  // For study/AI sessions, estimate 15 min average per session (we don't have duration aggregate)
-  const estimatedStudyMins = allTimeStudyCount * 15
-  const estimatedAIMins = allTimeAICount * 15
+  // FIX: Use actual durations for StudySession and AIPartnerSession (no more estimates!)
+  const allTimeStudyMins = calculateSessionMinutes(allTimeStudySessions)
+  const allTimeAIMins = calculateSessionMinutes(allTimeAISessions)
 
   // COMBINED totals (for dashboard stats row)
   const todayMinutes = todaySoloStudyMins + todayQuickFocusMins + todayStudyMins + todayAIMins
   const weekMinutes = weekSoloStudyMins + weekQuickFocusMins + weekStudyMins + weekAIMins
-  const allTimeMinutes = totalFocusMinutes + estimatedStudyMins + estimatedAIMins
+  const allTimeMinutes = totalFocusMinutes + allTimeStudyMins + allTimeAIMins
 
   // Session counts - today/week
   const todaySoloStudyCount = todaySoloStudySessions.length
@@ -253,7 +290,7 @@ async function fetchUserStats(userId: string) {
 
   // All-time counts from aggregates
   const allTimeSoloStudyCount = soloModeStats?._count || 0
-  const allTimeQuickFocusCount = quickModeStats?._count || 0
+  const allTimeQuickFocusCount = quickModeStatsAggregated._count || 0
 
   // COMBINED session counts (for dashboard)
   const todaySessionCount = todaySoloStudyCount + todayQuickFocusCount + todayStudySessions.length + todayAISessions.length

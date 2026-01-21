@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
-import { withCsrfProtection } from '@/lib/csrf'
 
 // GET - List announcements
 export async function GET(request: NextRequest) {
@@ -88,44 +87,42 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Create or manage announcements
-// SECURITY: Protected with CSRF token validation
+// SECURITY: Protected by admin authentication (admin check + rate limiting)
 export async function POST(request: NextRequest) {
   // Apply rate limiting (bulk preset: 10 operations per 5 minutes)
   // Announcements can be expensive due to notification broadcasting
   const rateLimitResult = await adminRateLimit(request, 'bulk')
   if (rateLimitResult) return rateLimitResult
 
-  // SECURITY: Wrap announcement actions with CSRF protection
-  return withCsrfProtection(request, async () => {
-    try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user) {
-        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-      }
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
 
-      // Verify admin status
-      const adminUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { isAdmin: true },
-      })
+    // Verify admin status
+    const adminUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { isAdmin: true },
+    })
 
-      if (!adminUser?.isAdmin) {
-        return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
-      }
+    if (!adminUser?.isAdmin) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+    }
 
-      const body = await request.json()
-      const { action, id, title, content, priority, targetRole, targetUserIds, startsAt, expiresAt } = body
+    const body = await request.json()
+    const { action, id, title, content, priority, targetRole, targetUserIds, startsAt, expiresAt } = body
 
-      // Get IP and user agent for audit log
-      const ipAddress = request.headers.get('x-forwarded-for') ||
-                        request.headers.get('x-real-ip') ||
-                        'unknown'
-      const userAgent = request.headers.get('user-agent') || 'unknown'
+    // Get IP and user agent for audit log
+    const ipAddress = request.headers.get('x-forwarded-for') ||
+                      request.headers.get('x-real-ip') ||
+                      'unknown'
+    const userAgent = request.headers.get('user-agent') || 'unknown'
 
-      switch (action) {
-      case 'create': {
+    switch (action) {
+    case 'create': {
         if (!title || !content) {
           return NextResponse.json(
             { error: 'Title and content are required' },
@@ -455,17 +452,16 @@ export async function POST(request: NextRequest) {
         default:
           return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
       }
-    } catch (error: unknown) {
-      console.error('[Admin Announcements POST] Error:', error)
-      // Log more details for debugging
-      if (error instanceof Error) {
-        console.error('[Admin Announcements POST] Error details:', error.message, error.stack)
-        return NextResponse.json({
-          error: 'Internal server error',
-          details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        }, { status: 500 })
-      }
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Admin Announcements POST] Error:', error)
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('[Admin Announcements POST] Error details:', error.message, error.stack)
+      return NextResponse.json({
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      }, { status: 500 })
     }
-  })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }

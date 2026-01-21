@@ -89,7 +89,17 @@ export const CacheKeys = {
   GLOBAL_LEADERBOARD: () => `leaderboard:global:daily`,
   DASHBOARD_COUNTS: (userId: string) => `dashboard:counts:${userId}`,
   STUDY_SUGGESTIONS: (userId: string) => `study:suggestions:${userId}`,
+  // Arena topic question cache (24h, normalized topic key)
+  ARENA_TOPIC_QUESTIONS: (topic: string, difficulty: string, count: number) =>
+    `arena:questions:${normalizeTopicKey(topic)}:${difficulty}:${count}`,
+  // Background generation status (tracks in-progress generations)
+  ARENA_GENERATION_STATUS: (generationId: string) => `arena:generation:${generationId}`,
 } as const
+
+// Helper to normalize topic keys for caching (lowercase, trim, replace spaces)
+function normalizeTopicKey(topic: string): string {
+  return topic.toLowerCase().trim().replace(/\s+/g, '_').slice(0, 100)
+}
 
 // Default TTLs in seconds
 export const CacheTTL = {
@@ -107,11 +117,67 @@ export const CacheTTL = {
   GLOBAL_LEADERBOARD: 86400, // 24 hours - refreshes daily
   DASHBOARD_COUNTS: 30,   // 30 seconds - notification counts
   STUDY_SUGGESTIONS: 300, // 5 minutes - suggestions don't need real-time updates
+  // Arena topic caching - common topics reused across users
+  ARENA_TOPIC_QUESTIONS: 86400, // 24 hours - topic questions don't change
+  ARENA_GENERATION_STATUS: 300, // 5 minutes - track generation progress
 } as const
+
+// ==========================================
+// CIRCUIT BREAKER for Redis
+// ==========================================
+// Prevents cascading failures when Redis is temporarily unavailable
+
+interface CircuitBreakerState {
+  failures: number
+  lastFailure: number
+  state: 'closed' | 'open' | 'half-open'
+}
+
+const circuitBreaker: CircuitBreakerState = {
+  failures: 0,
+  lastFailure: 0,
+  state: 'closed',
+}
+
+const CIRCUIT_FAILURE_THRESHOLD = 5 // Open after 5 failures
+const CIRCUIT_RESET_TIMEOUT = 30000 // Try again after 30 seconds
+
+function recordCircuitSuccess(): void {
+  circuitBreaker.failures = 0
+  circuitBreaker.state = 'closed'
+}
+
+function recordCircuitFailure(): void {
+  circuitBreaker.failures++
+  circuitBreaker.lastFailure = Date.now()
+  if (circuitBreaker.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+    circuitBreaker.state = 'open'
+    console.warn('[Redis] Circuit breaker OPEN - Redis calls will be skipped temporarily')
+  }
+}
+
+function isCircuitOpen(): boolean {
+  if (circuitBreaker.state === 'closed') {
+    return false
+  }
+
+  if (circuitBreaker.state === 'open') {
+    // Check if we should try half-open
+    if (Date.now() - circuitBreaker.lastFailure > CIRCUIT_RESET_TIMEOUT) {
+      circuitBreaker.state = 'half-open'
+      return false // Allow one request through
+    }
+    return true
+  }
+
+  // half-open - allow requests
+  return false
+}
 
 /**
  * Generic cache get with fallback
  * Returns cached data if available, otherwise calls fallback and caches result
+ * IMPROVED: Added circuit breaker and proper error handling
  */
 export async function cacheGet<T>(
   key: string,
@@ -120,14 +186,16 @@ export async function cacheGet<T>(
 ): Promise<T> {
   const redis = getRedis()
 
-  // If Redis not configured, just call fallback
-  if (!redis) {
+  // If Redis not configured or circuit is open, just call fallback
+  if (!redis || isCircuitOpen()) {
     return fallback()
   }
 
   try {
     // Try to get from cache
     const cached = await redis.get<T>(key)
+    recordCircuitSuccess()
+
     if (cached !== null) {
       return cached
     }
@@ -135,14 +203,19 @@ export async function cacheGet<T>(
     // Cache miss - call fallback
     const data = await fallback()
 
-    // Store in cache (don't await - fire and forget)
-    redis.set(key, data, { ex: ttlSeconds }).catch((err) => {
-      console.error('[Redis] Failed to set cache:', err)
-    })
+    // Store in cache with proper error handling (not fire-and-forget)
+    try {
+      await redis.set(key, data, { ex: ttlSeconds })
+    } catch (setErr) {
+      console.error('[Redis] Failed to set cache:', { key, error: setErr })
+      recordCircuitFailure()
+      // Don't throw - cache write failure shouldn't break the app
+    }
 
     return data
   } catch (error) {
-    console.error('[Redis] Cache error, falling back:', error)
+    console.error('[Redis] Cache error, falling back:', { key, error })
+    recordCircuitFailure()
     // On any Redis error, fall back to direct query
     return fallback()
   }
@@ -259,6 +332,102 @@ export async function cacheIncrement(
  */
 export function isRedisAvailable(): boolean {
   return isRedisConfigured
+}
+
+// ==========================================
+// REDIS-BASED RATE LIMITING
+// ==========================================
+// Replaces in-memory Map-based rate limiting for proper scaling
+
+interface RateLimitResult {
+  success: boolean
+  remaining: number
+  resetAt: number
+}
+
+/**
+ * Check rate limit using Redis sliding window
+ * MUCH better than in-memory Map which leaks memory at scale
+ *
+ * @param identifier - User ID, IP, or other unique identifier
+ * @param limit - Max requests allowed in the window
+ * @param windowSeconds - Time window in seconds
+ * @param prefix - Key prefix (e.g., 'leaderboard', 'api')
+ */
+export async function checkRateLimit(
+  identifier: string,
+  limit: number = 60,
+  windowSeconds: number = 60,
+  prefix: string = 'ratelimit'
+): Promise<RateLimitResult> {
+  const redis = getRedis()
+  const now = Date.now()
+  const resetAt = now + windowSeconds * 1000
+
+  // Fallback if Redis not available - be permissive
+  if (!redis || isCircuitOpen()) {
+    return { success: true, remaining: limit, resetAt }
+  }
+
+  const key = `${prefix}:${identifier}:${Math.floor(now / (windowSeconds * 1000))}`
+
+  try {
+    const count = await redis.incr(key)
+
+    // Set expiry on first request in window
+    if (count === 1) {
+      await redis.expire(key, windowSeconds)
+    }
+
+    recordCircuitSuccess()
+
+    const remaining = Math.max(0, limit - count)
+    return {
+      success: count <= limit,
+      remaining,
+      resetAt,
+    }
+  } catch (error) {
+    console.error('[Redis] Rate limit check failed:', { identifier, error })
+    recordCircuitFailure()
+    // On error, be permissive to avoid breaking the app
+    return { success: true, remaining: limit, resetAt }
+  }
+}
+
+/**
+ * Get rate limit status without incrementing (for checking remaining)
+ */
+export async function getRateLimitStatus(
+  identifier: string,
+  limit: number = 60,
+  windowSeconds: number = 60,
+  prefix: string = 'ratelimit'
+): Promise<RateLimitResult> {
+  const redis = getRedis()
+  const now = Date.now()
+  const resetAt = now + windowSeconds * 1000
+
+  if (!redis || isCircuitOpen()) {
+    return { success: true, remaining: limit, resetAt }
+  }
+
+  const key = `${prefix}:${identifier}:${Math.floor(now / (windowSeconds * 1000))}`
+
+  try {
+    const count = await redis.get<number>(key) ?? 0
+    recordCircuitSuccess()
+
+    const remaining = Math.max(0, limit - count)
+    return {
+      success: count < limit,
+      remaining,
+      resetAt,
+    }
+  } catch (error) {
+    recordCircuitFailure()
+    return { success: true, remaining: limit, resetAt }
+  }
 }
 
 export { getRedis }

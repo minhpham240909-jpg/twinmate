@@ -56,9 +56,14 @@ export interface ExtractedMemory {
   context?: string
 }
 
-// OpenAI client
+// SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
+const OPENAI_REQUEST_TIMEOUT = 30000
+
+// OpenAI client with timeout
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: OPENAI_REQUEST_TIMEOUT,
+  maxRetries: 2,
 })
 
 // Default empty memory for when database tables don't exist yet

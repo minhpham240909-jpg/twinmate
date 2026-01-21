@@ -16,6 +16,7 @@ import {
   Loader2,
   Lightbulb,
 } from 'lucide-react'
+import MathRenderer from '@/components/MathRenderer'
 
 interface FlashcardCard {
   id: string
@@ -444,14 +445,14 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
                       {/* Front */}
                       <div className={`absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 border border-neutral-700 rounded-2xl p-8 flex flex-col backface-hidden ${isFlipped ? 'invisible' : ''}`}>
                         <div className="flex-1 flex items-center justify-center">
-                          <p className="text-2xl text-white text-center font-medium">
-                            {currentCard.front}
-                          </p>
+                          <div className="text-2xl text-white text-center font-medium">
+                            <MathRenderer content={currentCard.front} />
+                          </div>
                         </div>
                         {showHint && currentCard.hint && (
-                          <p className="text-sm text-yellow-400/80 text-center mt-4">
-                            💡 {currentCard.hint}
-                          </p>
+                          <div className="text-sm text-yellow-400/80 text-center mt-4">
+                            💡 <MathRenderer content={currentCard.hint} />
+                          </div>
                         )}
                         {!typeAnswerMode && (
                           <p className="text-sm text-neutral-500 text-center mt-4">
@@ -463,14 +464,14 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
                       {/* Back */}
                       <div className={`absolute inset-0 bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-blue-500/30 rounded-2xl p-8 flex flex-col rotate-y-180 backface-hidden ${!isFlipped ? 'invisible' : ''}`}>
                         <div className="flex-1 flex items-center justify-center">
-                          <p className="text-2xl text-white text-center font-medium">
-                            {currentCard.back}
-                          </p>
+                          <div className="text-2xl text-white text-center font-medium">
+                            <MathRenderer content={currentCard.back} />
+                          </div>
                         </div>
                         {currentCard.explanation && (
-                          <p className="text-sm text-blue-300/80 text-center mt-4">
-                            {currentCard.explanation}
-                          </p>
+                          <div className="text-sm text-blue-300/80 text-center mt-4">
+                            <MathRenderer content={currentCard.explanation} />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -558,13 +559,13 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
                 currentCard.multipleChoiceOptions && (
                   <div className="space-y-4">
                     <div className="bg-neutral-800/50 border border-neutral-700 rounded-2xl p-8">
-                      <p className="text-2xl text-white text-center font-medium">
-                        {currentCard.front}
-                      </p>
+                      <div className="text-2xl text-white text-center font-medium">
+                        <MathRenderer content={currentCard.front} />
+                      </div>
                       {showHint && currentCard.hint && (
-                        <p className="text-sm text-yellow-400/80 text-center mt-4">
-                          💡 {currentCard.hint}
-                        </p>
+                        <div className="text-sm text-yellow-400/80 text-center mt-4">
+                          💡 <MathRenderer content={currentCard.hint} />
+                        </div>
                       )}
                     </div>
 
@@ -592,7 +593,7 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
                             disabled={answerRevealed}
                             className={`p-4 border rounded-xl text-left transition-all ${buttonClass}`}
                           >
-                            <span className="text-white">{option.text}</span>
+                            <span className="text-white"><MathRenderer content={option.text} /></span>
                             {showResult && isCorrectOption && (
                               <Check className="w-5 h-5 text-green-400 float-right" />
                             )}
@@ -616,9 +617,9 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
               {currentCard.questionType === 'TRUE_FALSE' && (
                 <div className="space-y-4">
                   <div className="bg-neutral-800/50 border border-neutral-700 rounded-2xl p-8">
-                    <p className="text-2xl text-white text-center font-medium">
-                      {currentCard.front}
-                    </p>
+                    <div className="text-2xl text-white text-center font-medium">
+                      <MathRenderer content={currentCard.front} />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -656,9 +657,9 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
               {currentCard.questionType === 'FILL_IN_BLANK' && (
                 <div className="space-y-4">
                   <div className="bg-neutral-800/50 border border-neutral-700 rounded-2xl p-8">
-                    <p className="text-2xl text-white text-center font-medium">
-                      {currentCard.front}
-                    </p>
+                    <div className="text-2xl text-white text-center font-medium">
+                      <MathRenderer content={currentCard.front} />
+                    </div>
                   </div>
 
                   <div className="relative">
@@ -684,7 +685,9 @@ export default function FlashcardFullScreen({ deckId, deckTitle, onClose }: Flas
                     {answerRevealed && (
                       <div className="mt-2 text-center">
                         <p className="text-sm text-neutral-400">Correct answer:</p>
-                        <p className="text-lg text-green-400 font-medium">{currentCard.back}</p>
+                        <div className="text-lg text-green-400 font-medium">
+                          <MathRenderer content={currentCard.back} />
+                        </div>
                       </div>
                     )}
                   </div>

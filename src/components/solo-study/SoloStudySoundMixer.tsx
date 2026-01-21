@@ -35,7 +35,7 @@ const SOUND_LAYERS = [
     name: 'Cafe',
     icon: '☕',
     noiseType: 'brown' as const,
-    audioUrl: '/sounds/ambient/cafe.mp3',
+    audioUrl: '/sounds/ambient/cafe.wav',
   },
   {
     id: 'forest',
@@ -44,7 +44,7 @@ const SOUND_LAYERS = [
     icon: '🌲',
     noiseType: 'pink' as const,
     hasChirps: true,
-    audioUrl: '/sounds/ambient/forest.mp3',
+    audioUrl: '/sounds/ambient/forest.wav',
   },
   {
     id: 'ocean',
@@ -52,7 +52,7 @@ const SOUND_LAYERS = [
     name: 'Ocean',
     icon: '🌊',
     noiseType: 'brown' as const,
-    audioUrl: '/sounds/ambient/ocean.mp3',
+    audioUrl: '/sounds/ambient/ocean.wav',
   },
   {
     id: 'white_noise',
@@ -68,7 +68,7 @@ const SOUND_LAYERS = [
     name: 'Fireplace',
     icon: '🔥',
     noiseType: 'brown' as const,
-    audioUrl: '/sounds/ambient/fireplace.mp3',
+    audioUrl: '/sounds/ambient/fireplace.wav',
   },
   {
     id: 'lofi',
@@ -76,7 +76,7 @@ const SOUND_LAYERS = [
     name: 'Lo-Fi',
     icon: '🎵',
     noiseType: 'pink' as const,
-    audioUrl: '/sounds/ambient/lofi.mp3',
+    audioUrl: '/sounds/ambient/lofi.wav',
   },
 ]
 

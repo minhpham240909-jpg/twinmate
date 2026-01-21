@@ -3,8 +3,13 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import OpenAI from 'openai'
 
+// SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
+const OPENAI_REQUEST_TIMEOUT = 30000
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: OPENAI_REQUEST_TIMEOUT,
+  maxRetries: 2,
 })
 
 interface GeneratedCard {

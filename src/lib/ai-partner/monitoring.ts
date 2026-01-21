@@ -43,6 +43,7 @@ export type AIOperation =
   | 'memory_extraction'
   | 'moderation'
   | 'content_safety'
+  | 'image_generation' // SCALE: Track DALL-E usage for cost monitoring
 
 export interface UsageSummary {
   period: 'day' | 'week' | 'month'

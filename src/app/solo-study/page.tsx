@@ -334,12 +334,15 @@ export default function SoloStudyPage() {
         const awayTimeMs = Date.now() - awayStartTimeRef.current
         const awayMins = Math.round(awayTimeMs / 60000)
 
-        // Only show modal if away for at least 1 minute
+        // Show modal even for 1 minute (or more) away
         if (awayMins >= 1) {
           setAwayMinutes(awayMins)
           setAwayActivity('')
           setAwayMessage(null)
           setShowAwayModal(true)
+        } else {
+          // Less than 1 minute - just resume without asking
+          setIsPaused(false)
         }
         awayStartTimeRef.current = null
       }
@@ -907,6 +910,16 @@ export default function SoloStudyPage() {
         <div className="mt-8 text-center text-white/60 text-sm">
           <span className="font-semibold text-white/90">{todayMinutes}</span> minutes studied today
         </div>
+
+        {/* Smart Away Tracking Info - only show when session is active */}
+        {isSessionActive && !isPaused && (
+          <div className="mt-4 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-xs text-blue-300">
+              <span>💡</span>
+              <span>Left to study elsewhere? We&apos;ll track your time and ask what you did when you return!</span>
+            </div>
+          </div>
+        )}
 
         {/* Always-visible motivational quote */}
         <div className="mt-6 max-w-md w-full">

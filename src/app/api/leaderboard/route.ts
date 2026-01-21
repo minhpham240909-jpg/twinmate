@@ -13,6 +13,7 @@
  * - Uses DB-level groupBy aggregations instead of fetching all records
  * - No N+1 queries - all 5 session types fetched in parallel via Promise.all
  * - User details fetched in single batch query (WHERE id IN [...])
+ * - In-memory rate limiting to prevent abuse
  *
  * ACCURACY:
  * - Counts ALL completed sessions, no exceptions
@@ -28,14 +29,16 @@
  *
  * ERROR HANDLING:
  * - Graceful fallback if Redis unavailable
+ * - Individual query failures don't break entire leaderboard
  * - Empty array returned if no data (not error)
  * - All errors logged with context
+ * - Rate limiting to prevent abuse
  */
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { cacheGet, CacheTTL, CacheKeys, isRedisAvailable } from '@/lib/redis'
+import { cacheGet, CacheTTL, CacheKeys, isRedisAvailable, checkRateLimit } from '@/lib/redis'
 
 interface LeaderboardEntry {
   rank: number
@@ -61,6 +64,10 @@ interface LeaderboardResponse {
   nextRefresh: string
 }
 
+// Rate limiting constants (using Redis-based rate limiter from redis.ts)
+const RATE_LIMIT = 60 // requests per minute (generous limit)
+const RATE_WINDOW = 60 // seconds
+
 /**
  * GET /api/leaderboard
  * Returns the global leaderboard (top 5 users by total study minutes)
@@ -75,40 +82,82 @@ export async function GET() {
   try {
     // Verify auth
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('[Leaderboard API] Auth error:', authError.message)
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting (Redis-based, no memory leak)
+    const rateLimitResult = await checkRateLimit(user.id, RATE_LIMIT, RATE_WINDOW, 'leaderboard')
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment.', retryAfter: Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000) },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+      )
     }
 
     // Get leaderboard from cache (24h TTL)
     const cacheKey = CacheKeys.GLOBAL_LEADERBOARD()
     const redisAvailable = isRedisAvailable()
 
-    const cachedData = await cacheGet<{
+    let cachedData: {
       leaderboard: LeaderboardEntry[]
       allUserRanks: Record<string, { rank: number; minutes: number; sessions: number }>
       lastUpdated: string
-    }>(
-      cacheKey,
-      async () => {
-        // Calculate leaderboard from scratch
-        console.log('[Leaderboard API] Cache miss - calculating from database')
-        const calcStartTime = Date.now()
+    }
 
-        const { leaderboard, allUserRanks } = await calculateGlobalLeaderboard()
+    try {
+      cachedData = await cacheGet<{
+        leaderboard: LeaderboardEntry[]
+        allUserRanks: Record<string, { rank: number; minutes: number; sessions: number }>
+        lastUpdated: string
+      }>(
+        cacheKey,
+        async () => {
+          // Calculate leaderboard from scratch
+          console.log('[Leaderboard API] Cache miss - calculating from database')
+          const calcStartTime = Date.now()
 
-        const calcDuration = Date.now() - calcStartTime
-        console.log(`[Leaderboard API] Calculation completed in ${calcDuration}ms, ${leaderboard.length} entries`)
+          const { leaderboard, allUserRanks } = await calculateGlobalLeaderboard()
 
-        return {
-          leaderboard,
-          allUserRanks,
-          lastUpdated: new Date().toISOString(),
-        }
-      },
-      CacheTTL.GLOBAL_LEADERBOARD
-    )
+          const calcDuration = Date.now() - calcStartTime
+          console.log(`[Leaderboard API] Calculation completed in ${calcDuration}ms, ${leaderboard.length} entries`)
+
+          return {
+            leaderboard,
+            allUserRanks,
+            lastUpdated: new Date().toISOString(),
+          }
+        },
+        CacheTTL.GLOBAL_LEADERBOARD
+      )
+    } catch (cacheError) {
+      console.error('[Leaderboard API] Cache/calculation error:', cacheError)
+      // Return empty leaderboard instead of failing completely
+      return NextResponse.json({
+        success: true,
+        leaderboard: [],
+        currentUser: {
+          rank: null,
+          totalMinutes: 0,
+          sessionCount: 0,
+          isInTop5: false,
+        },
+        lastUpdated: new Date().toISOString(),
+        nextRefresh: new Date(Date.now() + 60 * 1000).toISOString(), // Retry in 1 minute
+        _meta: {
+          cached: false,
+          responseTimeMs: Date.now() - startTime,
+          error: 'Leaderboard temporarily unavailable',
+        },
+      })
+    }
 
     // Get current user's rank info
     const userRankData = cachedData.allUserRanks?.[user.id]
@@ -154,10 +203,24 @@ export async function GET() {
       stack: error instanceof Error ? error.stack : undefined,
       duration: Date.now() - startTime,
     })
-    return NextResponse.json(
-      { error: 'Failed to fetch leaderboard' },
-      { status: 500 }
-    )
+
+    // Return graceful error response with empty data
+    return NextResponse.json({
+      success: false,
+      leaderboard: [],
+      currentUser: {
+        rank: null,
+        totalMinutes: 0,
+        sessionCount: 0,
+        isInTop5: false,
+      },
+      lastUpdated: new Date().toISOString(),
+      nextRefresh: new Date(Date.now() + 60 * 1000).toISOString(),
+      error: 'Failed to fetch leaderboard',
+      _meta: {
+        responseTimeMs: Date.now() - startTime,
+      },
+    }, { status: 200 }) // Return 200 with error flag to allow frontend graceful handling
   }
 }
 
@@ -182,7 +245,60 @@ async function calculateGlobalLeaderboard(): Promise<{
   allUserRanks: Record<string, { rank: number; minutes: number; sessions: number }>
 }> {
   // Step 1: Get aggregated minutes per user from each session type
-  // All queries run in parallel for maximum performance
+  // All queries run in parallel with individual error handling
+  // Each query is wrapped in try-catch to prevent one failure from breaking all
+
+  const focusSessionsPromise = prisma.focusSession.groupBy({
+    by: ['userId'],
+    where: { status: 'COMPLETED' },
+    _sum: { actualMinutes: true },
+    _count: { _all: true },
+  }).catch(err => {
+    console.error('[Leaderboard API] FocusSession query failed:', err)
+    return [] as Awaited<ReturnType<typeof prisma.focusSession.groupBy>>
+  })
+
+  const studySessionsPromise = prisma.studySession.groupBy({
+    by: ['userId'],
+    where: { status: 'COMPLETED' },
+    _sum: { durationMinutes: true },
+    _count: { _all: true },
+  }).catch(err => {
+    console.error('[Leaderboard API] StudySession query failed:', err)
+    return [] as Awaited<ReturnType<typeof prisma.studySession.groupBy>>
+  })
+
+  const aiPartnerSessionsPromise = prisma.aIPartnerSession.groupBy({
+    by: ['userId'],
+    where: { status: 'COMPLETED' },
+    _sum: { totalDuration: true },
+    _count: { _all: true },
+  }).catch(err => {
+    console.error('[Leaderboard API] AIPartnerSession query failed:', err)
+    return [] as Awaited<ReturnType<typeof prisma.aIPartnerSession.groupBy>>
+  })
+
+  const flashcardSessionsPromise = prisma.flashcardStudySession.groupBy({
+    by: ['userId'],
+    where: { completedAt: { not: null } },
+    _sum: { durationMinutes: true },
+    _count: { _all: true },
+  }).catch(err => {
+    console.error('[Leaderboard API] FlashcardStudySession query failed:', err)
+    return [] as Awaited<ReturnType<typeof prisma.flashcardStudySession.groupBy>>
+  })
+
+  const circleAttendancePromise = prisma.circleAttendance.groupBy({
+    by: ['userId'],
+    where: { didAttend: true },
+    _sum: { durationMinutes: true },
+    _count: { _all: true },
+  }).catch(err => {
+    console.error('[Leaderboard API] CircleAttendance query failed:', err)
+    return [] as Awaited<ReturnType<typeof prisma.circleAttendance.groupBy>>
+  })
+
+  // Run all queries in parallel
   const [
     focusSessions,
     studySessions,
@@ -190,46 +306,11 @@ async function calculateGlobalLeaderboard(): Promise<{
     flashcardSessions,
     circleAttendance,
   ] = await Promise.all([
-    // FocusSession: Sum actualMinutes for COMPLETED sessions
-    prisma.focusSession.groupBy({
-      by: ['userId'],
-      where: { status: 'COMPLETED' },
-      _sum: { actualMinutes: true },
-      _count: { _all: true },
-    }),
-
-    // StudySession: Sum durationMinutes for COMPLETED sessions
-    prisma.studySession.groupBy({
-      by: ['userId'],
-      where: { status: 'COMPLETED' },
-      _sum: { durationMinutes: true },
-      _count: { _all: true },
-    }),
-
-    // AIPartnerSession: Sum totalDuration (in SECONDS) for COMPLETED sessions
-    // IMPORTANT: totalDuration is in seconds, must divide by 60
-    prisma.aIPartnerSession.groupBy({
-      by: ['userId'],
-      where: { status: 'COMPLETED' },
-      _sum: { totalDuration: true },
-      _count: { _all: true },
-    }),
-
-    // FlashcardStudySession: Sum durationMinutes for completed sessions
-    prisma.flashcardStudySession.groupBy({
-      by: ['userId'],
-      where: { completedAt: { not: null } },
-      _sum: { durationMinutes: true },
-      _count: { _all: true },
-    }),
-
-    // CircleAttendance: Sum durationMinutes for attended
-    prisma.circleAttendance.groupBy({
-      by: ['userId'],
-      where: { didAttend: true },
-      _sum: { durationMinutes: true },
-      _count: { _all: true },
-    }),
+    focusSessionsPromise,
+    studySessionsPromise,
+    aiPartnerSessionsPromise,
+    flashcardSessionsPromise,
+    circleAttendancePromise,
   ])
 
   // Step 2: Combine all session data per user
@@ -238,10 +319,19 @@ async function calculateGlobalLeaderboard(): Promise<{
 
   // Helper to safely add to user totals
   const addToUserTotals = (userId: string, minutes: number, sessions: number) => {
+    if (!userId || isNaN(minutes) || isNaN(sessions)) return
     const existing = userTotals.get(userId) || { minutes: 0, sessions: 0 }
-    existing.minutes += minutes
-    existing.sessions += sessions
+    existing.minutes += Math.max(0, minutes) // Ensure non-negative
+    existing.sessions += Math.max(0, sessions)
     userTotals.set(userId, existing)
+  }
+
+  // Helper to safely extract count
+  const getCount = (count: unknown): number => {
+    if (typeof count === 'object' && count !== null && '_all' in count) {
+      return (count as { _all: number })._all ?? 0
+    }
+    return typeof count === 'number' ? count : 0
   }
 
   // Add FocusSession minutes
@@ -249,7 +339,7 @@ async function calculateGlobalLeaderboard(): Promise<{
     addToUserTotals(
       session.userId,
       session._sum?.actualMinutes ?? 0,
-      session._count?._all ?? 0
+      getCount(session._count)
     )
   }
 
@@ -258,7 +348,7 @@ async function calculateGlobalLeaderboard(): Promise<{
     addToUserTotals(
       session.userId,
       session._sum?.durationMinutes ?? 0,
-      session._count?._all ?? 0
+      getCount(session._count)
     )
   }
 
@@ -269,7 +359,7 @@ async function calculateGlobalLeaderboard(): Promise<{
     addToUserTotals(
       session.userId,
       totalMinutes,
-      session._count?._all ?? 0
+      getCount(session._count)
     )
   }
 
@@ -278,7 +368,7 @@ async function calculateGlobalLeaderboard(): Promise<{
     addToUserTotals(
       session.userId,
       session._sum?.durationMinutes ?? 0,
-      session._count?._all ?? 0
+      getCount(session._count)
     )
   }
 
@@ -287,7 +377,7 @@ async function calculateGlobalLeaderboard(): Promise<{
     addToUserTotals(
       attendance.userId,
       attendance._sum?.durationMinutes ?? 0,
-      attendance._count?._all ?? 0
+      getCount(attendance._count)
     )
   }
 
@@ -316,14 +406,21 @@ async function calculateGlobalLeaderboard(): Promise<{
 
   // Step 4: Fetch user details for top 5 (single batch query, no N+1)
   const userIds = sortedUsers.map(([userId]) => userId)
-  const users = await prisma.user.findMany({
-    where: { id: { in: userIds } },
-    select: {
-      id: true,
-      name: true,
-      avatarUrl: true,
-    },
-  })
+
+  let users: { id: string; name: string | null; avatarUrl: string | null }[] = []
+  try {
+    users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: {
+        id: true,
+        name: true,
+        avatarUrl: true,
+      },
+    })
+  } catch (error) {
+    console.error('[Leaderboard API] Failed to fetch user details:', error)
+    // Continue with empty user details - we can still show the leaderboard
+  }
 
   // Create lookup map for user details
   const userMap = new Map(users.map(u => [u.id, u]))

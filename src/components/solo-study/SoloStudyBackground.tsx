@@ -18,7 +18,10 @@ export const SOLO_STUDY_BACKGROUNDS = [
     bgClass: 'bg-gradient-to-br from-amber-900/90 via-neutral-900 to-neutral-950',
     previewColor: '#78350f',
     icon: '📚',
-    imageUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920&q=80',
+    // Warm, cozy library with wooden shelves and ambient lighting
+    imageUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1920&q=85',
+    // Fallback: Classic grand library
+    fallbackUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920&q=80',
   },
   {
     id: 'cafe',
@@ -168,6 +171,8 @@ export default function SoloStudyBackground({
 
   // If just rendering background without selector
   if (!showSelector) {
+    const isLibrary = currentBg.id === 'library'
+
     return (
       <div className={`min-h-screen ${currentBg.bgClass} transition-colors duration-700 relative`}>
         {/* Background Image (if available) */}
@@ -181,18 +186,72 @@ export default function SoloStudyBackground({
               priority
               unoptimized // Use Unsplash's CDN directly
             />
-            {/* Dark overlay for readability */}
-            <div className="absolute inset-0 bg-black/60" />
+            {/* Enhanced overlay system for better readability and atmosphere */}
+            <div className="absolute inset-0">
+              {/* Base dark overlay */}
+              <div className={`absolute inset-0 ${isLibrary ? 'bg-black/50' : 'bg-black/60'}`} />
+
+              {/* Library-specific warm vignette effect */}
+              {isLibrary && (
+                <>
+                  {/* Warm amber tint for cozy feel */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-transparent to-amber-950/30" />
+                  {/* Center spotlight effect */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
+                  {/* Soft vignette edges */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.5)_100%)]" />
+                </>
+              )}
+            </div>
           </div>
         )}
+
         {/* Subtle animated overlay for depth */}
         <div className="fixed inset-0 pointer-events-none z-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent" />
+
+          {/* Animated ambient light effects */}
           <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
+            <div
+              className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse"
+              style={{
+                animationDuration: '8s',
+                backgroundColor: isLibrary ? 'rgba(217, 119, 6, 0.08)' : 'rgba(255, 255, 255, 0.05)'
+              }}
+            />
+            <div
+              className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse"
+              style={{
+                animationDuration: '10s',
+                animationDelay: '2s',
+                backgroundColor: isLibrary ? 'rgba(180, 83, 9, 0.06)' : 'rgba(255, 255, 255, 0.05)'
+              }}
+            />
+            {/* Extra ambient glow for library */}
+            {isLibrary && (
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl animate-pulse"
+                style={{
+                  animationDuration: '12s',
+                  animationDelay: '4s',
+                  backgroundColor: 'rgba(251, 191, 36, 0.04)'
+                }}
+              />
+            )}
           </div>
+
+          {/* Subtle dust particles effect for library */}
+          {isLibrary && (
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-[10%] left-[20%] w-1 h-1 bg-amber-200/40 rounded-full animate-float" style={{ animationDuration: '15s' }} />
+              <div className="absolute top-[30%] left-[60%] w-0.5 h-0.5 bg-amber-100/30 rounded-full animate-float" style={{ animationDuration: '18s', animationDelay: '3s' }} />
+              <div className="absolute top-[50%] left-[80%] w-1 h-1 bg-amber-200/30 rounded-full animate-float" style={{ animationDuration: '20s', animationDelay: '6s' }} />
+              <div className="absolute top-[70%] left-[40%] w-0.5 h-0.5 bg-amber-100/40 rounded-full animate-float" style={{ animationDuration: '16s', animationDelay: '9s' }} />
+              <div className="absolute top-[20%] left-[75%] w-1 h-1 bg-amber-200/25 rounded-full animate-float" style={{ animationDuration: '22s', animationDelay: '2s' }} />
+            </div>
+          )}
         </div>
+
         <div className="relative z-20">
           {children}
         </div>

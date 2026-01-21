@@ -10,9 +10,15 @@ import { createClient } from '@/lib/supabase/server'
 import { enqueueRequest, QueuePriority, createDedupeKey } from './queue'
 import logger from '@/lib/logger'
 
-// Initialize OpenAI client
+// SCALE: OpenAI request timeout (30 seconds)
+// Prevents hanging requests from blocking resources at scale
+const OPENAI_REQUEST_TIMEOUT = 30000 // 30 seconds
+
+// Initialize OpenAI client with timeout
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: OPENAI_REQUEST_TIMEOUT, // SCALE: Add global timeout for all requests
+  maxRetries: 2, // SCALE: Limit retries to prevent cascading timeouts
 })
 
 // Default model configuration

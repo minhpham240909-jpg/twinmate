@@ -607,10 +607,36 @@ export async function POST(request: NextRequest) {
     const stream = new TransformStream()
     const writer = stream.writable.getWriter()
 
+    // SCALE: Streaming timeout (60 seconds max) to prevent hanging connections
+    const STREAM_TIMEOUT_MS = 60000
+    let streamTimeoutId: NodeJS.Timeout | null = null
+    let isStreamClosed = false
+
+    const closeStreamWithTimeout = async () => {
+      if (isStreamClosed) return
+      isStreamClosed = true
+      if (streamTimeoutId) clearTimeout(streamTimeoutId)
+      try {
+        await writer.write(encoder.encode(`data: ${JSON.stringify({
+          type: 'error',
+          error: 'Response timeout - please try again',
+        })}\n\n`))
+        await writer.close()
+      } catch {
+        // Writer may already be closed
+      }
+    }
+
     // Start streaming in background
     ;(async () => {
       let aiMessageId = ''
       let fullContent = ''
+
+      // SCALE: Set timeout to close stream if it hangs
+      streamTimeoutId = setTimeout(() => {
+        console.warn('[AI Partner Stream] Timeout after', STREAM_TIMEOUT_MS, 'ms for session:', sessionId)
+        closeStreamWithTimeout()
+      }, STREAM_TIMEOUT_MS)
 
       try {
         // Send initial event with user message info
@@ -678,6 +704,10 @@ export async function POST(request: NextRequest) {
                 data: sessionUpdate,
               })
 
+              // SCALE: Clear timeout on successful completion
+              if (streamTimeoutId) clearTimeout(streamTimeoutId)
+              isStreamClosed = true
+
               // Send complete event
               await writer.write(encoder.encode(`data: ${JSON.stringify({
                 type: 'complete',
@@ -693,6 +723,10 @@ export async function POST(request: NextRequest) {
               await writer.close()
             },
             onError: async (error) => {
+              // SCALE: Clear timeout on error
+              if (streamTimeoutId) clearTimeout(streamTimeoutId)
+              isStreamClosed = true
+
               console.error('[AI Partner Stream] Error:', error)
               await writer.write(encoder.encode(`data: ${JSON.stringify({
                 type: 'error',
@@ -707,12 +741,21 @@ export async function POST(request: NextRequest) {
           }
         )
       } catch (err) {
+        // SCALE: Clear timeout on outer error
+        if (streamTimeoutId) clearTimeout(streamTimeoutId)
+        if (isStreamClosed) return
+
+        isStreamClosed = true
         console.error('[AI Partner Stream] Outer error:', err)
-        await writer.write(encoder.encode(`data: ${JSON.stringify({
-          type: 'error',
-          error: 'Failed to stream response',
-        })}\n\n`))
-        await writer.close()
+        try {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            type: 'error',
+            error: 'Failed to stream response',
+          })}\n\n`))
+          await writer.close()
+        } catch {
+          // Writer may already be closed
+        }
       }
     })()
 

@@ -19,9 +19,14 @@ import {
 } from './intent-patterns'
 import { processInput, normalizeForMatching, isShortReply } from './input-processor'
 
-// OpenAI client for fallback classification
+// SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
+const OPENAI_REQUEST_TIMEOUT = 30000
+
+// OpenAI client for fallback classification with timeout
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: OPENAI_REQUEST_TIMEOUT,
+  maxRetries: 2,
 })
 
 // Cache for recently classified intents (to avoid redundant calls)
