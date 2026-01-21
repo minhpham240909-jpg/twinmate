@@ -44,12 +44,31 @@ export default function MathRenderer({ content, className = '' }: MathRendererPr
  * Strip pre-rendered KaTeX HTML that AI might accidentally output
  * The AI should output LaTeX source code (e.g., $E = mc^2$), but sometimes
  * it outputs pre-rendered KaTeX HTML alongside or instead of the LaTeX.
- * This function removes all such HTML artifacts, including malformed HTML.
+ * This function extracts the LaTeX from annotation tags when possible,
+ * or removes all such HTML artifacts, including malformed HTML.
  */
 function stripPreRenderedKatex(text: string): string {
   let result = text
 
-  // Pattern 1: Remove "katex>...KATEX_END" blocks entirely
+  // Pattern 0: Extract LaTeX from "katex>...KATEX_END" blocks that contain annotation tags
+  // The annotation tag contains the original LaTeX: <annotation encoding=application/x-tex>A = \pi r^2</annotation>
+  // We extract this LaTeX and wrap it in $ delimiters for proper rendering
+  result = result.replace(/katex>[\s\S]*?<annotation[^>]*>([^<]+)<\/annotation>[\s\S]*?KATEX_END/gi, (match, latex) => {
+    // Return the extracted LaTeX wrapped in $ for inline math
+    return `$${latex.trim()}$`
+  })
+
+  // Pattern 0b: Handle malformed annotation without proper closing (extract what we can)
+  // Matches: annotation encoding= application/x-tex >LATEX_CONTENT</annotation> or annotation...>CONTENT
+  result = result.replace(/annotation[^>]*encoding[^>]*>([^<]+)/gi, (_match, latex) => {
+    // Only replace if it looks like LaTeX (contains backslash or common math symbols)
+    if (latex && (latex.includes('\\') || /[πσ∑∫√]/.test(latex) || /\^|_/.test(latex))) {
+      return `$${latex.trim()}$`
+    }
+    return _match
+  })
+
+  // Pattern 1: Remove any remaining "katex>...KATEX_END" blocks (ones without extractable LaTeX)
   result = result.replace(/katex>[\s\S]*?KATEX_END/gi, '')
 
   // Pattern 2: Remove KATEX_SAFE...KATEX_END markers with any content inside

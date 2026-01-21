@@ -24,10 +24,12 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Find all active sessions where user is a participant
+    // Find all active sessions where user is a participant AND still connected
+    // Users who clicked "leave" during IN_PROGRESS are marked isConnected: false
     const participations = await prisma.arenaParticipant.findMany({
       where: {
         userId: user.id,
+        isConnected: true, // Only show sessions user hasn't left
         arena: {
           status: {
             in: ['LOBBY', 'STARTING', 'IN_PROGRESS'],
