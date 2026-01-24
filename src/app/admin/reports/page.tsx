@@ -28,6 +28,7 @@ import {
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
 import Link from 'next/link'
 import { useCsrf } from '@/hooks/useCsrf'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 type TabType = 'reports' | 'feedback' | 'flagged'
 
@@ -138,6 +139,9 @@ export default function AdminReportsPage() {
 
   // CSRF token for secure admin actions
   const { csrfFetch } = useCsrf()
+
+  // Modal for confirmations/alerts
+  const { showAlert, showDanger } = useConfirmModal()
 
   // Reports state
   const [reports, setReports] = useState<ReportData[]>([])
@@ -350,11 +354,11 @@ export default function AdminReportsPage() {
         setBanDuration(null)
         setBanReason('')
       } else {
-        alert(data.error || 'Action failed')
+        showAlert('Action Failed', data.error || 'The action could not be completed. Please try again.')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred')
+      showAlert('Error', 'An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -393,11 +397,11 @@ export default function AdminReportsPage() {
         setFeedbackModal(null)
         setAdminNotes('')
       } else {
-        alert(data.error || 'Action failed')
+        showAlert('Action Failed', data.error || 'The action could not be completed. Please try again.')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred')
+      showAlert('Error', 'An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -447,11 +451,11 @@ export default function AdminReportsPage() {
         setFlaggedBanDuration(null)
         setFlaggedBanReason('')
       } else {
-        alert(data.error || 'Action failed')
+        showAlert('Action Failed', data.error || 'The action could not be completed. Please try again.')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred')
+      showAlert('Error', 'An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -459,7 +463,13 @@ export default function AdminReportsPage() {
 
   // Delete flagged content permanently
   const deleteFlaggedContent = async (contentId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this flagged content record? This cannot be undone.')) return
+    const confirmed = await showDanger(
+      'Delete Flagged Content',
+      'Are you sure you want to permanently delete this flagged content record? This cannot be undone.',
+      'Delete',
+      'Cancel'
+    )
+    if (!confirmed) return
 
     try {
       const response = await csrfFetch('/api/admin/flagged-content', {
@@ -478,7 +488,13 @@ export default function AdminReportsPage() {
 
   // Delete report permanently
   const deleteReport = async (reportId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this report? This cannot be undone.')) return
+    const confirmed = await showDanger(
+      'Delete Report',
+      'Are you sure you want to permanently delete this report? This cannot be undone.',
+      'Delete',
+      'Cancel'
+    )
+    if (!confirmed) return
 
     try {
       const response = await csrfFetch('/api/admin/reports', {
@@ -497,7 +513,13 @@ export default function AdminReportsPage() {
 
   // Delete feedback permanently
   const deleteFeedback = async (feedbackId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this feedback? This cannot be undone.')) return
+    const confirmed = await showDanger(
+      'Delete Feedback',
+      'Are you sure you want to permanently delete this feedback? This cannot be undone.',
+      'Delete',
+      'Cancel'
+    )
+    if (!confirmed) return
 
     try {
       const response = await csrfFetch('/api/admin/feedback', {

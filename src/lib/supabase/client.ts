@@ -19,5 +19,14 @@ export function createClient() {
   // CRITICAL: createBrowserClient from @supabase/ssr automatically handles cookies
   // It sets cookies that the server middleware can read
   // DO NOT add custom storage - let it use the default cookie-based storage
-  return createBrowserClient(url, key)
+  return createBrowserClient(url, key, {
+    realtime: {
+      params: {
+        // Increase eventsPerSecond from default 10 to 100
+        // With 20 subscriptions per user, this allows 5 events per subscription per second
+        // which is sufficient for typing indicators, presence, and message broadcasts
+        eventsPerSecond: 100,
+      },
+    },
+  })
 }

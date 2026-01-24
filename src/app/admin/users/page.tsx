@@ -27,6 +27,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useCsrfToken } from '@/hooks/useCsrfToken'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 interface UserData {
   id: string
@@ -66,6 +67,9 @@ export default function AdminUsersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { csrfToken } = useCsrfToken()
+
+  // Modal for confirmations/alerts
+  const { showAlert } = useConfirmModal()
 
   // State
   const [users, setUsers] = useState<UserData[]>([])
@@ -154,7 +158,7 @@ export default function AdminUsersPage() {
 
     // Check for CSRF token before proceeding
     if (!csrfToken) {
-      alert('Security token not available. Please refresh the page and try again.')
+      showAlert('Security Error', 'Security token not available. Please refresh the page and try again.')
       return
     }
 
@@ -196,11 +200,11 @@ export default function AdminUsersPage() {
         setWarningSeverity(1)
         setDeleteConfirmText('')
       } else {
-        alert(data.error || 'Action failed')
+        showAlert('Action Failed', data.error || 'The action could not be completed. Please try again.')
       }
     } catch (error) {
       console.error('Error performing action:', error)
-      alert('An error occurred')
+      showAlert('Error', 'An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

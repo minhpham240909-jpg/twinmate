@@ -26,6 +26,8 @@ import {
   Timer,
 } from 'lucide-react'
 
+import { useConfirmModal } from '@/hooks/useConfirmModal'
+
 type Tool = 'pen' | 'eraser' | 'line' | 'circle' | 'rectangle' | 'text'
 
 interface DrawAction {
@@ -68,6 +70,9 @@ interface AIPartnerWhiteboardProps {
 export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, isTimerActive = true }: AIPartnerWhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Modal for confirmations
+  const { showDanger } = useConfirmModal()
 
   // UI State
   const [tool, setTool] = useState<Tool>('pen')
@@ -481,8 +486,9 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, is
     setShowTextInput(false)
   }
 
-  const handleClear = () => {
-    if (!confirm('Clear the whiteboard?')) return
+  const handleClear = async () => {
+    const confirmed = await showDanger('Clear Whiteboard', 'Are you sure you want to clear the whiteboard?', 'Clear', 'Cancel')
+    if (!confirmed) return
     setActions([])
     setRedoStack([])
     localStorage.removeItem(`ai-whiteboard-${sessionId}`)
@@ -678,7 +684,8 @@ export default function AIPartnerWhiteboard({ sessionId, subject, skillLevel, is
 
   // Clear all analysis history from database
   const handleClearHistory = async () => {
-    if (!confirm('Clear all analysis history?')) return
+    const confirmed = await showDanger('Clear History', 'Are you sure you want to clear all analysis history?', 'Clear', 'Cancel')
+    if (!confirmed) return
 
     // Delete all responses from history
     const deletePromises = analysisHistory

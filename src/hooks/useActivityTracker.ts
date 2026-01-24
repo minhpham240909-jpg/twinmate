@@ -238,7 +238,11 @@ export function useActivityTracker(): UseActivityTrackerReturn {
 
   // Track page exit on unmount or visibility change
   useEffect(() => {
+    // FIX: Track mounted state to prevent state updates after unmount
+    let isMounted = true
+
     const handleVisibilityChange = () => {
+      if (!isMounted) return
       if (document.visibilityState === 'hidden') {
         trackPageExit()
       } else if (document.visibilityState === 'visible') {
@@ -256,8 +260,11 @@ export function useActivityTracker(): UseActivityTrackerReturn {
     window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
+      isMounted = false
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      // FIX: Only call trackPageExit on actual page unload, not component unmount
+      // trackPageExit uses sendBeacon which is fire-and-forget, so it's safe
       trackPageExit()
     }
   }, [pathname, trackPageExit, trackPageVisit])

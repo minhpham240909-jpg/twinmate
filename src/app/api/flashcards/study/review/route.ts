@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 /**
  * SM-2 Spaced Repetition Algorithm
@@ -90,6 +91,15 @@ function calculateXP(quality: number, isNew: boolean): number {
  * POST /api/flashcards/study/review - Submit a card review
  */
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit card reviews (messaging preset - high frequency during study)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.messaging)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -290,73 +300,95 @@ export async function POST(request: NextRequest) {
 
 /**
  * Update deck-level progress stats
+ * FIX: Combined queries to eliminate N+1 issue
  */
 async function updateDeckProgress(userId: string, deckId: string) {
   try {
-    // Get all card progress for this user and deck
-    const allProgress = await prisma.flashcardCardProgress.findMany({
-      where: {
-        userId,
-        card: { deckId },
-      },
-    })
-
+    // FIX: Single query to get deck with cardCount and all card progress
     const deck = await prisma.flashcardDeck.findUnique({
       where: { id: deckId },
-      select: { cardCount: true },
+      select: {
+        cardCount: true,
+        cards: {
+          select: {
+            userProgress: {
+              where: { userId },
+              select: {
+                status: true,
+                correctCount: true,
+                totalReviews: true,
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!deck) return
 
+    // Define progress type for type safety
+    type CardProgress = {
+      status: string
+      correctCount: number
+      totalReviews: number
+    }
+
+    // Flatten progress from cards
+    const allProgress: CardProgress[] = deck.cards
+      .map((card: { userProgress: CardProgress[] }) => card.userProgress[0])
+      .filter((p): p is CardProgress => !!p)
+
     const cardsStudied = allProgress.length
-    const cardsMastered = allProgress.filter((p) => p.status === 'mastered').length
-    const cardsLearning = allProgress.filter((p) => ['learning', 'reviewing'].includes(p.status)).length
+    const cardsMastered = allProgress.filter((p: CardProgress) => p.status === 'mastered').length
+    const cardsLearning = allProgress.filter((p: CardProgress) => ['learning', 'reviewing'].includes(p.status)).length
     const cardsNotStarted = deck.cardCount - cardsStudied
 
-    const totalCorrect = allProgress.reduce((sum, p) => sum + p.correctCount, 0)
-    const totalReviews = allProgress.reduce((sum, p) => sum + p.totalReviews, 0)
+    const totalCorrect = allProgress.reduce((sum: number, p: CardProgress) => sum + p.correctCount, 0)
+    const totalReviews = allProgress.reduce((sum: number, p: CardProgress) => sum + p.totalReviews, 0)
     const averageAccuracy = totalReviews > 0 ? (totalCorrect / totalReviews) * 100 : null
 
     const masteryPercent = deck.cardCount > 0
       ? (cardsMastered / deck.cardCount) * 100
       : 0
 
-    // Upsert deck progress
-    await prisma.flashcardDeckProgress.upsert({
-      where: {
-        userId_deckId: { userId, deckId },
-      },
-      update: {
-        cardsStudied,
-        cardsMastered,
-        cardsLearning,
-        cardsNotStarted,
-        masteryPercent,
-        averageAccuracy,
-        totalSessions: { increment: 0 }, // Will be updated when session ends
-        lastStudiedAt: new Date(),
-      },
-      create: {
-        userId,
-        deckId,
-        cardsStudied,
-        cardsMastered,
-        cardsLearning,
-        cardsNotStarted,
-        masteryPercent,
-        averageAccuracy,
-        lastStudiedAt: new Date(),
-      },
-    })
+    const now = new Date()
 
-    // Update deck last studied
-    await prisma.flashcardDeck.update({
-      where: { id: deckId },
-      data: {
-        lastStudiedAt: new Date(),
-        studyCount: { increment: 1 },
-      },
-    })
+    // FIX: Combine upsert and update in a single transaction
+    await prisma.$transaction([
+      prisma.flashcardDeckProgress.upsert({
+        where: {
+          userId_deckId: { userId, deckId },
+        },
+        update: {
+          cardsStudied,
+          cardsMastered,
+          cardsLearning,
+          cardsNotStarted,
+          masteryPercent,
+          averageAccuracy,
+          totalSessions: { increment: 0 }, // Will be updated when session ends
+          lastStudiedAt: now,
+        },
+        create: {
+          userId,
+          deckId,
+          cardsStudied,
+          cardsMastered,
+          cardsLearning,
+          cardsNotStarted,
+          masteryPercent,
+          averageAccuracy,
+          lastStudiedAt: now,
+        },
+      }),
+      prisma.flashcardDeck.update({
+        where: { id: deckId },
+        data: {
+          lastStudiedAt: now,
+          studyCount: { increment: 1 },
+        },
+      }),
+    ])
   } catch (error) {
     console.error('Update deck progress error:', error)
   }

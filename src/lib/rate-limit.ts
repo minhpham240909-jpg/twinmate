@@ -54,7 +54,12 @@ export interface RateLimitResult {
   headers: Record<string, string>
 }
 
-// In-memory store for development (use Upstash Redis in production)
+/**
+ * In-memory store for development and local testing only.
+ * NOTE: This store resets on server restart - this is expected behavior.
+ * In production, Upstash Redis is REQUIRED for persistent rate limiting.
+ * The validateRedisConfiguration() function enforces this at startup.
+ */
 const memoryStore = new Map<string, { count: number; resetTime: number }>()
 
 // Cleanup old entries every 5 minutes
@@ -164,6 +169,7 @@ export async function rateLimit(
 
 /**
  * Rate limit using Upstash Redis (production)
+ * FIX: Use atomic Lua script via EVAL to prevent race conditions
  */
 async function rateLimitWithRedis(
   key: string,
@@ -175,34 +181,50 @@ async function rateLimitWithRedis(
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
     const now = Date.now()
-    const resetTime = now + windowMs
+    const windowSeconds = Math.ceil(windowMs / 1000)
 
-    // Use Redis pipeline for atomic operations
-    const pipeline = [
-      ['INCR', key],
-      ['PEXPIRE', key, windowMs],
-      ['TTL', key],
-    ]
+    // FIX: Use Lua script for atomic check-and-increment
+    // This prevents race conditions where INCR and PEXPIRE are not atomic
+    // The script: if key doesn't exist or TTL is not set, SET with EX
+    // Otherwise INCR. Returns [count, ttl]
+    const luaScript = `
+      local key = KEYS[1]
+      local limit = tonumber(ARGV[1])
+      local window = tonumber(ARGV[2])
+      local current = redis.call('GET', key)
+      if current == false then
+        redis.call('SET', key, 1, 'EX', window)
+        return {1, window}
+      else
+        local count = redis.call('INCR', key)
+        local ttl = redis.call('TTL', key)
+        if ttl == -1 then
+          redis.call('EXPIRE', key, window)
+          ttl = window
+        end
+        return {count, ttl}
+      end
+    `
 
-    const response = await fetchWithBackoff(`${url}/pipeline`, {
+    // Upstash REST API EVAL endpoint
+    const evalUrl = `${url}/eval/${encodeURIComponent(luaScript)}/1/${encodeURIComponent(`ratelimit:${key}`)}/${max}/${windowSeconds}`
+
+    const response = await fetchWithBackoff(evalUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(pipeline),
     }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
 
     if (!response.ok) {
       const errorText = await response.text()
-      logger.error('Upstash Redis rate-limit pipeline error', { errorText })
+      logger.error('Upstash Redis rate-limit EVAL error', { errorText })
       // Fallback to memory on Redis error
       return rateLimitWithMemory(key, max, windowMs)
     }
 
-    const results = await response.json() as Array<{ result: number }>
-    const count = results[0].result
-    const ttl = results[2].result // TTL in seconds
+    const data = await response.json() as { result: [number, number] }
+    const [count, ttl] = data.result
 
     const remaining = Math.max(0, max - count)
     const reset = Math.floor((now + (ttl * 1000)) / 1000) // Unix timestamp in seconds
@@ -214,7 +236,7 @@ async function rateLimitWithRedis(
     }
 
     if (count > max) {
-      headers['Retry-After'] = ttl.toString()
+      headers['Retry-After'] = Math.max(1, ttl).toString()
       return {
         success: false,
         limit: max,

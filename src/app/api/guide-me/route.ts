@@ -32,6 +32,7 @@ import {
   saveMemories,
 } from '@/lib/ai-partner/memory'
 import type { AIMemoryCategory } from '@prisma/client'
+import logger, { createRequestLogger, getCorrelationId } from '@/lib/logger'
 
 // Type for extracted memory entries
 interface ExtractedMemory {
@@ -42,12 +43,20 @@ interface ExtractedMemory {
 }
 
 // OpenAI client with timeout to prevent hanging requests at scale
-const OPENAI_TIMEOUT_MS = 30000 // 30 seconds
+const OPENAI_TIMEOUT_MS = 45000 // 45 seconds for complex inputs
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   timeout: OPENAI_TIMEOUT_MS,
-  maxRetries: 2, // Limit retries to prevent cascading timeouts
+  maxRetries: 1, // Single retry to keep response fast
 })
+
+// Input size thresholds for adaptive processing
+const INPUT_SIZE = {
+  SMALL: 500,    // < 500 chars - quick response
+  MEDIUM: 2000,  // 500-2000 chars - standard response
+  LARGE: 8000,   // 2000-8000 chars - comprehensive response
+  MAX: 12000,    // > 8000 chars - truncate intelligently
+} as const
 
 // Types
 type MicroActionType = 'explanation' | 'flashcards' | 'roadmap' | 'auto'
@@ -111,6 +120,13 @@ interface RoadmapAction {
 
 type MicroAction = ExplanationAction | FlashcardAction | RoadmapAction
 
+// Secondary action suggestion - shown as optional next step
+interface SecondaryActionSuggestion {
+  type: 'flashcards' | 'explanation' | 'roadmap'
+  reason: string // Why this is suggested
+  prompt: string // Pre-filled prompt to use if user taps
+}
+
 interface GuideRequest {
   question: string // What the user is stuck on
   subject?: string // Optional subject context
@@ -121,6 +137,7 @@ interface GuideRequest {
 interface GuideResponse {
   success: boolean
   action: MicroAction
+  secondaryAction?: SecondaryActionSuggestion // Optional secondary output suggestion
   xpEarned: number
   streakUpdated: boolean
   encouragement: string
@@ -131,10 +148,93 @@ const XP_PER_ACTION = 10
 
 // Guest trial limit (server-side enforcement)
 const GUEST_TRIAL_LIMIT = 3
+
+// ============================================
+// Response Cache for Common Queries
+// ============================================
+// Simple in-memory cache with TTL to speed up repeated queries
+// This reduces AI calls for common questions like "what is photosynthesis"
+
+interface CacheEntry {
+  response: MicroAction
+  timestamp: number
+  hits: number
+}
+
+const responseCache = new Map<string, CacheEntry>()
+const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
+const CACHE_MAX_SIZE = 100 // Limit memory usage
+
+/**
+ * Generate a cache key from the query parameters
+ * Only cache short, generic queries (not personalized content)
+ */
+function getCacheKey(question: string, actionType: string, struggleType: string): string | null {
+  // Only cache short queries (likely to be common questions)
+  if (question.length > 200) return null
+
+  // Don't cache if it looks personalized (contains "my", "I", names, etc.)
+  const personalPatterns = /\b(my|mine|i'm|i am|i have|i need|help me|my homework|my test|my class)\b/i
+  if (personalPatterns.test(question)) return null
+
+  // Normalize the question for consistent caching
+  const normalized = question.toLowerCase().trim().replace(/[^\w\s]/g, '')
+  return `${normalized}:${actionType}:${struggleType}`
+}
+
+/**
+ * Get cached response if available and not expired
+ */
+function getCachedResponse(key: string): MicroAction | null {
+  const entry = responseCache.get(key)
+  if (!entry) return null
+
+  // Check if expired
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    responseCache.delete(key)
+    return null
+  }
+
+  // Update hit count and move to end (LRU behavior)
+  entry.hits++
+  entry.timestamp = Date.now() // Update last access time
+  
+  // Move to end of Map (most recently used)
+  responseCache.delete(key)
+  responseCache.set(key, entry)
+  
+  return entry.response
+}
+
+/**
+ * Cache a response for future use (LRU eviction)
+ */
+function cacheResponse(key: string, response: MicroAction): void {
+  // If key exists, update and move to end
+  if (responseCache.has(key)) {
+    responseCache.delete(key)
+  }
+  
+  // Evict least recently used entries if at capacity
+  if (responseCache.size >= CACHE_MAX_SIZE) {
+    // Remove 25% of oldest entries for efficiency
+    const entriesToRemove = Math.max(1, Math.floor(CACHE_MAX_SIZE * 0.25))
+    const keys = Array.from(responseCache.keys()).slice(0, entriesToRemove)
+    keys.forEach(k => responseCache.delete(k))
+  }
+
+  responseCache.set(key, {
+    response,
+    timestamp: Date.now(),
+    hits: 1,
+  })
+}
 const GUEST_RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000 // 24 hours
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
+  const log = createRequestLogger(request)
+  const correlationId = getCorrelationId(request)
 
   try {
     // Check if user is authenticated
@@ -243,14 +343,48 @@ export async function POST(request: NextRequest) {
       ? determineActionType(question, struggleType)
       : actionType
 
-    // Generate the micro-action with full memory context
-    const action = await generateMicroAction(
+    // Check cache for common queries (speeds up repeated questions)
+    const cacheKey = getCacheKey(question, determinedActionType, struggleType)
+    let action: MicroAction
+    let fromCache = false
+
+    if (cacheKey) {
+      const cachedAction = getCachedResponse(cacheKey)
+      if (cachedAction) {
+        action = cachedAction
+        fromCache = true
+        log.debug('Cache hit', { cacheKey: cacheKey.slice(0, 50) })
+      } else {
+        // Generate the micro-action with full memory context
+        action = await generateMicroAction(
+          question,
+          subject,
+          struggleType,
+          determinedActionType,
+          userContext,
+          memoryContext
+        )
+        // Cache the response for future use
+        cacheResponse(cacheKey, action)
+      }
+    } else {
+      // Long or personalized query - don't cache
+      action = await generateMicroAction(
+        question,
+        subject,
+        struggleType,
+        determinedActionType,
+        userContext,
+        memoryContext
+      )
+    }
+
+    // Analyze if secondary action would help (lightweight, no extra AI call)
+    const secondaryAction = analyzeForSecondaryAction(
       question,
-      subject,
       struggleType,
       determinedActionType,
-      userContext,
-      memoryContext
+      action
     )
 
     // Award XP (only for authenticated users, non-blocking)
@@ -263,7 +397,7 @@ export async function POST(request: NextRequest) {
         xpEarned = result.xpEarned
         streakUpdated = result.streakUpdated
       } catch (error) {
-        console.error('[Guide Me API] Error awarding XP:', error)
+        log.error('Error awarding XP', error instanceof Error ? error : { error })
         // Continue - XP failure shouldn't block the response
       }
     }
@@ -278,6 +412,7 @@ export async function POST(request: NextRequest) {
     const response: GuideResponse & { isGuest?: boolean; trialsRemaining?: number } = {
       success: true,
       action,
+      secondaryAction,
       xpEarned,
       streakUpdated,
       encouragement: getEncouragement(action.type),
@@ -292,24 +427,143 @@ export async function POST(request: NextRequest) {
 
     // Log performance
     const duration = Date.now() - startTime
-    if (duration > 3000) {
+    if (duration > 3000 && !fromCache) {
       console.warn(`[Guide Me API] Slow response: ${duration}ms`)
     }
+    if (fromCache && duration < 100) {
+      log.debug('Fast cache response', { durationMs: duration })
+    }
 
-    return NextResponse.json(response)
+    return NextResponse.json(response, {
+      headers: {
+        'x-correlation-id': correlationId,
+      },
+    })
 
   } catch (error) {
-    console.error('[Guide Me API] Error:', error)
+    log.error('Request failed', error instanceof Error ? error : { error })
 
-    // Return a helpful fallback response
+    // Return error response with fallback action for graceful degradation
     return NextResponse.json({
-      success: true,
-      action: createFallbackExplanation(),
+      success: false,
+      error: 'Unable to process your request. Please try again.',
+      fallbackAction: createFallbackExplanation(),
       xpEarned: 0,
       streakUpdated: false,
       encouragement: "Let's work through this together!",
+    }, { 
+      status: 500,
+      headers: {
+        'x-correlation-id': correlationId,
+      },
     })
   }
+}
+
+/**
+ * Analyze if a secondary action would help the user
+ *
+ * Rules based on product vision:
+ * - Explain Pack: Suggest flashcards if multi-concept, roadmap if overwhelmed
+ * - Test Prep: Suggest explanation if a concept seems weak
+ * - Guide Me: Suggest explanation if stuck on a complex step
+ *
+ * This is lightweight analysis (no AI call) to avoid latency
+ */
+function analyzeForSecondaryAction(
+  question: string,
+  struggleType: StruggleType,
+  primaryActionType: MicroActionType,
+  action: MicroAction
+): SecondaryActionSuggestion | undefined {
+  const q = question.toLowerCase()
+  const questionLength = question.length
+
+  // Indicators for different secondary needs
+  const multiConceptIndicators = [
+    'and', 'also', 'both', 'multiple', 'several', 'different',
+    'compare', 'contrast', 'relationship', 'between', 'versus', 'vs'
+  ]
+  const overwhelmedIndicators = [
+    'confused', 'lost', 'overwhelmed', 'don\'t know where to start',
+    'too much', 'complex', 'complicated', 'hard', 'difficult',
+    'no idea', 'completely', 'totally'
+  ]
+  const weakConceptIndicators = [
+    'still don\'t', 'still confused', 'doesn\'t make sense',
+    'why does', 'how does', 'what does', 'meaning of'
+  ]
+
+  const hasMultiConcept = multiConceptIndicators.some(ind => q.includes(ind))
+  const isOverwhelmed = overwhelmedIndicators.some(ind => q.includes(ind))
+  const hasWeakConcept = weakConceptIndicators.some(ind => q.includes(ind))
+  const isLongQuestion = questionLength > 200
+
+  // EXPLAIN PACK (explanation) secondary suggestions
+  if (primaryActionType === 'explanation') {
+    // If multi-concept, suggest flashcards to test understanding
+    if (hasMultiConcept || (action.type === 'explanation' && action.core?.keyPoints && action.core.keyPoints.length >= 4)) {
+      return {
+        type: 'flashcards',
+        reason: 'Test your understanding of these concepts',
+        prompt: `Create flashcards to test: ${question.slice(0, 100)}`,
+      }
+    }
+
+    // If overwhelmed or long question, suggest roadmap
+    if (isOverwhelmed || isLongQuestion) {
+      return {
+        type: 'roadmap',
+        reason: 'Break this down into manageable steps',
+        prompt: `Create a step-by-step plan for: ${question.slice(0, 100)}`,
+      }
+    }
+  }
+
+  // TEST PREP (flashcards) secondary suggestions
+  if (primaryActionType === 'flashcards') {
+    // If weak concept indicators, suggest explanation
+    if (hasWeakConcept) {
+      return {
+        type: 'explanation',
+        reason: 'Strengthen your understanding first',
+        prompt: `Explain the concept: ${question.slice(0, 100)}`,
+      }
+    }
+
+    // If cards seem to cover a lot, suggest roadmap for structured review
+    if (action.type === 'flashcards' && action.cards && action.cards.length >= 3 && isLongQuestion) {
+      return {
+        type: 'roadmap',
+        reason: 'Create a study plan for this topic',
+        prompt: `Create a study plan for my test on: ${question.slice(0, 100)}`,
+      }
+    }
+  }
+
+  // GUIDE ME (roadmap) secondary suggestions
+  if (primaryActionType === 'roadmap') {
+    // If question suggests conceptual confusion, suggest explanation
+    if (hasWeakConcept || q.includes('understand')) {
+      return {
+        type: 'explanation',
+        reason: 'Understand the concept before following steps',
+        prompt: `Explain the concept behind: ${question.slice(0, 100)}`,
+      }
+    }
+
+    // If many steps and complex topic, suggest flashcards for key terms
+    if (action.type === 'roadmap' && action.steps && action.steps.length >= 4) {
+      return {
+        type: 'flashcards',
+        reason: 'Review key terms as you work through steps',
+        prompt: `Create flashcards for key terms in: ${question.slice(0, 100)}`,
+      }
+    }
+  }
+
+  // No secondary action needed
+  return undefined
 }
 
 /**
@@ -348,7 +602,54 @@ function determineActionType(question: string, struggleType: StruggleType): Micr
 }
 
 /**
+ * Preprocess input for optimal AI analysis
+ * - Cleans and structures input
+ * - Handles large inputs intelligently
+ * - Returns processed question and recommended token count
+ */
+function preprocessInput(rawQuestion: string): { question: string; maxTokens: number; isLarge: boolean } {
+  let question = rawQuestion.trim()
+  const originalLength = question.length
+
+  // Determine input size category
+  const isSmall = originalLength < INPUT_SIZE.SMALL
+  const isMedium = originalLength >= INPUT_SIZE.SMALL && originalLength < INPUT_SIZE.MEDIUM
+  const isLarge = originalLength >= INPUT_SIZE.MEDIUM
+
+  // For very large inputs, intelligently truncate while preserving key content
+  if (originalLength > INPUT_SIZE.MAX) {
+    // Try to keep the beginning (usually the question) and end (usually context)
+    const keepStart = Math.floor(INPUT_SIZE.MAX * 0.6) // 60% from start
+    const keepEnd = Math.floor(INPUT_SIZE.MAX * 0.35) // 35% from end
+    const startPart = question.slice(0, keepStart)
+    const endPart = question.slice(-keepEnd)
+    question = `${startPart}\n\n[... content summarized for processing ...]\n\n${endPart}`
+  }
+
+  // Clean up extracted content markers for better AI understanding
+  question = question
+    .replace(/\[From document:.*?\]/g, '') // Remove document markers
+    .replace(/\[PDF content.*?\]/g, '') // Remove PDF warnings
+    .replace(/TOPIC:|CONTENT:|KEY ELEMENTS:|CONTEXT:/g, '\n') // Clean extraction headers
+    .replace(/\n{3,}/g, '\n\n') // Normalize newlines
+    .trim()
+
+  // Adaptive token allocation based on input size
+  let maxTokens: number
+  if (isSmall) {
+    maxTokens = 600 // Quick, focused response
+  } else if (isMedium) {
+    maxTokens = 800 // Standard comprehensive response
+  } else {
+    maxTokens = 1000 // Full detailed response for complex inputs
+  }
+
+  return { question, maxTokens, isLarge }
+}
+
+/**
  * Generate a micro-action using AI - now with full memory context!
+ * Optimized for fast, high-quality responses across all input sizes
  */
 async function generateMicroAction(
   question: string,
@@ -358,10 +659,18 @@ async function generateMicroAction(
   userContext: string,
   memoryContext: string = ''
 ): Promise<MicroAction> {
+  // Preprocess input for optimal handling
+  const { question: processedQuestion, maxTokens, isLarge } = preprocessInput(question)
+
   const subjectContext = subject ? `Subject: ${subject}\n` : ''
   const userContextLine = userContext ? `Student context: ${userContext}\n` : ''
   // Memory context includes past sessions, struggles, successes, preferences
   const memorySection = memoryContext ? `\n${memoryContext}\n` : ''
+
+  // Add hint for large inputs to help AI focus
+  const largeInputHint = isLarge
+    ? '\nNote: This is a detailed input. Focus on the CORE question/problem and provide a thorough but focused response.\n'
+    : ''
 
   const struggleDescription = {
     dont_understand: "The student doesn't understand this concept and needs to build understanding",
@@ -379,7 +688,7 @@ async function generateMicroAction(
 
 ${subjectContext}${userContextLine}
 Situation: ${struggleDescription}
-${memorySection}
+${memorySection}${largeInputHint}
 
 Create a structured Learning Pack with these components:
 
@@ -594,10 +903,10 @@ Create a roadmap that guides discovery, not one that hands over answers.`
       model: 'gpt-5-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Student's question: "${question}"\n\nRespond in this exact JSON format:\n${responseFormat}` },
+        { role: 'user', content: `Student's question: "${processedQuestion}"\n\nRespond in this exact JSON format:\n${responseFormat}` },
       ],
       temperature: 0.7,
-      max_tokens: 500,
+      max_tokens: maxTokens, // Adaptive based on input size (600-1000)
       response_format: { type: 'json_object' },
     })
 
@@ -685,7 +994,7 @@ Create a roadmap that guides discovery, not one that hands over answers.`
       }
     }
   } catch (error) {
-    console.error('[Guide Me API] AI generation error:', error)
+    logger.error('[Guide Me] AI generation error', error instanceof Error ? error : { error })
 
     // Return appropriate fallback
     if (actionType === 'flashcards') {
@@ -700,58 +1009,74 @@ Create a roadmap that guides discovery, not one that hands over answers.`
 
 /**
  * Award XP and update streak
+ * FIX: Uses atomic transaction to prevent race conditions on concurrent requests
  */
 async function awardXPAndUpdateStreak(userId: string): Promise<{ xpEarned: number; streakUpdated: boolean }> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    select: {
-      totalPoints: true,
-      quickFocusStreak: true,
-      lastQuickFocusDate: true,
-    },
-  })
+  try {
+    // FIX: Use transaction with isolation to ensure atomic read-modify-write
+    const result = await prisma.$transaction(async (tx) => {
+      // Read current state within transaction
+      const profile = await tx.profile.findUnique({
+        where: { userId },
+        select: {
+          totalPoints: true,
+          quickFocusStreak: true,
+          lastQuickFocusDate: true,
+        },
+      })
 
-  if (!profile) {
+      if (!profile) {
+        return { xpEarned: 0, streakUpdated: false }
+      }
+
+      const lastDate = profile.lastQuickFocusDate ? new Date(profile.lastQuickFocusDate) : null
+      lastDate?.setHours(0, 0, 0, 0)
+
+      let newStreak = profile.quickFocusStreak || 0
+      let streakUpdated = false
+
+      // Check if we should update the streak
+      if (!lastDate || lastDate.getTime() < today.getTime()) {
+        // Check if it's consecutive (yesterday or first time)
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+
+        if (!lastDate || lastDate.getTime() === yesterday.getTime()) {
+          // Consecutive day or first time
+          newStreak += 1
+          streakUpdated = true
+        } else if (lastDate.getTime() < yesterday.getTime()) {
+          // Streak broken, reset to 1
+          newStreak = 1
+          streakUpdated = true
+        }
+      }
+
+      // Update profile atomically within the same transaction
+      await tx.profile.update({
+        where: { userId },
+        data: {
+          totalPoints: { increment: XP_PER_ACTION },
+          quickFocusStreak: newStreak,
+          lastQuickFocusDate: today,
+        },
+      })
+
+      return { xpEarned: XP_PER_ACTION, streakUpdated }
+    }, {
+      // FIX: Use serializable isolation for streak updates to prevent race conditions
+      isolationLevel: 'Serializable',
+    })
+
+    return result
+  } catch (error) {
+    // Log error but don't fail the request - XP award is not critical
+    logger.error('[Guide Me] XP/Streak update error', error instanceof Error ? error : { error })
     return { xpEarned: 0, streakUpdated: false }
   }
-
-  const lastDate = profile.lastQuickFocusDate ? new Date(profile.lastQuickFocusDate) : null
-  lastDate?.setHours(0, 0, 0, 0)
-
-  let newStreak = profile.quickFocusStreak || 0
-  let streakUpdated = false
-
-  // Check if we should update the streak
-  if (!lastDate || lastDate.getTime() < today.getTime()) {
-    // Check if it's consecutive (yesterday or first time)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    if (!lastDate || lastDate.getTime() === yesterday.getTime()) {
-      // Consecutive day or first time
-      newStreak += 1
-      streakUpdated = true
-    } else if (lastDate.getTime() < yesterday.getTime()) {
-      // Streak broken, reset to 1
-      newStreak = 1
-      streakUpdated = true
-    }
-  }
-
-  // Update profile
-  await prisma.profile.update({
-    where: { userId },
-    data: {
-      totalPoints: { increment: XP_PER_ACTION },
-      quickFocusStreak: newStreak,
-      lastQuickFocusDate: today,
-    },
-  })
-
-  return { xpEarned: XP_PER_ACTION, streakUpdated }
 }
 
 /**

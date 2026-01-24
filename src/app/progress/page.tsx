@@ -279,22 +279,38 @@ export default function ProgressPage() {
           </div>
         </div>
 
-        {/* Streak Card */}
-        {stats && stats.streak > 0 && (
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
+        {/* Streak Card - Always visible to encourage new users */}
+        {stats && (
+          <div className={`rounded-2xl p-6 ${
+            stats.streak > 0 
+              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white' 
+              : 'bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm opacity-90">Current streak</p>
-                <p className="text-3xl font-bold mt-1">{stats.streak} days</p>
+                <p className={`text-sm ${stats.streak > 0 ? 'opacity-90' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                  Current streak
+                </p>
+                <p className={`text-3xl font-bold mt-1 ${
+                  stats.streak > 0 ? '' : 'text-neutral-900 dark:text-white'
+                }`}>
+                  {stats.streak} {stats.streak === 1 ? 'day' : 'days'}
+                </p>
               </div>
-              <Flame className="w-12 h-12 opacity-80" />
+              <Flame className={`w-12 h-12 ${
+                stats.streak > 0 ? 'opacity-80' : 'text-neutral-300 dark:text-neutral-600'
+              }`} />
             </div>
-            <p className="text-sm opacity-80 mt-3">
+            <p className={`text-sm mt-3 ${
+              stats.streak > 0 ? 'opacity-80' : 'text-neutral-500 dark:text-neutral-400'
+            }`}>
               {stats.streak >= 7
                 ? "Amazing consistency! You've built a habit."
                 : stats.streak >= 3
                 ? 'Building momentum. Keep it going!'
-                : "Great start! Let's keep the streak alive."}
+                : stats.streak > 0
+                ? "Great start! Let's keep the streak alive."
+                : "Start learning today to begin your streak!"}
             </p>
           </div>
         )}

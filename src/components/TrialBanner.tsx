@@ -37,7 +37,7 @@ export default function TrialBanner({
           </div>
           <button
             onClick={() => router.push('/auth?tab=signup')}
-            className="px-4 py-1.5 bg-white text-orange-600 text-sm font-semibold rounded-full hover:bg-orange-50 transition-colors"
+            className="px-4 py-1.5 bg-white dark:bg-neutral-900 text-orange-600 dark:text-orange-400 text-sm font-semibold rounded-full hover:bg-orange-50 dark:hover:bg-neutral-800 transition-colors"
           >
             Sign up to continue
           </button>

@@ -27,6 +27,7 @@ import {
   UserPlus,
   Loader2,
 } from 'lucide-react'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 interface AnnouncementData {
   id: string
@@ -69,6 +70,9 @@ export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<AnnouncementData[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Modal for confirmations/alerts
+  const { showAlert, showSuccess, showDanger } = useConfirmModal()
 
   // Filters
   const [status, setStatus] = useState('')
@@ -234,7 +238,7 @@ export default function AdminAnnouncementsPage() {
   // Handle form submit
   const handleSubmit = async () => {
     if (!formData.title || !formData.content) {
-      alert('Title and content are required')
+      showAlert('Missing Fields', 'Title and content are required.')
       return
     }
 
@@ -269,14 +273,14 @@ export default function AdminAnnouncementsPage() {
         setEditModal(null)
         // Show success message with notification count for new announcements
         if (body.action === 'create' && data.notificationsSent !== undefined) {
-          alert(`✅ Announcement created and sent to ${data.notificationsSent} users!`)
+          showSuccess('Announcement Created', `Announcement created and sent to ${data.notificationsSent} users!`)
         }
       } else {
-        alert(data.error || 'Action failed')
+        showAlert('Action Failed', data.error || 'The action could not be completed. Please try again.')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred')
+      showAlert('Error', 'An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -285,7 +289,13 @@ export default function AdminAnnouncementsPage() {
   // Handle action
   const handleAction = async (action: 'publish' | 'archive' | 'delete', id: string) => {
     if (action === 'delete') {
-      if (!confirm('Are you sure you want to delete this announcement?')) return
+      const confirmed = await showDanger(
+        'Delete Announcement',
+        'Are you sure you want to delete this announcement? This cannot be undone.',
+        'Delete',
+        'Cancel'
+      )
+      if (!confirmed) return
     }
 
     try {
@@ -300,11 +310,11 @@ export default function AdminAnnouncementsPage() {
       if (data.success) {
         fetchAnnouncements(true)
       } else {
-        alert(data.error || 'Action failed')
+        showAlert('Action Failed', data.error || 'The action could not be completed. Please try again.')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('An error occurred')
+      showAlert('Error', 'An unexpected error occurred. Please try again.')
     }
   }
 

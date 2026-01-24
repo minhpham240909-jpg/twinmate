@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getVapidPublicKey, isWebPushConfigured } from '@/lib/web-push'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // GET /api/push/subscribe - Get VAPID public key
 export async function GET() {
@@ -19,6 +20,15 @@ export async function GET() {
 
 // POST /api/push/subscribe - Subscribe to push notifications
 export async function POST(req: NextRequest) {
+  // SCALABILITY: Rate limit subscription requests (moderate preset)
+  const rateLimitResult = await rateLimit(req, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()

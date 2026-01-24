@@ -103,7 +103,7 @@ async function flushAuditQueue(): Promise<void> {
   if (!AUDIT_CONFIG.persistToDb) {
     // Just log to console if DB persistence disabled
     eventsToWrite.forEach(event => {
-      logger.info(`[AUDIT] ${event.category}:${event.action}`, event)
+      logger.info(`[AUDIT] ${event.category}:${event.action}`, event as unknown as Record<string, unknown>)
     })
     return
   }

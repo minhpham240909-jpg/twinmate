@@ -17,8 +17,8 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // Types
-export type MissionItemType = 'flashcard' | 'concept' | 'step'
-export type MissionItemSource = 'test_prep' | 'explain_pack' | 'guide_me'
+export type MissionItemType = 'flashcard' | 'concept' | 'step' | 'starter'
+export type MissionItemSource = 'test_prep' | 'explain_pack' | 'guide_me' | 'onboarding'
 
 export interface MissionItem {
   id: string
@@ -29,31 +29,70 @@ export interface MissionItem {
   topic?: string
   createdAt: number // timestamp
   completedAt?: number
+  hiddenUntil?: number // timestamp - for "Not now" snooze (24hr hide)
   priority: 'high' | 'medium' | 'low' // high = weak spot, medium = in progress, low = review
+  // Richer context for direct deep-linking
+  originalQuestion?: string // Full question to submit directly to API
+  priorConfusion?: string // What the user was confused about
+  isStarter?: boolean // True for first-time user starter missions
 }
 
 interface MissionState {
   items: MissionItem[]
   lastUpdated: number
+  hasCompletedFirstMission?: boolean // Track if user has ever completed a mission
 }
 
 const STORAGE_KEY = 'clerva_mission'
 const EXPIRY_DAYS = 7
 
+// Starter missions for first-time users - welcoming and educational
+// Using actual tool sources so deep-linking works correctly
+const STARTER_MISSIONS: Omit<MissionItem, 'id' | 'createdAt'>[] = [
+  {
+    type: 'starter',
+    source: 'explain_pack', // Routes to Explain Pack tool
+    title: 'Try your first explanation',
+    description: 'Ask about any concept you find confusing',
+    priority: 'medium',
+    isStarter: true,
+    originalQuestion: 'Explain photosynthesis in simple terms',
+  },
+  {
+    type: 'starter',
+    source: 'test_prep', // Routes to Test Prep tool
+    title: 'Create your first flashcards',
+    description: 'Generate study cards for any topic',
+    priority: 'medium',
+    isStarter: true,
+    originalQuestion: 'Create flashcards for basic algebra concepts',
+  },
+  {
+    type: 'starter',
+    source: 'guide_me', // Routes to Guide Me tool
+    title: 'Get help with a problem',
+    description: 'Get step-by-step guidance on any task',
+    priority: 'medium',
+    isStarter: true,
+    originalQuestion: 'Help me solve a quadratic equation step by step',
+  },
+]
+
 // Generate unique ID
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-}
-
-// Get today's date string for grouping
-function getTodayKey(): string {
-  return new Date().toISOString().split('T')[0]
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
 }
 
 // Check if item is expired (older than 7 days)
 function isExpired(item: MissionItem): boolean {
   const expiryTime = EXPIRY_DAYS * 24 * 60 * 60 * 1000
   return Date.now() - item.createdAt > expiryTime
+}
+
+// Check if item is currently snoozed (hidden until time has passed)
+function isSnoozed(item: MissionItem): boolean {
+  if (!item.hiddenUntil) return false
+  return Date.now() < item.hiddenUntil
 }
 
 // Load mission from localStorage
@@ -66,7 +105,7 @@ function loadMission(): MissionState {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored) as MissionState
-      // Filter out expired and completed items
+      // Filter out expired and completed items (but keep snoozed for storage)
       const activeItems = parsed.items.filter(
         item => !item.completedAt && !isExpired(item)
       )
@@ -93,10 +132,29 @@ function saveMission(state: MissionState): void {
 export function useMission() {
   const [missionState, setMissionState] = useState<MissionState>(() => loadMission())
 
-  // Sync with localStorage on mount
+  // Sync with localStorage on mount and add starter missions for first-time users
   useEffect(() => {
     const loaded = loadMission()
-    setMissionState(loaded)
+
+    // Check if this is a first-time user (no missions ever created and no completion history)
+    const isFirstTimeUser = loaded.items.length === 0 && !loaded.hasCompletedFirstMission
+
+    if (isFirstTimeUser) {
+      // Add starter missions for first-time users
+      const starterItems: MissionItem[] = STARTER_MISSIONS.map((mission, index) => ({
+        ...mission,
+        id: `starter-${index}-${Date.now()}`,
+        createdAt: Date.now(),
+      }))
+
+      setMissionState({
+        items: starterItems,
+        lastUpdated: Date.now(),
+        hasCompletedFirstMission: false,
+      })
+    } else {
+      setMissionState(loaded)
+    }
   }, [])
 
   // Save whenever state changes
@@ -104,9 +162,9 @@ export function useMission() {
     saveMission(missionState)
   }, [missionState])
 
-  // Get active (incomplete) mission items, sorted by priority
+  // Get active (incomplete, non-snoozed) mission items, sorted by priority
   const missionItems = missionState.items
-    .filter(item => !item.completedAt)
+    .filter(item => !item.completedAt && !isSnoozed(item))
     .sort((a, b) => {
       // Sort by priority (high first), then by date (newest first)
       const priorityOrder = { high: 0, medium: 1, low: 2 }
@@ -117,14 +175,16 @@ export function useMission() {
     })
     .slice(0, 5) // Max 5 items shown
 
-  // Add a new mission item
+  // Add a new mission item with optional rich context for deep-linking
   const addMissionItem = useCallback((
     type: MissionItemType,
     source: MissionItemSource,
     title: string,
     description: string,
     priority: 'high' | 'medium' | 'low' = 'medium',
-    topic?: string
+    topic?: string,
+    originalQuestion?: string,
+    priorConfusion?: string
   ) => {
     const newItem: MissionItem = {
       id: generateId(),
@@ -135,6 +195,8 @@ export function useMission() {
       topic,
       createdAt: Date.now(),
       priority,
+      originalQuestion,
+      priorConfusion,
     }
 
     setMissionState(prev => {
@@ -153,43 +215,55 @@ export function useMission() {
     return newItem.id
   }, [])
 
-  // Add weak flashcard (wrong answer)
-  const addWeakFlashcard = useCallback((question: string, topic?: string) => {
+  // Add weak flashcard (wrong answer) - stores original question for deep-linking
+  // Title format: "Review weak flashcard — [Topic]"
+  const addWeakFlashcard = useCallback((question: string, topic?: string, originalQuestion?: string) => {
+    const topicLabel = topic || question.slice(0, 25)
     return addMissionItem(
       'flashcard',
       'test_prep',
-      'Review flashcard',
-      question.length > 60 ? question.slice(0, 60) + '...' : question,
+      `Review weak flashcard — ${topicLabel}`,
+      question.length > 50 ? question.slice(0, 50) + '...' : question,
       'high',
-      topic
+      topic,
+      originalQuestion || question,
+      undefined
     )
   }, [addMissionItem])
 
-  // Add confused concept (from Explain Pack)
-  const addConfusedConcept = useCallback((concept: string, topic?: string) => {
+  // Add confused concept (from Explain Pack) - stores original question for deep-linking
+  // Title format: "Finish explanation — [Topic]"
+  const addConfusedConcept = useCallback((concept: string, topic?: string, originalQuestion?: string) => {
+    const topicLabel = topic || concept.slice(0, 25)
     return addMissionItem(
       'concept',
       'explain_pack',
-      'Revisit concept',
-      concept.length > 60 ? concept.slice(0, 60) + '...' : concept,
+      `Finish explanation — ${topicLabel}`,
+      concept.length > 50 ? concept.slice(0, 50) + '...' : concept,
       'high',
-      topic
+      topic,
+      originalQuestion || concept,
+      concept
     )
   }, [addMissionItem])
 
-  // Add stuck step (from Guide Me - multiple hints requested)
-  const addStuckStep = useCallback((stepTitle: string, topic?: string) => {
+  // Add stuck step (from Guide Me - multiple hints requested) - stores original question for deep-linking
+  // Title format: "Retry homework step — [Step title]"
+  const addStuckStep = useCallback((stepTitle: string, topic?: string, originalQuestion?: string) => {
+    const stepLabel = stepTitle.length > 25 ? stepTitle.slice(0, 25) + '...' : stepTitle
     return addMissionItem(
       'step',
       'guide_me',
-      'Practice step',
-      stepTitle.length > 60 ? stepTitle.slice(0, 60) + '...' : stepTitle,
+      `Retry homework step — ${stepLabel}`,
+      stepTitle.length > 50 ? stepTitle.slice(0, 50) + '...' : stepTitle,
       'medium',
-      topic
+      topic,
+      originalQuestion || stepTitle,
+      undefined
     )
   }, [addMissionItem])
 
-  // Mark item as completed
+  // Mark item as completed and track first completion
   const completeMissionItem = useCallback((itemId: string) => {
     setMissionState(prev => ({
       items: prev.items.map(item =>
@@ -198,6 +272,7 @@ export function useMission() {
           : item
       ),
       lastUpdated: Date.now(),
+      hasCompletedFirstMission: true, // User has now completed at least one mission
     }))
   }, [])
 
@@ -205,6 +280,19 @@ export function useMission() {
   const removeMissionItem = useCallback((itemId: string) => {
     setMissionState(prev => ({
       items: prev.items.filter(item => item.id !== itemId),
+      lastUpdated: Date.now(),
+    }))
+  }, [])
+
+  // Snooze item for 24 hours ("Not now")
+  const snoozeMissionItem = useCallback((itemId: string) => {
+    const SNOOZE_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
+    setMissionState(prev => ({
+      items: prev.items.map(item =>
+        item.id === itemId
+          ? { ...item, hiddenUntil: Date.now() + SNOOZE_DURATION_MS }
+          : item
+      ),
       lastUpdated: Date.now(),
     }))
   }, [])
@@ -237,6 +325,7 @@ export function useMission() {
     addStuckStep,
     completeMissionItem,
     removeMissionItem,
+    snoozeMissionItem,
     clearCompleted,
     getCounts,
     hasMission: missionItems.length > 0,

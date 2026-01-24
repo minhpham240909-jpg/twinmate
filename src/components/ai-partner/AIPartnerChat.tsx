@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import QuizModal from './QuizModal'
 import MathRenderer from '@/components/MathRenderer'
+import toast from 'react-hot-toast'
 
 interface Message {
   id: string
@@ -211,13 +212,13 @@ export default function AIPartnerChat({
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
     if (!validTypes.includes(file.type)) {
-      alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)')
+      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)')
       return
     }
 
     // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image too large. Maximum size is 10MB.')
+      toast.error('Image too large. Maximum size is 10MB.')
       return
     }
 

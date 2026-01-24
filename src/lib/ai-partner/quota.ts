@@ -25,44 +25,6 @@ function isRedisAvailable(): boolean {
   return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
 }
 
-async function redisGet(key: string): Promise<string | null> {
-  if (!isRedisAvailable()) return null
-
-  try {
-    const url = process.env.UPSTASH_REDIS_REST_URL!
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN!
-
-    const response = await fetchWithBackoff(`${url}/get/${encodeURIComponent(key)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
-
-    if (!response.ok) return null
-
-    const data = await response.json() as { result: string | null }
-    return data.result
-  } catch {
-    return null
-  }
-}
-
-async function redisSetEx(key: string, value: string, expirySeconds: number): Promise<boolean> {
-  if (!isRedisAvailable()) return false
-
-  try {
-    const url = process.env.UPSTASH_REDIS_REST_URL!
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN!
-
-    const response = await fetchWithBackoff(`${url}/setex/${encodeURIComponent(key)}/${expirySeconds}/${encodeURIComponent(value)}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    }, { timeoutPerAttemptMs: 5000, maxRetries: 3 })
-
-    return response.ok
-  } catch {
-    return false
-  }
-}
-
 // Quota status types
 export interface QuotaStatus {
   allowed: boolean
@@ -337,6 +299,7 @@ export async function checkQuota(userId: string): Promise<QuotaStatus> {
 
 /**
  * Record usage and update quota
+ * FIX: Use Redis pipeline for atomic increment + TTL in single request
  */
 export async function recordUsage(
   userId: string,
@@ -351,75 +314,54 @@ export async function recordUsage(
   try {
     const key = getQuotaKey(userId)
     const resetAt = getQuotaResetTime()
-    const ttlSeconds = Math.ceil((resetAt.getTime() - Date.now()) / 1000)
+    const ttlSeconds = Math.max(1, Math.ceil((resetAt.getTime() - Date.now()) / 1000))
 
-    // Use atomic INCRBY operations via Upstash REST API to prevent race conditions
-    // This avoids the read-modify-write race condition
     const url = process.env.UPSTASH_REDIS_REST_URL!
     const token = process.env.UPSTASH_REDIS_REST_TOKEN!
 
-    // Use HINCRBY for atomic increments on hash fields
-    // First, ensure the key has proper TTL
     const tokenKey = `${key}:tokens`
     const costKey = `${key}:cost`
     const requestsKey = `${key}:requests`
 
-    // Execute atomic increments in parallel
-    const [tokensRes, costRes, requestsRes] = await Promise.all([
-      fetchWithBackoff(`${url}/incrby/${encodeURIComponent(tokenKey)}/${tokens}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }, { timeoutPerAttemptMs: 5000, maxRetries: 2 }),
-      fetchWithBackoff(`${url}/incrbyfloat/${encodeURIComponent(costKey)}/${cost}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }, { timeoutPerAttemptMs: 5000, maxRetries: 2 }),
-      fetchWithBackoff(`${url}/incrby/${encodeURIComponent(requestsKey)}/1`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }, { timeoutPerAttemptMs: 5000, maxRetries: 2 }),
-    ])
+    // FIX: Use Upstash pipeline to execute increment + TTL atomically
+    // This ensures TTL is always set, preventing orphaned keys
+    const pipelineCommands = [
+      ['INCRBY', tokenKey, tokens.toString()],
+      ['EXPIRE', tokenKey, ttlSeconds.toString()],
+      ['INCRBYFLOAT', costKey, cost.toString()],
+      ['EXPIRE', costKey, ttlSeconds.toString()],
+      ['INCRBY', requestsKey, '1'],
+      ['EXPIRE', requestsKey, ttlSeconds.toString()],
+    ]
 
-    // Set TTL on all keys (fire and forget - they'll expire anyway)
-    Promise.all([
-      fetchWithBackoff(`${url}/expire/${encodeURIComponent(tokenKey)}/${Math.max(ttlSeconds, 1)}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }, { timeoutPerAttemptMs: 3000, maxRetries: 1 }),
-      fetchWithBackoff(`${url}/expire/${encodeURIComponent(costKey)}/${Math.max(ttlSeconds, 1)}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }, { timeoutPerAttemptMs: 3000, maxRetries: 1 }),
-      fetchWithBackoff(`${url}/expire/${encodeURIComponent(requestsKey)}/${Math.max(ttlSeconds, 1)}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }, { timeoutPerAttemptMs: 3000, maxRetries: 1 }),
-    ]).catch(() => {
-      // TTL set is best effort - keys will be orphaned but eventually evicted
-    })
+    const response = await fetchWithBackoff(`${url}/pipeline`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(pipelineCommands),
+    }, { timeoutPerAttemptMs: 5000, maxRetries: 2 })
+
+    if (!response.ok) {
+      throw new Error(`Pipeline request failed: ${response.status}`)
+    }
 
     // Parse results for logging
     let totalTokens = tokens
     let totalCost = cost
     let totalRequests = 1
     try {
-      if (tokensRes.ok) {
-        const data = await tokensRes.json() as { result: number }
-        totalTokens = data.result
-      }
-      if (costRes.ok) {
-        const data = await costRes.json() as { result: string }
-        totalCost = parseFloat(data.result)
-      }
-      if (requestsRes.ok) {
-        const data = await requestsRes.json() as { result: number }
-        totalRequests = data.result
-      }
+      const results = await response.json() as Array<{ result: number | string }>
+      // Results are: [incrby tokens, expire, incrbyfloat cost, expire, incrby requests, expire]
+      if (results[0]?.result) totalTokens = Number(results[0].result)
+      if (results[2]?.result) totalCost = parseFloat(String(results[2].result))
+      if (results[4]?.result) totalRequests = Number(results[4].result)
     } catch {
       // Logging parse error is non-critical
     }
 
-    logger.debug('[AI Quota] Usage recorded atomically', {
+    logger.debug('[AI Quota] Usage recorded atomically via pipeline', {
       userId,
       tokens,
       cost,

@@ -17,8 +17,10 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { usePWA } from '@/hooks/usePWA'
 import GuestEmptyState from '@/components/GuestEmptyState'
 import BottomNav from '@/components/BottomNav'
+import PWAInstallBanner from '@/components/PWAInstallBanner'
 import {
   ArrowLeft,
   User,
@@ -34,6 +36,13 @@ import {
   Lock,
   AlertTriangle,
   X,
+  Shield,
+  MessageSquare,
+  Star,
+  Image as ImageIcon,
+  Send,
+  Download,
+  Smartphone,
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -41,6 +50,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications()
+  const { isInstalled, isStandalone } = usePWA()
 
   // State
   const [activeSection, setActiveSection] = useState<string | null>(null)
@@ -59,6 +69,13 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
+
+  // Feedback state
+  const [feedbackRating, setFeedbackRating] = useState(0)
+  const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [feedbackImages, setFeedbackImages] = useState<string[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [submittingFeedback, setSubmittingFeedback] = useState(false)
 
   // Initialize name from profile
   useEffect(() => {
@@ -224,6 +241,93 @@ export default function SettingsPage() {
     }
   }
 
+  // Handle feedback image upload
+  const handleFeedbackImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB')
+      return
+    }
+
+    if (feedbackImages.length >= 3) {
+      toast.error('Maximum 3 images allowed')
+      return
+    }
+
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'feedback')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setFeedbackImages((prev) => [...prev, data.url])
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast.error('Failed to upload image')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  // Remove feedback image
+  const handleRemoveFeedbackImage = (index: number) => {
+    setFeedbackImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // Submit feedback
+  const handleSubmitFeedback = async () => {
+    if (feedbackRating === 0) {
+      toast.error('Please select a rating')
+      return
+    }
+
+    if (feedbackMessage.trim().length < 10) {
+      toast.error('Please write at least 10 characters')
+      return
+    }
+
+    setSubmittingFeedback(true)
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: feedbackRating,
+          message: feedbackMessage.trim(),
+          screenshots: feedbackImages,
+        }),
+      })
+
+      if (res.ok) {
+        toast.success('Thank you for your feedback!')
+        setFeedbackRating(0)
+        setFeedbackMessage('')
+        setFeedbackImages([])
+        setActiveSection(null)
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to submit feedback')
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      toast.error('Failed to submit feedback')
+    } finally {
+      setSubmittingFeedback(false)
+    }
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -281,6 +385,8 @@ export default function SettingsPage() {
             {activeSection === 'password' && 'Change Password'}
             {activeSection === 'notifications' && 'Notifications'}
             {activeSection === 'theme' && 'Appearance'}
+            {activeSection === 'install' && 'Install App'}
+            {activeSection === 'feedback' && 'Send Feedback'}
             {!activeSection && 'Settings'}
           </h1>
         </div>
@@ -378,6 +484,83 @@ export default function SettingsPage() {
                 <div className="flex-1 text-left">
                   <p className="font-medium text-neutral-900 dark:text-white">Appearance</p>
                   <p className="text-sm text-neutral-500">{theme === 'DARK' ? 'Dark' : 'Light'} mode</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-neutral-400" />
+              </button>
+
+              {/* Install App - only show if not installed */}
+              {!isInstalled && !isStandalone && (
+                <button
+                  onClick={() => setActiveSection('install')}
+                  className="w-full flex items-center gap-4 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors border-t border-neutral-200 dark:border-neutral-800"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <Download className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-neutral-900 dark:text-white">Install App</p>
+                    <p className="text-sm text-neutral-500">Add to your home screen</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-neutral-400" />
+                </button>
+              )}
+
+              {/* Already installed indicator */}
+              {(isInstalled || isStandalone) && (
+                <div className="flex items-center gap-4 p-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                    <Smartphone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-neutral-900 dark:text-white">App Installed</p>
+                    <p className="text-sm text-green-600 dark:text-green-400">You're using the app version</p>
+                  </div>
+                  <Check className="w-5 h-5 text-green-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Admin Section - Only show for admin users */}
+            {profile.isAdmin && (
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden">
+                <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+                  <h2 className="text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">Admin</h2>
+                </div>
+
+                {/* Admin Dashboard */}
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="w-full flex items-center gap-4 p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors"
+                >
+                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-neutral-900 dark:text-white">Admin Dashboard</p>
+                    <p className="text-sm text-neutral-500">Manage users, feedback & analytics</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-neutral-400" />
+                </button>
+              </div>
+            )}
+
+            {/* Support Section */}
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden">
+              <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+                <h2 className="text-sm font-semibold text-neutral-500 uppercase tracking-wide">Support</h2>
+              </div>
+
+              {/* Send Feedback */}
+              <button
+                onClick={() => setActiveSection('feedback')}
+                className="w-full flex items-center gap-4 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+              >
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-medium text-neutral-900 dark:text-white">Send Feedback</p>
+                  <p className="text-sm text-neutral-500">Help us improve the app</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-neutral-400" />
               </button>
@@ -625,6 +808,166 @@ export default function SettingsPage() {
                 )}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Install App Section */}
+        {activeSection === 'install' && (
+          <div className="space-y-4">
+            <PWAInstallBanner variant="modal" onDismiss={() => setActiveSection(null)} />
+
+            <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4">
+              <h4 className="font-medium text-neutral-900 dark:text-white mb-2">
+                Why install the app?
+              </h4>
+              <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span>Quick access from your home screen</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span>Works offline with cached content</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span>Full-screen experience without browser UI</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span>Push notifications for study reminders</span>
+                </li>
+              </ul>
+            </div>
+
+            <p className="text-sm text-neutral-500 text-center">
+              Your account syncs automatically between browser and app.
+            </p>
+          </div>
+        )}
+
+        {/* Feedback Section */}
+        {activeSection === 'feedback' && (
+          <div className="space-y-6">
+            {/* Rating */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
+                How would you rate your experience?
+              </label>
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setFeedbackRating(star)}
+                    className="p-2 transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`w-10 h-10 transition-colors ${
+                        star <= feedbackRating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-neutral-300 dark:text-neutral-600'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              <p className="text-center text-sm text-neutral-500 mt-2">
+                {feedbackRating === 0 && 'Tap to rate'}
+                {feedbackRating === 1 && 'Poor'}
+                {feedbackRating === 2 && 'Fair'}
+                {feedbackRating === 3 && 'Good'}
+                {feedbackRating === 4 && 'Very Good'}
+                {feedbackRating === 5 && 'Excellent!'}
+              </p>
+            </div>
+
+            {/* Message */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                Tell us more
+              </label>
+              <textarea
+                value={feedbackMessage}
+                onChange={(e) => setFeedbackMessage(e.target.value)}
+                className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                placeholder="What can we improve? What do you like? Any bugs or issues?"
+                rows={4}
+                maxLength={5000}
+              />
+              <p className="text-xs text-neutral-400 mt-1 text-right">
+                {feedbackMessage.length}/5000
+              </p>
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                Add screenshots (optional)
+              </label>
+
+              {/* Uploaded Images */}
+              {feedbackImages.length > 0 && (
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  {feedbackImages.map((url, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={url}
+                        alt={`Screenshot ${index + 1}`}
+                        className="w-20 h-20 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700"
+                      />
+                      <button
+                        onClick={() => handleRemoveFeedbackImage(index)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
+                      >
+                        <X className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload Button */}
+              {feedbackImages.length < 3 && (
+                <label className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+                  {uploadingImage ? (
+                    <Loader2 className="w-5 h-5 text-neutral-400 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-neutral-400" />
+                  )}
+                  <span className="text-sm text-neutral-500">
+                    {uploadingImage ? 'Uploading...' : 'Add screenshot'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFeedbackImageUpload}
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
+                </label>
+              )}
+              <p className="text-xs text-neutral-400 mt-1">
+                Max 3 images, 5MB each
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              onClick={handleSubmitFeedback}
+              disabled={submittingFeedback || feedbackRating === 0 || feedbackMessage.trim().length < 10}
+              className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              {submittingFeedback ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
+              <span>{submittingFeedback ? 'Sending...' : 'Send Feedback'}</span>
+            </button>
+
+            <p className="text-sm text-neutral-500 text-center">
+              Your feedback helps us make Clerva better for everyone.
+            </p>
           </div>
         )}
       </main>

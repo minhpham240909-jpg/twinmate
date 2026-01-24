@@ -26,7 +26,7 @@ export interface MilestoneDefinition {
 
 export interface UserMilestone {
   id: string
-  odefinitionId: string
+  definitionId: string
   earnedAt: Date
   definition: MilestoneDefinition
 }

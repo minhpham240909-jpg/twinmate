@@ -28,6 +28,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import InvestigationPanel from '@/components/admin/InvestigationPanel'
 import { useCsrf } from '@/hooks/useCsrf'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 interface Message {
   id: string
@@ -96,6 +97,9 @@ export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Modal for confirmations/alerts
+  const { showAlert } = useConfirmModal()
 
   // CSRF token for secure admin actions
   const { csrfFetch } = useCsrf()
@@ -211,11 +215,11 @@ export default function AdminMessagesPage() {
         fetchMessages(true)
         setSelectedMessage(null)
       } else {
-        alert('Failed to moderate: ' + data.error)
+        showAlert('Moderation Failed', 'Failed to moderate: ' + data.error)
       }
     } catch (error) {
       console.error('Moderation error:', error)
-      alert('Failed to moderate message')
+      showAlert('Error', 'Failed to moderate message. Please try again.')
     } finally {
       setIsActioning(false)
     }
@@ -232,7 +236,7 @@ export default function AdminMessagesPage() {
       : selectedMessage.id
 
     if (!messageId) {
-      alert('Cannot delete: message ID not found')
+      showAlert('Cannot Delete', 'Message ID not found. Please refresh and try again.')
       return
     }
 
@@ -254,11 +258,11 @@ export default function AdminMessagesPage() {
         setSelectedMessage(null)
         setShowDeleteConfirm(false)
       } else {
-        alert('Failed to delete: ' + data.error)
+        showAlert('Delete Failed', 'Failed to delete: ' + data.error)
       }
     } catch (error) {
       console.error('Delete error:', error)
-      alert('Failed to delete message')
+      showAlert('Error', 'Failed to delete message. Please try again.')
     } finally {
       setIsActioning(false)
     }

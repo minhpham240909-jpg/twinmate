@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 interface AdminUser {
   id: string
@@ -55,6 +56,9 @@ export default function AdminSettingsPage() {
   const [isLoadingAdmins, setIsLoadingAdmins] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // Modal for confirmations/alerts
+  const { showDanger } = useConfirmModal()
 
   // Add admin modal state
   const [showAddModal, setShowAddModal] = useState(false)
@@ -138,9 +142,13 @@ export default function AdminSettingsPage() {
 
   // Revoke admin access
   const revokeAdmin = async (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to revoke admin access from ${userName}?`)) {
-      return
-    }
+    const confirmed = await showDanger(
+      'Revoke Admin Access',
+      `Are you sure you want to revoke admin access from ${userName}? They will lose all administrative privileges.`,
+      'Revoke',
+      'Cancel'
+    )
+    if (!confirmed) return
 
     setIsRevoking(userId)
     try {

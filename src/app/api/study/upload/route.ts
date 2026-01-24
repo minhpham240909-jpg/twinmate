@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
           ],
         },
       ],
-      max_tokens: 1000,
+      max_tokens: 1500, // Increased for thorough extraction
+      temperature: 0.3, // Lower temperature for more accurate extraction
     })
 
     const extractedContent = visionResponse.choices[0]?.message?.content || ''
@@ -162,47 +163,131 @@ export async function POST(request: NextRequest) {
 
 /**
  * Get the appropriate analysis prompt based on struggle type
+ * Enhanced prompts for thorough extraction of all educational content
  */
 function getAnalysisPrompt(struggleType: string): string {
-  const basePrompt = `Analyze this image and extract the relevant educational content.
+  const basePrompt = `You are an expert educational content analyzer. Your job is to THOROUGHLY extract ALL relevant content from this image so a student can get help with it.
 
-IMPORTANT: Extract text, equations, diagrams, or problems shown in the image.
-Be specific about what you see. If there's handwriting, do your best to read it.
-If it's a math problem, extract the exact equation or problem statement.
-If it's text from a book or notes, extract the key content.
+=== EXTRACTION RULES ===
+
+1. TEXT EXTRACTION:
+   - Extract ALL visible text, exactly as written
+   - Include headers, titles, labels, and captions
+   - For handwriting: do your BEST to read it, even if partially unclear
+   - Preserve mathematical notation: use proper symbols (×, ÷, √, π, etc.)
+   - For equations: use clear format like "2x + 3 = 7" or "f(x) = x²"
+
+2. MATHEMATICAL CONTENT:
+   - Extract complete equations, formulas, and expressions
+   - Include all given values and variables
+   - Note what needs to be solved (find x, calculate area, etc.)
+   - Preserve fractions, exponents, and special notation
+
+3. DIAGRAMS & FIGURES:
+   - Describe what the diagram shows
+   - Extract any labels, measurements, or annotations
+   - Note relationships between elements
+   - For graphs: describe axes, scale, and key points
+
+4. TABLES & DATA:
+   - Extract table headers and values
+   - Preserve the structure and relationships
+   - Note any patterns or important values
+
+5. MULTIPLE CHOICE / QUESTIONS:
+   - Extract the question AND all answer choices
+   - Include any instructions or context
+   - Note the question number if visible
+
+BE THOROUGH: It's better to extract too much than too little. The student needs complete information to get help.
 
 `
 
   switch (struggleType) {
     case 'dont_understand':
-      return basePrompt + `The student doesn't understand something in this image.
-Identify the main concept or topic shown.
-Format your response as:
-TOPIC: [main topic/concept]
-CONTENT: [extracted text, equations, or description of what's shown]
-CONTEXT: [any additional relevant context]`
+      return basePrompt + `The student doesn't understand something in this image and needs the concept explained.
+
+EXTRACT EVERYTHING, then organize as:
+
+TOPIC: [Identify the main concept/subject - be specific, e.g., "Quadratic equations" not just "Math"]
+
+CONTENT: [Extract ALL text, equations, problems, or content shown. Be complete and precise.]
+
+KEY ELEMENTS:
+- [List specific formulas, definitions, or rules shown]
+- [Any examples or worked problems]
+- [Diagrams or visual elements described]
+
+CONTEXT: [What subject is this? What chapter/topic might this be from? Any clues about difficulty level?]
+
+CONFUSION POINTS: [What parts might be confusing? Where might students typically get stuck?]`
 
     case 'test_coming':
-      return basePrompt + `The student has a test coming up and shared this study material.
-Extract key terms, concepts, or problems that would be good for review.
-Format your response as:
-SUBJECT: [subject area]
-KEY CONCEPTS: [list of main concepts shown]
-CONTENT: [extracted text or problems]`
+      return basePrompt + `The student has a test coming up and shared this study material. Extract content for creating flashcards and review materials.
+
+EXTRACT EVERYTHING, then organize as:
+
+SUBJECT: [Specific subject and topic area]
+
+KEY CONCEPTS:
+1. [First key concept with definition/explanation if shown]
+2. [Second key concept]
+3. [Continue for all concepts visible]
+
+FORMULAS/RULES:
+- [Any formulas, equations, or rules shown]
+
+VOCABULARY:
+- [Key terms with definitions if provided]
+
+EXAMPLES:
+- [Any example problems or worked solutions]
+
+CONTENT: [Full extraction of all text and information shown]
+
+TEST-WORTHY ITEMS: [What from this content is likely to appear on a test?]`
 
     case 'homework_help':
-      return basePrompt + `The student needs help with homework shown in this image.
-Extract the problem or question exactly as written.
-Format your response as:
-PROBLEM TYPE: [type of problem - math, essay, science, etc.]
-PROBLEM: [exact problem statement or question]
-GIVEN INFO: [any given information or context]`
+      return basePrompt + `The student needs help with homework shown in this image. Extract the COMPLETE problem so they can get step-by-step guidance.
+
+EXTRACT EVERYTHING, then organize as:
+
+PROBLEM TYPE: [Be specific: "Solving linear equations", "Finding area of composite shapes", "Essay prompt about Civil War causes", etc.]
+
+PROBLEM STATEMENT: [Extract the EXACT problem/question as written. Include ALL parts.]
+
+GIVEN INFORMATION:
+- [List all given values, data, or constraints]
+- [Include any formulas or hints provided]
+- [Note any diagrams or figures with their labels]
+
+WHAT TO FIND: [What is the student being asked to do/solve/answer?]
+
+ANSWER CHOICES: [If multiple choice, list ALL options]
+
+ADDITIONAL CONTEXT: [Any instructions, point values, or other relevant info]
+
+IMPORTANT: Extract the COMPLETE problem. Missing information means the student can't get proper help.`
 
     default:
-      return basePrompt + `Extract the educational content from this image.
-Format your response as:
-CONTENT TYPE: [what type of content this is]
-MAIN CONTENT: [extracted text, equations, or description]
-ADDITIONAL NOTES: [any other relevant information]`
+      return basePrompt + `Extract all educational content from this image.
+
+EXTRACT EVERYTHING, then organize as:
+
+CONTENT TYPE: [What type of educational content is this? Be specific.]
+
+SUBJECT/TOPIC: [What subject area and specific topic?]
+
+MAIN CONTENT:
+[Extract ALL text, equations, diagrams, or other content shown. Be thorough and complete.]
+
+KEY ELEMENTS:
+- [Important formulas, definitions, or concepts]
+- [Examples or problems]
+- [Visual elements described]
+
+STRUCTURE: [How is the content organized? Sections, steps, etc.]
+
+ADDITIONAL NOTES: [Any other relevant observations that might help the student]`
   }
 }

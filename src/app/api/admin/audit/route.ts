@@ -201,6 +201,31 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (ids && Array.isArray(ids) && ids.length > 0) {
+      // SECURITY FIX: Only super admin can delete audit logs (even selected ones)
+      // Audit logs are critical for security - regular admins should not be able to cover their tracks
+      if (!admin.isSuperAdmin) {
+        return NextResponse.json({
+          error: 'Only super admin can delete audit logs'
+        }, { status: 403 })
+      }
+
+      // SECURITY FIX: Log the deletion of selected audit logs BEFORE deleting
+      await prisma.adminAuditLog.create({
+        data: {
+          adminId: admin.id,
+          adminName: admin.user_metadata?.name || admin.email || 'Unknown',
+          adminEmail: admin.email || 'Unknown',
+          action: 'AUDIT_LOGS_DELETED',
+          targetType: 'AdminAuditLog',
+          targetId: ids.join(',').substring(0, 255), // Store IDs (truncated to fit)
+          details: {
+            deletedIds: ids,
+            deletedCount: ids.length,
+            deletedAt: new Date().toISOString(),
+          },
+        },
+      })
+
       // Delete selected audit logs
       const result = await prisma.adminAuditLog.deleteMany({
         where: { id: { in: ids } },

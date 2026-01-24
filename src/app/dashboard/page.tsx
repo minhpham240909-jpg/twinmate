@@ -28,6 +28,7 @@ import BottomNav from '@/components/BottomNav'
 import CelebrationModal from '@/components/CelebrationModal'
 import TrialLimitModal from '@/components/TrialLimitModal'
 import TrialBanner from '@/components/TrialBanner'
+import PWAInstallBanner from '@/components/PWAInstallBanner'
 import Image from 'next/image'
 import {
   Lightbulb,
@@ -50,11 +51,12 @@ import {
   ChevronDown,
   ChevronUp,
   Target,
-  X,
   ThumbsDown,
   ThumbsUp,
   RotateCcw,
   Zap,
+  FileText,
+  Download,
 } from 'lucide-react'
 
 // ============================================
@@ -63,7 +65,7 @@ import {
 
 type FlowStep = 'home' | 'input' | 'loading' | 'result'
 type StruggleType = 'dont_understand' | 'test_coming' | 'homework_help'
-type InputMode = 'text' | 'photo'
+type InputMode = 'text' | 'photo' | 'document'
 
 // Learning Pack structure for Explain Pack
 interface LearningPack {
@@ -122,9 +124,17 @@ interface HomeworkPlan {
 
 type ActionResult = LearningPack | FlashcardPack | HomeworkPlan
 
+// Secondary action suggestion from API
+interface SecondaryActionSuggestion {
+  type: 'flashcards' | 'explanation' | 'roadmap'
+  reason: string
+  prompt: string
+}
+
 interface GuideResponse {
   success: boolean
   action: ActionResult
+  secondaryAction?: SecondaryActionSuggestion
   xpEarned: number
   streakUpdated: boolean
 }
@@ -159,12 +169,22 @@ export default function DashboardPage() {
   const [responseTimeMs, setResponseTimeMs] = useState<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
+  // Streaming/loading state for better UX
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingMessage, setLoadingMessage] = useState('Starting...')
+  const [partialContent, setPartialContent] = useState<{ title?: string; coreIdea?: string } | null>(null)
+
   // Input mode state - photo-first like food scanner apps
   const [inputMode, setInputMode] = useState<InputMode>('photo')
   const [uploadedImage, setUploadedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isProcessingImage, setIsProcessingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Document upload state
+  const [uploadedDocument, setUploadedDocument] = useState<File | null>(null)
+  const [isProcessingDocument, setIsProcessingDocument] = useState(false)
+  const documentInputRef = useRef<HTMLInputElement>(null)
 
   // Collapsible sections in result
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
@@ -195,9 +215,12 @@ export default function DashboardPage() {
     addConfusedConcept,
     addStuckStep,
     completeMissionItem,
-    removeMissionItem,
+    snoozeMissionItem,
     hasMission,
   } = useMission()
+
+  // Track which mission is currently being worked on (for auto-complete)
+  const [activeMissionId, setActiveMissionId] = useState<string | null>(null)
 
   // Track hint usage per step (for detecting stuck steps)
   const [hintUsageCount, setHintUsageCount] = useState<Record<string, number>>({})
@@ -241,16 +264,27 @@ export default function DashboardPage() {
     setResponseTimeMs(null)
     setInputMode('photo') // Reset to photo-first
     setUploadedImage(null)
+    setUploadedDocument(null)
     setExpandedSections(new Set(['core', 'steps']))
     setFlippedCards(new Set())
     setRevealedHints(new Set())
     setMarkedWeakCards(new Set())
     setHintUsageCount({})
+    setActiveMissionId(null) // Clear active mission
     if (imagePreview) {
       URL.revokeObjectURL(imagePreview)
     }
     setImagePreview(null)
   }, [imagePreview])
+
+  // Handle "Got it" - auto-completes active mission if one exists
+  const handleGotIt = useCallback(() => {
+    // Auto-complete the active mission
+    if (activeMissionId) {
+      completeMissionItem(activeMissionId)
+    }
+    resetFlow()
+  }, [activeMissionId, completeMissionItem, resetFlow])
 
   // Handle struggle type selection
   const handleStruggleSelect = (type: StruggleType) => {
@@ -348,6 +382,92 @@ export default function DashboardPage() {
     }
   }, [uploadedImage, struggleType])
 
+  // Handle document selection
+  const handleDocumentSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+
+      // Validate file type
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain',
+      ]
+      if (!allowedTypes.includes(file.type)) {
+        setError('Please select a PDF, Word document, or text file.')
+        return
+      }
+
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('File too large. Maximum size is 10MB.')
+        return
+      }
+
+      setError(null)
+      setUploadedDocument(file)
+    },
+    []
+  )
+
+  // Remove uploaded document
+  const removeDocument = useCallback(() => {
+    setUploadedDocument(null)
+    setInputMode('text')
+    if (documentInputRef.current) {
+      documentInputRef.current.value = ''
+    }
+  }, [])
+
+  // Process uploaded document
+  const processDocument = useCallback(async () => {
+    if (!uploadedDocument || !struggleType) return
+
+    setIsProcessingDocument(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', uploadedDocument)
+      formData.append('struggleType', struggleType)
+
+      const response = await fetch('/api/study/upload-document', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process document')
+      }
+
+      // Add extracted content to question
+      if (data.extractedContent) {
+        setQuestion(
+          (prev) =>
+            prev
+              ? `${prev}\n\n${data.extractedContent}`
+              : data.extractedContent
+        )
+      }
+
+      setInputMode('text')
+      setUploadedDocument(null)
+    } catch (err) {
+      console.error('Document processing error:', err)
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to process document. Please try again or paste text directly.'
+      )
+    } finally {
+      setIsProcessingDocument(false)
+    }
+  }, [uploadedDocument, struggleType])
+
   // Submit question to AI
   const handleSubmit = async () => {
     if (!question.trim()) return
@@ -361,55 +481,171 @@ export default function DashboardPage() {
     setFlowStep('loading')
     setError(null)
     setResponseTimeMs(null)
+    setLoadingProgress(0)
+    setLoadingMessage('Starting...')
+    setPartialContent(null)
 
     const startTime = Date.now()
+    const inputLength = question.trim().length
+    const useStreaming = inputLength > 1000 // Use streaming for larger inputs
 
     try {
-      const response = await fetch('/api/guide-me', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: question.trim(),
-          struggleType: struggleType || 'general',
-          actionType: 'auto',
-        }),
-      })
-
-      const data = await response.json()
-
-      // Check if trial limit reached (server-side enforcement)
-      if (response.status === 403 && data.trialExhausted) {
-        setShowTrialLimitModal(true)
-        setFlowStep('home')
-        return
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to get help')
-      }
-
-      const elapsedMs = Date.now() - startTime
-      setResponseTimeMs(elapsedMs)
-
-      // Transform the response to our new structure
-      const transformedResult = transformApiResponse(data, struggleType)
-      setResult(transformedResult)
-      setFlowStep('result')
-
-      // Consume trial for guests (client-side tracking)
-      if (isGuest) {
-        const actionType = struggleType === 'dont_understand' ? 'explanation' :
-                          struggleType === 'test_coming' ? 'flashcards' : 'roadmap'
-        consumeTrial(question.trim(), actionType)
-      }
-
-      // Check for new milestones (only for authenticated users, non-blocking)
-      if (!isGuest) {
-        const actionType = struggleType === 'dont_understand' ? 'explain' :
-                          struggleType === 'test_coming' ? 'flashcard' : 'guide'
-        checkMilestones(actionType).catch(() => {
-          // Silently fail - milestone check is not critical
+      if (useStreaming) {
+        // Use streaming API for larger inputs - shows progress
+        const response = await fetch('/api/guide-me/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: question.trim(),
+            struggleType: struggleType || 'general',
+            actionType: 'auto',
+          }),
         })
+
+        if (!response.ok) {
+          throw new Error('Failed to connect to AI')
+        }
+
+        const reader = response.body?.getReader()
+        const decoder = new TextDecoder()
+
+        if (!reader) {
+          throw new Error('No response stream')
+        }
+
+        let buffer = ''
+        const STREAM_TIMEOUT_MS = 30000 // 30 seconds timeout for stream inactivity
+        let streamTimeoutId: NodeJS.Timeout | null = null
+
+        // Reset timeout on each chunk received
+        const resetStreamTimeout = () => {
+          if (streamTimeoutId) {
+            clearTimeout(streamTimeoutId)
+          }
+          streamTimeoutId = setTimeout(() => {
+            reader.cancel()
+            throw new Error('Stream timeout - no data received for 30 seconds')
+          }, STREAM_TIMEOUT_MS)
+        }
+
+        // Start initial timeout
+        resetStreamTimeout()
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            // Reset timeout on each token activity
+            resetStreamTimeout()
+
+            buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (!line.trim()) continue
+
+            const eventMatch = line.match(/^event: (\w+)/)
+            const dataMatch = line.match(/^data: (.+)$/m)
+
+            if (eventMatch && dataMatch) {
+              const eventType = eventMatch[1]
+              const eventData = JSON.parse(dataMatch[1])
+
+              switch (eventType) {
+                case 'status':
+                  setLoadingProgress(eventData.progress || 0)
+                  setLoadingMessage(eventData.message || 'Processing...')
+                  break
+                case 'partial':
+                  setPartialContent(eventData)
+                  break
+                case 'complete':
+                  const elapsedMs = Date.now() - startTime
+                  setResponseTimeMs(elapsedMs)
+                  const transformedResult = transformApiResponse(eventData, struggleType)
+                  setResult(transformedResult)
+                  setFlowStep('result')
+
+                  // Consume trial for guests
+                  if (isGuest) {
+                    const actionType = struggleType === 'dont_understand' ? 'explanation' :
+                                      struggleType === 'test_coming' ? 'flashcards' : 'roadmap'
+                    consumeTrial(question.trim(), actionType)
+                  }
+
+                  // Check milestones for authenticated users
+                  if (!isGuest) {
+                    const actionType = struggleType === 'dont_understand' ? 'explain' :
+                                      struggleType === 'test_coming' ? 'flashcard' : 'guide'
+                    checkMilestones(actionType).catch(() => {})
+                  }
+                  break
+                case 'error':
+                  if (eventData.trialExhausted) {
+                    setShowTrialLimitModal(true)
+                    setFlowStep('home')
+                  } else {
+                    throw new Error(eventData.error || 'Something went wrong')
+                  }
+                  break
+              }
+            }
+          }
+        }
+        } finally {
+          // Clean up stream timeout
+          if (streamTimeoutId) {
+            clearTimeout(streamTimeoutId)
+          }
+        }
+      } else {
+        // Use regular API for smaller inputs - faster
+        const response = await fetch('/api/guide-me', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: question.trim(),
+            struggleType: struggleType || 'general',
+            actionType: 'auto',
+          }),
+        })
+
+        const data = await response.json()
+
+        // Check if trial limit reached (server-side enforcement)
+        if (response.status === 403 && data.trialExhausted) {
+          setShowTrialLimitModal(true)
+          setFlowStep('home')
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to get help')
+        }
+
+        const elapsedMs = Date.now() - startTime
+        setResponseTimeMs(elapsedMs)
+
+        // Transform the response to our new structure
+        const transformedResult = transformApiResponse(data, struggleType)
+        setResult(transformedResult)
+        setFlowStep('result')
+
+        // Consume trial for guests (client-side tracking)
+        if (isGuest) {
+          const actionType = struggleType === 'dont_understand' ? 'explanation' :
+                            struggleType === 'test_coming' ? 'flashcards' : 'roadmap'
+          consumeTrial(question.trim(), actionType)
+        }
+
+        // Check for new milestones (only for authenticated users, non-blocking)
+        if (!isGuest) {
+          const actionType = struggleType === 'dont_understand' ? 'explain' :
+                            struggleType === 'test_coming' ? 'flashcard' : 'guide'
+          checkMilestones(actionType).catch(() => {})
+        }
       }
     } catch (err) {
       console.error('Error:', err)
@@ -428,6 +664,102 @@ export default function DashboardPage() {
         setError('Unable to process your request. Please try again.')
       }
       setFlowStep('input')
+    }
+  }
+
+  // Handle mission tap - deep-link directly to result (skip input screen)
+  const handleMissionTap = async (item: typeof missionItems[0]) => {
+    // Check if guest has trials remaining
+    if (isGuest && !hasTrials) {
+      setShowTrialLimitModal(true)
+      return
+    }
+
+    // Set active mission for auto-complete on "Got it"
+    setActiveMissionId(item.id)
+
+    // Determine struggle type from source
+    const sourceToStruggle: Record<string, StruggleType> = {
+      'explain_pack': 'dont_understand',
+      'test_prep': 'test_coming',
+      'guide_me': 'homework_help',
+    }
+    const missionStruggleType = sourceToStruggle[item.source] || 'homework_help'
+
+    // Use originalQuestion if available, otherwise fall back to description
+    const questionToSubmit = item.originalQuestion || item.description
+
+    // Set state for display purposes
+    setQuestion(questionToSubmit)
+    setStruggleType(missionStruggleType)
+    setFlowStep('loading')
+    setError(null)
+    setResponseTimeMs(null)
+
+    const startTime = Date.now()
+
+    try {
+      const response = await fetch('/api/guide-me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: questionToSubmit,
+          struggleType: missionStruggleType,
+          actionType: 'auto',
+        }),
+      })
+
+      const data = await response.json()
+
+      // Check if trial limit reached
+      if (response.status === 403 && data.trialExhausted) {
+        setShowTrialLimitModal(true)
+        setFlowStep('home')
+        setActiveMissionId(null)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get help')
+      }
+
+      const elapsedMs = Date.now() - startTime
+      setResponseTimeMs(elapsedMs)
+
+      // Transform the response
+      const transformedResult = transformApiResponse(data, missionStruggleType)
+      setResult(transformedResult)
+      setFlowStep('result')
+
+      // Consume trial for guests
+      if (isGuest) {
+        const actionType = missionStruggleType === 'dont_understand' ? 'explanation' :
+                          missionStruggleType === 'test_coming' ? 'flashcards' : 'roadmap'
+        consumeTrial(questionToSubmit, actionType)
+      }
+
+      // Check milestones for authenticated users
+      if (!isGuest) {
+        const actionType = missionStruggleType === 'dont_understand' ? 'explain' :
+                          missionStruggleType === 'test_coming' ? 'flashcard' : 'guide'
+        checkMilestones(actionType).catch(() => {})
+      }
+    } catch (err) {
+      console.error('Error:', err)
+      setActiveMissionId(null)
+      if (err instanceof Error) {
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          setError('Unable to connect. Please check your internet connection and try again.')
+        } else if (err.message.includes('timeout')) {
+          setError('Request took too long. Please try again.')
+        } else {
+          setError(err.message || 'Unable to process your request. Please try again.')
+        }
+      } else {
+        setError('Unable to process your request. Please try again.')
+      }
+      // Go back to home on error (not input, since we skipped it)
+      setFlowStep('home')
     }
   }
 
@@ -513,6 +845,81 @@ export default function DashboardPage() {
     }
   }
 
+  // Export result as text file
+  const exportResult = useCallback(() => {
+    if (!result) return
+
+    let content = ''
+    const timestamp = new Date().toLocaleString()
+
+    if (result.action.type === 'learning_pack') {
+      const pack = result.action
+      content = `# ${pack.title}\n`
+      content += `Generated: ${timestamp}\n\n`
+      content += `## Core Idea\n${pack.core.idea}\n\n`
+      if (pack.core.keyPoints.length > 0) {
+        content += `## Key Points\n`
+        pack.core.keyPoints.forEach((point, i) => {
+          content += `${i + 1}. ${point}\n`
+        })
+        content += '\n'
+      }
+      if (pack.steps && pack.steps.length > 0) {
+        content += `## Steps\n`
+        pack.steps.forEach((step, i) => {
+          content += `${i + 1}. ${step.step}\n   Why: ${step.why}\n`
+        })
+        content += '\n'
+      }
+      if (pack.example) {
+        content += `## Example\nProblem: ${pack.example.problem}\nSolution: ${pack.example.solution}\n\n`
+      }
+      if (pack.checkQuestion) {
+        content += `## Check Your Understanding\nQuestion: ${pack.checkQuestion.question}\nHint: ${pack.checkQuestion.hint}\n`
+      }
+    } else if (result.action.type === 'flashcards') {
+      const pack = result.action
+      content = `# ${pack.title}\n`
+      content += `Generated: ${timestamp}\n\n`
+      content += `## Flashcards\n\n`
+      pack.cards.forEach((card, i) => {
+        content += `### Card ${i + 1}\n`
+        content += `Q: ${card.question}\n`
+        content += `A: ${card.answer}\n`
+        if (card.hint) content += `Hint: ${card.hint}\n`
+        content += '\n'
+      })
+    } else if (result.action.type === 'homework_plan') {
+      const plan = result.action
+      content = `# ${plan.title}\n`
+      content += `Generated: ${timestamp}\n\n`
+      content += `${plan.encouragement}\n\n`
+      content += `## Steps (Total: ~${plan.totalMinutes} minutes)\n\n`
+      plan.steps.forEach((step) => {
+        content += `### Step ${step.order}: ${step.title}\n`
+        content += `${step.description}\n`
+        if (step.hints && step.hints.length > 0) {
+          content += `Hints:\n`
+          step.hints.forEach((hint, i) => {
+            content += `  ${i + 1}. ${hint}\n`
+          })
+        }
+        content += '\n'
+      })
+    }
+
+    // Create and download file
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `clerva-${result.action.type}-${Date.now()}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [result])
+
   // Toggle section expansion
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => {
@@ -589,6 +996,9 @@ export default function DashboardPage() {
         />
       )}
 
+      {/* PWA Install Banner - Shows for non-installed users */}
+      <PWAInstallBanner variant="banner" />
+
       {/* Header - Only show on home */}
       {flowStep === 'home' && (
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
@@ -662,59 +1072,67 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Today's Mission Section - Only for authenticated users */}
-            {!isGuest && hasMission && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-orange-500" />
-                    <h3 className="font-semibold text-neutral-900 dark:text-white">
-                      Today's Mission
-                    </h3>
+            {/* Today's Mission Section - Always visible */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-orange-500" />
+                  <h3 className="font-semibold text-neutral-900 dark:text-white">
+                    Today's Mission
+                  </h3>
+                  {!isGuest && hasMission && (
                     <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-medium rounded-full">
                       {missionItems.length}
                     </span>
-                  </div>
+                  )}
                 </div>
+              </div>
 
+              {/* Guest state */}
+              {isGuest && (
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center">
+                    Sign up to track your weak spots
+                  </p>
+                </div>
+              )}
+
+              {/* Authenticated but no mission */}
+              {!isGuest && !hasMission && (
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center">
+                    No weak spots yet - keep learning!
+                  </p>
+                </div>
+              )}
+
+              {/* Authenticated with missions */}
+              {!isGuest && hasMission && (
                 <div className="space-y-2">
                   {missionItems.map((item) => (
                     <MissionItemCard
                       key={item.id}
                       item={item}
-                      onComplete={() => completeMissionItem(item.id)}
-                      onDismiss={() => removeMissionItem(item.id)}
-                      onTap={() => {
-                        // Jump to appropriate tool based on source
-                        if (item.source === 'explain_pack') {
-                          setQuestion(item.description)
-                          handleStruggleSelect('dont_understand')
-                        } else if (item.source === 'test_prep') {
-                          setQuestion(item.description)
-                          handleStruggleSelect('test_coming')
-                        } else {
-                          setQuestion(item.description)
-                          handleStruggleSelect('homework_help')
-                        }
-                      }}
+                      onSnooze={() => snoozeMissionItem(item.id)}
+                      onTap={() => handleMissionTap(item)}
                     />
                   ))}
                 </div>
+              )}
 
-                <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4">
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
-                    Or start something new
-                  </p>
-                </div>
+              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4">
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
+                  {isGuest || !hasMission ? 'Start something new' : 'Or start something new'}
+                </p>
               </div>
-            )}
+            </div>
 
             {/* Three Tool Cards */}
             <div className="space-y-3">
               {/* Explain Pack */}
               <ToolCard
                 title="I don't understand something"
-                description="Get a clear explanation in 5 minutes"
+                description="Turn confusion into clarity"
                 icon={Lightbulb}
                 color="blue"
                 onClick={() => handleStruggleSelect('dont_understand')}
@@ -723,7 +1141,7 @@ export default function DashboardPage() {
               {/* Test Prep Sprint */}
               <ToolCard
                 title="Test coming up"
-                description="Quick review with smart flashcards"
+                description="Prep smarter, faster"
                 icon={Brain}
                 color="purple"
                 onClick={() => handleStruggleSelect('test_coming')}
@@ -732,7 +1150,7 @@ export default function DashboardPage() {
               {/* Guide Me */}
               <ToolCard
                 title="Guide me"
-                description="Step-by-step guidance without answers"
+                description="Stuck? Get unstuck"
                 icon={ClipboardList}
                 color="green"
                 onClick={() => handleStruggleSelect('homework_help')}
@@ -779,30 +1197,30 @@ export default function DashboardPage() {
               <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-1">
                 {struggleType === 'dont_understand' &&
                   "What don't you understand?"}
-                {struggleType === 'test_coming' && "What's your test about?"}
+                {struggleType === 'test_coming' && "What's on your test?"}
                 {struggleType === 'homework_help' &&
-                  'What do you need help with?'}
+                  'What are you working on?'}
               </h2>
               <p className="text-neutral-500 text-sm">
-                Paste, type, or snap a photo
+                Type, upload a photo, or attach a file
               </p>
             </div>
 
             {/* Input Mode Tabs */}
-            <div className="flex justify-center gap-2 p-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
+            <div className="flex justify-center gap-1 p-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
               <button
                 onClick={() => setInputMode('text')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
                   inputMode === 'text'
                     ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm'
                     : 'text-neutral-600 dark:text-neutral-400'
                 }`}
               >
-                <span>Type / Paste</span>
+                <span>Type</span>
               </button>
               <button
                 onClick={() => setInputMode('photo')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
                   inputMode === 'photo'
                     ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm'
                     : 'text-neutral-600 dark:text-neutral-400'
@@ -811,15 +1229,33 @@ export default function DashboardPage() {
                 <Camera className="w-4 h-4" />
                 <span>Photo</span>
               </button>
+              <button
+                onClick={() => setInputMode('document')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  inputMode === 'document'
+                    ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-neutral-600 dark:text-neutral-400'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>File</span>
+              </button>
             </div>
 
-            {/* Hidden file input */}
+            {/* Hidden file inputs */}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
               capture="environment"
               onChange={handleImageSelect}
+              className="hidden"
+            />
+            <input
+              ref={documentInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              onChange={handleDocumentSelect}
               className="hidden"
             />
 
@@ -912,8 +1348,82 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Show extracted content */}
+              {/* Show extracted content from photo */}
               {inputMode === 'photo' && question && (
+                <div className="space-y-2">
+                  <label className="text-sm text-neutral-500">
+                    Extracted content:
+                  </label>
+                  <textarea
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    className="w-full h-24 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl text-neutral-900 dark:text-white text-sm outline-none resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Document Input */}
+              {inputMode === 'document' && (
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+                  {uploadedDocument ? (
+                    <div className="p-4">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-neutral-900 dark:text-white truncate">
+                            {uploadedDocument.name}
+                          </p>
+                          <p className="text-xs text-neutral-500">
+                            {(uploadedDocument.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <button
+                          onClick={removeDocument}
+                          className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {isProcessingDocument ? (
+                        <div className="flex items-center justify-center gap-2 py-3">
+                          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                          <span className="text-neutral-600 dark:text-neutral-400">
+                            Extracting content...
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={processDocument}
+                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>Extract content</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => documentInputRef.current?.click()}
+                      className="w-full py-16 flex flex-col items-center justify-center hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+                    >
+                      <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+                        <FileText className="w-8 h-8 text-neutral-400" />
+                      </div>
+                      <p className="text-neutral-600 dark:text-neutral-400 font-medium">
+                        Tap to upload a file
+                      </p>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        PDF, Word documents, or text files
+                      </p>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Show extracted content from document */}
+              {inputMode === 'document' && question && (
                 <div className="space-y-2">
                   <label className="text-sm text-neutral-500">
                     Extracted content:
@@ -938,9 +1448,9 @@ export default function DashboardPage() {
               {/* Submit button */}
               <button
                 onClick={handleSubmit}
-                disabled={!question.trim() || isProcessingImage}
+                disabled={!question.trim() || isProcessingImage || isProcessingDocument}
                 className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg ${
-                  !question.trim() || isProcessingImage
+                  !question.trim() || isProcessingImage || isProcessingDocument
                     ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-500 shadow-none'
                     : struggleType === 'dont_understand'
                     ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-500/25'
@@ -949,7 +1459,11 @@ export default function DashboardPage() {
                     : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-500/25'
                 }`}
               >
-                <span>Get Help</span>
+                <span>
+                  {struggleType === 'dont_understand' && 'Explain This'}
+                  {struggleType === 'test_coming' && 'Generate Cards'}
+                  {struggleType === 'homework_help' && 'Show Me How'}
+                </span>
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -957,17 +1471,55 @@ export default function DashboardPage() {
         )}
 
         {/* ============================================ */}
-        {/* LOADING */}
+        {/* LOADING - Progressive UI with micro-feedback */}
         {/* ============================================ */}
         {flowStep === 'loading' && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
+          <div className="flex flex-col items-center justify-center py-12">
+            {/* Animated icon */}
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 animate-pulse shadow-lg shadow-blue-500/20">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
-            <p className="text-neutral-600 dark:text-neutral-400 font-medium">
-              Creating your help...
+
+            {/* Progress bar */}
+            <div className="w-64 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full mb-4 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+
+            {/* Loading message */}
+            <p className="text-neutral-600 dark:text-neutral-400 font-medium mb-2">
+              {loadingMessage}
             </p>
+
+            {/* Progress percentage */}
+            <p className="text-sm text-neutral-400 dark:text-neutral-500 mb-6">
+              {loadingProgress}% complete
+            </p>
+
+            {/* Partial content preview - shows early content as it streams */}
+            {partialContent && (
+              <div className="w-full max-w-md p-4 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-sm animate-fadeIn">
+                {partialContent.title && (
+                  <p className="font-semibold text-neutral-800 dark:text-neutral-200 text-center">
+                    {partialContent.title}
+                  </p>
+                )}
+                {partialContent.coreIdea && (
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mt-2">
+                    {partialContent.coreIdea}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Helpful tip during longer loads */}
+            {loadingProgress > 30 && loadingProgress < 90 && (
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-4 text-center max-w-xs">
+                Tip: Larger inputs take a bit longer but get more detailed responses
+              </p>
+            )}
           </div>
         )}
 
@@ -976,7 +1528,7 @@ export default function DashboardPage() {
         {/* ============================================ */}
         {flowStep === 'result' && result && (
           <div className="space-y-4">
-            {/* Back button + Instant badge */}
+            {/* Back button + Actions */}
             <div className="flex items-center justify-between">
               <button
                 onClick={resetFlow}
@@ -986,15 +1538,27 @@ export default function DashboardPage() {
                 <span className="text-sm">Start over</span>
               </button>
 
-              {/* Instant badge - shows for fast responses (under 2 seconds) */}
-              {responseTimeMs !== null && responseTimeMs < 2000 && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 border border-yellow-200 dark:border-yellow-800/50 rounded-full">
-                  <Zap className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
-                  <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
-                    Instant!
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Instant badge - shows for fast responses (under 2 seconds) */}
+                {responseTimeMs !== null && responseTimeMs < 2000 && (
+                  <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 border border-yellow-200 dark:border-yellow-800/50 rounded-full">
+                    <Zap className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                      Instant!
+                    </span>
+                  </div>
+                )}
+
+                {/* Export button */}
+                <button
+                  onClick={exportResult}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                  title="Download as text file"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Save</span>
+                </button>
+              </div>
             </div>
 
             {/* Acknowledgment */}
@@ -1022,14 +1586,15 @@ export default function DashboardPage() {
                 flippedCards={flippedCards}
                 toggleCardFlip={toggleCardFlip}
                 markedWeak={markedWeakCards}
-                onMarkWeak={(question: string) => {
+                onMarkWeak={(cardQuestion: string) => {
                   // Find the card id from question
                   const card = result.action.type === 'flashcards'
-                    ? result.action.cards.find(c => c.question === question)
+                    ? result.action.cards.find(c => c.question === cardQuestion)
                     : null
                   if (card) {
                     setMarkedWeakCards(prev => new Set([...prev, card.id]))
-                    addWeakFlashcard(question, question.slice(0, 30))
+                    // Pass original question for deep-linking (test prep topic)
+                    addWeakFlashcard(cardQuestion, cardQuestion.slice(0, 30), question)
                   }
                 }}
               />
@@ -1046,11 +1611,11 @@ export default function DashboardPage() {
                   const stepId = hintId.split('-hint-')[0]
                   setHintUsageCount(prev => {
                     const newCount = (prev[stepId] || 0) + 1
-                    // If 2+ hints used, add to mission
+                    // If 2+ hints used, add to mission with original question for deep-linking
                     if (newCount === 2 && result.action.type === 'homework_plan') {
                       const step = result.action.steps.find(s => s.id === stepId)
                       if (step) {
-                        addStuckStep(step.title, step.description)
+                        addStuckStep(step.title, step.description, question)
                       }
                     }
                     return { ...prev, [stepId]: newCount }
@@ -1066,13 +1631,38 @@ export default function DashboardPage() {
               </p>
             </div>
 
+            {/* Secondary Action Suggestion - Only show if API suggests one */}
+            {result.secondaryAction && (
+              <SecondaryActionCard
+                suggestion={result.secondaryAction}
+                onTap={() => {
+                  // Map secondary type to struggle type
+                  const typeToStruggle: Record<string, StruggleType> = {
+                    'explanation': 'dont_understand',
+                    'flashcards': 'test_coming',
+                    'roadmap': 'homework_help',
+                  }
+                  const newStruggleType = typeToStruggle[result.secondaryAction!.type]
+
+                  // Pre-fill the prompt and switch to that tool
+                  setQuestion(result.secondaryAction!.prompt)
+                  setStruggleType(newStruggleType)
+                  setFlowStep('input')
+                  setResult(null)
+                }}
+              />
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-3">
               {/* Still Confused button for Explain Pack */}
               {result.action.type === 'learning_pack' && (
                 <button
                   onClick={() => {
-                    addConfusedConcept(question, result.action.title)
+                    // Add to mission with original question for deep-linking later
+                    addConfusedConcept(question, result.action.title, question)
+                    // Clear active mission since user is still confused
+                    setActiveMissionId(null)
                     resetFlow()
                   }}
                   className="flex-1 py-4 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
@@ -1082,7 +1672,7 @@ export default function DashboardPage() {
                 </button>
               )}
               <button
-                onClick={resetFlow}
+                onClick={handleGotIt}
                 className="flex-1 py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/25"
               >
                 <Check className="w-5 h-5" />
@@ -1515,45 +2105,46 @@ const CollapsibleSection = memo(function CollapsibleSection({
   )
 })
 
-// Mission Item Card Component
+// Mission Item Card Component - Smart shortcut with direct deep-linking
 interface MissionItemCardProps {
   item: {
     id: string
-    type: 'flashcard' | 'concept' | 'step'
-    source: 'test_prep' | 'explain_pack' | 'guide_me'
+    type: 'flashcard' | 'concept' | 'step' | 'starter'
+    source: 'test_prep' | 'explain_pack' | 'guide_me' | 'onboarding'
     title: string
     description: string
     priority: 'high' | 'medium' | 'low'
+    isStarter?: boolean
   }
-  onComplete: () => void
-  onDismiss: () => void
-  onTap: () => void
+  onSnooze: () => void // "Not now" - hides for 24 hours
+  onTap: () => void // Deep-link directly to result
 }
 
 const MissionItemCard = memo(function MissionItemCard({
   item,
-  onComplete,
-  onDismiss,
+  onSnooze,
   onTap,
 }: MissionItemCardProps) {
   const typeConfig = {
     flashcard: {
       icon: Brain,
-      color: 'purple',
       bgClass: 'bg-purple-100 dark:bg-purple-900/30',
       iconClass: 'text-purple-600 dark:text-purple-400',
     },
     concept: {
       icon: Lightbulb,
-      color: 'blue',
       bgClass: 'bg-blue-100 dark:bg-blue-900/30',
       iconClass: 'text-blue-600 dark:text-blue-400',
     },
     step: {
       icon: ClipboardList,
-      color: 'green',
       bgClass: 'bg-green-100 dark:bg-green-900/30',
       iconClass: 'text-green-600 dark:text-green-400',
+    },
+    starter: {
+      icon: Sparkles,
+      bgClass: 'bg-amber-100 dark:bg-amber-900/30',
+      iconClass: 'text-amber-600 dark:text-amber-400',
     },
   }
 
@@ -1561,56 +2152,108 @@ const MissionItemCard = memo(function MissionItemCard({
   const Icon = config.icon
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl group">
+    <button
+      onClick={onTap}
+      className="w-full flex items-center gap-3 p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all group text-left"
+    >
       {/* Icon */}
-      <div className={`w-10 h-10 ${config.bgClass} rounded-lg flex items-center justify-center flex-shrink-0`}>
+      <div className={`w-10 h-10 ${config.bgClass} rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
         <Icon className={`w-5 h-5 ${config.iconClass}`} />
       </div>
 
-      {/* Content - Tappable */}
-      <button
-        onClick={onTap}
-        className="flex-1 text-left min-w-0"
-      >
+      {/* Content */}
+      <div className="flex-1 min-w-0">
         <p className="font-medium text-neutral-900 dark:text-white text-sm truncate">
           {item.title}
         </p>
         <p className="text-xs text-neutral-500 truncate">
           {item.description}
         </p>
+      </div>
+
+      {/* Time estimate + Priority */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <span className="text-xs text-neutral-400">~3 min</span>
+        {item.priority === 'high' && (
+          <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded">
+            Weak
+          </span>
+        )}
+      </div>
+
+      {/* Not now button - stops propagation to prevent tap */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onSnooze()
+        }}
+        className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors opacity-0 group-hover:opacity-100"
+        title="Hide for 24 hours"
+      >
+        Not now
       </button>
 
-      {/* Priority indicator */}
-      {item.priority === 'high' && (
-        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded">
-          Weak
-        </span>
-      )}
+      {/* Arrow indicator */}
+      <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+    </button>
+  )
+})
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onComplete()
-          }}
-          className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-          title="Mark as done"
-        >
-          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDismiss()
-          }}
-          className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-          title="Dismiss"
-        >
-          <X className="w-4 h-4 text-neutral-400" />
-        </button>
+// Secondary Action Card Component - Suggests additional help
+interface SecondaryActionCardProps {
+  suggestion: SecondaryActionSuggestion
+  onTap: () => void
+}
+
+const SecondaryActionCard = memo(function SecondaryActionCard({
+  suggestion,
+  onTap,
+}: SecondaryActionCardProps) {
+  // Map type to visual config
+  const typeConfig: Record<string, { icon: typeof Lightbulb; color: string; bgColor: string; label: string }> = {
+    explanation: {
+      icon: Lightbulb,
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+      label: 'Explain This',
+    },
+    flashcards: {
+      icon: Brain,
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+      label: 'Create Cards',
+    },
+    roadmap: {
+      icon: ClipboardList,
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
+      label: 'Get a Plan',
+    },
+  }
+
+  const config = typeConfig[suggestion.type] || typeConfig.explanation
+  const Icon = config.icon
+
+  return (
+    <button
+      onClick={onTap}
+      className="w-full p-4 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-800/50 dark:to-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all group text-left"
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 ${config.bgColor} rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
+          <Icon className={`w-5 h-5 ${config.color}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-neutral-900 dark:text-white">
+            {suggestion.reason}
+          </p>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Tap to {config.label.toLowerCase()}
+          </p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
       </div>
-    </div>
+    </button>
   )
 })
 

@@ -25,11 +25,11 @@ export default function OfflineWarning({
   if (!shouldShow) return null
 
   return (
-    <div className={`bg-yellow-50 border-l-4 border-yellow-400 p-3 ${className}`}>
+    <div className={`bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-3 ${className}`}>
       <div className="flex items-start">
         <div className="flex-shrink-0">
           <svg
-            className="h-5 w-5 text-yellow-400"
+            className="h-5 w-5 text-yellow-400 dark:text-yellow-500"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -41,7 +41,7 @@ export default function OfflineWarning({
           </svg>
         </div>
         <div className="ml-3">
-          <p className="text-sm text-yellow-700">
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">
             {!isOnline ? (
               <>
                 <span className="font-semibold">Offline:</span> {message}

@@ -7,7 +7,21 @@ import { prisma } from '@/lib/prisma'
 import { trackPerformance } from '@/lib/admin/performance'
 
 // Cron secret for authentication (set in Vercel/Supabase)
-const CRON_SECRET = process.env.CRON_SECRET || 'your-secret-here'
+// SECURITY: No default fallback - must be set in environment
+const CRON_SECRET = process.env.CRON_SECRET
+
+function isCronSecretValid(secret: string | null): boolean {
+  // Reject if CRON_SECRET is not configured
+  if (!CRON_SECRET) {
+    console.error('[Admin] CRON_SECRET environment variable is not set')
+    return false
+  }
+  // Reject if provided secret doesn't match
+  if (!secret || secret !== CRON_SECRET) {
+    return false
+  }
+  return true
+}
 
 export async function POST(req: NextRequest) {
   const tracker = trackPerformance('/api/admin/refresh-views', 'POST')
@@ -18,7 +32,7 @@ export async function POST(req: NextRequest) {
     const cronSecret = req.headers.get('x-cron-secret')
 
     // Allow cron jobs with secret OR authenticated admins
-    const isCronJob = cronSecret === CRON_SECRET
+    const isCronJob = isCronSecretValid(cronSecret)
     const isAdmin = authHeader && await verifyAdminAuth(authHeader)
 
     if (!isCronJob && !isAdmin) {

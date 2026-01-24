@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const markReadSchema = z.object({
   notificationId: z.string().optional(),
@@ -9,6 +10,15 @@ const markReadSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit mark-read requests (lenient - read operations)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

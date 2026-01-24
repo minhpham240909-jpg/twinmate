@@ -151,11 +151,16 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Content moderation error:', error)
-    // Don't block message sending on moderation errors
-    return NextResponse.json({
-      success: true,
-      flagged: false,
-      error: 'Moderation check failed, content allowed',
-    })
+    // SECURITY FIX: On moderation errors, return 503 to indicate service unavailable
+    // Callers should decide whether to block or allow content when moderation fails
+    return NextResponse.json(
+      {
+        success: false,
+        flagged: null, // Unknown - moderation failed
+        error: 'Moderation service temporarily unavailable',
+        retryable: true,
+      },
+      { status: 503 }
+    )
   }
 }

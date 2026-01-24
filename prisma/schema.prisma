@@ -242,9 +242,19 @@ model Profile {
   @@index([userId])
   @@index([subjects])
   @@index([interests])
+  @@index([goals]) // PERF: Profile matching queries filter on goals array
   @@index([location_city])
+  @@index([location_state]) // PERF: Location-based matching
+  @@index([location_country]) // PERF: Location-based matching
   @@index([location_visibility])
   @@index([isLookingForPartner]) // PERF: Critical for partner matching
+  @@index([skillLevel]) // PERF: Profile matching filters on skill level
+  @@index([studyStyle]) // PERF: Profile matching filters on study style
+  @@index([school]) // PERF: School-based matching (text search)
+  // Composite indexes for common query patterns
+  @@index([isLookingForPartner, skillLevel]) // PERF: Partner matching with skill filter
+  @@index([isLookingForPartner, studyStyle]) // PERF: Partner matching with style filter
+  @@index([location_city, location_state, location_country]) // PERF: Location-based queries
 }
 
 model LearningProfile {
@@ -515,6 +525,79 @@ model ConversationArchive {
   @@unique([userId, conversationType, conversationId])
   @@index([userId])
   @@index([conversationId])
+}
+
+// ==========================================
+// MESSAGE ARCHIVAL SYSTEM
+// ==========================================
+// 
+// Strategy: Archive messages older than 90 days to separate table
+// - Reduces active table size for faster queries
+// - Archived messages still accessible via API
+// - Can be further compressed or moved to cold storage
+
+model ArchivedMessage {
+  id      String      @id @default(uuid())
+  originalId String   @unique // Original message ID for reference
+  content String      @db.Text
+  type    MessageType @default(TEXT)
+
+  // Sender info (cached from original message)
+  senderId        String?
+  senderName      String?
+  senderEmail     String?
+  senderAvatarUrl String?
+
+  // Conversation info
+  groupId         String?
+  recipientId     String?
+  recipientName   String?
+  recipientEmail  String?
+
+  // Attachments
+  fileUrl  String?
+  fileName String?
+  fileSize Int?
+
+  // Call metadata (only for CALL type messages)
+  callType      CallType?
+  callDuration  Int?
+  callStatus    CallStatus?
+  callStartedAt DateTime?
+
+  // Archive metadata
+  originalCreatedAt DateTime // When the message was originally sent
+  archivedAt        DateTime @default(now()) // When it was archived
+  archiveReason     String   @default("age") // "age" | "deleted_user" | "manual"
+
+  // Indexes optimized for archive queries (less frequent access)
+  @@index([originalId])
+  @@index([senderId])
+  @@index([groupId])
+  @@index([recipientId])
+  @@index([originalCreatedAt])
+  @@index([archivedAt])
+  @@index([archiveReason])
+  // Composite index for conversation history lookups
+  @@index([groupId, originalCreatedAt])
+  @@index([senderId, recipientId, originalCreatedAt])
+  @@map("archived_messages")
+}
+
+// Track archival jobs for monitoring and debugging
+model MessageArchiveJob {
+  id            String   @id @default(uuid())
+  status        String   @default("pending") // "pending" | "running" | "completed" | "failed"
+  messagesFound Int      @default(0)
+  messagesArchived Int   @default(0)
+  error         String?  @db.Text
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  durationMs    Int?
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("message_archive_jobs")
 }
 
 // ==========================================

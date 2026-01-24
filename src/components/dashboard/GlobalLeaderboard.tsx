@@ -16,7 +16,7 @@
  * - Graceful error handling
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Trophy, Lock, Clock, RefreshCw, User, Flame, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 
@@ -176,8 +176,8 @@ export default function GlobalLeaderboard({
     }
   }, [isLocked, fetchLeaderboard])
 
-  // Format minutes to readable string
-  const formatMinutes = (minutes: number): string => {
+  // PERF: Memoize formatMinutes to prevent recreation on every render
+  const formatMinutes = useCallback((minutes: number): string => {
     if (minutes < 60) {
       return `${minutes}m`
     }
@@ -187,10 +187,10 @@ export default function GlobalLeaderboard({
       return `${hours}h`
     }
     return `${hours}h ${mins}m`
-  }
+  }, [])
 
-  // Get time since last update
-  const getTimeSinceUpdate = (): string => {
+  // PERF: Memoize time since update calculation
+  const timeSinceUpdate = useMemo((): string => {
     if (!lastUpdated) return ''
     const now = new Date()
     const updated = new Date(lastUpdated)
@@ -201,10 +201,10 @@ export default function GlobalLeaderboard({
     if (diffHours === 1) return 'Updated 1 hour ago'
     if (diffHours < 24) return `Updated ${diffHours} hours ago`
     return 'Updated today'
-  }
+  }, [lastUpdated])
 
-  // Get rank badge color
-  const getRankBadge = (rank: number) => {
+  // PERF: Memoize getRankBadge to prevent recreation on every render
+  const getRankBadge = useCallback((rank: number) => {
     switch (rank) {
       case 1:
         return (
@@ -231,10 +231,10 @@ export default function GlobalLeaderboard({
           </div>
         )
     }
-  }
+  }, [])
 
-  // Get avatar or initials
-  const getAvatar = (entry: LeaderboardEntry) => {
+  // PERF: Memoize getAvatar to prevent recreation on every render
+  const getAvatar = useCallback((entry: LeaderboardEntry) => {
     if (entry.avatarUrl) {
       return (
         <Image
@@ -261,7 +261,7 @@ export default function GlobalLeaderboard({
         </span>
       </div>
     )
-  }
+  }, [])
 
   // Locked state
   if (isLocked) {
@@ -372,7 +372,7 @@ export default function GlobalLeaderboard({
         {lastUpdated && (
           <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
             <RefreshCw className="w-3 h-3" />
-            <span>{getTimeSinceUpdate()}</span>
+            <span>{timeSinceUpdate}</span>
           </div>
         )}
       </div>

@@ -15,6 +15,8 @@ import {
   notifyPostLike,
   canShowNotifications
 } from '@/lib/notifications'
+import toast from 'react-hot-toast'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 interface Notification {
   id: string
@@ -38,6 +40,7 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
   const router = useRouter()
   const { user } = useAuth()
   const t = useTranslations('common')
+  const { showDanger } = useConfirmModal()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set())
@@ -240,11 +243,11 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
       if (response.ok) {
         await markAsRead(notificationId)
         await fetchNotifications()
-        alert('Connection accepted!')
+        toast.success('Connection accepted!')
       }
     } catch (error) {
       console.error('Error accepting connection:', error)
-      alert('Failed to accept connection')
+      toast.error('Failed to accept connection')
     }
   }
 
@@ -259,11 +262,11 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
       if (response.ok) {
         await markAsRead(notificationId)
         await fetchNotifications()
-        alert('Connection declined')
+        toast.success('Connection declined')
       }
     } catch (error) {
       console.error('Error declining connection:', error)
-      alert('Failed to decline connection')
+      toast.error('Failed to decline connection')
     }
   }
 
@@ -306,8 +309,11 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
   const handleDeleteSelected = async () => {
     if (selectedNotifications.size === 0) return
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedNotifications.size} notification(s)?`
+    const confirmed = await showDanger(
+      'Delete Notifications',
+      `Are you sure you want to delete ${selectedNotifications.size} notification(s)?`,
+      'Delete',
+      'Cancel'
     )
 
     if (!confirmed) return
@@ -332,11 +338,11 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         onUnreadCountChange(remainingUnread)
       } else {
         console.error('Delete failed:', data)
-        alert(data.error || 'Failed to delete notifications')
+        toast.error(data.error || 'Failed to delete notifications')
       }
     } catch (error) {
       console.error('Error deleting notifications:', error)
-      alert('Failed to delete notifications. Please try again.')
+      toast.error('Failed to delete notifications. Please try again.')
     }
   }
 

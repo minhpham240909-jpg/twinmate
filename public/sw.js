@@ -5,6 +5,11 @@ const CACHE_NAME = 'clerva-pwa-v2';
 const STATIC_CACHE = 'clerva-static-v2';
 const DYNAMIC_CACHE = 'clerva-dynamic-v2';
 
+// SCALABILITY: Cache size limits to prevent storage quota exhaustion
+// With 2000-3000 concurrent users, unbounded caches would cause issues
+const MAX_DYNAMIC_CACHE_SIZE = 100; // Max items in dynamic cache
+const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 // Static assets to cache immediately
 const STATIC_ASSETS = [
   '/',
@@ -91,12 +96,14 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(networkFirst(request));
 });
 
-// Network first strategy
+// Network first strategy with cache size limits
 async function networkFirst(request) {
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       const cache = await caches.open(DYNAMIC_CACHE);
+      // SCALABILITY: Enforce cache size limits before adding new items
+      await enforceCacheLimit(cache);
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
@@ -106,7 +113,7 @@ async function networkFirst(request) {
   }
 }
 
-// Cache first strategy
+// Cache first strategy with size limits
 async function cacheFirst(request) {
   const cachedResponse = await caches.match(request);
   if (cachedResponse) {
@@ -117,11 +124,29 @@ async function cacheFirst(request) {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       const cache = await caches.open(DYNAMIC_CACHE);
+      // SCALABILITY: Enforce cache size limits before adding new items
+      await enforceCacheLimit(cache);
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
     return new Response('Asset not available offline', { status: 503 });
+  }
+}
+
+// SCALABILITY: Enforce cache size limits to prevent storage quota exhaustion
+async function enforceCacheLimit(cache) {
+  try {
+    const keys = await cache.keys();
+    if (keys.length >= MAX_DYNAMIC_CACHE_SIZE) {
+      // Delete oldest entries (first 10% of cache)
+      const toDelete = Math.ceil(keys.length * 0.1);
+      const deletePromises = keys.slice(0, toDelete).map(key => cache.delete(key));
+      await Promise.all(deletePromises);
+      console.log(`[SW] Cache cleanup: removed ${toDelete} old entries`);
+    }
+  } catch (error) {
+    console.warn('[SW] Cache limit enforcement failed:', error);
   }
 }
 
@@ -131,6 +156,8 @@ async function networkFirstWithOfflineFallback(request) {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       const cache = await caches.open(DYNAMIC_CACHE);
+      // SCALABILITY: Enforce cache size limits before adding new items
+      await enforceCacheLimit(cache);
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
@@ -282,22 +309,82 @@ self.addEventListener('notificationclose', (event) => {
 // Handle push subscription change
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
-    self.registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: self.VAPID_PUBLIC_KEY
-    })
-    .then((subscription) => {
-      return fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscription: subscription.toJSON(),
-          oldEndpoint: event.oldSubscription?.endpoint
-        })
+    getVapidKey().then((vapidKey) => {
+      if (!vapidKey) {
+        console.error('[SW] No VAPID key available for subscription change');
+        return;
+      }
+      return self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidKey
+      })
+      .then((subscription) => {
+        return fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription: subscription.toJSON(),
+            oldEndpoint: event.oldSubscription?.endpoint
+          })
+        });
       });
     })
   );
 });
+
+/**
+ * Get VAPID key from cache or memory
+ */
+async function getVapidKey() {
+  // Try memory first
+  if (self.VAPID_PUBLIC_KEY) {
+    return self.VAPID_PUBLIC_KEY;
+  }
+  
+  // Try to get from cache
+  try {
+    const cache = await caches.open('clerva-config');
+    const response = await cache.match('/vapid-key');
+    if (response) {
+      const data = await response.json();
+      self.VAPID_PUBLIC_KEY = data.key;
+      return data.key;
+    }
+  } catch (error) {
+    console.error('[SW] Error getting VAPID key from cache:', error);
+  }
+  
+  // Try to fetch from server
+  try {
+    const response = await fetch('/api/push/subscribe');
+    if (response.ok) {
+      const data = await response.json();
+      if (data.publicKey) {
+        await saveVapidKey(data.publicKey);
+        return data.publicKey;
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error fetching VAPID key:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * Save VAPID key to cache for persistence
+ */
+async function saveVapidKey(key) {
+  self.VAPID_PUBLIC_KEY = key;
+  try {
+    const cache = await caches.open('clerva-config');
+    await cache.put('/vapid-key', new Response(JSON.stringify({ key }), {
+      headers: { 'Content-Type': 'application/json' }
+    }));
+  } catch (error) {
+    console.error('[SW] Error saving VAPID key to cache:', error);
+  }
+}
 
 // Handle messages from main app
 self.addEventListener('message', (event) => {
@@ -306,13 +393,23 @@ self.addEventListener('message', (event) => {
   }
 
   if (event.data && event.data.type === 'SET_VAPID_KEY') {
-    self.VAPID_PUBLIC_KEY = event.data.key;
+    // Save to both memory and cache for persistence
+    saveVapidKey(event.data.key);
   }
 
   if (event.data && event.data.type === 'CACHE_URLS') {
     const urls = event.data.urls || [];
     caches.open(DYNAMIC_CACHE).then((cache) => {
       cache.addAll(urls);
+    });
+  }
+
+  if (event.data && event.data.type === 'GET_OFFLINE_QUEUE') {
+    // Respond with offline queue from IndexedDB
+    getOfflineQueue().then(queue => {
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage(queue);
+      }
     });
   }
 });
@@ -323,15 +420,191 @@ self.addEventListener('sync', (event) => {
     event.waitUntil(syncFlashcardProgress());
   } else if (event.tag === 'sync-study-session') {
     event.waitUntil(syncStudySession());
+  } else if (event.tag === 'sync-offline-queue') {
+    event.waitUntil(syncOfflineQueue());
   }
 });
 
+/**
+ * Sync flashcard progress when back online
+ */
 async function syncFlashcardProgress() {
-  // Will sync offline flashcard progress when back online
-  console.log('[SW] Syncing flashcard progress');
+  try {
+    const queue = await getOfflineQueue();
+    const flashcardActions = queue.filter(action => action.type.startsWith('flashcard_'));
+    
+    for (const action of flashcardActions) {
+      try {
+        const response = await fetch('/api/flashcards/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(action.payload),
+        });
+        
+        if (response.ok) {
+          await removeFromOfflineQueue(action.id);
+        }
+      } catch (error) {
+        console.error('[SW] Error syncing flashcard:', error);
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error in syncFlashcardProgress:', error);
+  }
 }
 
+/**
+ * Sync study session data when back online
+ */
 async function syncStudySession() {
-  // Will sync offline study session data when back online
-  console.log('[SW] Syncing study session');
+  try {
+    const queue = await getOfflineQueue();
+    const sessionActions = queue.filter(action => action.type.startsWith('session_'));
+    
+    for (const action of sessionActions) {
+      try {
+        const response = await fetch('/api/study-sessions/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(action.payload),
+        });
+        
+        if (response.ok) {
+          await removeFromOfflineQueue(action.id);
+        }
+      } catch (error) {
+        console.error('[SW] Error syncing session:', error);
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error in syncStudySession:', error);
+  }
+}
+
+/**
+ * Generic sync for all offline queue items
+ */
+async function syncOfflineQueue() {
+  try {
+    const queue = await getOfflineQueue();
+    
+    for (const action of queue) {
+      try {
+        // Determine endpoint based on action type
+        let endpoint = '/api/sync';
+        if (action.type.startsWith('flashcard_')) {
+          endpoint = '/api/flashcards/sync';
+        } else if (action.type.startsWith('session_')) {
+          endpoint = '/api/study-sessions/sync';
+        } else if (action.type.startsWith('progress_')) {
+          endpoint = '/api/progress/sync';
+        }
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actionType: action.type,
+            payload: action.payload,
+            timestamp: action.timestamp,
+          }),
+        });
+        
+        if (response.ok) {
+          await removeFromOfflineQueue(action.id);
+          // Notify the main app about successful sync
+          self.clients.matchAll().then(clients => {
+            clients.forEach(client => {
+              client.postMessage({
+                type: 'SYNC_SUCCESS',
+                actionId: action.id,
+                actionType: action.type,
+              });
+            });
+          });
+        }
+      } catch (error) {
+        console.error('[SW] Error syncing action:', action.type, error);
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error in syncOfflineQueue:', error);
+  }
+}
+
+/**
+ * Get offline queue from IndexedDB or postMessage to client
+ */
+async function getOfflineQueue() {
+  // Try to get from IndexedDB first
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('queue', 'readonly');
+    const store = tx.objectStore('queue');
+    const request = store.getAll();
+    
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    // Fallback: request from client
+    const clients = await self.clients.matchAll();
+    if (clients.length > 0) {
+      return new Promise((resolve) => {
+        const messageChannel = new MessageChannel();
+        messageChannel.port1.onmessage = (event) => {
+          resolve(event.data || []);
+        };
+        clients[0].postMessage({ type: 'GET_OFFLINE_QUEUE' }, [messageChannel.port2]);
+        // Timeout after 5 seconds
+        setTimeout(() => resolve([]), 5000);
+      });
+    }
+    return [];
+  }
+}
+
+/**
+ * Remove item from offline queue
+ */
+async function removeFromOfflineQueue(actionId) {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction('queue', 'readwrite');
+    const store = tx.objectStore('queue');
+    store.delete(actionId);
+    await tx.done;
+  } catch (error) {
+    // Notify client to remove item
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'REMOVE_FROM_QUEUE',
+        actionId,
+      });
+    });
+  }
+}
+
+/**
+ * Open IndexedDB for offline storage
+ */
+function openOfflineDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('clerva-offline', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('queue')) {
+        db.createObjectStore('queue', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('studySessions')) {
+        db.createObjectStore('studySessions', { keyPath: 'id' });
+      }
+    };
+  });
 }

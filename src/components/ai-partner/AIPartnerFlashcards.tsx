@@ -21,6 +21,7 @@ import {
   Timer,
 } from 'lucide-react'
 import MathRenderer from '@/components/MathRenderer'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 interface Flashcard {
   id: string
@@ -227,6 +228,9 @@ export default function AIPartnerFlashcards({
   subject,
   isTimerActive = true, // Default to true for backwards compatibility
 }: AIPartnerFlashcardsProps) {
+  // Modal for confirmations
+  const { showDanger } = useConfirmModal()
+
   // Data State
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
@@ -378,8 +382,9 @@ export default function AIPartnerFlashcards({
     }
   }
 
-  const handleDeleteCard = (id: string) => {
-    if (!confirm('Delete this card?')) return
+  const handleDeleteCard = async (id: string) => {
+    const confirmed = await showDanger('Delete Card', 'Are you sure you want to delete this card?', 'Delete', 'Cancel')
+    if (!confirmed) return
     setFlashcards((prev) => prev.filter((c) => c.id !== id))
     toast.success('Card deleted')
   }

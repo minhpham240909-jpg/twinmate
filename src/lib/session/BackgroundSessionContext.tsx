@@ -48,6 +48,9 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
 
   // Maintain Supabase presence in background
   useEffect(() => {
+    // FIX: Track mounted state to prevent state updates after unmount
+    let isMounted = true
+
     if (!activeSessionId) {
       // Cleanup if no active session
       if (channelRef.current) {
@@ -59,13 +62,12 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
     }
 
     // Get user from localStorage or session
-    const getUserId = async () => {
+    const setupPresence = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      return user?.id
-    }
+      const userId = user?.id
 
-    getUserId().then((userId) => {
-      if (!userId) return
+      // FIX: Check if still mounted before proceeding
+      if (!userId || !isMounted) return
 
       const channel = supabase.channel(`session-${activeSessionId}-presence-bg`, {
         config: {
@@ -77,6 +79,7 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
 
       channel
         .on('presence', { event: 'sync' }, () => {
+          if (!isMounted) return
           const state = channel.presenceState()
           const isUserOnline = Object.values(state).some((presences) =>
             presences.some((p) => {
@@ -87,19 +90,22 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
           setIsOnline(isUserOnline)
         })
         .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
+          if (status === 'SUBSCRIBED' && isMounted) {
             await channel.track({
               user_id: userId,
               online_at: new Date().toISOString(),
             })
-            setIsOnline(true)
+            if (isMounted) setIsOnline(true)
           }
         })
 
       channelRef.current = channel
-    })
+    }
+
+    setupPresence()
 
     return () => {
+      isMounted = false
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
@@ -117,13 +123,21 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
       return
     }
 
+    // FIX: Use AbortController for fetch cleanup on unmount
+    const abortController = new AbortController()
+
     // Poll timer API to keep it synced (as fallback - real-time handles most updates)
     const pollTimer = async () => {
       try {
         await fetch(`/api/study-sessions/${activeSessionId}/timer`, {
           cache: 'no-store',
+          signal: abortController.signal,
         })
       } catch (error) {
+        // Ignore abort errors - they're expected on unmount
+        if (error instanceof Error && error.name === 'AbortError') {
+          return
+        }
         console.error('Background timer sync error:', error)
       }
     }
@@ -133,6 +147,7 @@ export function BackgroundSessionProvider({ children }: { children: React.ReactN
     timerIntervalRef.current = setInterval(pollTimer, 30000)
 
     return () => {
+      abortController.abort()
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current)
         timerIntervalRef.current = null

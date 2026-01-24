@@ -610,20 +610,48 @@ export async function POST(request: NextRequest) {
     // SCALE: Streaming timeout (60 seconds max) to prevent hanging connections
     const STREAM_TIMEOUT_MS = 60000
     let streamTimeoutId: NodeJS.Timeout | null = null
-    let isStreamClosed = false
 
-    const closeStreamWithTimeout = async () => {
-      if (isStreamClosed) return
-      isStreamClosed = true
-      if (streamTimeoutId) clearTimeout(streamTimeoutId)
+    // FIX: Use a mutex-like pattern to prevent race conditions
+    // Only one path can close the stream
+    let streamState: 'open' | 'closing' | 'closed' = 'open'
+
+    // FIX: Safe write that checks stream state first
+    const safeWrite = async (data: string): Promise<boolean> => {
+      if (streamState !== 'open') return false
       try {
-        await writer.write(encoder.encode(`data: ${JSON.stringify({
-          type: 'error',
-          error: 'Response timeout - please try again',
-        })}\n\n`))
+        await writer.write(encoder.encode(data))
+        return true
+      } catch (err) {
+        // Stream was closed by client or other error
+        console.warn('[AI Partner Stream] Write failed, stream may be closed:', err)
+        return false
+      }
+    }
+
+    // FIX: Safe close that uses mutex pattern
+    const safeClose = async (errorMessage?: string): Promise<void> => {
+      // Only allow one close operation
+      if (streamState !== 'open') return
+      streamState = 'closing'
+
+      // Clear timeout first
+      if (streamTimeoutId) {
+        clearTimeout(streamTimeoutId)
+        streamTimeoutId = null
+      }
+
+      try {
+        if (errorMessage) {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            type: 'error',
+            error: errorMessage,
+          })}\n\n`))
+        }
         await writer.close()
       } catch {
-        // Writer may already be closed
+        // Writer may already be closed by client disconnect
+      } finally {
+        streamState = 'closed'
       }
     }
 
@@ -635,12 +663,12 @@ export async function POST(request: NextRequest) {
       // SCALE: Set timeout to close stream if it hangs
       streamTimeoutId = setTimeout(() => {
         console.warn('[AI Partner Stream] Timeout after', STREAM_TIMEOUT_MS, 'ms for session:', sessionId)
-        closeStreamWithTimeout()
+        safeClose('Response timeout - please try again')
       }, STREAM_TIMEOUT_MS)
 
       try {
         // Send initial event with user message info
-        await writer.write(encoder.encode(`data: ${JSON.stringify({
+        const startSuccess = await safeWrite(`data: ${JSON.stringify({
           type: 'start',
           userMessageId: userMsg.id,
           userMessageWasFlagged: moderation.flagged,
@@ -649,20 +677,37 @@ export async function POST(request: NextRequest) {
             intent: decision.meta.intent,
             confidence: decision.meta.confidence,
           } : {}),
-        })}\n\n`))
+        })}\n\n`)
+
+        // FIX: If initial write fails, client disconnected - abort early
+        if (!startSuccess) {
+          await safeClose()
+          return
+        }
 
         await sendChatMessageStream(
           messages,
           {
             onToken: async (token) => {
+              // FIX: Check stream state before accumulating
+              if (streamState !== 'open') return
+
               fullContent += token
-              // Send token event
-              await writer.write(encoder.encode(`data: ${JSON.stringify({
+              // FIX: Use safe write and abort if it fails
+              const success = await safeWrite(`data: ${JSON.stringify({
                 type: 'token',
                 content: token,
-              })}\n\n`))
+              })}\n\n`)
+
+              // If write failed, stream is closed - throw to exit loop
+              if (!success) {
+                throw new Error('Client disconnected')
+              }
             },
             onComplete: async (responseContent, usage) => {
+              // FIX: Check if stream is still open
+              if (streamState !== 'open') return
+
               // Update adaptive tracker with AI response
               if (adaptiveTracker) {
                 adaptiveTracker.processAIMessage(responseContent)
@@ -704,12 +749,8 @@ export async function POST(request: NextRequest) {
                 data: sessionUpdate,
               })
 
-              // SCALE: Clear timeout on successful completion
-              if (streamTimeoutId) clearTimeout(streamTimeoutId)
-              isStreamClosed = true
-
-              // Send complete event
-              await writer.write(encoder.encode(`data: ${JSON.stringify({
+              // Send complete event using safe write
+              await safeWrite(`data: ${JSON.stringify({
                 type: 'complete',
                 aiMessageId,
                 content: responseContent,
@@ -718,21 +759,14 @@ export async function POST(request: NextRequest) {
                   intent: decision.meta.intent,
                   style: decision.responseConfig.style,
                 } : {}),
-              })}\n\n`))
+              })}\n\n`)
 
-              await writer.close()
+              // Close stream cleanly
+              await safeClose()
             },
             onError: async (error) => {
-              // SCALE: Clear timeout on error
-              if (streamTimeoutId) clearTimeout(streamTimeoutId)
-              isStreamClosed = true
-
               console.error('[AI Partner Stream] Error:', error)
-              await writer.write(encoder.encode(`data: ${JSON.stringify({
-                type: 'error',
-                error: error.message,
-              })}\n\n`))
-              await writer.close()
+              await safeClose(error.message)
             },
           },
           {
@@ -741,21 +775,11 @@ export async function POST(request: NextRequest) {
           }
         )
       } catch (err) {
-        // SCALE: Clear timeout on outer error
-        if (streamTimeoutId) clearTimeout(streamTimeoutId)
-        if (isStreamClosed) return
-
-        isStreamClosed = true
-        console.error('[AI Partner Stream] Outer error:', err)
-        try {
-          await writer.write(encoder.encode(`data: ${JSON.stringify({
-            type: 'error',
-            error: 'Failed to stream response',
-          })}\n\n`))
-          await writer.close()
-        } catch {
-          // Writer may already be closed
+        // FIX: Only log if not a client disconnect
+        if (err instanceof Error && err.message !== 'Client disconnected') {
+          console.error('[AI Partner Stream] Outer error:', err)
         }
+        await safeClose('Failed to stream response')
       }
     })()
 

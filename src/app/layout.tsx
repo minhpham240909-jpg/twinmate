@@ -17,6 +17,8 @@ import BannedUserOverlay from "@/components/BannedUserOverlay";
 import AnalyticsProvider from "@/components/providers/AnalyticsProvider";
 import DeferredProviders from "@/components/providers/DeferredProviders";
 import QueryProvider from "@/providers/QueryProvider";
+import { ConfirmModalProvider } from "@/hooks/useConfirmModal";
+import PWAUpdateNotification from "@/components/PWAUpdateNotification";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -112,8 +114,10 @@ export default function RootLayout({
                         {/* DeferredProviders loads Presence, BackgroundSession, IncomingCall
                             AFTER first paint to improve initial load time */}
                         <DeferredProviders>
+                          <ConfirmModalProvider>
                           <BannedUserOverlay>
                             <OfflineIndicator />
+                            <PWAUpdateNotification />
                             {children}
                             <Toaster
                               position="top-right"
@@ -140,6 +144,7 @@ export default function RootLayout({
                               }}
                             />
                           </BannedUserOverlay>
+                          </ConfirmModalProvider>
                         </DeferredProviders>
                         </IntlProvider>
                       </SettingsProvider>

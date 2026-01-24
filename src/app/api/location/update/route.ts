@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import logger from '@/lib/logger'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const updateLocationSchema = z.object({
   city: z.string().nullable().optional(),
@@ -18,6 +19,15 @@ const updateLocationSchema = z.object({
  * Normalizes text, stores coordinates, sets visibility
  */
 export async function POST(request: NextRequest) {
+  // SCALABILITY: Rate limit location updates (moderate preset)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

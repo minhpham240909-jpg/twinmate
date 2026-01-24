@@ -28,10 +28,14 @@ export function usePushNotifications() {
 
   // Check support and current state on mount
   useEffect(() => {
+    // FIX: Use AbortController to prevent memory leaks on unmount
+    const abortController = new AbortController()
+    let isMounted = true
+
     const init = async () => {
       // Check browser support
       if (typeof window === 'undefined') {
-        setState(s => ({ ...s, isLoading: false }))
+        if (isMounted) setState(s => ({ ...s, isLoading: false }))
         return
       }
 
@@ -45,75 +49,108 @@ export function usePushNotifications() {
           serviceWorker: serviceWorkerSupported,
           pushManager: pushManagerSupported
         })
-        setState(s => ({
-          ...s,
-          isSupported: false,
-          isLoading: false,
-          error: 'Push notifications not supported in this browser',
-        }))
+        if (isMounted) {
+          setState(s => ({
+            ...s,
+            isSupported: false,
+            isLoading: false,
+            error: 'Push notifications not supported in this browser',
+          }))
+        }
         return
       }
 
-      setState(s => ({
-        ...s,
-        isSupported: true,
-        permission: Notification.permission,
-      }))
+      if (isMounted) {
+        setState(s => ({
+          ...s,
+          isSupported: true,
+          permission: Notification.permission,
+        }))
+      }
 
       try {
         // Fetch VAPID public key from server
         console.log('[PushHooks] Fetching VAPID key from /api/push/subscribe...')
-        const keyResponse = await fetch('/api/push/subscribe')
+        const keyResponse = await fetch('/api/push/subscribe', {
+          signal: abortController.signal,
+        })
+
+        // Check if aborted before processing response
+        if (abortController.signal.aborted) return
+
         console.log('[PushHooks] VAPID response status:', keyResponse.status)
 
         if (keyResponse.ok) {
           const data = await keyResponse.json()
           console.log('[PushHooks] VAPID key received:', data.publicKey ? 'yes (length: ' + data.publicKey.length + ')' : 'no')
-          setVapidPublicKey(data.publicKey)
+          if (isMounted) setVapidPublicKey(data.publicKey)
         } else if (keyResponse.status === 503) {
           console.log('[PushHooks] Push not configured (503) - VAPID keys missing on server')
           // Push not configured on server
-          setState(s => ({
-            ...s,
-            isLoading: false,
-            error: 'Push notifications not configured',
-          }))
+          if (isMounted) {
+            setState(s => ({
+              ...s,
+              isLoading: false,
+              error: 'Push notifications not configured',
+            }))
+          }
           return
         } else {
           console.log('[PushHooks] Unexpected response:', keyResponse.status)
         }
+
+        // Check if aborted before registering service worker
+        if (abortController.signal.aborted) return
 
         // Register service worker
         console.log('[PushHooks] Registering SW...')
         const reg = await navigator.serviceWorker.register('/sw.js', {
           scope: '/',
         })
+
+        if (!isMounted) return
         setRegistration(reg)
 
         // Wait for service worker to be ready
         console.log('[PushHooks] Waiting for SW ready...')
         await navigator.serviceWorker.ready
+
+        if (!isMounted) return
         console.log('[PushHooks] SW Ready')
 
         // Check current subscription
         const subscription = await reg.pushManager.getSubscription()
         console.log('[PushHooks] Initial subscription:', !!subscription)
-        setState(s => ({
-          ...s,
-          isSubscribed: !!subscription,
-          isLoading: false,
-        }))
+        if (isMounted) {
+          setState(s => ({
+            ...s,
+            isSubscribed: !!subscription,
+            isLoading: false,
+          }))
+        }
       } catch (error) {
+        // Ignore abort errors - they're expected on unmount
+        if (error instanceof Error && error.name === 'AbortError') {
+          return
+        }
         console.error('Error initializing push notifications:', error)
-        setState(s => ({
-          ...s,
-          isLoading: false,
-          error: 'Failed to initialize push notifications',
-        }))
+        if (isMounted) {
+          setState(s => ({
+            ...s,
+            isLoading: false,
+            error: 'Failed to initialize push notifications',
+          }))
+        }
       }
     }
 
     init()
+
+    // Cleanup: abort pending requests and prevent state updates
+    return () => {
+      isMounted = false
+      abortController.abort()
+    }
   }, [])
 
   /**

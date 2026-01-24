@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { useConfirmModal } from '@/hooks/useConfirmModal'
 
 type HelpMessageStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
 type HelpMessagePriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
@@ -68,6 +69,9 @@ export default function AdminSupportPage() {
   const [counts, setCounts] = useState<Counts>({ pending: 0, inProgress: 0, resolved: 0, closed: 0, total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Modal for confirmations/alerts
+  const { showDanger } = useConfirmModal()
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<HelpMessageStatus | ''>('')
@@ -164,7 +168,13 @@ export default function AdminSupportPage() {
   }
 
   const handleDelete = async (messageId: string) => {
-    if (!confirm('Are you sure you want to delete this message?')) return
+    const confirmed = await showDanger(
+      'Delete Message',
+      'Are you sure you want to delete this message? This cannot be undone.',
+      'Delete',
+      'Cancel'
+    )
+    if (!confirmed) return
 
     setDeleting(messageId)
     try {

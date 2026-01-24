@@ -408,11 +408,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router, supabase, debouncedFetchProfile])
 
   const signOut = async () => {
-    // Confirm before signing out
-    if (!confirm('Are you sure you want to log out?')) {
-      return
-    }
-
     try {
       // Sign out via API (this will mark presence as offline)
       await fetch('/api/auth/signout', { method: 'POST' })
