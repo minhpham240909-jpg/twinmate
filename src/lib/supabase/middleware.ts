@@ -232,7 +232,12 @@ export async function updateSession(request: NextRequest) {
     }
   } else {
     // User is NOT logged in
-    if (!isAuthRoute && !isPublicRoute && !isPublicApiRoute && !isRootRoute) {
+    // CLERVA 2.0: Allow guests to access dashboard for free trial
+    // Guests can use the app 3 times without signing up
+    const guestAllowedRoutes = ['/dashboard', '/api/guide-me', '/api/ai-partner', '/api/flashcards']
+    const isGuestAllowedRoute = guestAllowedRoutes.some(route => pathname.startsWith(route))
+
+    if (!isAuthRoute && !isPublicRoute && !isPublicApiRoute && !isRootRoute && !isGuestAllowedRoute) {
       // Redirect to auth page if trying to access protected routes
       const url = request.nextUrl.clone()
       url.pathname = '/auth'
