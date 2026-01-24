@@ -17,6 +17,8 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import GuestEmptyState from '@/components/GuestEmptyState'
+import BottomNav from '@/components/BottomNav'
 import {
   ArrowLeft,
   User,
@@ -65,12 +67,8 @@ export default function SettingsPage() {
     }
   }, [profile])
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth')
-    }
-  }, [user, loading, router])
+  // Check if user is a guest
+  const isGuest = !loading && !user
 
   // Handle avatar file selection
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,6 +229,34 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    )
+  }
+
+  // Guest state - show empty state with sign up prompt
+  if (isGuest) {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-20">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+            </button>
+            <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
+              Settings
+            </h1>
+          </div>
+        </header>
+
+        {/* Guest Empty State */}
+        <GuestEmptyState pageType="settings" />
+
+        {/* Bottom Navigation */}
+        <BottomNav />
       </div>
     )
   }

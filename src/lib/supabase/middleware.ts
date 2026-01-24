@@ -232,9 +232,20 @@ export async function updateSession(request: NextRequest) {
     }
   } else {
     // User is NOT logged in
-    // CLERVA 2.0: Allow guests to access dashboard for free trial
-    // Guests can use the app 3 times without signing up
-    const guestAllowedRoutes = ['/dashboard', '/api/guide-me', '/api/ai-partner', '/api/flashcards']
+    // CLERVA 2.0: Allow guests to access main app pages
+    // Guests can browse freely but data won't be saved without an account
+    // Each page handles its own guest state with appropriate messaging
+    const guestAllowedRoutes = [
+      '/dashboard',
+      '/progress',
+      '/settings',
+      '/flashcards',
+      '/profile',
+      '/api/guide-me',
+      '/api/ai-partner',
+      '/api/flashcards',
+      '/api/user/stats',  // Allow stats API for guest UI
+    ]
     const isGuestAllowedRoute = guestAllowedRoutes.some(route => pathname.startsWith(route))
 
     if (!isAuthRoute && !isPublicRoute && !isPublicApiRoute && !isRootRoute && !isGuestAllowedRoute) {

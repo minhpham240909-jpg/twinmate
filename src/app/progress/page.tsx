@@ -11,10 +11,11 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useDashboardStats } from '@/hooks/useUserStats'
 import { useMilestones } from '@/hooks/useMilestones'
 import BottomNav from '@/components/BottomNav'
+import GuestEmptyState from '@/components/GuestEmptyState'
 import { RARITY_COLORS } from '@/lib/milestones'
 import {
   Flame,
@@ -52,45 +53,60 @@ export default function ProgressPage() {
   const [progressData, setProgressData] = useState<ProgressData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth')
-    }
-  }, [user, loading, router])
+  // Check if user is a guest (not logged in)
+  const isGuest = !loading && !user
 
-  // Load progress data
+  // For guests, stop loading immediately
+  useEffect(() => {
+    if (isGuest) {
+      setIsLoading(false)
+    }
+  }, [isGuest])
+
+  // Load progress data - only once when user is available
+  // Using useRef to ensure we only generate data once
+  const hasLoadedRef = useRef(false)
+
   useEffect(() => {
     async function loadProgress() {
-      if (!user) return
+      if (!user || hasLoadedRef.current) return
+      hasLoadedRef.current = true
 
       try {
-        // Generate weekly activity data
+        // Generate weekly activity data with deterministic values
+        // Use day of week as seed for consistent display
         const today = new Date()
         const weeklyActivity: DailyActivity[] = []
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+        // Deterministic session counts based on day index
+        // This creates a realistic-looking pattern without randomness
+        const sessionPattern = [1, 3, 0, 3, 2, 5, 0] // Fixed pattern for the week
+
         for (let i = 6; i >= 0; i--) {
           const date = new Date(today)
           date.setDate(date.getDate() - i)
+          const dayIndex = date.getDay()
           weeklyActivity.push({
-            day: dayNames[date.getDay()],
-            // Mock data - simulate some activity with randomness based on user stats
-            sessions: i === 0
-              ? (stats?.points ? Math.min(Math.floor(stats.points / 20), 5) : 0)
-              : Math.floor(Math.random() * 4),
+            day: dayNames[dayIndex],
+            // Use deterministic pattern instead of random
+            sessions: sessionPattern[dayIndex],
             date,
           })
         }
 
+        // Calculate stats-based values
+        const points = stats?.points || 0
+        const helpSessions = points ? Math.floor(points / 10) : 0
+
         // For now, use mock data - will connect to real API later
         // This structure allows easy backend integration
         setProgressData({
-          helpSessions: stats?.points ? Math.floor(stats.points / 10) : 0,
-          minutesSaved: stats?.points ? Math.floor(stats.points / 10) * 4 : 0,
+          helpSessions,
+          minutesSaved: helpSessions * 4,
           strongTopics: ['Basic Algebra', 'Biology Cells'],
           weakTopics: ['Free-body diagrams', 'Calculus derivatives'],
-          conceptsLearned: stats?.points ? Math.floor(stats.points / 10) : 0,
+          conceptsLearned: helpSessions,
           weeklyActivity,
         })
       } catch (error) {
@@ -100,16 +116,41 @@ export default function ProgressPage() {
       }
     }
 
-    if (!loading) {
+    if (!loading && user) {
       loadProgress()
     }
-  }, [user, loading, stats])
+  }, [user, loading]) // Removed stats from dependency - only load once
 
   // Loading state
   if (loading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    )
+  }
+
+  // Guest state - show empty state with sign up prompt
+  if (isGuest) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 pb-20">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
+          <div className="max-w-lg mx-auto px-4 py-4">
+            <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
+              Your Progress
+            </h1>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              Track your learning journey
+            </p>
+          </div>
+        </header>
+
+        {/* Guest Empty State */}
+        <GuestEmptyState pageType="progress" />
+
+        {/* Bottom Navigation */}
+        <BottomNav />
       </div>
     )
   }
