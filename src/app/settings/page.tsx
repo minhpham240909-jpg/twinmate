@@ -20,7 +20,6 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { usePWA } from '@/hooks/usePWA'
 import GuestEmptyState from '@/components/GuestEmptyState'
 import BottomNav from '@/components/BottomNav'
-import PWAInstallBanner from '@/components/PWAInstallBanner'
 import {
   ArrowLeft,
   User,
@@ -43,7 +42,195 @@ import {
   Send,
   Download,
   Smartphone,
+  Share,
+  Plus,
 } from 'lucide-react'
+
+// Install App Section Component
+function InstallAppSection({ onClose }: { onClose: () => void }) {
+  const { isIOS, isInstallable, isInstalled, isStandalone, promptInstall } = usePWA()
+  const [installing, setInstalling] = useState(false)
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false)
+
+  const handleInstall = async () => {
+    if (isIOS) {
+      setShowIOSInstructions(true)
+      return
+    }
+
+    setInstalling(true)
+    try {
+      const installed = await promptInstall()
+      if (installed) {
+        toast.success('App installed successfully!')
+        onClose()
+      }
+    } finally {
+      setInstalling(false)
+    }
+  }
+
+  // iOS Instructions Modal
+  if (showIOSInstructions) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6">
+          <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">
+            Install on iOS
+          </h3>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Share className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-white">
+                  1. Tap the Share button
+                </p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  At the bottom of Safari
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Plus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-white">
+                  2. Tap &quot;Add to Home Screen&quot;
+                </p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  Scroll down in the share menu
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Smartphone className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-white">
+                  3. Tap &quot;Add&quot;
+                </p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  Clerva will appear on your home screen
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowIOSInstructions(false)}
+            className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Already installed state
+  if (isInstalled || isStandalone) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-6 text-center">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-green-600 dark:text-green-400" />
+          </div>
+          <h3 className="text-lg font-bold text-green-800 dark:text-green-300 mb-2">
+            App Installed!
+          </h3>
+          <p className="text-sm text-green-600 dark:text-green-400">
+            You&apos;re using Clerva as an installed app. Enjoy the full experience!
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Install Card */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden">
+        <div className="p-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Download className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-neutral-900 dark:text-white">
+                Install Clerva App
+              </h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+                Add to your home screen for quick access and a better experience.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <button
+              onClick={handleInstall}
+              disabled={installing || (!isInstallable && !isIOS)}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              {installing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Installing...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5" />
+                  <span>{isIOS ? 'Show Instructions' : 'Install App'}</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {!isInstallable && !isIOS && (
+            <p className="text-xs text-neutral-400 text-center mt-3">
+              Install not available. Try opening in Chrome or Safari.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Benefits */}
+      <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4">
+        <h4 className="font-medium text-neutral-900 dark:text-white mb-2">
+          Why install the app?
+        </h4>
+        <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
+          <li className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Quick access from your home screen</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Works offline with cached content</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Full-screen experience without browser UI</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Push notifications for study reminders</span>
+          </li>
+        </ul>
+      </div>
+
+      <p className="text-sm text-neutral-500 text-center">
+        Your account syncs automatically between browser and app.
+      </p>
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const { user, loading, profile, signOut, refreshUser } = useAuth()
@@ -813,37 +1000,7 @@ export default function SettingsPage() {
 
         {/* Install App Section */}
         {activeSection === 'install' && (
-          <div className="space-y-4">
-            <PWAInstallBanner variant="modal" onDismiss={() => setActiveSection(null)} />
-
-            <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4">
-              <h4 className="font-medium text-neutral-900 dark:text-white mb-2">
-                Why install the app?
-              </h4>
-              <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
-                <li className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span>Quick access from your home screen</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span>Works offline with cached content</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span>Full-screen experience without browser UI</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span>Push notifications for study reminders</span>
-                </li>
-              </ul>
-            </div>
-
-            <p className="text-sm text-neutral-500 text-center">
-              Your account syncs automatically between browser and app.
-            </p>
-          </div>
+          <InstallAppSection onClose={() => setActiveSection(null)} />
         )}
 
         {/* Feedback Section */}
