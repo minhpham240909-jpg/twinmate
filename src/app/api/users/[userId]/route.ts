@@ -364,15 +364,15 @@ export async function GET(
             location_country: dbUser.profile.location_country as string | null,
           }
 
-          // Calculate match using the centralized algorithm
+          // Calculate match using the simplified algorithm
           const matchResult = calculateMatchScore(currentUserProfileData, viewedUserProfileData)
 
-          matchScore = matchResult.matchScore
-          matchDataInsufficient = matchResult.matchDataInsufficient
-          matchDetails = matchResult.matchDetails
-          matchReasons = matchResult.matchReasons
-          currentUserMissingFields = matchResult.currentUserMissingFields
-          viewedUserMissingFields = matchResult.partnerMissingFields
+          matchScore = matchResult.score
+          matchDataInsufficient = false
+          matchDetails = null
+          matchReasons = matchResult.reasons
+          currentUserMissingFields = getMissingFields(currentUserProfileData)
+          viewedUserMissingFields = getMissingFields(viewedUserProfileData)
         }
       } catch (error) {
         console.warn('Error calculating match score:', error)

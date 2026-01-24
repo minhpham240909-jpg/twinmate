@@ -274,24 +274,24 @@ function AuthPageContent() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Branding & Illustration */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
-        {/* Decorative elements */}
+      {/* Left Side - Branding & 3 AI Tools Showcase */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+        {/* Decorative gradient orbs */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-400/20 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+          <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-green-500/10 rounded-full blur-3xl" />
         </div>
 
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 opacity-10">
+        {/* Subtle dot pattern overlay */}
+        <div className="absolute inset-0 opacity-20">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
+              <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1" fill="white" />
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
+            <rect width="100%" height="100%" fill="url(#dots)" />
           </svg>
         </div>
 
@@ -300,7 +300,7 @@ function AuthPageContent() {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="absolute inset-0 bg-white/20 rounded-xl blur-lg" />
+              <div className="absolute inset-0 bg-white/10 rounded-xl blur-lg" />
               <Image
                 src="/logo.png"
                 alt="Clerva"
@@ -312,66 +312,86 @@ function AuthPageContent() {
             <span className="text-2xl font-bold text-white">Clerva</span>
           </div>
 
-          {/* Main illustration area */}
-          <div className="flex-1 flex flex-col items-center justify-center py-12">
-            {/* Abstract illustration */}
-            <div className="relative w-full max-w-md">
-              {/* Floating cards illustration */}
-              <div className="relative">
-                {/* Main card */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-2xl">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="h-3 w-32 bg-white/40 rounded-full" />
-                      <div className="h-2 w-24 bg-white/20 rounded-full mt-2" />
-                    </div>
+          {/* Main content - 3 AI Tools Cards */}
+          <div className="flex-1 flex flex-col items-center justify-center py-8">
+            {/* Tagline */}
+            <div className="text-center mb-10">
+              <h1 className="text-3xl xl:text-4xl font-bold text-white mb-3">
+                Your AI Study Partner
+              </h1>
+              <p className="text-slate-400 text-lg max-w-md">
+                3 powerful tools to help you learn faster and remember longer
+              </p>
+            </div>
+
+            {/* 3 Tool Cards */}
+            <div className="w-full max-w-sm space-y-4">
+              {/* Tool 1: Explain Pack - Lightbulb icon */}
+              <div className="group bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 hover:border-blue-500/50 hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+                    {/* Lightbulb - represents understanding/clarity */}
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18h6" />
+                      <path d="M10 22h4" />
+                      <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+                    </svg>
                   </div>
-                  <div className="space-y-3">
-                    <div className="h-2 w-full bg-white/20 rounded-full" />
-                    <div className="h-2 w-4/5 bg-white/20 rounded-full" />
-                    <div className="h-2 w-3/5 bg-white/20 rounded-full" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white">Explain Pack</h3>
+                    <p className="text-sm text-slate-400">Get clear explanations in 5 minutes</p>
                   </div>
                 </div>
+              </div>
 
-                {/* Floating elements */}
-                <div className="absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl shadow-lg flex items-center justify-center animate-bounce" style={{ animationDuration: '3s' }}>
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
+              {/* Tool 2: Test Prep Sprint - Brain icon */}
+              <div className="group bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 hover:border-purple-500/50 hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:scale-110 transition-transform">
+                    {/* Brain - represents memory/learning */}
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+                      <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+                      <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+                      <path d="M12 18v4" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white">Test Prep Sprint</h3>
+                    <p className="text-sm text-slate-400">Smart flashcards for quick review</p>
+                  </div>
                 </div>
+              </div>
 
-                <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl shadow-lg flex items-center justify-center animate-pulse">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-
-                <div className="absolute top-1/2 -right-8 w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg shadow-lg flex items-center justify-center animate-pulse" style={{ animationDelay: '1s' }}>
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
+              {/* Tool 3: Guide Me - Compass/Map icon */}
+              <div className="group bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10 hover:border-green-500/50 hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/25 group-hover:scale-110 transition-transform">
+                    {/* Compass - represents guidance/direction */}
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white">Guide Me</h3>
+                    <p className="text-sm text-slate-400">Step-by-step help without answers</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Tagline */}
-            <div className="mt-12 text-center">
-              <h1 className="text-3xl xl:text-4xl font-bold text-white mb-4">
-                Learn Together, Grow Together
-              </h1>
-              <p className="text-blue-100 text-lg max-w-md">
-                Connect with study partners, collaborate in real-time, and supercharge your learning journey.
-              </p>
+            {/* Try Free Badge */}
+            <div className="mt-8 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-white/10 rounded-full">
+              <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              <span className="text-sm font-medium text-white">Try 3 times free, no signup needed</span>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="text-blue-200 text-sm">
+          <div className="text-slate-500 text-sm">
             <p>&copy; {new Date().getFullYear()} Clerva. All rights reserved.</p>
           </div>
         </div>
@@ -431,7 +451,7 @@ function AuthPageContent() {
               <div>
                 <div className="mb-8">
                   <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-                  <p className="text-slate-500 mt-1">Sign in to continue your learning journey</p>
+                  <p className="text-slate-500 mt-1">Sign in to access your AI study tools</p>
                 </div>
 
                 {registered && (
@@ -588,7 +608,7 @@ function AuthPageContent() {
               <div>
                 <div className="mb-8">
                   <h2 className="text-2xl font-bold text-slate-900">Create your account</h2>
-                  <p className="text-slate-500 mt-1">Start your learning journey today</p>
+                  <p className="text-slate-500 mt-1">Get unlimited access to all AI study tools</p>
                 </div>
 
                 {signUpError && (

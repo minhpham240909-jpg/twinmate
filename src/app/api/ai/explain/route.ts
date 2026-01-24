@@ -27,6 +27,8 @@ import {
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30000, // 30 second timeout
+  maxRetries: 2,
 })
 
 // Types
@@ -242,7 +244,7 @@ ${
 
     // Call OpenAI (single API call)
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o', // Using GPT-4o for vision capabilities
+      model: 'gpt-5', // Using GPT-5 for vision capabilities
       messages,
       max_tokens: 1500,
       temperature: 0.7,

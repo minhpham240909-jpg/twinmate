@@ -11,6 +11,7 @@ import {
   UserPlus,
   Globe,
   Gamepad2,
+  Settings,
 } from 'lucide-react'
 
 interface NavItem {
@@ -19,6 +20,7 @@ interface NavItem {
   icon: React.ReactNode
   href: string
   badge?: number
+  hidden?: boolean // MVP: Hide features without deleting code
 }
 
 interface DashboardMenuDropdownProps {
@@ -48,11 +50,19 @@ export default function DashboardMenuDropdown({
       href: '/dashboard',
     },
     {
+      id: 'settings',
+      labelKey: 'settings',
+      icon: <Settings className="w-5 h-5" />,
+      href: '/settings',
+    },
+    // === HIDDEN FOR MVP (keep code, hide from navigation) ===
+    {
       id: 'study-sessions',
       labelKey: 'studyWithPartner',
       icon: <Calendar className="w-5 h-5" />,
       href: '/study-sessions',
       badge: pendingInvitesCount,
+      hidden: true, // MVP: Hidden
     },
     {
       id: 'chat',
@@ -60,6 +70,7 @@ export default function DashboardMenuDropdown({
       icon: <MessageSquare className="w-5 h-5" />,
       href: '/chat',
       badge: unreadMessagesCount,
+      hidden: true, // MVP: Hidden
     },
     {
       id: 'connections',
@@ -67,12 +78,14 @@ export default function DashboardMenuDropdown({
       icon: <UserPlus className="w-5 h-5" />,
       href: '/connections',
       badge: connectionRequestsCount,
+      hidden: true, // MVP: Hidden
     },
     {
       id: 'search',
       labelKey: 'findPartner',
       icon: <Search className="w-5 h-5" />,
       href: '/search',
+      hidden: true, // MVP: Hidden
     },
     {
       id: 'groups',
@@ -80,21 +93,27 @@ export default function DashboardMenuDropdown({
       icon: <Users className="w-5 h-5" />,
       href: '/groups',
       badge: groupInvitesCount,
+      hidden: true, // MVP: Hidden
     },
     {
       id: 'community',
       labelKey: 'community',
       icon: <Globe className="w-5 h-5" />,
       href: '/community',
-      badge: newCommunityPostsCount > 0 ? -1 : undefined, // -1 = dot indicator
+      badge: newCommunityPostsCount > 0 ? -1 : undefined,
+      hidden: true, // MVP: Hidden
     },
     {
       id: 'arcade',
       labelKey: 'arcade',
       icon: <Gamepad2 className="w-5 h-5" />,
       href: '/arena',
+      hidden: true, // MVP: Hidden
     },
   ]
+
+  // Filter out hidden items for MVP
+  const visibleNavItems = navItems.filter(item => !item.hidden)
 
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -102,7 +121,7 @@ export default function DashboardMenuDropdown({
 
   return (
     <nav className="flex items-center gap-1 flex-wrap" role="navigation" aria-label="Main navigation">
-      {navItems.map((item) => (
+      {visibleNavItems.map((item) => (
         <button
           key={item.id}
           onClick={() => handleNavigation(item.href)}

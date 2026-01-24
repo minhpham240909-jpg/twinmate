@@ -1,8 +1,8 @@
 {
-  "name": "Clerva - Social Learning Platform",
+  "name": "Clerva - AI Study Partner",
   "short_name": "Clerva",
-  "description": "Find study partners, collaborate in real-time, and supercharge your learning",
-  "start_url": "/",
+  "description": "Your personal AI study partner. Get instant help, create flashcards, track your progress with streaks and XP.",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4F46E5",
@@ -26,8 +26,64 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity", "social"],
+  "categories": ["education", "productivity"],
   "lang": "en-US",
   "dir": "ltr",
-  "scope": "/"
+  "scope": "/",
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard view"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile view"
+    }
+  ],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Ask AI Partner",
+      "short_name": "Ask AI",
+      "description": "Start a study session with your AI partner",
+      "url": "/ai-partner",
+      "icons": [{ "src": "/icons/ai-chat.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Flashcards",
+      "short_name": "Flashcards",
+      "description": "Review your flashcards",
+      "url": "/flashcards",
+      "icons": [{ "src": "/icons/flashcards.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "I'm Stuck",
+      "short_name": "Help",
+      "description": "Get instant help when stuck",
+      "url": "/dashboard?stuck=true",
+      "icons": [{ "src": "/icons/help.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "images",
+          "accept": ["image/*"]
+        }
+      ]
+    }
+  }
 }

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import {
   createAISession,
   getUserSessions,
@@ -16,6 +17,15 @@ import type { SkillLevel } from '@prisma/client'
 // POST: Create new AI partner session
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit - AI session creation
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many session requests. Please wait before creating more.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

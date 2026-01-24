@@ -198,8 +198,8 @@ function getSupabaseAdmin() {
  * This is the "YouTube-like" smart understanding
  */
 function expandQueryForEmbedding(query: string): string {
-  const terms = query.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0)
-  const expandedTerms = expandSearchTerms(terms)
+  const normalizedQuery = query.toLowerCase().trim()
+  const expandedTerms = expandSearchTerms(normalizedQuery)
 
   // Deduplicate and limit to prevent too-long queries
   const uniqueTerms = [...new Set(expandedTerms)]

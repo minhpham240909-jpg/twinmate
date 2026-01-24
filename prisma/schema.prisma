@@ -2212,6 +2212,8 @@ model AIPartnerSession {
   @@index([deletedByUserAt])
   @@index([deletedByAdminAt])
   @@index([endedAt]) // PERF: Completed session queries
+  @@index([userId, createdAt]) // PERF: User's session history ordered by date
+  @@index([status, createdAt]) // PERF: Find recent active sessions
 }
 
 enum AISessionStatus {
@@ -2274,6 +2276,8 @@ model AIPartnerMessage {
   @@index([createdAt])
   @@index([wasFlagged])
   @@index([sessionId, createdAt]) // PERF: Load messages in chronological order
+  @@index([sessionId, role]) // PERF: Filter by role within session
+  @@index([messageType, createdAt]) // PERF: Find specific message types
 }
 
 enum AIMessageRole {
@@ -2685,6 +2689,9 @@ model CircleAttendance {
   @@index([circleId])
   @@index([date])
   @@index([didAttend])
+  @@index([userId, date]) // PERF: User's attendance history
+  @@index([circleId, date, didAttend]) // PERF: Attendance rate calculations
+  @@index([sessionId]) // PERF: Session attendance lookup
   @@map("circle_attendance")
 }
 

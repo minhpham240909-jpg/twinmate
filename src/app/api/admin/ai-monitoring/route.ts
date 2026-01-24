@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
           where: { createdAt: { gte: startDate }, cached: true },
         }).catch(() => 0),
 
-        // Smart routing: gpt-4o-mini requests (routed to cheaper model)
+        // Smart routing: gpt-5-mini requests (routed to efficient model)
         prisma.aIUsageLog.count({
           where: {
             createdAt: { gte: startDate },
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
           },
         }).catch(() => 0),
 
-        // Smart routing: gpt-4o requests (routed to full model)
+        // Smart routing: gpt-5 requests (routed to full model)
         prisma.aIUsageLog.count({
           where: {
             createdAt: { gte: startDate },
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
     // Approximate savings: Using mini saves ~97% on input, ~96% on output
     const miniModelStats = modelStats.find(m => m.model?.includes('mini'))
     const miniTokens = miniModelStats?._sum?.totalTokens || 0
-    // If these queries went to gpt-4o instead, they'd cost ~30x more
+    // If these queries went to gpt-5 instead, they'd cost ~30x more
     const estimatedSavings = miniTokens * 0.000025 // ~$25 per 1M tokens saved
 
     return NextResponse.json({

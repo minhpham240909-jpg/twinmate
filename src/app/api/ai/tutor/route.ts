@@ -157,7 +157,7 @@ You have full access to their study plan and should use it to provide personaliz
     // Call OpenAI API with retry logic for reliability
     const result = await withRetry(
       () => openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         messages,
         max_tokens: 1024,
         temperature: 0.7,

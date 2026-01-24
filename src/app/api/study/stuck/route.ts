@@ -14,11 +14,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import OpenAI from 'openai'
 import { v4 as uuidv4 } from 'uuid'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30000, // 30 second timeout
+  maxRetries: 2,
 })
 
 // Types
@@ -60,6 +63,15 @@ interface StuckRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit - 100 requests per hour for AI features
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     // Verify auth
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -217,7 +229,7 @@ Respond in this exact JSON format:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `The student is stuck on: "${subject}". Ask a diagnostic question.` },
@@ -337,7 +349,7 @@ Respond in this exact JSON format:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Create a study plan for: "${subject}"` },

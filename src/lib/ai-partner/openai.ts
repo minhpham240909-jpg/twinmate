@@ -22,18 +22,17 @@ const openai = new OpenAI({
 })
 
 // Default model configuration
-// As of Dec 2024, these are OpenAI's best models:
-// - 'gpt-4o' - Best general purpose (fast, smart, good for chat)
-// - 'o1' - Advanced reasoning (slower, thinks deeply, best for complex problems)
-// - 'o1-mini' - Faster reasoning model
-// - 'gpt-4o-mini' - Budget option (fast, still good quality)
-// Note: GPT-5 is not released yet
-const DEFAULT_MODEL = 'gpt-4o-mini' // Using mini for faster response times
-const ADVANCED_MODEL = 'gpt-4o' // Use for complex reasoning when needed
+// As of Jan 2026, using OpenAI's GPT-5 models:
+// - 'gpt-5-mini' - Fast, efficient, great for most queries
+// - 'gpt-5' - Advanced reasoning for complex problems
+const DEFAULT_MODEL = 'gpt-5-mini' // Using GPT-5 mini for faster response times
+const ADVANCED_MODEL = 'gpt-5' // Use for complex reasoning when needed
 const MODERATION_ENABLED = true
 
 // H7 FIX: Token limits for context window management
 const TOKEN_LIMITS = {
+  'gpt-5-mini': 128000,
+  'gpt-5': 128000,
   'gpt-4o-mini': 128000,
   'gpt-4o': 128000,
   'gpt-4-turbo': 128000,
@@ -802,7 +801,7 @@ export interface SmartChatOptions {
   skillLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT'
 
   // Routing options
-  forceModel?: 'gpt-4o-mini' | 'gpt-4o'
+  forceModel?: 'gpt-5-mini' | 'gpt-5'
   forceLength?: 'short' | 'medium' | 'detailed'
 
   // Cache options
@@ -841,7 +840,7 @@ export interface SmartChatResult extends ChatCompletionResult {
  *
  * Features:
  * 1. Query Analysis - Determines complexity and response length
- * 2. Model Routing - Uses gpt-4o-mini or gpt-4o based on complexity
+ * 2. Model Routing - Uses gpt-5-mini or gpt-5 based on complexity
  * 3. Response Caching - Returns cached responses when available
  * 4. Dynamic Length - Adjusts response length based on query
  *

@@ -1,534 +1,1623 @@
 'use client'
 
 /**
- * Dashboard Page - Redesigned for Vision
+ * CLERVA 2.0 Dashboard
  *
- * Core principle: ONE primary CTA, remove decision paralysis
+ * Three distinct TOOLS, not chat:
+ * 1. Explain Pack - "I don't understand something"
+ * 2. Test Prep Sprint - "Test coming up"
+ * 3. Guide Me - "Guide me"
  *
- * Layout:
- * 1. Primary CTA: "Continue Studying" or "Start Studying"
- * 2. Social Gravity: "X classmates studying now"
- * 3. Secondary actions: "I'm stuck", Quick Focus, Solo Study
- * 4. Stats (collapsed/subtle)
- *
- * Everything serves the goal: Get user to START studying
+ * Design principles:
+ * - Tool-first, not chat
+ * - One action per screen
+ * - Calm, clean design
+ * - Fast, low friction
+ * - AI is invisible, UI is the product
  */
 
 import { useAuth } from '@/lib/auth/context'
-import { useRouter, usePathname } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
-import NotificationPanel from '@/components/NotificationPanel'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState, useRef, useCallback, memo } from 'react'
 import { useUserSync } from '@/hooks/useUserSync'
-import { useDashboardStats, useActiveSession, useDashboardCounts, useOnlinePartners } from '@/hooks/useUserStats'
-import { useTranslations } from 'next-intl'
-import { useNotificationPermission } from '@/hooks/useNotificationPermission'
-import { subscribeToUnreadMessages } from '@/lib/supabase/realtime'
-import PushNotificationPrompt from '@/components/PushNotificationPrompt'
-import QuickWinModal from '@/components/QuickWinModal'
+import { useDashboardStats } from '@/hooks/useUserStats'
+import { useMission } from '@/hooks/useMission'
+import { useMilestones } from '@/hooks/useMilestones'
+import { useGuestTrial } from '@/hooks/useGuestTrial'
+import BottomNav from '@/components/BottomNav'
+import CelebrationModal from '@/components/CelebrationModal'
+import TrialLimitModal from '@/components/TrialLimitModal'
+import TrialBanner from '@/components/TrialBanner'
+import Image from 'next/image'
 import {
-  DashboardTopBar,
-  StartStudyingCTA,
-  ClassmatesStudying,
-  ImStuckFlow,
-  DashboardPartnersSection,
-  StudySuggestions,
-  GlobalLeaderboard,
-  // Progressive Disclosure
-  calculateUserTier,
-  shouldShowFeature,
-  NewUserWelcome,
-  UnlockTeasersSection,
-  FeatureGate,
-} from '@/components/dashboard'
-import { Flame, Clock, Star, Zap } from 'lucide-react'
+  Lightbulb,
+  Loader2,
+  ArrowRight,
+  Check,
+  BookOpen,
+  Brain,
+  Map,
+  Flame,
+  Star,
+  ChevronLeft,
+  Sparkles,
+  HelpCircle,
+  ClipboardList,
+  Camera,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  X,
+  ThumbsDown,
+  ThumbsUp,
+  RotateCcw,
+  Zap,
+} from 'lucide-react'
 
-// Types
-interface StudyingPartner {
-  id: string
-  name: string
-  avatarUrl: string | null
-  subject?: string
-  activityType?: string
+// ============================================
+// TYPES
+// ============================================
+
+type FlowStep = 'home' | 'input' | 'loading' | 'result'
+type StruggleType = 'dont_understand' | 'test_coming' | 'homework_help'
+type InputMode = 'text' | 'photo'
+
+// Learning Pack structure for Explain Pack
+interface LearningPack {
+  type: 'learning_pack'
+  title: string
+  acknowledgment?: string
+  core: {
+    idea: string
+    keyPoints: string[]
+  }
+  steps?: {
+    step: string
+    why: string
+  }[]
+  example?: {
+    problem: string
+    solution: string
+  }
+  checkQuestion?: {
+    question: string
+    hint: string
+  }
+  nextSuggestion: string
 }
 
+// Flashcards for Test Prep
+interface FlashcardPack {
+  type: 'flashcards'
+  title: string
+  acknowledgment?: string
+  cards: {
+    id: string
+    question: string
+    answer: string
+    hint?: string
+  }[]
+  nextSuggestion: string
+}
+
+// Roadmap for Homework Help
+interface HomeworkPlan {
+  type: 'homework_plan'
+  title: string
+  acknowledgment?: string
+  encouragement: string
+  steps: {
+    id: string
+    order: number
+    title: string
+    description: string
+    hints: string[]
+  }[]
+  totalMinutes: number
+  nextSuggestion: string
+}
+
+type ActionResult = LearningPack | FlashcardPack | HomeworkPlan
+
+interface GuideResponse {
+  success: boolean
+  action: ActionResult
+  xpEarned: number
+  streakUpdated: boolean
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function DashboardPage() {
-  const { user, profile, loading, configError, profileError, signOut, refreshUser } = useAuth()
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
-  const pathname = usePathname()
-  const lastPathnameRef = useRef(pathname)
-  const tCommon = useTranslations('common')
-  const { requestPermission, hasBeenAsked, isGranted, isSupported } = useNotificationPermission()
 
-  // Notification state
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [showNotifications, setShowNotifications] = useState(false)
+  // Guest trial system
+  const {
+    trialsRemaining,
+    totalTrials,
+    hasTrials,
+    consumeTrial,
+    isLoading: isTrialLoading,
+  } = useGuestTrial()
+  const [showTrialLimitModal, setShowTrialLimitModal] = useState(false)
 
-  // Dashboard counts - using React Query for caching (replaces 5 separate API calls with 1)
-  const { data: countsData, refetch: refetchCounts } = useDashboardCounts()
-  const pendingInvitesCount = countsData?.counts?.pendingInvites || 0
-  const connectionRequestsCount = countsData?.counts?.connectionRequests || 0
-  const groupInvitesCount = countsData?.counts?.groupInvites || 0
-  const newCommunityPostsCount = countsData?.counts?.newCommunityPosts || 0
-  const unreadMessagesCount = countsData?.counts?.unreadMessages?.total || 0
+  // Determine if user is a guest (not logged in)
+  const isGuest = !user && !loading
 
-  // Session state - using React Query for caching (prevents flickering on navigation)
-  const { activeSession, refetch: refetchSessionData } = useActiveSession()
+  // Flow state
+  const [flowStep, setFlowStep] = useState<FlowStep>('home')
+  const [question, setQuestion] = useState('')
+  const [struggleType, setStruggleType] = useState<StruggleType | null>(null)
+  const [result, setResult] = useState<GuideResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [responseTimeMs, setResponseTimeMs] = useState<number | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Social gravity state
-  const [studyingPartners, setStudyingPartners] = useState<StudyingPartner[]>([])
-  const [totalStudying, setTotalStudying] = useState(0)
+  // Input mode state - photo-first like food scanner apps
+  const [inputMode, setInputMode] = useState<InputMode>('photo')
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Stats - using React Query for caching (prevents disappearing on navigation)
-  const { stats: dashboardStats, refetch: refetchStats } = useDashboardStats()
+  // Collapsible sections in result
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(['core', 'steps'])
+  )
 
-  // Partner data - using React Query for caching and automatic polling
-  const { onlinePartners, partnersCount, isLoading: loadingPartners } = useOnlinePartners()
+  // Flashcard state
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set())
+  const [revealedHints, setRevealedHints] = useState<Set<string>>(new Set())
+  const [markedWeakCards, setMarkedWeakCards] = useState<Set<string>>(new Set())
 
-  // Transform dashboardStats to match DashboardStatsRow expected format
-  const userStats = dashboardStats ? {
-    streak: { current: dashboardStats.streak, longest: dashboardStats.streak },
-    studyTime: {
-      today: { value: dashboardStats.todayMinutes, unit: dashboardStats.todayMinutes >= 60 ? 'hr' : 'min', display: dashboardStats.todayFormatted },
-      thisWeek: { value: dashboardStats.weekMinutes, unit: dashboardStats.weekMinutes >= 60 ? 'hr' : 'min', display: dashboardStats.weekFormatted },
-      allTime: { value: dashboardStats.allTimeMinutes, unit: dashboardStats.allTimeMinutes >= 60 ? 'hr' : 'min', display: `${Math.floor(dashboardStats.allTimeMinutes / 60)}h` },
-    },
-    sessions: { today: dashboardStats.todaySessions, thisWeek: dashboardStats.weekSessions, allTime: dashboardStats.allTimeSessions },
-    points: dashboardStats.points,
-  } : null
+  // Stats
+  const { stats } = useDashboardStats()
 
-  // Quick Win modal state
-  const [showQuickWin, setShowQuickWin] = useState(false)
-  const [quickWinType, setQuickWinType] = useState<'first_session' | 'streak_started' | 'streak_milestone'>('first_session')
+  // Milestones and celebrations
+  const {
+    milestoneData,
+    celebrationMilestone,
+    celebrationXp,
+    dismissCelebration,
+    checkMilestones,
+  } = useMilestones()
 
-  // Group IDs for real-time
-  const [groupIds, setGroupIds] = useState<string[]>([])
+  // Mission system for weak spots
+  const {
+    missionItems,
+    addWeakFlashcard,
+    addConfusedConcept,
+    addStuckStep,
+    completeMissionItem,
+    removeMissionItem,
+    hasMission,
+  } = useMission()
+
+  // Track hint usage per step (for detecting stuck steps)
+  const [hintUsageCount, setHintUsageCount] = useState<Record<string, number>>({})
 
   useUserSync()
 
-  // Refetch session data on visibility change, focus, and storage changes
+  // Auto-focus input when entering input step
   useEffect(() => {
-    if (!user || loading) return
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refetchSessionData()
-      }
+    if (flowStep === 'input' && inputRef.current && inputMode === 'text') {
+      setTimeout(() => inputRef.current?.focus(), 100)
     }
+  }, [flowStep, inputMode])
 
-    const handleFocus = () => {
-      refetchSessionData()
-    }
-
-    // Listen for storage changes (when session is cleared in another component)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'solo_study_active_session' && e.newValue === null) {
-        refetchSessionData()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('storage', handleStorageChange)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('storage', handleStorageChange)
-    }
-  }, [user, loading, refetchSessionData])
-
-  // Refresh session data when navigating back to dashboard from another page
+  // Allow guests to use dashboard (with trial limits)
+  // No redirect - guests can use the app with limited trials
   useEffect(() => {
-    if (pathname === '/dashboard' && lastPathnameRef.current !== '/dashboard') {
-      refetchSessionData()
-    }
-    lastPathnameRef.current = pathname
-  }, [pathname, refetchSessionData])
-
-  // Fetch social gravity data (classmates studying)
-  useEffect(() => {
-    if (!user || loading) return
-
-    const abortController = new AbortController()
-
-    const fetchPresenceData = async () => {
-      try {
-        const response = await fetch('/api/presence/classmates', {
-          signal: abortController.signal,
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setStudyingPartners(data.studyingPartners || [])
-          setTotalStudying(data.totalStudying || 0)
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return
-        console.error('Error fetching presence data:', error)
-      }
-    }
-
-    fetchPresenceData()
-    const interval = setInterval(fetchPresenceData, 15000) // Refresh every 15s
-
-    return () => {
-      abortController.abort()
-      clearInterval(interval)
-    }
-  }, [user, loading])
-
-  // Refetch stats and counts when page becomes visible (user navigates back)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refetchStats()
-        refetchCounts()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [refetchStats, refetchCounts])
-
-  // Fetch group IDs for real-time
-  useEffect(() => {
-    if (!user) return
-
-    const abortController = new AbortController()
-
-    const fetchGroupIds = async () => {
-      try {
-        const response = await fetch('/api/groups/my-groups', { signal: abortController.signal })
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.groups) {
-            setGroupIds(data.groups.map((g: { id: string }) => g.id))
-          }
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return
-      }
-    }
-
-    fetchGroupIds()
-
-    return () => {
-      abortController.abort()
-    }
-  }, [user])
-
-  // Real-time message subscription - refetch counts when new messages arrive
-  useEffect(() => {
-    if (!user) return
-
-    const cleanup = subscribeToUnreadMessages(user.id, () => refetchCounts(), groupIds.length > 0 ? groupIds : undefined)
-
-    return () => {
-      cleanup()
-    }
-  }, [user, groupIds, refetchCounts])
-
-  // Request notification permission
-  useEffect(() => {
-    if (!user || !isSupported || hasBeenAsked() || isGranted) return
-
-    const timer = setTimeout(() => {
-      requestPermission()
-    }, 5000)
-
-    return () => clearTimeout(timer)
-  }, [user, isSupported, hasBeenAsked, isGranted, requestPermission])
-
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!loading && !user) {
-      const urlParams = new URLSearchParams(window.location.search)
-      const isFromAuthCallback = urlParams.get('auth_callback') === 'true'
-
-      if (!isFromAuthCallback) {
-        router.push('/auth')
-      }
-    }
+    // Only redirect if loading is done and we need to (currently we allow guests)
+    // This is intentionally empty now to allow guest access
   }, [user, loading, router])
 
-  // Check for quick win (first session, streak milestone)
+  // Cleanup image preview on unmount
   useEffect(() => {
-    if (!userStats || typeof window === 'undefined') return
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
 
-    const hasShownFirstWin = localStorage.getItem('clerva_first_win_shown') === 'true'
-    const lastStreakMilestoneShown = parseInt(localStorage.getItem('clerva_streak_milestone') || '0', 10)
+  // ============================================
+  // HANDLERS
+  // ============================================
 
-    // First session ever
-    if (userStats.sessions.allTime === 1 && !hasShownFirstWin) {
-      setQuickWinType('first_session')
-      setShowQuickWin(true)
-      localStorage.setItem('clerva_first_win_shown', 'true')
+  // Reset flow
+  const resetFlow = useCallback(() => {
+    setFlowStep('home')
+    setQuestion('')
+    setStruggleType(null)
+    setResult(null)
+    setError(null)
+    setResponseTimeMs(null)
+    setInputMode('photo') // Reset to photo-first
+    setUploadedImage(null)
+    setExpandedSections(new Set(['core', 'steps']))
+    setFlippedCards(new Set())
+    setRevealedHints(new Set())
+    setMarkedWeakCards(new Set())
+    setHintUsageCount({})
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview)
+    }
+    setImagePreview(null)
+  }, [imagePreview])
+
+  // Handle struggle type selection
+  const handleStruggleSelect = (type: StruggleType) => {
+    setStruggleType(type)
+    setFlowStep('input')
+  }
+
+  // Handle image selection
+  const handleImageSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file (JPG, PNG, etc.)')
+        return
+      }
+
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Image too large. Maximum size is 10MB.')
+        return
+      }
+
+      setError(null)
+      setUploadedImage(file)
+
+      // Create preview
+      const preview = URL.createObjectURL(file)
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview)
+      }
+      setImagePreview(preview)
+    },
+    [imagePreview]
+  )
+
+  // Remove uploaded image
+  const removeImage = useCallback(() => {
+    setUploadedImage(null)
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview)
+    }
+    setImagePreview(null)
+    setInputMode('text')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [imagePreview])
+
+  // Process uploaded image
+  const processImage = useCallback(async () => {
+    if (!uploadedImage || !struggleType) return
+
+    setIsProcessingImage(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', uploadedImage)
+      formData.append('struggleType', struggleType)
+
+      const response = await fetch('/api/study/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process image')
+      }
+
+      // Add extracted content to question
+      if (data.extractedContent) {
+        setQuestion(
+          (prev) =>
+            prev
+              ? `${prev}\n\n[From image]:\n${data.extractedContent}`
+              : `[From image]:\n${data.extractedContent}`
+        )
+      }
+
+      setInputMode('text')
+    } catch (err) {
+      console.error('Image processing error:', err)
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to process image. Please try again.'
+      )
+    } finally {
+      setIsProcessingImage(false)
+    }
+  }, [uploadedImage, struggleType])
+
+  // Submit question to AI
+  const handleSubmit = async () => {
+    if (!question.trim()) return
+
+    // Check if guest has trials remaining (client-side check)
+    if (isGuest && !hasTrials) {
+      setShowTrialLimitModal(true)
       return
     }
 
-    // Streak milestones (7, 14, 30, 60, 100)
-    const milestones = [7, 14, 30, 60, 100]
-    const currentStreak = userStats.streak.current
-    for (const milestone of milestones) {
-      if (currentStreak >= milestone && lastStreakMilestoneShown < milestone) {
-        setQuickWinType('streak_milestone')
-        setShowQuickWin(true)
-        localStorage.setItem('clerva_streak_milestone', String(milestone))
-        break
+    setFlowStep('loading')
+    setError(null)
+    setResponseTimeMs(null)
+
+    const startTime = Date.now()
+
+    try {
+      const response = await fetch('/api/guide-me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: question.trim(),
+          struggleType: struggleType || 'general',
+          actionType: 'auto',
+        }),
+      })
+
+      const data = await response.json()
+
+      // Check if trial limit reached (server-side enforcement)
+      if (response.status === 403 && data.trialExhausted) {
+        setShowTrialLimitModal(true)
+        setFlowStep('home')
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get help')
+      }
+
+      const elapsedMs = Date.now() - startTime
+      setResponseTimeMs(elapsedMs)
+
+      // Transform the response to our new structure
+      const transformedResult = transformApiResponse(data, struggleType)
+      setResult(transformedResult)
+      setFlowStep('result')
+
+      // Consume trial for guests (client-side tracking)
+      if (isGuest) {
+        const actionType = struggleType === 'dont_understand' ? 'explanation' :
+                          struggleType === 'test_coming' ? 'flashcards' : 'roadmap'
+        consumeTrial(question.trim(), actionType)
+      }
+
+      // Check for new milestones (only for authenticated users, non-blocking)
+      if (!isGuest) {
+        const actionType = struggleType === 'dont_understand' ? 'explain' :
+                          struggleType === 'test_coming' ? 'flashcard' : 'guide'
+        checkMilestones(actionType).catch(() => {
+          // Silently fail - milestone check is not critical
+        })
+      }
+    } catch (err) {
+      console.error('Error:', err)
+      // Provide more specific error messages based on error type
+      if (err instanceof Error) {
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          setError('Unable to connect. Please check your internet connection and try again.')
+        } else if (err.message.includes('timeout')) {
+          setError('Request took too long. Please try again with a shorter question.')
+        } else if (err.message) {
+          setError(err.message)
+        } else {
+          setError('Unable to process your request. Please try again.')
+        }
+      } else {
+        setError('Unable to process your request. Please try again.')
+      }
+      setFlowStep('input')
+    }
+  }
+
+  // Transform API response to our Learning Pack structure
+  const transformApiResponse = (data: any, type: StruggleType | null): GuideResponse => {
+    const action = data.action
+
+    if (type === 'dont_understand' || action.type === 'explanation') {
+      // Transform to Learning Pack - now uses new API format with core, steps, example, checkQuestion
+      return {
+        success: true,
+        action: {
+          type: 'learning_pack',
+          title: action.title || 'Understanding the concept',
+          acknowledgment: action.acknowledgment,
+          core: {
+            // Use new structure if available, fallback to legacy points
+            idea: action.core?.idea || action.points?.[0] || 'Let me help you understand this.',
+            keyPoints: action.core?.keyPoints || action.points?.slice(1) || [],
+          },
+          // Use new steps format if available
+          steps: action.steps && action.steps.length > 0
+            ? action.steps.map((s: any) => ({ step: s.step, why: s.why }))
+            : action.points?.slice(1, 4).map((point: string) => ({
+                step: point,
+                why: 'This builds on the previous concept.',
+              })),
+          // Use new example format if available
+          example: action.example?.problem && action.example?.solution
+            ? { problem: action.example.problem, solution: action.example.solution }
+            : undefined,
+          // Use new checkQuestion format, fallback to followUp
+          checkQuestion: action.checkQuestion?.question
+            ? { question: action.checkQuestion.question, hint: action.checkQuestion.hint || 'Think about what we just covered.' }
+            : action.followUp
+            ? { question: action.followUp, hint: 'Think about what we just covered.' }
+            : undefined,
+          nextSuggestion: action.nextSuggestion || 'Want to explore this further?',
+        },
+        xpEarned: data.xpEarned || 0,
+        streakUpdated: data.streakUpdated || false,
+      }
+    } else if (type === 'test_coming' || action.type === 'flashcards') {
+      // Transform to Flashcard Pack
+      return {
+        success: true,
+        action: {
+          type: 'flashcards',
+          title: 'Quick Review Cards',
+          acknowledgment: action.acknowledgment,
+          cards: action.cards || [],
+          nextSuggestion: action.nextSuggestion || 'Ready for more practice?',
+        },
+        xpEarned: data.xpEarned || 0,
+        streakUpdated: data.streakUpdated || false,
+      }
+    } else {
+      // Transform to Homework Plan - now includes hints from API
+      return {
+        success: true,
+        action: {
+          type: 'homework_plan',
+          title: action.title || 'Step-by-step plan',
+          acknowledgment: action.acknowledgment,
+          encouragement: action.encouragement || "You've got this!",
+          steps: (action.steps || []).map((step: any) => ({
+            ...step,
+            // Use hints from API if available, otherwise generate fallback
+            hints: step.hints && step.hints.length > 0
+              ? step.hints
+              : [
+                  'Start by identifying what you know.',
+                  'Think about similar problems you\'ve solved.',
+                  step.description,
+                ],
+          })),
+          totalMinutes: action.totalMinutes || 15,
+          nextSuggestion: action.nextSuggestion || 'Let me know how it goes!',
+        },
+        xpEarned: data.xpEarned || 0,
+        streakUpdated: data.streakUpdated || false,
       }
     }
-  }, [userStats])
-
-  // Error states
-  if (configError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-        <div className="text-center max-w-lg p-8">
-          <div className="w-20 h-20 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-neutral-600 dark:text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-3">Configuration Required</h2>
-          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-            Please ensure all required environment variables are set.
-          </p>
-        </div>
-      </div>
-    )
   }
+
+  // Toggle section expansion
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(section)) {
+        newSet.delete(section)
+      } else {
+        newSet.add(section)
+      }
+      return newSet
+    })
+  }
+
+  // Flip flashcard
+  const toggleCardFlip = (cardId: string) => {
+    setFlippedCards((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId)
+      } else {
+        newSet.add(cardId)
+      }
+      return newSet
+    })
+  }
+
+  // Reveal hint
+  const revealHint = (hintId: string) => {
+    setRevealedHints((prev) => new Set([...prev, hintId]))
+  }
+
+  // ============================================
+  // LOADING STATE
+  // ============================================
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-        <div className="w-16 h-16 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     )
   }
 
-  if (user && profileError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-        <div className="text-center max-w-md p-8">
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Connection Error</h2>
-          <p className="text-neutral-600 dark:text-neutral-400 mb-6">{profileError}</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => refreshUser()}
-              className="px-6 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl font-semibold"
-            >
-              Try Again
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl font-semibold"
-            >
-              {tCommon('refreshPage')}
-            </button>
+  // Allow guests to use the app (with trial limits)
+  // Only block if auth is loading
+  if (!isGuest && !user) {
+    return null
+  }
+
+  // ============================================
+  // RENDER
+  // ============================================
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 pb-20">
+      {/* Trial Limit Modal for Guests */}
+      <TrialLimitModal
+        isOpen={showTrialLimitModal}
+        onClose={() => setShowTrialLimitModal(false)}
+      />
+
+      {/* Celebration Modal */}
+      <CelebrationModal
+        milestone={celebrationMilestone}
+        xpAwarded={celebrationXp}
+        onClose={dismissCelebration}
+      />
+
+      {/* Trial Banner for Guests */}
+      {isGuest && (
+        <TrialBanner
+          trialsRemaining={trialsRemaining}
+          totalTrials={totalTrials}
+        />
+      )}
+
+      {/* Header - Only show on home */}
+      {flowStep === 'home' && (
+        <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
+          <div className="max-w-lg mx-auto px-4 py-3">
+            {/* Top row: Logo + Stats */}
+            <div className="flex items-center justify-between mb-2">
+              <Image
+                src="/logo.png"
+                alt="Clerva"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
+              {!isGuest && stats && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                      {stats.streak}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <Star className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                      {stats.points}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* XP Progress Bar - Only for authenticated users */}
+            {!isGuest && milestoneData?.xpProgress && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 w-10">
+                  Lv.{milestoneData.xpProgress.currentLevel}
+                </span>
+                <div className="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500"
+                    style={{ width: `${milestoneData.xpProgress.progressPercent}%` }}
+                  />
+                </div>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500 w-16 text-right">
+                  {milestoneData.xpProgress.xpNeeded} to go
+                </span>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
-    )
+        </header>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-lg mx-auto px-4 py-6">
+        {/* ============================================ */}
+        {/* HOME - Today's Mission + Three Tool Cards */}
+        {/* ============================================ */}
+        {flowStep === 'home' && (
+          <div className="space-y-6">
+            {/* Greeting */}
+            <div className="text-center py-4">
+              <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                Good {getTimeOfDay()}, {profile?.name?.split(' ')[0] || 'there'}
+              </h2>
+              <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+                {isGuest
+                  ? "Try Clerva free - no signup required"
+                  : hasMission
+                    ? "Here's your mission for today"
+                    : "What do you need help with?"}
+              </p>
+            </div>
+
+            {/* Today's Mission Section - Only for authenticated users */}
+            {!isGuest && hasMission && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-semibold text-neutral-900 dark:text-white">
+                      Today's Mission
+                    </h3>
+                    <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-medium rounded-full">
+                      {missionItems.length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {missionItems.map((item) => (
+                    <MissionItemCard
+                      key={item.id}
+                      item={item}
+                      onComplete={() => completeMissionItem(item.id)}
+                      onDismiss={() => removeMissionItem(item.id)}
+                      onTap={() => {
+                        // Jump to appropriate tool based on source
+                        if (item.source === 'explain_pack') {
+                          setQuestion(item.description)
+                          handleStruggleSelect('dont_understand')
+                        } else if (item.source === 'test_prep') {
+                          setQuestion(item.description)
+                          handleStruggleSelect('test_coming')
+                        } else {
+                          setQuestion(item.description)
+                          handleStruggleSelect('homework_help')
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
+                    Or start something new
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Three Tool Cards */}
+            <div className="space-y-3">
+              {/* Explain Pack */}
+              <ToolCard
+                title="I don't understand something"
+                description="Get a clear explanation in 5 minutes"
+                icon={Lightbulb}
+                color="blue"
+                onClick={() => handleStruggleSelect('dont_understand')}
+              />
+
+              {/* Test Prep Sprint */}
+              <ToolCard
+                title="Test coming up"
+                description="Quick review with smart flashcards"
+                icon={Brain}
+                color="purple"
+                onClick={() => handleStruggleSelect('test_coming')}
+              />
+
+              {/* Guide Me */}
+              <ToolCard
+                title="Guide me"
+                description="Step-by-step guidance without answers"
+                icon={ClipboardList}
+                color="green"
+                onClick={() => handleStruggleSelect('homework_help')}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* INPUT - Capture the problem */}
+        {/* ============================================ */}
+        {flowStep === 'input' && (
+          <div className="space-y-6">
+            {/* Back button */}
+            <button
+              onClick={resetFlow}
+              className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span className="text-sm">Back</span>
+            </button>
+
+            {/* Header */}
+            <div className="text-center">
+              <div
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
+                  struggleType === 'dont_understand'
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/25'
+                    : struggleType === 'test_coming'
+                    ? 'bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-500/25'
+                    : 'bg-gradient-to-br from-green-500 to-green-600 shadow-green-500/25'
+                }`}
+              >
+                {struggleType === 'dont_understand' && (
+                  <Lightbulb className="w-7 h-7 text-white" />
+                )}
+                {struggleType === 'test_coming' && (
+                  <Brain className="w-7 h-7 text-white" />
+                )}
+                {struggleType === 'homework_help' && (
+                  <ClipboardList className="w-7 h-7 text-white" />
+                )}
+              </div>
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-1">
+                {struggleType === 'dont_understand' &&
+                  "What don't you understand?"}
+                {struggleType === 'test_coming' && "What's your test about?"}
+                {struggleType === 'homework_help' &&
+                  'What do you need help with?'}
+              </h2>
+              <p className="text-neutral-500 text-sm">
+                Paste, type, or snap a photo
+              </p>
+            </div>
+
+            {/* Input Mode Tabs */}
+            <div className="flex justify-center gap-2 p-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
+              <button
+                onClick={() => setInputMode('text')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  inputMode === 'text'
+                    ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-neutral-600 dark:text-neutral-400'
+                }`}
+              >
+                <span>Type / Paste</span>
+              </button>
+              <button
+                onClick={() => setInputMode('photo')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  inputMode === 'photo'
+                    ? 'bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-neutral-600 dark:text-neutral-400'
+                }`}
+              >
+                <Camera className="w-4 h-4" />
+                <span>Photo</span>
+              </button>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+
+            {/* Input Area */}
+            <div className="space-y-4">
+              {/* Text Input */}
+              {inputMode === 'text' && (
+                <div>
+                  <label htmlFor="question-input" className="sr-only">
+                    {struggleType === 'dont_understand'
+                      ? 'Describe what you don\'t understand'
+                      : struggleType === 'test_coming'
+                      ? 'Describe your test topic'
+                      : 'Describe what you need help with'}
+                  </label>
+                  <textarea
+                    id="question-input"
+                    ref={inputRef}
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    placeholder={
+                      struggleType === 'dont_understand'
+                        ? "e.g., I don't understand how photosynthesis works..."
+                        : struggleType === 'test_coming'
+                        ? 'e.g., Chemistry test on acids and bases...'
+                        : 'e.g., I need to solve this quadratic equation...'
+                    }
+                    className="w-full h-36 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                    aria-describedby={error ? 'error-message' : undefined}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.metaKey && question.trim()) {
+                        handleSubmit()
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Photo Input / Preview */}
+              {inputMode === 'photo' && (
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+                  {imagePreview ? (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Uploaded"
+                        className="w-full max-h-64 object-contain bg-neutral-100 dark:bg-neutral-800"
+                      />
+                      <button
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
+                        {isProcessingImage ? (
+                          <div className="flex items-center justify-center gap-2 py-2">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                            <span className="text-neutral-600 dark:text-neutral-400">
+                              Analyzing image...
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={processImage}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Upload className="w-4 h-4" />
+                            <span>Extract content</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-16 flex flex-col items-center justify-center hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+                    >
+                      <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+                        <ImageIcon className="w-8 h-8 text-neutral-400" />
+                      </div>
+                      <p className="text-neutral-600 dark:text-neutral-400 font-medium">
+                        Tap to upload a photo
+                      </p>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        Homework, notes, textbook pages
+                      </p>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Show extracted content */}
+              {inputMode === 'photo' && question && (
+                <div className="space-y-2">
+                  <label className="text-sm text-neutral-500">
+                    Extracted content:
+                  </label>
+                  <textarea
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    className="w-full h-24 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl text-neutral-900 dark:text-white text-sm outline-none resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Error message - with aria-live for screen readers */}
+              <div aria-live="polite" aria-atomic="true">
+                {error && (
+                  <p id="error-message" className="text-red-500 text-sm" role="alert">
+                    {error}
+                  </p>
+                )}
+              </div>
+
+              {/* Submit button */}
+              <button
+                onClick={handleSubmit}
+                disabled={!question.trim() || isProcessingImage}
+                className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg ${
+                  !question.trim() || isProcessingImage
+                    ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-500 shadow-none'
+                    : struggleType === 'dont_understand'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-500/25'
+                    : struggleType === 'test_coming'
+                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-purple-500/25'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-500/25'
+                }`}
+              >
+                <span>Get Help</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* LOADING */}
+        {/* ============================================ */}
+        {flowStep === 'loading' && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+            <p className="text-neutral-600 dark:text-neutral-400 font-medium">
+              Creating your help...
+            </p>
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* RESULT - Learning Pack / Flashcards / Homework Plan */}
+        {/* ============================================ */}
+        {flowStep === 'result' && result && (
+          <div className="space-y-4">
+            {/* Back button + Instant badge */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={resetFlow}
+                className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="text-sm">Start over</span>
+              </button>
+
+              {/* Instant badge - shows for fast responses (under 2 seconds) */}
+              {responseTimeMs !== null && responseTimeMs < 2000 && (
+                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 border border-yellow-200 dark:border-yellow-800/50 rounded-full">
+                  <Zap className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                  <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                    Instant!
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Acknowledgment */}
+            {result.action.acknowledgment && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-xl">
+                <p className="text-blue-800 dark:text-blue-200 text-sm">
+                  {result.action.acknowledgment}
+                </p>
+              </div>
+            )}
+
+            {/* Learning Pack Result */}
+            {result.action.type === 'learning_pack' && (
+              <LearningPackResult
+                pack={result.action}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+              />
+            )}
+
+            {/* Flashcard Result */}
+            {result.action.type === 'flashcards' && (
+              <FlashcardResult
+                pack={result.action}
+                flippedCards={flippedCards}
+                toggleCardFlip={toggleCardFlip}
+                markedWeak={markedWeakCards}
+                onMarkWeak={(question: string) => {
+                  // Find the card id from question
+                  const card = result.action.type === 'flashcards'
+                    ? result.action.cards.find(c => c.question === question)
+                    : null
+                  if (card) {
+                    setMarkedWeakCards(prev => new Set([...prev, card.id]))
+                    addWeakFlashcard(question, question.slice(0, 30))
+                  }
+                }}
+              />
+            )}
+
+            {/* Homework Plan Result */}
+            {result.action.type === 'homework_plan' && (
+              <HomeworkPlanResult
+                plan={result.action}
+                revealedHints={revealedHints}
+                revealHint={(hintId: string) => {
+                  revealHint(hintId)
+                  // Track hint usage per step
+                  const stepId = hintId.split('-hint-')[0]
+                  setHintUsageCount(prev => {
+                    const newCount = (prev[stepId] || 0) + 1
+                    // If 2+ hints used, add to mission
+                    if (newCount === 2 && result.action.type === 'homework_plan') {
+                      const step = result.action.steps.find(s => s.id === stepId)
+                      if (step) {
+                        addStuckStep(step.title, step.description)
+                      }
+                    }
+                    return { ...prev, [stepId]: newCount }
+                  })
+                }}
+              />
+            )}
+
+            {/* Next Suggestion */}
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl">
+              <p className="text-neutral-600 dark:text-neutral-300 text-sm text-center">
+                {result.action.nextSuggestion}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              {/* Still Confused button for Explain Pack */}
+              {result.action.type === 'learning_pack' && (
+                <button
+                  onClick={() => {
+                    addConfusedConcept(question, result.action.title)
+                    resetFlow()
+                  }}
+                  className="flex-1 py-4 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                  <span>Still confused</span>
+                </button>
+              )}
+              <button
+                onClick={resetFlow}
+                className="flex-1 py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/25"
+              >
+                <Check className="w-5 h-5" />
+                <span>Got it!</span>
+              </button>
+            </div>
+
+            {/* Quiet XP indicator */}
+            {result.xpEarned > 0 && (
+              <div className="flex justify-center">
+                <span className="text-sm text-neutral-400">
+                  +{result.xpEarned} XP
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
+    </div>
+  )
+}
+
+// ============================================
+// HELPER COMPONENTS
+// ============================================
+
+interface ToolCardProps {
+  title: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+  color: 'blue' | 'purple' | 'green'
+  onClick: () => void
+}
+
+const ToolCard = memo(function ToolCard({
+  title,
+  description,
+  icon: Icon,
+  color,
+  onClick,
+}: ToolCardProps) {
+  const colorClasses = {
+    blue: {
+      bg: 'bg-blue-100 dark:bg-blue-900/30',
+      icon: 'text-blue-600 dark:text-blue-400',
+      hover: 'hover:border-blue-300 dark:hover:border-blue-700',
+    },
+    purple: {
+      bg: 'bg-purple-100 dark:bg-purple-900/30',
+      icon: 'text-purple-600 dark:text-purple-400',
+      hover: 'hover:border-purple-300 dark:hover:border-purple-700',
+    },
+    green: {
+      bg: 'bg-green-100 dark:bg-green-900/30',
+      icon: 'text-green-600 dark:text-green-400',
+      hover: 'hover:border-green-300 dark:hover:border-green-700',
+    },
   }
 
-  if (!user || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-        <div className="w-16 h-16 border-2 border-neutral-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
+  const classes = colorClasses[color]
+
+  return (
+    <button
+      onClick={onClick}
+      className={`group w-full flex items-center gap-4 p-5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl ${classes.hover} hover:shadow-lg transition-all text-left`}
+    >
+      <div
+        className={`w-12 h-12 ${classes.bg} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}
+      >
+        <Icon className={`w-6 h-6 ${classes.icon}`} />
       </div>
-    )
+      <div className="flex-1">
+        <h3 className="font-semibold text-neutral-900 dark:text-white">
+          {title}
+        </h3>
+        <p className="text-sm text-neutral-500">{description}</p>
+      </div>
+      <ArrowRight className="w-5 h-5 text-neutral-400 group-hover:translate-x-1 transition-transform" />
+    </button>
+  )
+})
+
+// Learning Pack Result Component
+interface LearningPackResultProps {
+  pack: LearningPack
+  expandedSections: Set<string>
+  toggleSection: (section: string) => void
+}
+
+const LearningPackResult = memo(function LearningPackResult({
+  pack,
+  expandedSections,
+  toggleSection,
+}: LearningPackResultProps) {
+  return (
+    <div className="space-y-3">
+      {/* Title */}
+      <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
+        {pack.title}
+      </h2>
+
+      {/* Core Idea - Always visible */}
+      <CollapsibleSection
+        title="Core Idea"
+        icon={Lightbulb}
+        isExpanded={expandedSections.has('core')}
+        onToggle={() => toggleSection('core')}
+        color="blue"
+      >
+        <p className="text-neutral-700 dark:text-neutral-300 mb-3">
+          {pack.core.idea}
+        </p>
+        {pack.core.keyPoints.length > 0 && (
+          <ul className="space-y-2">
+            {pack.core.keyPoints.map((point, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="w-5 h-5 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                    {i + 1}
+                  </span>
+                </span>
+                <span className="text-neutral-600 dark:text-neutral-400 text-sm">
+                  {point}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CollapsibleSection>
+
+      {/* Steps */}
+      {pack.steps && pack.steps.length > 0 && (
+        <CollapsibleSection
+          title="Step by Step"
+          icon={Map}
+          isExpanded={expandedSections.has('steps')}
+          onToggle={() => toggleSection('steps')}
+          color="green"
+        >
+          <div className="space-y-3">
+            {pack.steps.map((step, i) => (
+              <div
+                key={i}
+                className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg"
+              >
+                <p className="font-medium text-neutral-900 dark:text-white text-sm">
+                  {step.step}
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">{step.why}</p>
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Example */}
+      {pack.example && (
+        <CollapsibleSection
+          title="Example"
+          icon={BookOpen}
+          isExpanded={expandedSections.has('example')}
+          onToggle={() => toggleSection('example')}
+          color="purple"
+        >
+          <div className="space-y-2">
+            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                <strong>Problem:</strong> {pack.example.problem}
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                <strong>Solution:</strong> {pack.example.solution}
+              </p>
+            </div>
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Check Understanding */}
+      {pack.checkQuestion && (
+        <CollapsibleSection
+          title="Check Understanding"
+          icon={HelpCircle}
+          isExpanded={expandedSections.has('check')}
+          onToggle={() => toggleSection('check')}
+          color="amber"
+        >
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+            <p className="font-medium text-neutral-900 dark:text-white text-sm mb-2">
+              {pack.checkQuestion.question}
+            </p>
+            <p className="text-xs text-neutral-500">
+              💡 Hint: {pack.checkQuestion.hint}
+            </p>
+          </div>
+        </CollapsibleSection>
+      )}
+    </div>
+  )
+})
+
+// Flashcard Result Component with weak-spot tracking
+interface FlashcardResultProps {
+  pack: FlashcardPack
+  flippedCards: Set<string>
+  toggleCardFlip: (id: string) => void
+  onMarkWeak: (question: string) => void
+  markedWeak: Set<string>
+}
+
+const FlashcardResult = memo(function FlashcardResult({
+  pack,
+  flippedCards,
+  toggleCardFlip,
+  onMarkWeak,
+  markedWeak,
+}: FlashcardResultProps) {
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
+        {pack.title}
+      </h2>
+      <p className="text-sm text-neutral-500">Tap cards to flip, then rate yourself</p>
+      <div className="space-y-3">
+        {pack.cards.map((card) => (
+          <div
+            key={card.id}
+            className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden"
+          >
+            <button
+              onClick={() => toggleCardFlip(card.id)}
+              className="w-full p-5 text-left transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
+            >
+              {!flippedCards.has(card.id) ? (
+                <>
+                  <p className="text-xs text-purple-500 font-medium mb-2">
+                    Question
+                  </p>
+                  <p className="text-neutral-900 dark:text-white font-medium">
+                    {card.question}
+                  </p>
+                  {card.hint && (
+                    <p className="text-xs text-neutral-400 mt-2">
+                      💡 {card.hint}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-green-500 font-medium mb-2">
+                    Answer
+                  </p>
+                  <p className="text-neutral-900 dark:text-white font-medium">
+                    {card.answer}
+                  </p>
+                </>
+              )}
+            </button>
+
+            {/* Self-rating buttons - only show after flip */}
+            {flippedCards.has(card.id) && (
+              <div className="px-5 pb-4 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                <p className="text-xs text-neutral-500 mb-2">Did you get it?</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (!markedWeak.has(card.id)) {
+                        onMarkWeak(card.question)
+                      }
+                    }}
+                    disabled={markedWeak.has(card.id)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                      markedWeak.has(card.id)
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400'
+                    }`}
+                  >
+                    <ThumbsDown className="w-4 h-4" />
+                    {markedWeak.has(card.id) ? 'Added to mission' : 'Not quite'}
+                  </button>
+                  <button
+                    className="flex-1 py-2 px-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5"
+                  >
+                    <ThumbsUp className="w-4 h-4" />
+                    Got it!
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+})
+
+// Homework Plan Result Component
+interface HomeworkPlanResultProps {
+  plan: HomeworkPlan
+  revealedHints: Set<string>
+  revealHint: (id: string) => void
+}
+
+const HomeworkPlanResult = memo(function HomeworkPlanResult({
+  plan,
+  revealedHints,
+  revealHint,
+}: HomeworkPlanResultProps) {
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
+        {plan.title}
+      </h2>
+      <p className="text-sm text-green-600 dark:text-green-400">
+        {plan.encouragement}
+      </p>
+      <div className="space-y-3">
+        {plan.steps.map((step, index) => (
+          <div
+            key={step.id}
+            className="p-4 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                  {step.order}
+                </span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">
+                  {step.title}
+                </h4>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                  {step.description}
+                </p>
+
+                {/* Hint Ladder */}
+                <div className="mt-3 space-y-2">
+                  {step.hints.map((hint, hintIndex) => {
+                    const hintId = `${step.id}-hint-${hintIndex}`
+                    const isRevealed = revealedHints.has(hintId) || hintIndex === 0
+
+                    if (!isRevealed) {
+                      return (
+                        <button
+                          key={hintId}
+                          onClick={() => revealHint(hintId)}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Need a hint?
+                        </button>
+                      )
+                    }
+
+                    return (
+                      <p
+                        key={hintId}
+                        className="text-xs text-neutral-500 p-2 bg-neutral-50 dark:bg-neutral-800 rounded"
+                      >
+                        💡 {hint}
+                      </p>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-center text-sm text-neutral-500">
+        Total: ~{plan.totalMinutes} minutes
+      </p>
+    </div>
+  )
+})
+
+// Collapsible Section Component
+interface CollapsibleSectionProps {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  isExpanded: boolean
+  onToggle: () => void
+  color: 'blue' | 'green' | 'purple' | 'amber'
+  children: React.ReactNode
+}
+
+const CollapsibleSection = memo(function CollapsibleSection({
+  title,
+  icon: Icon,
+  isExpanded,
+  onToggle,
+  color,
+  children,
+}: CollapsibleSectionProps) {
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    amber: 'bg-amber-500',
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-      {/* Top Bar */}
-      <DashboardTopBar
-        profileName={profile.name}
-        profileAvatarUrl={profile.avatarUrl ?? null}
-        profileRole={profile.role === 'PREMIUM' ? tCommon('premiumAccount') : tCommon('freeAccount')}
-        isAdmin={profile.isAdmin ?? false}
-        onSignOut={signOut}
-        unreadCount={unreadCount}
-        unreadMessagesCount={unreadMessagesCount}
-        pendingInvitesCount={pendingInvitesCount}
-        connectionRequestsCount={connectionRequestsCount}
-        groupInvitesCount={groupInvitesCount}
-        newCommunityPostsCount={newCommunityPostsCount}
-        onNotificationsClick={() => setShowNotifications(!showNotifications)}
-        onChatClick={() => router.push('/chat')}
-      />
-
-      {/* Main Content - Progressive Disclosure Based on User Tier */}
-      <main className="px-4 sm:px-6 lg:px-8 py-4 max-w-4xl mx-auto">
-        {(() => {
-          // Calculate user tier for progressive disclosure
-          const totalSessions = userStats?.sessions.allTime || 0
-          const userTier = calculateUserTier(totalSessions)
-          const isNewUser = userTier === 'new_user'
-
-          return (
-            <div className="space-y-4">
-              {/* NEW USER WELCOME - Only shown for users with < 3 sessions */}
-              {isNewUser && (
-                <NewUserWelcome
-                  userName={profile.name}
-                  sessionsCompleted={totalSessions}
-                />
-              )}
-
-              {/* ROW 1: Main CTA + Quick Stats side by side */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* PRIMARY CTA: Start/Continue Studying - ALWAYS VISIBLE */}
-                <div className={isNewUser ? 'lg:col-span-3' : 'lg:col-span-2'}>
-                  <StartStudyingCTA
-                    userName={profile.name}
-                    activeSession={activeSession}
-                    onEndSession={() => refetchSessionData()}
-                  />
-                </div>
-
-                {/* Quick Stats Card - Hidden for new users (< 5 sessions) */}
-                <FeatureGate feature="quick_stats" sessionsCompleted={totalSessions}>
-                  {userStats && (
-                    <div className="lg:col-span-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
-                      <div className="grid grid-cols-3 gap-2 h-full">
-                        {/* Streak */}
-                        <div className="text-center flex flex-col justify-center">
-                          <div className="w-9 h-9 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                            <Flame className="w-4 h-4 text-neutral-900 dark:text-white" />
-                          </div>
-                          <p className="text-xl font-black text-neutral-900 dark:text-white">{userStats.streak.current}</p>
-                          <p className="text-[10px] text-neutral-500">streak</p>
-                        </div>
-                        {/* Today */}
-                        <div className="text-center flex flex-col justify-center border-x border-neutral-200 dark:border-neutral-700">
-                          <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <p className="text-xl font-black text-neutral-900 dark:text-white">{userStats.studyTime.today.display}</p>
-                          <p className="text-[10px] text-neutral-500">today</p>
-                        </div>
-                        {/* Points */}
-                        <div className="text-center flex flex-col justify-center">
-                          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                            <Star className="w-4 h-4 text-white" />
-                          </div>
-                          <p className="text-xl font-black text-neutral-900 dark:text-white">{userStats.points}</p>
-                          <p className="text-[10px] text-neutral-500">points</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </FeatureGate>
-              </div>
-
-              {/* AI Study Suggestions - Always show but limited for new users */}
-              <StudySuggestions maxSuggestions={isNewUser ? 1 : undefined} />
-
-              {/* UNLOCK TEASERS - Shows what's coming next */}
-              {isNewUser && (
-                <UnlockTeasersSection sessionsCompleted={totalSessions} />
-              )}
-
-              {/* ROW 2: Quick Actions + Classmates */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Quick Actions - Quick Session always visible, I'm Stuck gated */}
-                <div className="flex flex-wrap gap-2">
-                  {/* Quick Session - Available from Day 1 (low barrier entry point) */}
-                  <button
-                    onClick={() => router.push('/focus/quick-session')}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-xl transition-colors"
-                  >
-                    <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="font-medium text-sm text-neutral-900 dark:text-white">Quick Session</span>
-                  </button>
-
-                  {/* I'm Stuck - Requires context from previous sessions */}
-                  <FeatureGate feature="im_stuck" sessionsCompleted={totalSessions}>
-                    <ImStuckFlow />
-                  </FeatureGate>
-                </div>
-
-                {/* Partners Studying */}
-                <FeatureGate feature="classmates" sessionsCompleted={totalSessions}>
-                  <ClassmatesStudying
-                    studyingPartners={studyingPartners}
-                    totalStudying={totalStudying}
-                  />
-                </FeatureGate>
-              </div>
-
-              {/* ROW 3: Partners + Weekly Stats - Hidden for new users */}
-              <FeatureGate feature="partners" sessionsCompleted={totalSessions}>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Partners Section */}
-                  <div className="lg:col-span-2">
-                    <DashboardPartnersSection
-                      partnersCount={partnersCount}
-                      onlinePartners={onlinePartners.map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        avatarUrl: p.avatarUrl,
-                        onlineStatus: p.onlineStatus,
-                        activityType: p.activityType,
-                        activityDetails: p.activityDetails,
-                        streak: p.streak,
-                      }))}
-                      loadingOnlinePartners={loadingPartners}
-                    />
-                  </div>
-
-                  {/* Weekly Stats */}
-                  <FeatureGate feature="weekly_stats" sessionsCompleted={totalSessions}>
-                    {userStats && (
-                      <div className="lg:col-span-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
-                        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-3">This Week</h3>
-                        <div className="space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400">Study time</span>
-                            <span className="text-base font-bold text-neutral-900 dark:text-white">{userStats.studyTime.thisWeek.display}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400">Sessions</span>
-                            <span className="text-base font-bold text-neutral-900 dark:text-white">{userStats.sessions.thisWeek}</span>
-                          </div>
-                          <div className="flex items-center justify-between pt-2 border-t border-neutral-200 dark:border-neutral-700">
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400">All time</span>
-                            <span className="text-base font-bold text-neutral-900 dark:text-white">{userStats.studyTime.allTime.display}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </FeatureGate>
-                </div>
-              </FeatureGate>
-
-              {/* ROW 4: Global Leaderboard - Progressive disclosure with locked state */}
-              <GlobalLeaderboard
-                isLocked={!shouldShowFeature('leaderboard', totalSessions)}
-              />
-            </div>
-          )
-        })()}
-      </main>
-
-      {/* Notification Panel */}
-      <NotificationPanel
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        onUnreadCountChange={setUnreadCount}
-      />
-
-      {/* Push Notification Prompt */}
-      <PushNotificationPrompt delay={5000} />
-
-      {/* Quick Win Modal */}
-      <QuickWinModal
-        isOpen={showQuickWin}
-        onClose={() => setShowQuickWin(false)}
-        winType={quickWinType}
-        streakCount={userStats?.streak.current || 1}
-        sessionCount={userStats?.sessions.allTime || 1}
-        studyMinutes={userStats?.studyTime.allTime.value || 0}
-      />
+    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-8 h-8 ${colorClasses[color]} rounded-lg flex items-center justify-center`}
+          >
+            <Icon className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-medium text-neutral-900 dark:text-white">
+            {title}
+          </span>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-neutral-400" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-neutral-400" />
+        )}
+      </button>
+      {isExpanded && <div className="px-4 pb-4">{children}</div>}
     </div>
   )
+})
+
+// Mission Item Card Component
+interface MissionItemCardProps {
+  item: {
+    id: string
+    type: 'flashcard' | 'concept' | 'step'
+    source: 'test_prep' | 'explain_pack' | 'guide_me'
+    title: string
+    description: string
+    priority: 'high' | 'medium' | 'low'
+  }
+  onComplete: () => void
+  onDismiss: () => void
+  onTap: () => void
+}
+
+const MissionItemCard = memo(function MissionItemCard({
+  item,
+  onComplete,
+  onDismiss,
+  onTap,
+}: MissionItemCardProps) {
+  const typeConfig = {
+    flashcard: {
+      icon: Brain,
+      color: 'purple',
+      bgClass: 'bg-purple-100 dark:bg-purple-900/30',
+      iconClass: 'text-purple-600 dark:text-purple-400',
+    },
+    concept: {
+      icon: Lightbulb,
+      color: 'blue',
+      bgClass: 'bg-blue-100 dark:bg-blue-900/30',
+      iconClass: 'text-blue-600 dark:text-blue-400',
+    },
+    step: {
+      icon: ClipboardList,
+      color: 'green',
+      bgClass: 'bg-green-100 dark:bg-green-900/30',
+      iconClass: 'text-green-600 dark:text-green-400',
+    },
+  }
+
+  const config = typeConfig[item.type]
+  const Icon = config.icon
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl group">
+      {/* Icon */}
+      <div className={`w-10 h-10 ${config.bgClass} rounded-lg flex items-center justify-center flex-shrink-0`}>
+        <Icon className={`w-5 h-5 ${config.iconClass}`} />
+      </div>
+
+      {/* Content - Tappable */}
+      <button
+        onClick={onTap}
+        className="flex-1 text-left min-w-0"
+      >
+        <p className="font-medium text-neutral-900 dark:text-white text-sm truncate">
+          {item.title}
+        </p>
+        <p className="text-xs text-neutral-500 truncate">
+          {item.description}
+        </p>
+      </button>
+
+      {/* Priority indicator */}
+      {item.priority === 'high' && (
+        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded">
+          Weak
+        </span>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onComplete()
+          }}
+          className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+          title="Mark as done"
+        >
+          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDismiss()
+          }}
+          className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+          title="Dismiss"
+        >
+          <X className="w-4 h-4 text-neutral-400" />
+        </button>
+      </div>
+    </div>
+  )
+})
+
+// Helper function
+function getTimeOfDay(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'morning'
+  if (hour < 17) return 'afternoon'
+  return 'evening'
 }

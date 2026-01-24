@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import OpenAI from 'openai'
 
 // SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
@@ -37,6 +38,15 @@ interface StudyPlanContext {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit - AI generation is expensive, limit to 20/hour
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.hourly)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many flashcard generations. Please wait before generating more.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -152,7 +162,7 @@ Return a JSON object with this exact structure:
 IMPORTANT: Return ONLY valid JSON, no markdown code blocks or explanations.`
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Generate flashcards from this content:\n\n${content.trim()}` },
@@ -209,7 +219,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks or explanations.`
           subject: subject || generated.subject,
           source: 'AI_GENERATED',
           aiPrompt: content.substring(0, 5000), // Store first 5000 chars
-          aiModel: 'gpt-4o-mini',
+          aiModel: 'gpt-5-mini',
           cardCount: generated.cards.length,
         },
       })

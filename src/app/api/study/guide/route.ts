@@ -5,7 +5,7 @@
  * based on the subject and user's last session data.
  *
  * PERFORMANCE:
- * - Uses gpt-4o-mini for cost efficiency
+ * - Uses gpt-5-mini for efficiency
  * - Caches generated guides for 10 minutes per subject
  * - Lightweight prompt for fast response
  */
@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { cacheGet, CacheTTL } from '@/lib/redis'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import OpenAI from 'openai'
 
 // SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
@@ -76,6 +77,15 @@ Generate the study guide now:`
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit - AI generation is expensive
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before generating more guides.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -133,7 +143,7 @@ export async function POST(request: NextRequest) {
         const prompt = buildPrompt(subject, suggestionType, context)
 
         const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: 'gpt-5-mini',
           messages: [
             {
               role: 'system',

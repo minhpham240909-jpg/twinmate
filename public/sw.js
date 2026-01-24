@@ -1,22 +1,160 @@
-// Service Worker for Web Push Notifications
-// This enables notifications even when the app is closed
+// Service Worker for Clerva PWA 2.0
+// Enables offline functionality and push notifications
 
-const CACHE_NAME = 'clerva-v1';
+const CACHE_NAME = 'clerva-pwa-v2';
+const STATIC_CACHE = 'clerva-static-v2';
+const DYNAMIC_CACHE = 'clerva-dynamic-v2';
 
-// Install event - activate immediately
+// Static assets to cache immediately
+const STATIC_ASSETS = [
+  '/',
+  '/dashboard',
+  '/offline',
+  '/manifest.json',
+  '/favicon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+];
+
+// API routes that should use network-first strategy
+const API_ROUTES = [
+  '/api/ai-partner/',
+  '/api/flashcards/',
+  '/api/study/',
+  '/api/user/',
+];
+
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then((cache) => {
+        console.log('[SW] Caching static assets');
+        return cache.addAll(STATIC_ASSETS.filter(url => !url.includes('/api/')));
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
-// Activate event - claim clients immediately
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames
+            .filter((name) => name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
+            .map((name) => caches.delete(name))
+        );
+      })
+      .then(() => clients.claim())
+  );
 });
 
-// Push event - handle incoming push notifications
+// Fetch event - network-first for API, cache-first for static assets
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip chrome-extension and other non-http requests
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // API routes - network first with cache fallback
+  if (API_ROUTES.some(route => url.pathname.startsWith(route))) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Static assets - cache first with network fallback
+  if (request.destination === 'image' ||
+      request.destination === 'style' ||
+      request.destination === 'script' ||
+      url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|woff|woff2)$/)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // HTML pages - network first with offline fallback
+  if (request.destination === 'document' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(networkFirstWithOfflineFallback(request));
+    return;
+  }
+
+  // Default - network first
+  event.respondWith(networkFirst(request));
+});
+
+// Network first strategy
+async function networkFirst(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    return cachedResponse || new Response('Network error', { status: 503 });
+  }
+}
+
+// Cache first strategy
+async function cacheFirst(request) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    return new Response('Asset not available offline', { status: 503 });
+  }
+}
+
+// Network first with offline fallback for pages
+async function networkFirstWithOfflineFallback(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    // Return offline page if available
+    const offlinePage = await caches.match('/offline');
+    if (offlinePage) {
+      return offlinePage;
+    }
+    return new Response('You are offline', {
+      status: 503,
+      headers: { 'Content-Type': 'text/html' }
+    });
+  }
+}
+
+// Push notification handling
 self.addEventListener('push', (event) => {
   if (!event.data) {
-    console.log('Push event but no data');
+    console.log('[SW] Push event but no data');
     return;
   }
 
@@ -25,7 +163,7 @@ self.addEventListener('push', (event) => {
 
     const options = {
       body: data.body || 'You have a new notification',
-      icon: data.icon || '/icon-192x192.png',
+      icon: data.icon || '/icon-192.png',
       badge: '/badge-72x72.png',
       image: data.image || null,
       tag: data.tag || 'default',
@@ -34,7 +172,7 @@ self.addEventListener('push', (event) => {
       silent: data.silent || false,
       vibrate: data.vibrate || [200, 100, 200],
       data: {
-        url: data.url || '/',
+        url: data.url || '/dashboard',
         type: data.type || 'default',
         id: data.id || null,
         ...data.data
@@ -42,27 +180,30 @@ self.addEventListener('push', (event) => {
       actions: data.actions || []
     };
 
-    // Add action buttons based on notification type
-    if (data.type === 'INCOMING_CALL') {
+    // Notification type specific actions
+    if (data.type === 'STUDY_REMINDER') {
+      options.tag = 'study-reminder';
+      options.actions = [
+        { action: 'start', title: 'Start Studying' },
+        { action: 'snooze', title: 'Remind Later' }
+      ];
+    } else if (data.type === 'STREAK_WARNING') {
+      options.tag = 'streak-warning';
       options.requireInteraction = true;
-      options.tag = 'incoming-call-' + data.id;
       options.actions = [
-        { action: 'answer', title: 'Answer', icon: '/icons/call-answer.png' },
-        { action: 'decline', title: 'Decline', icon: '/icons/call-decline.png' }
+        { action: 'study', title: 'Quick Study' },
+        { action: 'dismiss', title: 'Dismiss' }
       ];
-      options.vibrate = [300, 100, 300, 100, 300];
-    } else if (data.type === 'NEW_MESSAGE') {
-      options.tag = 'message-' + data.conversationId;
-      options.renotify = true;
+    } else if (data.type === 'FLASHCARD_REVIEW') {
+      options.tag = 'flashcard-review';
       options.actions = [
-        { action: 'reply', title: 'Reply' },
-        { action: 'mark-read', title: 'Mark as Read' }
+        { action: 'review', title: 'Review Now' },
+        { action: 'later', title: 'Later' }
       ];
-    } else if (data.type === 'CONNECTION_REQUEST') {
-      options.tag = 'connection-' + data.id;
+    } else if (data.type === 'XP_MILESTONE') {
+      options.tag = 'xp-milestone';
       options.actions = [
-        { action: 'accept', title: 'Accept' },
-        { action: 'view', title: 'View Profile' }
+        { action: 'view', title: 'View Progress' }
       ];
     }
 
@@ -70,21 +211,20 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(data.title || 'Clerva', options)
     );
   } catch (error) {
-    console.error('Error showing notification:', error);
+    console.error('[SW] Error showing notification:', error);
 
-    // Fallback for plain text push
     const text = event.data.text();
     event.waitUntil(
       self.registration.showNotification('Clerva', {
         body: text,
-        icon: '/icon-192x192.png',
+        icon: '/icon-192.png',
         badge: '/badge-72x72.png'
       })
     );
   }
 });
 
-// Notification click event - handle user interaction
+// Notification click handling
 self.addEventListener('notificationclick', (event) => {
   const notification = event.notification;
   const action = event.action;
@@ -92,73 +232,54 @@ self.addEventListener('notificationclick', (event) => {
 
   notification.close();
 
-  let targetUrl = '/';
+  let targetUrl = '/dashboard';
 
-  // Handle different notification types and actions
-  if (data.type === 'INCOMING_CALL') {
-    if (action === 'answer') {
-      targetUrl = data.url || `/study-sessions/${data.sessionId}/call`;
-    } else if (action === 'decline') {
-      // Just close the notification, maybe send decline API call
+  // Handle different notification types
+  if (data.type === 'STUDY_REMINDER') {
+    if (action === 'start') {
+      targetUrl = '/ai-partner';
+    } else if (action === 'snooze') {
+      return; // Just close, app will handle rescheduling
+    }
+  } else if (data.type === 'STREAK_WARNING') {
+    if (action === 'study') {
+      targetUrl = '/ai-partner?quick=true';
+    } else {
       return;
-    } else {
-      targetUrl = data.url || `/study-sessions/${data.sessionId}/lobby`;
     }
-  } else if (data.type === 'NEW_MESSAGE') {
-    if (action === 'reply') {
-      targetUrl = data.url || `/chat/${data.conversationType}s`;
-    } else if (action === 'mark-read') {
-      // Could send API call to mark as read
+  } else if (data.type === 'FLASHCARD_REVIEW') {
+    if (action === 'review') {
+      targetUrl = '/flashcards';
+    } else {
       return;
-    } else {
-      targetUrl = data.url || '/chat';
     }
-  } else if (data.type === 'CONNECTION_REQUEST') {
-    if (action === 'accept') {
-      targetUrl = '/connections?action=accept&id=' + data.id;
-    } else {
-      targetUrl = data.url || '/connections';
-    }
-  } else if (data.type === 'POST_LIKE' || data.type === 'POST_COMMENT') {
-    targetUrl = data.url || '/community';
-  } else if (data.type === 'SESSION_INVITE') {
-    targetUrl = data.url || '/study-sessions';
-  } else if (data.type === 'GROUP_INVITE') {
-    targetUrl = data.url || '/groups';
-  } else {
-    targetUrl = data.url || '/dashboard';
+  } else if (data.type === 'XP_MILESTONE') {
+    targetUrl = '/profile';
+  } else if (data.url) {
+    targetUrl = data.url;
   }
 
-  // Focus existing window or open new one
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((windowClients) => {
-        // Check if there's already a window open
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin)) {
-            // Navigate existing window
             client.navigate(targetUrl);
             return client.focus();
           }
         }
-        // Open new window if none exists
         return clients.openWindow(targetUrl);
       })
   );
 });
 
-// Notification close event
+// Handle notification close
 self.addEventListener('notificationclose', (event) => {
   const data = event.notification.data || {};
-
-  // Track notification dismissal if needed
-  if (data.type === 'INCOMING_CALL') {
-    // Could send API call to notify caller that notification was dismissed
-    console.log('Call notification dismissed');
-  }
+  console.log('[SW] Notification closed:', data.type);
 });
 
-// Handle push subscription change (browser may revoke subscription)
+// Handle push subscription change
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     self.registration.pushManager.subscribe({
@@ -166,7 +287,6 @@ self.addEventListener('pushsubscriptionchange', (event) => {
       applicationServerKey: self.VAPID_PUBLIC_KEY
     })
     .then((subscription) => {
-      // Send new subscription to server
       return fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,7 +299,7 @@ self.addEventListener('pushsubscriptionchange', (event) => {
   );
 });
 
-// Message event - receive messages from the main app
+// Handle messages from main app
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -188,9 +308,30 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SET_VAPID_KEY') {
     self.VAPID_PUBLIC_KEY = event.data.key;
   }
+
+  if (event.data && event.data.type === 'CACHE_URLS') {
+    const urls = event.data.urls || [];
+    caches.open(DYNAMIC_CACHE).then((cache) => {
+      cache.addAll(urls);
+    });
+  }
 });
 
-// No-op fetch handler - just pass through all requests
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+// Background sync for offline actions (if supported)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-flashcard-progress') {
+    event.waitUntil(syncFlashcardProgress());
+  } else if (event.tag === 'sync-study-session') {
+    event.waitUntil(syncStudySession());
+  }
 });
+
+async function syncFlashcardProgress() {
+  // Will sync offline flashcard progress when back online
+  console.log('[SW] Syncing flashcard progress');
+}
+
+async function syncStudySession() {
+  // Will sync offline study session data when back online
+  console.log('[SW] Syncing study session');
+}

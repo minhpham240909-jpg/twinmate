@@ -5,10 +5,20 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { generateImageForSession, checkImageSuggestion, VALID_IMAGE_STYLES } from '@/lib/ai-partner'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit - DALL-E image generation is expensive
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many image requests. Please wait before generating more.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
