@@ -82,6 +82,7 @@ interface UseActiveRoadmapReturn {
   refresh: () => Promise<void>
   saveRoadmap: (roadmapData: SaveRoadmapInput) => Promise<ActiveRoadmap | null>
   completeStep: (stepId: string, options?: CompleteStepOptions) => Promise<boolean>
+  deleteRoadmap: () => Promise<boolean>
 }
 
 export interface SaveRoadmapInput {
@@ -223,6 +224,39 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
     }
   }, [activeRoadmap, fetchActiveRoadmap])
 
+  // Delete the active roadmap
+  const deleteRoadmapAction = useCallback(async (): Promise<boolean> => {
+    if (!activeRoadmap) {
+      setError('No active roadmap to delete')
+      return false
+    }
+
+    try {
+      setError(null)
+
+      const response = await fetch('/api/roadmap/active', {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete roadmap')
+      }
+
+      // Clear the local state
+      setActiveRoadmap(null)
+      setCurrentStep(null)
+      setTodaysMission(null)
+
+      return true
+    } catch (err) {
+      console.error('Error deleting roadmap:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete roadmap')
+      return false
+    }
+  }, [activeRoadmap])
+
   // Load on mount
   useEffect(() => {
     fetchActiveRoadmap()
@@ -238,5 +272,6 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
     refresh: fetchActiveRoadmap,
     saveRoadmap,
     completeStep: completeStepAction,
+    deleteRoadmap: deleteRoadmapAction,
   }
 }

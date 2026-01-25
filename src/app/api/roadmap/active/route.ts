@@ -2,6 +2,7 @@
  * ACTIVE ROADMAP API
  *
  * GET /api/roadmap/active - Get user's currently active roadmap
+ * DELETE /api/roadmap/active - Delete/abandon the active roadmap
  *
  * This is the primary endpoint for the dashboard to know:
  * - Does user have an active roadmap?
@@ -12,8 +13,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
-import { getActiveRoadmap, getUserRoadmapStats } from '@/lib/roadmap-engine/roadmap-service'
-import logger, { createRequestLogger, getCorrelationId } from '@/lib/logger'
+import { getActiveRoadmap, getUserRoadmapStats, deleteRoadmap } from '@/lib/roadmap-engine/roadmap-service'
+import { createRequestLogger, getCorrelationId } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   const log = createRequestLogger(request)
@@ -141,6 +142,65 @@ export async function GET(request: NextRequest) {
     log.error('Failed to get active roadmap', error instanceof Error ? error : { error })
     return NextResponse.json(
       { error: 'Failed to get active roadmap' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/roadmap/active - Delete/abandon the active roadmap
+ */
+export async function DELETE(request: NextRequest) {
+  const log = createRequestLogger(request)
+  const correlationId = getCorrelationId(request)
+
+  try {
+    // Rate limiting
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
+    // Auth check
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Get the active roadmap first
+    const activeRoadmap = await getActiveRoadmap(user.id)
+
+    if (!activeRoadmap) {
+      return NextResponse.json(
+        { error: 'No active roadmap to delete' },
+        { status: 404 }
+      )
+    }
+
+    // Delete (abandon) the roadmap
+    await deleteRoadmap(activeRoadmap.id, user.id)
+
+    log.info('Roadmap deleted', { roadmapId: activeRoadmap.id, userId: user.id })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Roadmap deleted successfully',
+    }, {
+      headers: { 'x-correlation-id': correlationId },
+    })
+
+  } catch (error) {
+    log.error('Failed to delete roadmap', error instanceof Error ? error : { error })
+    return NextResponse.json(
+      { error: 'Failed to delete roadmap' },
       { status: 500 }
     )
   }

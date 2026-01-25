@@ -70,8 +70,13 @@ function BottomNavComponent() {
             return (
               <button
                 key={item.id}
-                onClick={() => handleNavClick(item.href)}
-                className={`flex flex-col items-center justify-center w-20 h-full transition-colors ${
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleNavClick(item.href)
+                }}
+                className={`flex flex-col items-center justify-center w-20 h-full transition-colors cursor-pointer select-none active:scale-95 ${
                   active
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'

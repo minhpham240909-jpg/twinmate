@@ -58,6 +58,7 @@ import {
   Video,
   X,
   Upload,
+  Trash2,
 } from 'lucide-react'
 
 // ============================================
@@ -281,13 +282,18 @@ const TodaysMission = memo(function TodaysMission({
       </div>
 
       {/* Action Buttons - ACTION-BASED, not message-based */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 relative z-10">
         <button
-          onClick={onStartMission}
-          className={`flex-1 flex items-center justify-center gap-2 py-3.5 font-semibold rounded-xl transition-colors ${
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onStartMission()
+          }}
+          className={`flex-1 flex items-center justify-center gap-2 py-3.5 font-semibold rounded-xl transition-colors cursor-pointer select-none active:scale-[0.98] ${
             isRemediation
-              ? 'bg-amber-600 hover:bg-amber-700 text-white'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white'
+              : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white'
           }`}
         >
           <span>{isRemediation ? 'Begin Remediation' : 'Start Mission'}</span>
@@ -296,8 +302,13 @@ const TodaysMission = memo(function TodaysMission({
 
         {hasRoadmap && (
           <button
-            onClick={onViewRoadmap}
-            className="px-4 py-3.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium rounded-xl transition-colors"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onViewRoadmap()
+            }}
+            className="px-4 py-3.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 active:bg-neutral-300 dark:active:bg-neutral-600 text-neutral-700 dark:text-neutral-300 font-medium rounded-xl transition-colors cursor-pointer select-none active:scale-[0.98]"
           >
             View Plan
           </button>
@@ -719,12 +730,16 @@ const ProofSubmission = memo(function ProofSubmission({
 const RoadmapView = memo(function RoadmapView({
   roadmap,
   onBack,
+  onDelete,
+  isDeleting,
 }: {
   roadmap: Roadmap
   onBack: () => void
+  onDelete: () => void
+  isDeleting: boolean
 }) {
   const [showAllSteps, setShowAllSteps] = useState(false)
-  const [expandedStep, setExpandedStep] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Find current step
   const currentStep = roadmap.steps.find(s => s.status === 'current')
@@ -935,6 +950,54 @@ const RoadmapView = memo(function RoadmapView({
           </p>
         </div>
       )}
+
+      {/* Delete Roadmap Section */}
+      <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+        {!showDeleteConfirm ? (
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete this roadmap</span>
+          </button>
+        ) : (
+          <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-4 border border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+              Are you sure you want to delete this roadmap? This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="flex-1 py-2 px-3 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete()
+                  setShowDeleteConfirm(false)
+                }}
+                disabled={isDeleting}
+                className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 })
@@ -1059,7 +1122,11 @@ export default function DashboardPage() {
     saveRoadmap,
     completeStep,
     refresh: refreshRoadmap,
+    deleteRoadmap,
   } = useActiveRoadmap()
+
+  // State for delete operation
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Convert to UI format
   const activeRoadmap: Roadmap | null = persistedRoadmap ? {
@@ -1159,6 +1226,26 @@ export default function DashboardPage() {
   const handleNotificationClick = useCallback(() => {
     setIsNotificationPanelOpen(true)
   }, [])
+
+  const handleDeleteRoadmap = useCallback(async () => {
+    setIsDeleting(true)
+    try {
+      const success = await deleteRoadmap()
+      if (success) {
+        setViewState('onboarding')
+        setFeedbackMessage('Roadmap deleted. Start a new learning journey.')
+        if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 3000)
+      }
+    } catch (err) {
+      console.error('Error deleting roadmap:', err)
+      setFeedbackMessage('Failed to delete roadmap. Try again.')
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 3000)
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [deleteRoadmap])
 
   const handleSubmitGoal = useCallback(async (goal: string, inputUrl?: string, inputImage?: string) => {
     if (isGuest && !hasTrials) {
@@ -1422,6 +1509,8 @@ export default function DashboardPage() {
             <RoadmapView
               roadmap={activeRoadmap}
               onBack={() => setViewState('mission')}
+              onDelete={handleDeleteRoadmap}
+              isDeleting={isDeleting}
             />
           ) : (
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 text-center">
