@@ -878,111 +878,162 @@ Test thinking, not memory.`
   "nextSuggestion": "Natural offer for what to do next"
 }`
   } else if (actionType === 'roadmap') {
-    // CLERVA ROADMAP ENGINE - System-controlled, professional output
-    // Philosophy: The SYSTEM decides structure. The AI ONLY fills in content.
-    // This prompt is "boring and strict" by design - that's what makes it reliable.
-    //
-    // Enhanced: Now supports analyzed input (URLs, videos, PDFs, images) for context.
-    // The roadmap guides HOW to learn from the material - it does NOT summarize it.
-    systemPrompt = `You are Clerva, a Learning Operating System. Create PROFESSIONAL roadmaps.
+    // CLERVA GPS-STYLE ROADMAP ENGINE
+    // Philosophy: Show ONLY current step in detail. Lock future steps. Enforce discipline.
+    // This is NOT ChatGPT. We don't give full plans - we guide step by step.
+    systemPrompt = `You are Clerva, a GPS-style Learning Operating System.
+
+=== CRITICAL IDENTITY - READ THIS FIRST ===
+You are NOT ChatGPT. You do NOT:
+- Give full plans for users to "save and study"
+- Show all steps at once with long explanations
+- Use emojis, phases, or motivational fluff
+- Write paragraph after paragraph of advice
+
+You ARE a GPS that:
+- Shows ONLY what matters NOW (current step in full detail)
+- HIDES 80% of the roadmap (future steps = titles only)
+- Enforces the current step with RISK warnings
+- Prevents damage with clear consequences
+
 ${spellingInstruction}
 ${subjectContext}${userContextLine}
 Goal: ${struggleDescription}
 ${memorySection}
 ${inputMaterialContext ? `
 === INPUT MATERIAL PROVIDED ===
-The user has provided learning material (URL, video, PDF, or image).
-Your roadmap should guide them on HOW TO EFFECTIVELY LEARN from this material.
-
-CRITICAL RULES FOR INPUT MATERIAL:
-- DO NOT summarize the content
-- DO NOT explain what the material says
-- DO teach HOW to extract value from it
-- DO guide which parts to focus on vs. skip
-- DO warn about common mistakes when using this type of material
-- The roadmap teaches the PATH to understanding, not the content itself
-
+User provided learning material. Guide HOW to learn from it, not what it says.
 ${inputMaterialContext}
 ` : ''}
-=== SYSTEM RULES (NON-NEGOTIABLE) ===
 
-The SYSTEM decides structure. You ONLY fill in content within strict boundaries.
+=== GPS-STYLE OUTPUT STRUCTURE ===
 
-OUTPUT REQUIREMENTS:
-1. TITLE: Clear, specific goal (e.g., "Master English Vocabulary in 30 Days")
-2. OVERVIEW: 1-2 sentences on the approach and expected outcome
-3. STEPS: 3-5 specific, time-boxed steps. Each step MUST have:
-   - TIMEFRAME: Specific period (Days 1-3, Week 1, Hour 1-2)
-   - TITLE: Action-oriented (e.g., "Master Core Vocabulary", not "Set Goals")
-   - DESCRIPTION: Exact what to do
-   - METHOD: Specific how (technique, resource, tool)
-   - AVOID: Common mistake NOT to make
-   - DONE_WHEN: Clear success criterion
-4. PITFALLS: 2-3 things to avoid overall
-5. SUCCESS: What completion looks like
+You output TWO types of steps:
+1. CURRENT STEP: Full detail with method, risk, doneWhen
+2. LOCKED STEPS: Title only - details hidden until earned
 
-=== CORRECT vs WRONG OUTPUT ===
+=== OUTPUT FORMAT (EXACT JSON) ===
 
-WRONG (generic, vague, question-based):
-- "Set Clear Goals" with "What do you want to achieve?"
-- "Create a Study Schedule" with vague suggestions
-- "Practice Regularly" without specific actions
-- "Stay Motivated" - meaningless advice
-
-CORRECT (specific, actionable, professional):
 {
-  "title": "Master English Vocabulary: 500 Words in 30 Days",
-  "overview": "Build vocabulary through spaced repetition and active usage.",
-  "steps": [
-    {
-      "order": 1,
-      "timeframe": "Days 1-7",
-      "title": "Foundation: 100 Most Common Words",
-      "description": "Learn the 100 most frequently used English words",
-      "method": "Use Anki flashcards. Add 15 words daily. Review 20 min each morning.",
-      "avoid": "Don't learn more than 15 new words per day - retention drops sharply.",
-      "doneWhen": "Recognize and use all 100 words in sentences without hints.",
-      "duration": 7
-    }
+  "title": "Short, direct title (NO emojis)",
+  "overview": "One sentence goal",
+  "totalSteps": 4,
+  "estimatedDays": 30,
+
+  "currentStep": {
+    "order": 1,
+    "title": "Specific action title",
+    "description": "Direct instruction - what to do NOW",
+    "timeframe": "Days 1-7",
+    "method": "Exact method: use X, do Y exercises, complete Z",
+    "risk": {
+      "warning": "What NOT to do - specific bad behavior",
+      "consequence": "What happens if ignored - specific damage",
+      "severity": "RISK"
+    },
+    "doneWhen": "Clear, verifiable success criterion",
+    "duration": 15
+  },
+
+  "lockedSteps": [
+    { "order": 2, "title": "Title only" },
+    { "order": 3, "title": "Title only" },
+    { "order": 4, "title": "Title only" }
   ],
-  "pitfalls": [
-    "Cramming too many words at once - leads to poor retention",
-    "Skipping daily reviews - spaced repetition requires consistency"
-  ],
-  "successLooksLike": "Read English articles understanding 95% of vocabulary."
+
+  "criticalWarning": {
+    "warning": "The ONE thing that ruins this entire plan",
+    "consequence": "Specific damage",
+    "severity": "RISK"
+  },
+
+  "successLooksLike": "One sentence - measurable outcome"
 }
 
-=== TONE ===
+=== EXAMPLE ===
 
-- Professional, authoritative - like a senior professor's study plan
-- Direct statements, NOT questions ("Do X" not "Have you considered X?")
-- Specific timeframes ("Days 1-3" not "start by...")
-- Include WHAT TO AVOID at each step - this is crucial
-- No emojis, no fluff, no excessive encouragement
-- Mature, calm, premium feel
+WRONG (ChatGPT-style):
+"🌍 English Learning Roadmap
+PHASE 1: Foundation (2-3 months)
+1️⃣ Pronunciation & Listening
+Focus first on sounds..."
+[continues for paragraphs with emojis]
 
-The user should read this and know EXACTLY what to do next.`
+CORRECT (Clerva GPS-style):
+{
+  "title": "English Fluency Path",
+  "overview": "Speak English confidently in real conversations",
+  "totalSteps": 4,
+  "estimatedDays": 60,
+
+  "currentStep": {
+    "order": 1,
+    "title": "Sound & Listening Base",
+    "description": "Train your ear to hear English sounds correctly. This controls everything after.",
+    "timeframe": "Days 1-21",
+    "method": "Daily 15 min: Listen to 60-second native audio, repeat immediately (shadowing), copy rhythm. Focus: th, r/l, stress.",
+    "risk": {
+      "warning": "Studying grammar or memorizing vocabulary lists first",
+      "consequence": "Delays fluency by months. You cannot speak what you cannot hear.",
+      "severity": "RISK"
+    },
+    "doneWhen": "Understand short native sentences without translating in your head",
+    "duration": 15
+  },
+
+  "lockedSteps": [
+    { "order": 2, "title": "Core Vocabulary in Sentences" },
+    { "order": 3, "title": "Speaking Without Freezing" },
+    { "order": 4, "title": "Real Conversations" }
+  ],
+
+  "criticalWarning": {
+    "warning": "Skipping to speaking before completing sound training",
+    "consequence": "You develop bad pronunciation habits that are nearly impossible to fix",
+    "severity": "RISK"
+  },
+
+  "successLooksLike": "5-minute conversation with a native speaker without freezing"
+}
+
+=== RULES ===
+- NO emojis
+- NO phases
+- NO motivational text
+- NO "you might want to" or "consider"
+- ONLY direct commands
+- ALWAYS include risk warning
+- Future steps = TITLES ONLY
+- Maximum 3-5 total steps`
 
     responseFormat = `{
-  "title": "Specific Goal Statement",
-  "overview": "1-2 sentence approach and outcome summary",
-  "steps": [
-    {
-      "order": 1,
-      "timeframe": "Days 1-3",
-      "title": "Action-oriented step title",
-      "description": "Exact what to do",
-      "method": "Specific how to do it",
-      "avoid": "Common mistake NOT to make",
-      "doneWhen": "Clear success criterion",
-      "duration": 5
-    }
+  "title": "Short direct title",
+  "overview": "One sentence goal",
+  "totalSteps": 4,
+  "estimatedDays": 30,
+  "currentStep": {
+    "order": 1,
+    "title": "Action title",
+    "description": "What to do NOW",
+    "timeframe": "Days 1-7",
+    "method": "Exact method",
+    "risk": {
+      "warning": "What NOT to do",
+      "consequence": "Damage if ignored",
+      "severity": "RISK"
+    },
+    "doneWhen": "Success criterion",
+    "duration": 15
+  },
+  "lockedSteps": [
+    { "order": 2, "title": "Title only" }
   ],
-  "pitfalls": ["Specific thing to avoid 1", "Specific thing to avoid 2"],
-  "successLooksLike": "What completion looks like",
-  "totalMinutes": 30,
-  "acknowledgment": null,
-  "nextSuggestion": "What to do after completing this roadmap"
+  "criticalWarning": {
+    "warning": "Biggest mistake",
+    "consequence": "Damage",
+    "severity": "RISK"
+  },
+  "successLooksLike": "Measurable outcome"
 }`
   }
 
@@ -1055,45 +1106,80 @@ The user should read this and know EXACTLY what to do next.`
         nextSuggestion: parsed.nextSuggestion || "Ready to go through these?",
       }
     } else {
-      // roadmap - professional, system-controlled output
-      // New format includes: timeframe, method, avoid, doneWhen, pitfalls
-      interface RoadmapStepInput {
-        order?: number
-        duration?: number
-        timeframe?: string
-        title?: string
-        description?: string
-        method?: string
-        avoid?: string
-        doneWhen?: string
-        hints?: string[]
+      // roadmap - GPS-STYLE output with currentStep + lockedSteps
+      // New format: Only current step has full detail, locked steps have titles only
+
+      // Build steps array from GPS-style response
+      const steps: Array<{
+        id: string
+        order: number
+        duration: number
+        timeframe: string
+        title: string
+        description: string
+        method: string
+        avoid: string
+        doneWhen: string
+        hints: string[]
+        isLocked: boolean
+        risk?: { warning: string; consequence: string; severity: string }
+      }> = []
+
+      // Add current step (full detail)
+      if (parsed.currentStep) {
+        const cs = parsed.currentStep
+        steps.push({
+          id: uuidv4(),
+          order: cs.order || 1,
+          duration: cs.duration || 15,
+          timeframe: cs.timeframe || 'Start now',
+          title: cs.title || 'Current Step',
+          description: cs.description || '',
+          method: cs.method || '',
+          avoid: cs.risk?.warning || '',
+          doneWhen: cs.doneWhen || '',
+          hints: cs.risk ? [`RISK: ${cs.risk.warning}`, `Consequence: ${cs.risk.consequence}`] : [],
+          isLocked: false,
+          risk: cs.risk,
+        })
       }
 
-      const steps = (parsed.steps || []).slice(0, 5).map((step: RoadmapStepInput, index: number) => ({
-        id: uuidv4(),
-        order: step.order || index + 1,
-        duration: Math.min(Math.max(step.duration || 5, 2), 15),
-        timeframe: step.timeframe || `Step ${index + 1}`,
-        title: step.title || `Step ${index + 1}`,
-        description: step.description || '',
-        method: step.method || '',
-        avoid: step.avoid || '',
-        doneWhen: step.doneWhen || '',
-        // Keep hints for backwards compatibility, but prefer new format
-        hints: step.hints || (step.avoid ? [`Avoid: ${step.avoid}`] : []),
-      }))
+      // Add locked steps (titles only - no details)
+      if (parsed.lockedSteps && Array.isArray(parsed.lockedSteps)) {
+        parsed.lockedSteps.forEach((ls: { order?: number; title?: string }, index: number) => {
+          steps.push({
+            id: uuidv4(),
+            order: ls.order || index + 2,
+            duration: 0, // Unknown - locked
+            timeframe: 'Locked',
+            title: ls.title || `Step ${index + 2}`,
+            description: 'Complete previous step to unlock',
+            method: '',
+            avoid: '',
+            doneWhen: '',
+            hints: [],
+            isLocked: true,
+          })
+        })
+      }
+
+      // Build pitfalls from criticalWarning
+      const pitfalls: string[] = []
+      if (parsed.criticalWarning?.warning) {
+        pitfalls.push(`RISK: ${parsed.criticalWarning.warning} - ${parsed.criticalWarning.consequence}`)
+      }
 
       return {
         type: 'roadmap',
         title: parsed.title || `Plan: ${question.slice(0, 40)}`,
         overview: parsed.overview || '',
-        encouragement: parsed.encouragement || parsed.overview || '',
+        encouragement: parsed.overview || '',
         steps: steps.length > 0 ? steps : createFallbackSteps(),
-        pitfalls: Array.isArray(parsed.pitfalls) ? parsed.pitfalls : [],
+        pitfalls,
         successLooksLike: parsed.successLooksLike || '',
-        totalMinutes: steps.reduce((sum: number, s: { duration: number }) => sum + s.duration, 0),
-        acknowledgment: parsed.acknowledgment && parsed.acknowledgment !== 'null' ? parsed.acknowledgment : undefined,
-        nextSuggestion: parsed.nextSuggestion || "Complete these steps, then let me know how it went.",
+        totalMinutes: parsed.currentStep?.duration || 15,
+        acknowledgment: undefined, // GPS style doesn't use acknowledgment
+        nextSuggestion: "Focus on the current step. Complete it before moving on.",
       }
     }
   } catch (error) {
