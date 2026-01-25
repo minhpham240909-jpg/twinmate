@@ -1179,6 +1179,9 @@ export default function DashboardPage() {
   // MISSION ENGINE INTEGRATION
   // ============================================
 
+  // Track if initial view has been set (use ref to persist across effect runs)
+  const initialViewSetRef = useRef(false)
+
   // Decide mission when roadmap loads
   useEffect(() => {
     if (!isRoadmapLoading) {
@@ -1202,11 +1205,14 @@ export default function DashboardPage() {
       const decision = MissionEngine.decideNextMission(userProgress, roadmapForEngine)
       setCurrentMission(decision.mission)
 
-      // Determine initial view
-      if (!activeRoadmap && !isGuest) {
-        setViewState('onboarding')
-      } else {
-        setViewState('mission')
+      // Only set initial view ONCE on first load, don't override user navigation
+      if (!initialViewSetRef.current) {
+        initialViewSetRef.current = true
+        if (!activeRoadmap && !isGuest) {
+          setViewState('onboarding')
+        } else {
+          setViewState('mission')
+        }
       }
     }
   }, [isRoadmapLoading, activeRoadmap, userProgress, isGuest])
