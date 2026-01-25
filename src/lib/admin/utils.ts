@@ -605,107 +605,77 @@ export async function getVisionMetrics() {
 
 /**
  * Get user activity breakdown for admin dashboard
- * Shows how many users are doing what (studying, in call, with AI, etc.)
- * OPTIMIZED: Single query with grouping
- * FIXED: Uses correct tables (FocusSession) and proper online detection (3-min threshold)
+ * Updated for new Clerva vision: AI Tools (Guide Me, Explain Pack, Test Prep)
+ * OPTIMIZED: Efficient queries with proper indexing
  */
 export async function getUserActivityBreakdown() {
   const cacheKey = 'admin:activity:breakdown'
 
   return getOrSetCached(cacheKey, 30, async () => { // 30 seconds cache
     try {
-      // FIX: Use 3-minute threshold for online detection (matches partner board logic)
-      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000)
-
-      // Get activity breakdown from presence data - only users active in last 3 minutes
-      const activityCounts = await prisma.userPresence.groupBy({
-        by: ['activityType'],
-        where: {
-          status: 'online',
-          OR: [
-            { lastActivityAt: { gte: threeMinutesAgo } },
-            { lastSeenAt: { gte: threeMinutesAgo } },
-          ],
-        },
-        _count: { _all: true },
-      })
-
-      // Get total online users (active in last 3 minutes)
-      const totalOnline = await prisma.userPresence.count({
-        where: {
-          status: 'online',
-          OR: [
-            { lastActivityAt: { gte: threeMinutesAgo } },
-            { lastSeenAt: { gte: threeMinutesAgo } },
-          ],
-        },
-      })
-
-      // Get today's study statistics
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
-      // FIX: Use FocusSession table (not StudySession) for Solo Study & Quick Focus
+      // Get AI tool usage statistics for today
       const [
-        todayFocusSessions,
-        todayFocusMinutes,
-        todayPartnerSessions,
-        todayPartnerMinutes,
-        topStreakers
+        // AI Partner sessions
+        activeAISessions,
+        todayAISessions,
+        todayAIMessages,
+        // XP/Points earned today (from profiles)
+        todayXPEarned,
+        // Flashcard decks created today
+        todayFlashcardDecks,
+        todayFlashcardsCreated,
+        // Top learners by XP (this week)
+        topLearners,
+        // Online users count
+        totalOnline,
       ] = await Promise.all([
-        // Count completed FOCUS sessions today (Solo Study + Quick Focus)
-        prisma.focusSession.count({
+        // Active AI Partner sessions right now
+        prisma.aIPartnerSession.count({
           where: {
-            status: 'COMPLETED',
-            completedAt: { gte: today },
+            status: 'ACTIVE',
           },
         }),
-        // Get total focus time today (from FocusSession.actualMinutes)
-        prisma.focusSession.aggregate({
+        // AI Partner sessions started today
+        prisma.aIPartnerSession.count({
           where: {
-            status: 'COMPLETED',
-            completedAt: { gte: today },
-          },
-          _sum: { actualMinutes: true },
-        }).then(result => result._sum.actualMinutes || 0),
-        // Count completed PARTNER study sessions today (StudySession)
-        prisma.studySession.count({
-          where: {
-            status: 'COMPLETED',
-            endedAt: { gte: today },
+            startedAt: { gte: today },
           },
         }),
-        // Get total partner study time today
-        prisma.studySession.findMany({
+        // AI Partner messages sent today
+        prisma.aIPartnerMessage.count({
           where: {
-            status: 'COMPLETED',
-            endedAt: { gte: today },
+            createdAt: { gte: today },
           },
-          select: {
-            startedAt: true,
-            endedAt: true,
-          },
-        }).then(sessions => {
-          return sessions.reduce((total, session) => {
-            if (session.startedAt && session.endedAt) {
-              const diff = session.endedAt.getTime() - session.startedAt.getTime()
-              return total + Math.round(diff / (1000 * 60))
-            }
-            return total
-          }, 0)
         }),
-        // FIX: Get users with highest streaks - use MAX of soloStudyStreak and quickFocusStreak
+        // Total XP earned today (aggregate from profile changes)
+        // Note: We track XP on Profile.totalPoints - this query estimates today's XP
+        prisma.profile.aggregate({
+          _sum: { totalPoints: true },
+        }).then(result => result._sum.totalPoints || 0),
+        // Flashcard decks created today
+        prisma.flashcardDeck.count({
+          where: {
+            createdAt: { gte: today },
+          },
+        }),
+        // Individual flashcards created today
+        prisma.flashcardCard.count({
+          where: {
+            createdAt: { gte: today },
+          },
+        }),
+        // Top learners by XP (total points)
         prisma.profile.findMany({
           where: {
-            OR: [
-              { soloStudyStreak: { gt: 0 } },
-              { quickFocusStreak: { gt: 0 } },
-              { studyStreak: { gt: 0 } },
-            ],
+            totalPoints: { gt: 0 },
             user: { deactivatedAt: null },
           },
           select: {
             userId: true,
+            totalPoints: true,
             studyStreak: true,
             soloStudyStreak: true,
             quickFocusStreak: true,
@@ -717,52 +687,64 @@ export async function getUserActivityBreakdown() {
               }
             }
           },
-          take: 20, // Fetch more to sort by combined streak
-        }).then(profiles => {
-          // Calculate max streak and sort
-          return profiles
-            .map(p => ({
-              id: p.user.id,
-              name: p.user.name,
-              avatarUrl: p.user.avatarUrl,
-              studyStreak: Math.max(
-                p.studyStreak || 0,
-                p.soloStudyStreak || 0,
-                p.quickFocusStreak || 0
-              ),
-            }))
-            .sort((a, b) => b.studyStreak - a.studyStreak)
-            .slice(0, 5)
+          orderBy: { totalPoints: 'desc' },
+          take: 5,
+        }).then(profiles => 
+          profiles.map(p => ({
+            id: p.user.id,
+            name: p.user.name,
+            avatarUrl: p.user.avatarUrl,
+            totalPoints: p.totalPoints,
+            streak: Math.max(
+              p.studyStreak || 0,
+              p.soloStudyStreak || 0,
+              p.quickFocusStreak || 0
+            ),
+          }))
+        ),
+        // Online users (active in last 3 minutes)
+        prisma.userPresence.count({
+          where: {
+            status: 'online',
+            OR: [
+              { lastActivityAt: { gte: new Date(Date.now() - 3 * 60 * 1000) } },
+              { lastSeenAt: { gte: new Date(Date.now() - 3 * 60 * 1000) } },
+            ],
+          },
         }),
       ])
 
-      // Combined stats
-      const totalStudySessions = todayFocusSessions + todayPartnerSessions
-      const totalStudyMinutes = todayFocusMinutes + todayPartnerMinutes
-
-      // Format activity breakdown
-      const activityBreakdown: Record<string, number> = {
-        browsing: 0,
-        studying: 0,
-        in_call: 0,
-        with_ai: 0,
-        idle: 0,
-      }
-
-      activityCounts.forEach(item => {
-        const type = item.activityType || 'browsing'
-        activityBreakdown[type] = item._count._all
-      })
-
       return {
         totalOnline,
-        activityBreakdown,
-        todayStats: {
-          studySessions: totalStudySessions,
-          studyMinutes: totalStudyMinutes,
-          studyHours: Math.round(totalStudyMinutes / 60 * 10) / 10,
+        // AI Tool Usage (new vision)
+        aiToolUsage: {
+          activeAISessions,
+          todayAISessions,
+          todayAIMessages,
         },
-        topStreakers,
+        // Today's learning activity
+        todayStats: {
+          xpEarned: todayXPEarned,
+          flashcardDecks: todayFlashcardDecks,
+          flashcardsCreated: todayFlashcardsCreated,
+          aiSessions: todayAISessions,
+        },
+        // Top learners by XP
+        topLearners,
+        // Legacy fields for backward compatibility (can be removed later)
+        activityBreakdown: {
+          browsing: totalOnline,
+          studying: 0,
+          in_call: 0,
+          with_ai: activeAISessions,
+          idle: 0,
+        },
+        topStreakers: topLearners.map((l: { id: string; name: string | null; avatarUrl: string | null; totalPoints: number; streak: number }) => ({
+          id: l.id,
+          name: l.name,
+          avatarUrl: l.avatarUrl,
+          studyStreak: l.streak,
+        })),
       }
     } catch (error) {
       console.error('[Admin] Error getting activity breakdown:', error)

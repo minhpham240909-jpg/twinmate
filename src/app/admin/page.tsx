@@ -97,20 +97,37 @@ interface AIPartnerQuickStats {
   error?: string
 }
 
-// Activity breakdown for real-time user activity
+// Activity breakdown for real-time user activity (updated for new Clerva vision)
 interface ActivityBreakdown {
   totalOnline: number
+  // AI Tool Usage (new vision)
+  aiToolUsage: {
+    activeAISessions: number
+    todayAISessions: number
+    todayAIMessages: number
+  }
+  // Today's learning activity
+  todayStats: {
+    xpEarned: number
+    flashcardDecks: number
+    flashcardsCreated: number
+    aiSessions: number
+  }
+  // Top learners by XP
+  topLearners: Array<{
+    id: string
+    name: string
+    avatarUrl: string | null
+    totalPoints: number
+    streak: number
+  }>
+  // Legacy fields (backward compatibility)
   activityBreakdown: {
     browsing: number
     studying: number
     in_call: number
     with_ai: number
     idle: number
-  }
-  todayStats: {
-    studySessions: number
-    studyMinutes: number
-    studyHours: number
   }
   topStreakers: Array<{
     id: string
@@ -390,24 +407,6 @@ export default function AdminDashboard() {
       color: 'yellow',
     },
     {
-      title: 'Total Messages',
-      value: stats?.content.messages || 0,
-      icon: MessageSquare,
-      color: 'indigo',
-    },
-    {
-      title: 'Study Sessions',
-      value: stats?.content.studySessions || 0,
-      icon: BookOpen,
-      color: 'teal',
-    },
-    {
-      title: 'Matches Made',
-      value: stats?.content.matches || 0,
-      icon: Heart,
-      color: 'pink',
-    },
-    {
       title: 'Pending Reports',
       value: pendingReportsCount,
       icon: AlertTriangle,
@@ -622,87 +621,87 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* User Activity Breakdown - What users are doing */}
+      {/* AI Tool Usage & Top Learners - Updated for new Clerva vision */}
       {activityBreakdown && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Activity Types */}
+          {/* AI Tool Usage Today */}
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <Activity className="w-5 h-5 text-purple-400" />
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Sparkles className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">What Users Are Doing</h2>
-                <p className="text-xs text-gray-400">Real-time activity breakdown</p>
+                <h2 className="text-lg font-semibold text-white">AI Learning Activity</h2>
+                <p className="text-xs text-gray-400">Today&apos;s AI tool usage</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="p-3 bg-emerald-500/10 rounded-lg text-center">
-                <div className="text-2xl mb-1">🟢</div>
-                <p className="text-xl font-bold text-emerald-400">{activityBreakdown.activityBreakdown.browsing}</p>
-                <p className="text-xs text-gray-400">Browsing</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 bg-green-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">🤖</div>
+                <p className="text-xl font-bold text-green-400">{activityBreakdown.aiToolUsage?.activeAISessions || 0}</p>
+                <p className="text-xs text-gray-400">Active Now</p>
               </div>
               <div className="p-3 bg-blue-500/10 rounded-lg text-center">
-                <div className="text-2xl mb-1">📚</div>
-                <p className="text-xl font-bold text-blue-400">{activityBreakdown.activityBreakdown.studying}</p>
-                <p className="text-xs text-gray-400">Studying</p>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-lg text-center">
-                <div className="text-2xl mb-1">📞</div>
-                <p className="text-xl font-bold text-green-400">{activityBreakdown.activityBreakdown.in_call}</p>
-                <p className="text-xs text-gray-400">In Call</p>
+                <div className="text-2xl mb-1">💬</div>
+                <p className="text-xl font-bold text-blue-400">{activityBreakdown.aiToolUsage?.todayAISessions || 0}</p>
+                <p className="text-xs text-gray-400">Sessions Today</p>
               </div>
               <div className="p-3 bg-purple-500/10 rounded-lg text-center">
-                <div className="text-2xl mb-1">🤖</div>
-                <p className="text-xl font-bold text-purple-400">{activityBreakdown.activityBreakdown.with_ai}</p>
-                <p className="text-xs text-gray-400">With AI</p>
+                <div className="text-2xl mb-1">📝</div>
+                <p className="text-xl font-bold text-purple-400">{activityBreakdown.aiToolUsage?.todayAIMessages || 0}</p>
+                <p className="text-xs text-gray-400">AI Messages</p>
               </div>
-              <div className="p-3 bg-yellow-500/10 rounded-lg text-center">
-                <div className="text-2xl mb-1">💤</div>
-                <p className="text-xl font-bold text-yellow-400">{activityBreakdown.activityBreakdown.idle}</p>
-                <p className="text-xs text-gray-400">Idle</p>
+              <div className="p-3 bg-emerald-500/10 rounded-lg text-center">
+                <div className="text-2xl mb-1">👥</div>
+                <p className="text-xl font-bold text-emerald-400">{activityBreakdown.totalOnline || 0}</p>
+                <p className="text-xs text-gray-400">Online Now</p>
               </div>
             </div>
-            {/* Today's Stats */}
+            {/* Today's Learning Stats */}
             <div className="mt-4 pt-4 border-t border-gray-700">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">Today&apos;s Study Stats</h3>
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Today&apos;s Learning Stats</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats.studySessions}</p>
-                  <p className="text-xs text-gray-400">Sessions</p>
+                  <p className="text-2xl font-bold text-yellow-400">{formatNumber(activityBreakdown.todayStats?.xpEarned || 0)}</p>
+                  <p className="text-xs text-gray-400">Total XP</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats.studyHours}h</p>
-                  <p className="text-xs text-gray-400">Study Time</p>
+                  <p className="text-2xl font-bold text-purple-400">{activityBreakdown.todayStats?.flashcardDecks || 0}</p>
+                  <p className="text-xs text-gray-400">New Decks</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats.studyMinutes}</p>
-                  <p className="text-xs text-gray-400">Minutes</p>
+                  <p className="text-2xl font-bold text-blue-400">{activityBreakdown.todayStats?.flashcardsCreated || 0}</p>
+                  <p className="text-xs text-gray-400">Cards Created</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Top Streakers */}
+          {/* Top Learners by XP */}
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-orange-400" />
+              <div className="p-2 bg-yellow-500/20 rounded-lg">
+                <Crown className="w-5 h-5 text-yellow-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Top Study Streaks</h2>
-                <p className="text-xs text-gray-400">Most consistent learners</p>
+                <h2 className="text-lg font-semibold text-white">Top Learners</h2>
+                <p className="text-xs text-gray-400">By total XP earned</p>
               </div>
             </div>
-            {activityBreakdown.topStreakers.length > 0 ? (
+            {(activityBreakdown.topLearners?.length || 0) > 0 ? (
               <div className="space-y-3">
-                {activityBreakdown.topStreakers.map((user, idx) => (
+                {activityBreakdown.topLearners?.map((user, idx) => (
                   <Link
                     key={user.id}
                     href={`/admin/users/${user.id}`}
                     className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors"
                   >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white font-bold text-sm">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-white font-bold text-sm ${
+                      idx === 0 ? 'bg-gradient-to-br from-yellow-400 to-amber-500' :
+                      idx === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400' :
+                      idx === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-700' :
+                      'bg-gray-600'
+                    }`}>
                       {idx + 1}
                     </div>
                     {user.avatarUrl ? (
@@ -722,17 +721,23 @@ export default function AdminDashboard() {
                     )}
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white">{user.name || 'Unknown'}</p>
+                      {user.streak > 0 && (
+                        <p className="text-xs text-orange-400 flex items-center gap-1">
+                          <Flame className="w-3 h-3" />
+                          {user.streak} day streak
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-orange-400">{user.studyStreak}</p>
-                      <p className="text-xs text-gray-400">days</p>
+                      <p className="text-lg font-bold text-yellow-400">{formatNumber(user.totalPoints)}</p>
+                      <p className="text-xs text-gray-400">XP</p>
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                No active streaks yet
+                No learners with XP yet
               </div>
             )}
           </div>

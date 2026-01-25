@@ -38,6 +38,7 @@ import {
 import { uploadBase64Image } from './image-storage'
 import logger from '@/lib/logger'
 import { trackUsage, type AIOperation } from './monitoring'
+import { pushSessionSummary } from '@/lib/web-push'
 
 // Intelligence System
 import { INTELLIGENCE_VERSION, INITIAL_ADAPTIVE_STATE } from './intelligence'
@@ -2100,6 +2101,20 @@ export async function endSession(params: {
         data: { avgRating: newAvg },
       })
     }
+  }
+
+  // Send push notification for session completion (non-blocking)
+  // Only send if session was meaningful (at least 5 minutes)
+  // Philosophy: Calm acknowledgment, not celebration
+  const shouldNotify = durationMinutes >= 5
+  if (shouldNotify) {
+    pushSessionSummary(
+      userId,
+      finalSubject || 'your session',
+      durationMinutes
+    ).catch((error) => {
+      logger.warn('Failed to send session summary push notification', { error })
+    })
   }
 
   return { summary, duration, memoriesExtracted }

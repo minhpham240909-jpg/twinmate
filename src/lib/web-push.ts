@@ -17,23 +17,60 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 }
 
+// ==========================================
+// CLERVA PUSH NOTIFICATION PHILOSOPHY
+// ==========================================
+// Push notifications are the voice of the guide, not a marketing tool.
+// They should answer one of these questions:
+//   - "What should I do now?"
+//   - "You're close — finish this."
+//   - "You're stuck — here's help."
+//   - "You're about to forget this."
+// Nothing else.
+//
+// Rules:
+// - No emojis, no hype - calm confidence
+// - Context + specific next action
+// - Max 1 per day (except urgent)
+// - Never: "We miss you", "Come back", "Don't lose your streak"
+// ==========================================
+
 // Notification types for consistent handling
 export type PushNotificationType =
-  | 'NEW_MESSAGE'
-  | 'INCOMING_CALL'
-  | 'CONNECTION_REQUEST'
-  | 'CONNECTION_ACCEPTED'
-  | 'POST_LIKE'
-  | 'POST_COMMENT'
-  | 'SESSION_INVITE'
-  | 'SESSION_STARTED'
-  | 'GROUP_INVITE'
-  | 'ANNOUNCEMENT'
-  | 'BADGE_EARNED'
-  | 'STREAK_REMINDER'
-  | 'LEADERBOARD_RANK'  // You moved up in the global leaderboard
-  | 'PARTNER_STARTED_STUDYING'  // Pull-back notification
-  | 'LEADERBOARD_RANK_DROP'  // Competitive engagement
+  // ==========================================
+  // ACTIVE - Guidance-based notifications
+  // ==========================================
+  | 'MISSION_READY'          // Today's mission is ready
+  | 'MISSION_INCOMPLETE'     // One step left in mission
+  | 'STUCK_HELP'             // User struggled - offer help
+  | 'REVIEW_DUE'             // About to forget something
+  | 'TEST_PREP'              // Test deadline approaching
+  | 'SESSION_SUMMARY'        // Session completed summary
+  | 'PROGRESS_UPDATE'        // You're close to finishing
+  | 'ACTIVATION_NUDGE'       // New user gentle nudge
+  | 'ANNOUNCEMENT'           // Admin announcements (rare)
+  
+  // ==========================================
+  // LEGACY - Kept for backward compatibility only
+  // ==========================================
+  | 'BADGE_EARNED'           // @deprecated - too gamification-focused
+  | 'STREAK_REMINDER'        // @deprecated - creates anxiety
+  | 'XP_MILESTONE'           // @deprecated - not guidance-focused
+  | 'NEW_MESSAGE'            // @deprecated
+  | 'INCOMING_CALL'          // @deprecated
+  | 'CONNECTION_REQUEST'     // @deprecated
+  | 'CONNECTION_ACCEPTED'    // @deprecated
+  | 'POST_LIKE'              // @deprecated
+  | 'POST_COMMENT'           // @deprecated
+  | 'SESSION_INVITE'         // @deprecated
+  | 'SESSION_STARTED'        // @deprecated
+  | 'GROUP_INVITE'           // @deprecated
+  | 'LEADERBOARD_RANK'       // @deprecated
+  | 'PARTNER_STARTED_STUDYING' // @deprecated
+  | 'LEADERBOARD_RANK_DROP'  // @deprecated
+  | 'AI_SESSION_COMPLETE'    // @deprecated - renamed to SESSION_SUMMARY
+  | 'MISSION_REMINDER'       // @deprecated - renamed to MISSION_READY
+  | 'LEARNING_INSIGHT'       // @deprecated
 
 export interface PushNotificationPayload {
   title: string
@@ -432,108 +469,288 @@ export async function pushBadgeEarned(
   })
 }
 
-/**
- * Send push notification for streak reminder
- */
-export async function pushStreakReminder(
-  userId: string,
-  currentStreak: number
-): Promise<void> {
-  await sendPushToUser(userId, {
-    title: 'Keep Your Streak Going!',
-    body: `You have a ${currentStreak} day streak. Study today to keep it going!`,
-    type: 'STREAK_REMINDER',
-    url: '/dashboard',
-  })
-}
-
 // ==========================================
-// GLOBAL LEADERBOARD NOTIFICATIONS
+// CLERVA GUIDANCE NOTIFICATIONS
+// Calm, specific, actionable - no emojis, no hype
 // ==========================================
 
 /**
- * Send push notification when user moves up in the global leaderboard
+ * Today's mission is ready
+ * For: Returning users with missions
+ * Tone: Specific, time-bounded, outcome-oriented
  */
-export async function pushGlobalLeaderboardRank(
+export async function pushMissionReady(
   userId: string,
-  newRank: number,
-  previousRank: number
+  topic: string,
+  estimatedMinutes: number = 10
 ): Promise<void> {
-  const positionsUp = previousRank - newRank
-  const rankEmoji = newRank === 1 ? '🥇' : newRank === 2 ? '🥈' : newRank === 3 ? '🥉' : '📈'
-
   await sendPushToUser(userId, {
-    title: `${rankEmoji} You're climbing the leaderboard!`,
-    body: `You moved up ${positionsUp} spot${positionsUp > 1 ? 's' : ''} to #${newRank} globally!`,
-    type: 'LEADERBOARD_RANK',
+    title: "Today's mission is ready",
+    body: `${estimatedMinutes} minutes on ${topic}. Ready when you are.`,
+    type: 'MISSION_READY',
     url: '/dashboard',
-    data: {
-      newRank,
-      previousRank,
-    },
+    data: { topic, estimatedMinutes },
   })
 }
 
 /**
- * Send push notification when user drops in leaderboard
- * Creates competitive urgency to bring them back
+ * Mission almost complete - one step left
+ * For: Users mid-mission who paused
+ * Tone: Encouraging, specific progress
  */
-export async function pushLeaderboardRankDrop(
+export async function pushMissionIncomplete(
   userId: string,
-  newRank: number,
-  previousRank: number
+  topic: string,
+  percentComplete: number = 70
 ): Promise<void> {
-  const positionsDown = newRank - previousRank
-
   await sendPushToUser(userId, {
-    title: `📉 Someone passed you!`,
-    body: `You dropped from #${previousRank} to #${newRank}. Study now to reclaim your spot!`,
-    type: 'LEADERBOARD_RANK_DROP',
+    title: 'One step left',
+    body: `You're ${percentComplete}% through ${topic}. Finish strong?`,
+    type: 'MISSION_INCOMPLETE',
     url: '/dashboard',
-    data: {
-      newRank,
-      previousRank,
-      positionsDown,
-    },
+    data: { topic, percentComplete },
   })
 }
 
-// ==========================================
-// SOCIAL ENGAGEMENT NOTIFICATIONS
-// ==========================================
-
 /**
- * Send push notification when study partner starts studying
- * Creates FOMO to pull users back to the app
- *
- * PERFORMANCE: Use sparingly - only notify close partners, not all connections
+ * User struggled - offer help
+ * For: Users who failed quizzes or got stuck
+ * Tone: Calm, non-judgmental, supportive
  */
-export async function pushPartnerStartedStudying(
+export async function pushStuckHelp(
   userId: string,
-  partnerName: string,
-  activityType: 'focus' | 'solo_study' | 'study_session' | 'flashcards',
-  subject?: string
+  topic: string,
+  variant: 'tricky' | 'common' | 'breakdown' = 'tricky'
 ): Promise<void> {
-  // Activity-specific messaging
-  const activityMessages: Record<string, { emoji: string; action: string }> = {
-    focus: { emoji: '🎯', action: 'started a focus session' },
-    solo_study: { emoji: '📚', action: 'is studying solo' },
-    study_session: { emoji: '👥', action: 'joined a study session' },
-    flashcards: { emoji: '🃏', action: 'is reviewing flashcards' },
+  const messages = {
+    tricky: `That topic was tricky. Want a simpler explanation?`,
+    common: `Most students struggle with ${topic}. Want to break it down?`,
+    breakdown: `I noticed ${topic} slowed you down. Need help?`,
   }
 
-  const activity = activityMessages[activityType] || { emoji: '📖', action: 'started studying' }
-  const subjectText = subject ? ` (${subject})` : ''
+  await sendPushToUser(userId, {
+    title: 'Need a hand?',
+    body: messages[variant],
+    type: 'STUCK_HELP',
+    url: '/dashboard',
+    data: { topic, variant },
+  })
+}
+
+/**
+ * Spaced repetition review due
+ * For: Users about to forget something
+ * Tone: Helpful, specific
+ */
+export async function pushReviewDue(
+  userId: string,
+  topic: string,
+  cardCount: number = 5
+): Promise<void> {
+  await sendPushToUser(userId, {
+    title: 'Quick review will lock this in',
+    body: `${cardCount} cards on ${topic} are ready for review.`,
+    type: 'REVIEW_DUE',
+    url: '/dashboard',
+    data: { topic, cardCount },
+  })
+}
+
+/**
+ * Test deadline approaching
+ * For: Users with upcoming tests
+ * Tone: Urgency without anxiety
+ */
+export async function pushTestPrep(
+  userId: string,
+  testName: string,
+  daysUntil: number,
+  weakSpotCount: number = 2
+): Promise<void> {
+  const body = daysUntil === 1
+    ? `10-minute review now will help tomorrow.`
+    : `${daysUntil} days left. Focus on ${weakSpotCount} weak spot${weakSpotCount > 1 ? 's' : ''} today.`
 
   await sendPushToUser(userId, {
-    title: `${activity.emoji} ${partnerName} is studying!`,
-    body: `${partnerName} ${activity.action}${subjectText}. Join them?`,
-    type: 'PARTNER_STARTED_STUDYING',
+    title: `${testName} is ${daysUntil === 1 ? 'tomorrow' : `in ${daysUntil} days`}`,
+    body,
+    type: 'TEST_PREP',
     url: '/dashboard',
-    tag: 'partner-studying', // Group multiple partner notifications
-    data: {
-      activityType,
-      subject,
-    },
+    data: { testName, daysUntil, weakSpotCount },
   })
+}
+
+/**
+ * Session completed - brief summary
+ * For: After AI Partner session ends
+ * Tone: Calm acknowledgment, next step
+ */
+export async function pushSessionSummary(
+  userId: string,
+  topic: string,
+  durationMinutes: number
+): Promise<void> {
+  await sendPushToUser(userId, {
+    title: 'Session complete',
+    body: `${durationMinutes} minutes on ${topic}. Nice work.`,
+    type: 'SESSION_SUMMARY',
+    url: '/dashboard',
+    data: { topic, durationMinutes },
+  })
+}
+
+/**
+ * Progress update - close to finishing
+ * For: Users near a learning goal
+ * Tone: Specific progress, encouraging
+ */
+export async function pushProgressUpdate(
+  userId: string,
+  topic: string,
+  progressPercent: number
+): Promise<void> {
+  await sendPushToUser(userId, {
+    title: 'You\'re almost there',
+    body: `${progressPercent}% through ${topic}. One more session to finish.`,
+    type: 'PROGRESS_UPDATE',
+    url: '/dashboard',
+    data: { topic, progressPercent },
+  })
+}
+
+/**
+ * Activation nudge for new users
+ * For: New users / guests who haven't returned
+ * Tone: Low pressure, inviting, no guilt
+ */
+export async function pushActivationNudge(
+  userId: string,
+  variant: 'stuck' | 'quick' | 'easy' = 'stuck'
+): Promise<void> {
+  const messages = {
+    stuck: {
+      title: 'Still stuck on something?',
+      body: 'Send it here. I\'ll help.',
+    },
+    quick: {
+      title: 'Got 5 minutes?',
+      body: 'Show me what you\'re working on.',
+    },
+    easy: {
+      title: 'You don\'t need to know what to ask',
+      body: 'Just send the problem.',
+    },
+  }
+
+  await sendPushToUser(userId, {
+    title: messages[variant].title,
+    body: messages[variant].body,
+    type: 'ACTIVATION_NUDGE',
+    url: '/dashboard',
+    data: { variant },
+  })
+}
+
+// ==========================================
+// LEGACY FUNCTIONS - Deprecated but kept for compatibility
+// These should not be used in new code
+// ==========================================
+
+/**
+ * @deprecated Use pushSessionSummary instead
+ */
+export async function pushAISessionComplete(
+  userId: string,
+  sessionDuration: number,
+  xpEarned: number,
+  topic?: string
+): Promise<void> {
+  // Redirect to new function
+  await pushSessionSummary(userId, topic || 'your session', sessionDuration)
+}
+
+/**
+ * @deprecated Use pushMissionReady instead
+ */
+export async function pushMissionReminder(
+  userId: string,
+  missionCount: number,
+  topicPreview?: string
+): Promise<void> {
+  await pushMissionReady(userId, topicPreview || 'your weak spots', 10)
+}
+
+/**
+ * @deprecated XP notifications are too gamification-focused
+ */
+export async function pushXPMilestone(
+  _userId: string,
+  _totalXP: number,
+  _milestone: number
+): Promise<void> {
+  // No-op - XP milestones don't align with guidance philosophy
+  // Silently ignored in production
+}
+
+/**
+ * @deprecated Streak reminders create anxiety
+ */
+export async function pushStreakReminder(
+  _userId: string,
+  _currentStreak: number
+): Promise<void> {
+  // No-op - streak pressure doesn't align with guidance philosophy
+  // Silently ignored in production
+}
+
+/**
+ * @deprecated Use pushProgressUpdate or pushStuckHelp instead
+ */
+export async function pushLearningInsight(
+  userId: string,
+  insightTitle: string,
+  insightBody: string
+): Promise<void> {
+  // Redirect to progress update
+  await pushProgressUpdate(userId, insightTitle, 50)
+}
+
+// ==========================================
+// LEGACY NOTIFICATIONS - DEPRECATED
+// These features no longer exist in the app
+// Kept for backward compatibility only
+// ==========================================
+
+/**
+ * @deprecated No leaderboard in new vision
+ */
+export async function pushGlobalLeaderboardRank(
+  _userId: string,
+  _newRank: number,
+  _previousRank: number
+): Promise<void> {
+  // No-op - feature removed, silently ignored
+}
+
+/**
+ * @deprecated No leaderboard in new vision
+ */
+export async function pushLeaderboardRankDrop(
+  _userId: string,
+  _newRank: number,
+  _previousRank: number
+): Promise<void> {
+  // No-op - feature removed, silently ignored
+}
+
+/**
+ * @deprecated No human partners in new vision
+ */
+export async function pushPartnerStartedStudying(
+  _userId: string,
+  _partnerName: string,
+  _activityType: 'focus' | 'solo_study' | 'study_session' | 'flashcards',
+  _subject?: string
+): Promise<void> {
+  // No-op - feature removed, silently ignored
 }

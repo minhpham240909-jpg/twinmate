@@ -207,30 +207,87 @@ self.addEventListener('push', (event) => {
       actions: data.actions || []
     };
 
-    // Notification type specific actions
-    if (data.type === 'STUDY_REMINDER') {
-      options.tag = 'study-reminder';
+    // ==========================================
+    // CLERVA GUIDANCE NOTIFICATIONS
+    // Calm, specific actions - no emojis, no pressure
+    // ==========================================
+    
+    // Mission ready - today's learning is prepared
+    if (data.type === 'MISSION_READY') {
+      options.tag = 'mission-ready';
       options.actions = [
-        { action: 'start', title: 'Start Studying' },
-        { action: 'snooze', title: 'Remind Later' }
-      ];
-    } else if (data.type === 'STREAK_WARNING') {
-      options.tag = 'streak-warning';
-      options.requireInteraction = true;
-      options.actions = [
-        { action: 'study', title: 'Quick Study' },
-        { action: 'dismiss', title: 'Dismiss' }
-      ];
-    } else if (data.type === 'FLASHCARD_REVIEW') {
-      options.tag = 'flashcard-review';
-      options.actions = [
-        { action: 'review', title: 'Review Now' },
+        { action: 'start', title: 'Start' },
         { action: 'later', title: 'Later' }
       ];
-    } else if (data.type === 'XP_MILESTONE') {
-      options.tag = 'xp-milestone';
+    }
+    // Mission incomplete - user is close to finishing
+    else if (data.type === 'MISSION_INCOMPLETE') {
+      options.tag = 'mission-incomplete';
       options.actions = [
-        { action: 'view', title: 'View Progress' }
+        { action: 'continue', title: 'Continue' },
+        { action: 'later', title: 'Not now' }
+      ];
+    }
+    // User struggled - offer supportive help
+    else if (data.type === 'STUCK_HELP') {
+      options.tag = 'stuck-help';
+      options.actions = [
+        { action: 'help', title: 'Yes, help me' },
+        { action: 'dismiss', title: 'I\'m okay' }
+      ];
+    }
+    // Spaced repetition review due
+    else if (data.type === 'REVIEW_DUE') {
+      options.tag = 'review-due';
+      options.actions = [
+        { action: 'review', title: 'Review' },
+        { action: 'later', title: 'Later' }
+      ];
+    }
+    // Test deadline approaching
+    else if (data.type === 'TEST_PREP') {
+      options.tag = 'test-prep';
+      options.actions = [
+        { action: 'study', title: 'Study now' },
+        { action: 'later', title: 'Later' }
+      ];
+    }
+    // Session completed summary
+    else if (data.type === 'SESSION_SUMMARY') {
+      options.tag = 'session-summary';
+      options.actions = [
+        { action: 'view', title: 'View' }
+      ];
+    }
+    // Progress update - close to goal
+    else if (data.type === 'PROGRESS_UPDATE') {
+      options.tag = 'progress-update';
+      options.actions = [
+        { action: 'continue', title: 'Keep going' },
+        { action: 'later', title: 'Later' }
+      ];
+    }
+    // New user activation nudge
+    else if (data.type === 'ACTIVATION_NUDGE') {
+      options.tag = 'activation-nudge';
+      options.actions = [
+        { action: 'open', title: 'Open' }
+      ];
+    }
+    // Admin announcements (rare)
+    else if (data.type === 'ANNOUNCEMENT') {
+      options.tag = 'announcement';
+      options.requireInteraction = true;
+      options.actions = [
+        { action: 'view', title: 'Read' },
+        { action: 'dismiss', title: 'Dismiss' }
+      ];
+    }
+    // Legacy types - minimal support
+    else if (data.type === 'MISSION_REMINDER' || data.type === 'AI_SESSION_COMPLETE') {
+      options.tag = 'legacy';
+      options.actions = [
+        { action: 'open', title: 'Open' }
       ];
     }
 

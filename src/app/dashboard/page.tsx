@@ -29,6 +29,7 @@ import CelebrationModal from '@/components/CelebrationModal'
 import TrialLimitModal from '@/components/TrialLimitModal'
 import TrialBanner from '@/components/TrialBanner'
 import PWAInstallBanner from '@/components/PWAInstallBanner'
+import NotificationPanel from '@/components/NotificationPanel'
 import Image from 'next/image'
 import {
   Lightbulb,
@@ -57,6 +58,7 @@ import {
   Zap,
   FileText,
   Download,
+  Bell,
 } from 'lucide-react'
 
 // ============================================
@@ -64,7 +66,7 @@ import {
 // ============================================
 
 type FlowStep = 'home' | 'input' | 'loading' | 'result'
-type StruggleType = 'dont_understand' | 'test_coming' | 'homework_help'
+type StruggleType = 'dont_understand' | 'test_coming' | 'homework_help' | 'general'
 type InputMode = 'text' | 'photo' | 'document'
 
 // Learning Pack structure for Explain Pack
@@ -181,6 +183,11 @@ export default function DashboardPage() {
   const [isProcessingImage, setIsProcessingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Guest unified input state - single input that auto-detects struggle type
+  const [showGuestTools, setShowGuestTools] = useState(false)
+  const [guestQuickInput, setGuestQuickInput] = useState('')
+  const guestInputRef = useRef<HTMLTextAreaElement>(null)
+
   // Document upload state
   const [uploadedDocument, setUploadedDocument] = useState<File | null>(null)
   const [isProcessingDocument, setIsProcessingDocument] = useState(false)
@@ -195,6 +202,10 @@ export default function DashboardPage() {
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set())
   const [revealedHints, setRevealedHints] = useState<Set<string>>(new Set())
   const [markedWeakCards, setMarkedWeakCards] = useState<Set<string>>(new Set())
+
+  // Notification panel state
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
 
   // Stats
   const { stats } = useDashboardStats()
@@ -285,6 +296,76 @@ export default function DashboardPage() {
     }
     resetFlow()
   }, [activeMissionId, completeMissionItem, resetFlow])
+
+  // Handle guest unified submit - AI auto-detects the best response type
+  const handleGuestUnifiedSubmit = async () => {
+    if (!guestQuickInput.trim()) return
+
+    // Check if guest has trials remaining
+    if (!hasTrials) {
+      setShowTrialLimitModal(true)
+      return
+    }
+
+    // Set the question and go directly to loading (skip tool selection)
+    setQuestion(guestQuickInput.trim())
+    setStruggleType('general') // Will be auto-detected by AI
+    setFlowStep('loading')
+    setError(null)
+    setResponseTimeMs(null)
+    setLoadingProgress(0)
+    setLoadingMessage('Analyzing your question...')
+
+    const startTime = Date.now()
+
+    try {
+      const response = await fetch('/api/guide-me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: guestQuickInput.trim(),
+          struggleType: 'general',
+          actionType: 'auto', // Let AI decide the best response type
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.status === 403 && data.trialExhausted) {
+        setShowTrialLimitModal(true)
+        setFlowStep('home')
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get help')
+      }
+
+      const elapsedMs = Date.now() - startTime
+      setResponseTimeMs(elapsedMs)
+
+      // Transform the response - AI will have chosen the best type
+      const transformedResult = transformApiResponse(data, null)
+      setResult(transformedResult)
+      setFlowStep('result')
+
+      // Consume trial
+      const actionType = data.action?.type === 'explanation' ? 'explanation' :
+                        data.action?.type === 'flashcards' ? 'flashcards' : 'roadmap'
+      consumeTrial(guestQuickInput.trim(), actionType)
+
+      // Clear guest input for next time
+      setGuestQuickInput('')
+    } catch (err) {
+      console.error('Error:', err)
+      if (err instanceof Error) {
+        setError(err.message || 'Unable to process your request. Please try again.')
+      } else {
+        setError('Unable to process your request. Please try again.')
+      }
+      setFlowStep('home')
+    }
+  }
 
   // Handle struggle type selection
   const handleStruggleSelect = (type: StruggleType) => {
@@ -988,6 +1069,15 @@ export default function DashboardPage() {
         onClose={dismissCelebration}
       />
 
+      {/* Notification Panel */}
+      {!isGuest && (
+        <NotificationPanel
+          isOpen={isNotificationPanelOpen}
+          onClose={() => setIsNotificationPanelOpen(false)}
+          onUnreadCountChange={setUnreadNotificationCount}
+        />
+      )}
+
       {/* Trial Banner for Guests */}
       {isGuest && (
         <TrialBanner
@@ -1003,7 +1093,7 @@ export default function DashboardPage() {
       {flowStep === 'home' && (
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
           <div className="max-w-lg mx-auto px-4 py-3">
-            {/* Top row: Logo + Stats */}
+            {/* Top row: Logo + Stats + Bell */}
             <div className="flex items-center justify-between mb-2">
               <Image
                 src="/logo.png"
@@ -1012,22 +1102,41 @@ export default function DashboardPage() {
                 height={32}
                 className="rounded-lg"
               />
-              {!isGuest && stats && (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                    <Flame className="w-4 h-4 text-orange-500" />
-                    <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
-                      {stats.streak}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <Star className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                      {stats.points}
-                    </span>
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Stats - only for authenticated users */}
+                {!isGuest && stats && (
+                  <>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                      <Flame className="w-4 h-4 text-orange-500" />
+                      <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                        {stats.streak}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <Star className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                        {stats.points}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {/* Notification Bell - for authenticated users */}
+                {!isGuest && (
+                  <button
+                    onClick={() => setIsNotificationPanelOpen(true)}
+                    className="relative p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+                    {unreadNotificationCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* XP Progress Bar - Only for authenticated users */}
@@ -1065,97 +1174,203 @@ export default function DashboardPage() {
               </h2>
               <p className="text-neutral-500 dark:text-neutral-400 mt-1">
                 {isGuest
-                  ? "Try Clerva free - no signup required"
+                  ? "What are you stuck on?"
                   : hasMission
                     ? "Here's your mission for today"
                     : "What do you need help with?"}
               </p>
             </div>
 
-            {/* Today's Mission Section - Always visible */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-orange-500" />
-                  <h3 className="font-semibold text-neutral-900 dark:text-white">
-                    Today's Mission
-                  </h3>
-                  {!isGuest && hasMission && (
-                    <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-medium rounded-full">
-                      {missionItems.length}
-                    </span>
+            {/* ============================================ */}
+            {/* GUEST SIMPLIFIED UX - Single unified input */}
+            {/* ============================================ */}
+            {isGuest && (
+              <div className="space-y-4">
+                {/* Main Input Card */}
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-sm">
+                  <textarea
+                    ref={guestInputRef}
+                    value={guestQuickInput}
+                    onChange={(e) => setGuestQuickInput(e.target.value)}
+                    placeholder="Type what you're studying or stuck on..."
+                    className="w-full h-24 bg-transparent text-neutral-900 dark:text-white placeholder-neutral-400 outline-none resize-none text-base"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.metaKey && guestQuickInput.trim()) {
+                        handleGuestUnifiedSubmit()
+                      }
+                    }}
+                  />
+
+                  <div className="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          fileInputRef.current?.click()
+                        }}
+                        className="p-2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                        title="Upload photo"
+                      >
+                        <Camera className="w-5 h-5" />
+                      </button>
+                      <span className="text-xs text-neutral-400">
+                        {trialsRemaining} of {totalTrials} free tries left
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleGuestUnifiedSubmit}
+                      disabled={!guestQuickInput.trim()}
+                      className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                        guestQuickInput.trim()
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25'
+                          : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Help me</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error display */}
+                {error && (
+                  <p className="text-red-500 text-sm text-center">{error}</p>
+                )}
+
+                {/* Secondary: Specific tools (collapsed by default) */}
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowGuestTools(!showGuestTools)}
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+                  >
+                    <span>Or choose a specific tool</span>
+                    {showGuestTools ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+
+                  {showGuestTools && (
+                    <div className="space-y-2 mt-3 animate-fadeIn">
+                      <button
+                        onClick={() => handleStruggleSelect('dont_understand')}
+                        className="w-full flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors text-left group"
+                      >
+                        <Lightbulb className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <p className="text-sm font-medium text-neutral-900 dark:text-white">Explain</p>
+                          <p className="text-xs text-neutral-500">I don't understand something</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleStruggleSelect('test_coming')}
+                        className="w-full flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl transition-colors text-left group"
+                      >
+                        <Brain className="w-5 h-5 text-purple-500" />
+                        <div>
+                          <p className="text-sm font-medium text-neutral-900 dark:text-white">Test Prep</p>
+                          <p className="text-xs text-neutral-500">Test coming up</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleStruggleSelect('homework_help')}
+                        className="w-full flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl transition-colors text-left group"
+                      >
+                        <ClipboardList className="w-5 h-5 text-green-500" />
+                        <div>
+                          <p className="text-sm font-medium text-neutral-900 dark:text-white">Guide Me</p>
+                          <p className="text-xs text-neutral-500">I'm stuck on something</p>
+                        </div>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
+            )}
 
-              {/* Guest state */}
-              {isGuest && (
-                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center">
-                    Sign up to track your weak spots
-                  </p>
+            {/* ============================================ */}
+            {/* AUTHENTICATED USER UX - Mission-first design */}
+            {/* ============================================ */}
+            {!isGuest && (
+              <>
+                {/* Today's Mission Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-orange-500" />
+                      <h3 className="font-semibold text-neutral-900 dark:text-white">
+                        Today's Mission
+                      </h3>
+                      {hasMission && (
+                        <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-medium rounded-full">
+                          {missionItems.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* No mission state */}
+                  {!hasMission && (
+                    <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center">
+                        No weak spots yet - keep learning!
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Has missions */}
+                  {hasMission && (
+                    <div className="space-y-2">
+                      {missionItems.map((item) => (
+                        <MissionItemCard
+                          key={item.id}
+                          item={item}
+                          onSnooze={() => snoozeMissionItem(item.id)}
+                          onTap={() => handleMissionTap(item)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4">
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
+                      {hasMission ? 'Or start something new' : 'Start something new'}
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              {/* Authenticated but no mission */}
-              {!isGuest && !hasMission && (
-                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center">
-                    No weak spots yet - keep learning!
-                  </p>
+                {/* Three Tool Cards - for authenticated users */}
+                <div className="space-y-3">
+                  {/* Explain Pack */}
+                  <ToolCard
+                    title="I don't understand something"
+                    description="Turn confusion into clarity"
+                    icon={Lightbulb}
+                    color="blue"
+                    onClick={() => handleStruggleSelect('dont_understand')}
+                  />
+
+                  {/* Test Prep Sprint */}
+                  <ToolCard
+                    title="Test coming up"
+                    description="Prep smarter, faster"
+                    icon={Brain}
+                    color="purple"
+                    onClick={() => handleStruggleSelect('test_coming')}
+                  />
+
+                  {/* Guide Me */}
+                  <ToolCard
+                    title="Guide me"
+                    description="Stuck? Get unstuck"
+                    icon={ClipboardList}
+                    color="green"
+                    onClick={() => handleStruggleSelect('homework_help')}
+                  />
                 </div>
-              )}
-
-              {/* Authenticated with missions */}
-              {!isGuest && hasMission && (
-                <div className="space-y-2">
-                  {missionItems.map((item) => (
-                    <MissionItemCard
-                      key={item.id}
-                      item={item}
-                      onSnooze={() => snoozeMissionItem(item.id)}
-                      onTap={() => handleMissionTap(item)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4">
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
-                  {isGuest || !hasMission ? 'Start something new' : 'Or start something new'}
-                </p>
-              </div>
-            </div>
-
-            {/* Three Tool Cards */}
-            <div className="space-y-3">
-              {/* Explain Pack */}
-              <ToolCard
-                title="I don't understand something"
-                description="Turn confusion into clarity"
-                icon={Lightbulb}
-                color="blue"
-                onClick={() => handleStruggleSelect('dont_understand')}
-              />
-
-              {/* Test Prep Sprint */}
-              <ToolCard
-                title="Test coming up"
-                description="Prep smarter, faster"
-                icon={Brain}
-                color="purple"
-                onClick={() => handleStruggleSelect('test_coming')}
-              />
-
-              {/* Guide Me */}
-              <ToolCard
-                title="Guide me"
-                description="Stuck? Get unstuck"
-                icon={ClipboardList}
-                color="green"
-                onClick={() => handleStruggleSelect('homework_help')}
-              />
-            </div>
+              </>
+            )}
           </div>
         )}
 

@@ -21,6 +21,9 @@ import {
   getNextMilestone,
   type MilestoneDefinition,
 } from '@/lib/milestones'
+// Note: We removed badge/XP push notifications
+// They don't align with guidance-focused notification philosophy
+// Badges are shown in-app via the celebration modal instead
 
 // Extend CacheKeys if not already there
 const MILESTONE_CACHE_KEY = (userId: string) => `user:milestones:${userId}`
@@ -317,6 +320,10 @@ export async function POST(request: NextRequest) {
     // Invalidate cache
     await cacheDelete(MILESTONE_CACHE_KEY(user.id))
     await cacheDelete(CacheKeys.USER_STATS(user.id))
+
+    // Note: We don't send push notifications for badges/XP milestones
+    // These are gamification features that don't align with our guidance philosophy
+    // Badges are celebrated in-app via the celebration modal instead
 
     return NextResponse.json({
       success: true,

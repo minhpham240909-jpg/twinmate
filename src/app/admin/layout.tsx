@@ -20,11 +20,12 @@ import {
   ChevronRight,
   AlertTriangle,
   Home,
-  MessageSquare,
   RefreshCw,
   Bot,
   Clock,
   HelpCircle,
+  TrendingUp,
+  Star,
 } from 'lucide-react'
 
 // Fetch with timeout to prevent infinite loading
@@ -86,12 +87,6 @@ const navItems = [
     description: 'AI Study Partner analytics & moderation',
   },
   {
-    name: 'Messages',
-    href: '/admin/messages',
-    icon: MessageSquare,
-    description: 'Message moderation and monitoring',
-  },
-  {
     name: 'Reports',
     href: '/admin/reports',
     icon: AlertTriangle,
@@ -114,6 +109,18 @@ const navItems = [
     href: '/admin/analytics',
     icon: BarChart3,
     description: 'Real-time analytics and insights',
+  },
+  {
+    name: 'Retention',
+    href: '/admin/retention',
+    icon: TrendingUp,
+    description: 'Study habits, streaks & gamification',
+  },
+  {
+    name: 'Feedback',
+    href: '/admin/feedback',
+    icon: Star,
+    description: 'User ratings and feedback',
   },
   {
     name: 'Audit Log',
