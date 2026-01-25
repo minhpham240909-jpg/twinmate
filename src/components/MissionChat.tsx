@@ -56,6 +56,40 @@ interface MissionChatProps {
 // COMPONENT
 // ============================================
 
+// Storage key for persisting chat messages
+const CHAT_STORAGE_KEY = 'clerva-mission-chat'
+
+// Helper to load messages from localStorage
+function loadMessagesFromStorage(): Message[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(CHAT_STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Convert timestamp strings back to Date objects
+      return parsed.map((msg: Message & { timestamp: string }) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp),
+      }))
+    }
+  } catch (err) {
+    console.warn('Failed to load chat messages from storage:', err)
+  }
+  return []
+}
+
+// Helper to save messages to localStorage
+function saveMessagesToStorage(messages: Message[]) {
+  if (typeof window === 'undefined') return
+  try {
+    // Only keep last 50 messages in storage to prevent bloat
+    const toStore = messages.slice(-50)
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toStore))
+  } catch (err) {
+    console.warn('Failed to save chat messages to storage:', err)
+  }
+}
+
 const MissionChat = memo(function MissionChat({
   missionTitle,
   missionContext,
@@ -63,12 +97,20 @@ const MissionChat = memo(function MissionChat({
   onTrialExhausted,
 }: MissionChatProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  // Initialize messages from localStorage on mount
+  const [messages, setMessages] = useState<Message[]>(() => loadMessagesFromStorage())
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveMessagesToStorage(messages)
+    }
+  }, [messages])
   
   // PAGINATION: Calculate visible messages
   const visibleMessages = useMemo(() => {

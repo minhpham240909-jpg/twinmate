@@ -52,6 +52,12 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  Link2,
+  Image as ImageIcon,
+  FileText,
+  Video,
+  X,
+  Upload,
 } from 'lucide-react'
 
 // ============================================
@@ -301,20 +307,75 @@ const TodaysMission = memo(function TodaysMission({
   )
 })
 
+// Input type for learning materials
+type InputMaterial = {
+  type: 'url' | 'image' | 'none'
+  value: string
+  preview?: string
+}
+
 // ONBOARDING - When user has no roadmap (NOT a blank chat)
 const OnboardingPrompt = memo(function OnboardingPrompt({
   onSubmitGoal,
   isLoading,
 }: {
-  onSubmitGoal: (goal: string) => void
+  onSubmitGoal: (goal: string, inputUrl?: string, inputImage?: string) => void
   isLoading: boolean
 }) {
   const [goal, setGoal] = useState('')
+  const [inputMaterial, setInputMaterial] = useState<InputMaterial>({ type: 'none', value: '' })
+  const [showInputOptions, setShowInputOptions] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = () => {
     if (goal.trim().length >= 10) {
-      onSubmitGoal(goal.trim())
+      const inputUrl = inputMaterial.type === 'url' ? inputMaterial.value : undefined
+      const inputImage = inputMaterial.type === 'image' ? inputMaterial.value : undefined
+      onSubmitGoal(goal.trim(), inputUrl, inputImage)
     }
+  }
+
+  const handleUrlAdd = () => {
+    if (urlInput.trim()) {
+      // Detect input type from URL
+      const url = urlInput.trim()
+      setInputMaterial({
+        type: 'url',
+        value: url,
+        preview: url.length > 50 ? url.slice(0, 50) + '...' : url,
+      })
+      setUrlInput('')
+      setShowInputOptions(false)
+    }
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64 = reader.result as string
+        setInputMaterial({
+          type: 'image',
+          value: base64,
+          preview: file.name,
+        })
+        setShowInputOptions(false)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const clearInput = () => {
+    setInputMaterial({ type: 'none', value: '' })
+  }
+
+  // Detect if URL is YouTube, PDF, etc for display
+  const getInputTypeLabel = (url: string): string => {
+    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube Video'
+    if (url.endsWith('.pdf')) return 'PDF Document'
+    return 'Web Page'
   }
 
   return (
@@ -338,9 +399,9 @@ const OnboardingPrompt = memo(function OnboardingPrompt({
           Good examples
         </p>
         <ul className="space-y-1.5 text-sm text-neutral-600 dark:text-neutral-400">
-          <li>"Master React hooks in 2 weeks"</li>
-          <li>"Pass my calculus exam on Friday"</li>
-          <li>"Learn conversational Spanish basics"</li>
+          <li>&quot;Master React hooks in 2 weeks&quot;</li>
+          <li>&quot;Pass my calculus exam on Friday&quot;</li>
+          <li>&quot;Learn conversational Spanish basics&quot;</li>
         </ul>
       </div>
 
@@ -354,6 +415,119 @@ const OnboardingPrompt = memo(function OnboardingPrompt({
           rows={3}
           className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
         />
+
+        {/* Input Material Section */}
+        {inputMaterial.type !== 'none' ? (
+          <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+            {inputMaterial.type === 'url' && (
+              <>
+                {inputMaterial.value.includes('youtube') || inputMaterial.value.includes('youtu.be') ? (
+                  <Video className="w-4 h-4 text-red-500 flex-shrink-0" />
+                ) : inputMaterial.value.endsWith('.pdf') ? (
+                  <FileText className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                ) : (
+                  <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                    {getInputTypeLabel(inputMaterial.value)}
+                  </p>
+                  <p className="text-xs text-neutral-500 truncate">{inputMaterial.preview}</p>
+                </div>
+              </>
+            )}
+            {inputMaterial.type === 'image' && (
+              <>
+                <ImageIcon className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Image</p>
+                  <p className="text-xs text-neutral-500 truncate">{inputMaterial.preview}</p>
+                </div>
+              </>
+            )}
+            <button
+              onClick={clearInput}
+              className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
+            >
+              <X className="w-4 h-4 text-neutral-500" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Add Input Button */}
+            {!showInputOptions && (
+              <button
+                onClick={() => setShowInputOptions(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors text-sm"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Add learning material (optional)</span>
+              </button>
+            )}
+
+            {/* Input Options */}
+            {showInputOptions && (
+              <div className="border border-neutral-200 dark:border-neutral-700 rounded-xl p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                    Add Learning Material
+                  </p>
+                  <button
+                    onClick={() => setShowInputOptions(false)}
+                    className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full"
+                  >
+                    <X className="w-4 h-4 text-neutral-400" />
+                  </button>
+                </div>
+
+                {/* URL Input */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="Paste URL, YouTube link, or PDF link..."
+                    className="flex-1 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleUrlAdd}
+                    disabled={!urlInput.trim()}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 text-white text-sm font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
+                  <span className="text-xs text-neutral-400">or</span>
+                  <div className="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
+                </div>
+
+                {/* Image Upload */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-300 text-sm font-medium transition-colors"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Upload Image (homework, worksheet)</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                <p className="text-xs text-neutral-400 text-center">
+                  Clerva analyzes your material to build a better roadmap
+                </p>
+              </div>
+            )}
+          </>
+        )}
 
         <button
           onClick={handleSubmit}
@@ -540,7 +714,8 @@ const ProofSubmission = memo(function ProofSubmission({
   )
 })
 
-// ROADMAP VIEW - Full roadmap display
+// ROADMAP VIEW - Clerva GPS Style
+// Philosophy: Show only what matters NOW. Future steps hidden until earned.
 const RoadmapView = memo(function RoadmapView({
   roadmap,
   onBack,
@@ -548,7 +723,13 @@ const RoadmapView = memo(function RoadmapView({
   roadmap: Roadmap
   onBack: () => void
 }) {
+  const [showAllSteps, setShowAllSteps] = useState(false)
   const [expandedStep, setExpandedStep] = useState<string | null>(null)
+
+  // Find current step
+  const currentStep = roadmap.steps.find(s => s.status === 'current')
+  const completedSteps = roadmap.steps.filter(s => s.status === 'completed')
+  const lockedSteps = roadmap.steps.filter(s => s.status === 'locked')
 
   return (
     <div className="space-y-4">
@@ -558,155 +739,198 @@ const RoadmapView = memo(function RoadmapView({
         className="flex items-center gap-2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
-        <span className="text-sm">Back</span>
+        <span className="text-sm">Back to Mission</span>
       </button>
 
-      {/* Roadmap Header */}
+      {/* Roadmap Header - Authority Style */}
       <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
-        <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">
-          {roadmap.title}
-        </h2>
-        {roadmap.overview && (
-          <p className="text-neutral-500 dark:text-neutral-400 mb-4">
-            {roadmap.overview}
-          </p>
-        )}
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
+              {roadmap.title}
+            </h2>
+            {roadmap.overview && (
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                {roadmap.overview}
+              </p>
+            )}
+          </div>
+        </div>
 
-        {/* Progress */}
-        <div className="flex items-center justify-between text-sm mb-2">
-          <span className="text-neutral-500">Progress</span>
-          <span className="font-semibold text-neutral-900 dark:text-white">
-            {roadmap.completedSteps}/{roadmap.totalSteps} steps
+        {/* Progress Bar - Minimal */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full transition-all duration-500"
+              style={{ width: `${(roadmap.completedSteps / roadmap.totalSteps) * 100}%` }}
+            />
+          </div>
+          <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+            {roadmap.completedSteps}/{roadmap.totalSteps}
           </span>
         </div>
-        <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500 rounded-full transition-all duration-500"
-            style={{ width: `${(roadmap.completedSteps / roadmap.totalSteps) * 100}%` }}
-          />
-        </div>
       </div>
 
-      {/* Steps */}
-      <div className="space-y-2">
-        {roadmap.steps.map((step) => {
-          const isExpanded = expandedStep === step.id
-          const isCurrent = step.status === 'current'
-          const isCompleted = step.status === 'completed'
-          const isLocked = step.status === 'locked'
+      {/* CURRENT STEP - Prominent Focus */}
+      {currentStep && (
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl border-2 border-blue-400 dark:border-blue-600 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-xs font-bold">{currentStep.order}</span>
+            </div>
+            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+              Current Step
+            </span>
+            {currentStep.timeframe && (
+              <span className="text-xs text-neutral-500 ml-auto">{currentStep.timeframe}</span>
+            )}
+          </div>
 
-          return (
+          <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-2">
+            {currentStep.title}
+          </h3>
+          <p className="text-neutral-600 dark:text-neutral-400 mb-4">
+            {currentStep.description}
+          </p>
+
+          {/* Method - How to do it */}
+          {currentStep.method && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 mb-3">
+              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">
+                Method
+              </p>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                {currentStep.method}
+              </p>
+            </div>
+          )}
+
+          {/* RISK Warning - Prominent */}
+          {currentStep.avoid && (
+            <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-4 mb-3 border border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">
+                  Risk - Avoid This
+                </p>
+              </div>
+              <p className="text-sm text-red-700 dark:text-red-300">
+                {currentStep.avoid}
+              </p>
+            </div>
+          )}
+
+          {/* Done When - Success Criterion */}
+          {currentStep.doneWhen && (
+            <div className="bg-green-50 dark:bg-green-950/30 rounded-xl p-4 border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-2 mb-1">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">
+                  Done When
+                </p>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {currentStep.doneWhen}
+              </p>
+            </div>
+          )}
+
+          {/* Duration */}
+          {currentStep.duration && (
+            <div className="flex items-center gap-2 mt-4 text-sm text-neutral-500">
+              <Clock className="w-4 h-4" />
+              <span>Estimated: {currentStep.duration} minutes</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Completed Steps - Collapsed by default */}
+      {completedSteps.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide px-1">
+            Completed ({completedSteps.length})
+          </p>
+          {completedSteps.map((step) => (
             <div
               key={step.id}
-              className={`rounded-xl border transition-all ${
-                isCurrent
-                  ? 'border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20'
-                  : isCompleted
-                  ? 'border-green-200 dark:border-green-800/50 bg-green-50/30 dark:bg-green-950/10'
-                  : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 opacity-60'
-              }`}
+              className="flex items-center gap-3 p-3 bg-green-50/50 dark:bg-green-950/10 rounded-xl border border-green-200/50 dark:border-green-800/30"
             >
-              <button
-                onClick={() => !isLocked && setExpandedStep(isExpanded ? null : step.id)}
-                disabled={isLocked}
-                className="w-full flex items-start gap-3 p-4 text-left"
-              >
-                {/* Status Icon */}
-                <div className={`mt-0.5 flex-shrink-0 ${
-                  isCompleted ? 'text-green-500' : isCurrent ? 'text-blue-500' : 'text-neutral-300'
-                }`}>
-                  {isCompleted ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : isLocked ? (
-                    <Lock className="w-5 h-5" />
-                  ) : (
-                    <Circle className="w-5 h-5" />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  {step.timeframe && (
-                    <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                      {step.timeframe}
-                    </span>
-                  )}
-                  <h4 className={`font-medium ${
-                    isLocked ? 'text-neutral-400' : 'text-neutral-900 dark:text-white'
-                  }`}>
-                    {step.title}
-                  </h4>
-                  <p className="text-sm text-neutral-500 line-clamp-1">
-                    {step.description}
-                  </p>
-                </div>
-
-                {/* Expand Icon */}
-                {!isLocked && (
-                  <div className="text-neutral-400">
-                    {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  </div>
-                )}
-              </button>
-
-              {/* Expanded Content */}
-              {isExpanded && !isLocked && (
-                <div className="px-4 pb-4 border-t border-neutral-100 dark:border-neutral-800">
-                  <div className="pt-3 space-y-3">
-                    {step.method && (
-                      <div>
-                        <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-1">How</p>
-                        <p className="text-sm text-neutral-700 dark:text-neutral-300">{step.method}</p>
-                      </div>
-                    )}
-                    {step.avoid && (
-                      <div>
-                        <p className="text-xs font-medium text-red-500 uppercase tracking-wide mb-1">Avoid</p>
-                        <p className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">
-                          {step.avoid}
-                        </p>
-                      </div>
-                    )}
-                    {step.doneWhen && (
-                      <div>
-                        <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Done When</p>
-                        <p className="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 px-3 py-2 rounded-lg">
-                          {step.doneWhen}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+              <span className="text-sm text-green-700 dark:text-green-300 line-through opacity-70">
+                {step.title}
+              </span>
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Pitfalls */}
+      {/* Locked Steps - Hidden by default (Clerva GPS style) */}
+      {lockedSteps.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowAllSteps(!showAllSteps)}
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+          >
+            <Lock className="w-4 h-4" />
+            <span>{showAllSteps ? 'Hide' : 'Show'} {lockedSteps.length} upcoming steps</span>
+            {showAllSteps ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {showAllSteps && (
+            <div className="space-y-2 mt-2">
+              {lockedSteps.map((step) => (
+                <div
+                  key={step.id}
+                  className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 opacity-50"
+                >
+                  <Lock className="w-5 h-5 text-neutral-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-neutral-500">Step {step.order}</span>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                      {step.title}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Global Pitfalls - RISK Section */}
       {roadmap.pitfalls && roadmap.pitfalls.length > 0 && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800/50 p-4">
-          <p className="text-xs font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wide mb-2">
-            Watch Out For
-          </p>
-          <ul className="space-y-1">
+        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-300 dark:border-amber-800 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <p className="font-semibold text-amber-800 dark:text-amber-200">
+              Critical Warnings
+            </p>
+          </div>
+          <ul className="space-y-2">
             {roadmap.pitfalls.map((pitfall, i) => (
-              <li key={i} className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
-                <span className="text-amber-500">•</span>
-                {pitfall}
+              <li key={i} className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+                <span className="text-amber-500 font-bold">•</span>
+                <span>{pitfall}</span>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Success */}
+      {/* Success - What completion looks like */}
       {roadmap.successLooksLike && (
-        <div className="bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-200 dark:border-green-800/50 p-4">
-          <p className="text-xs font-medium text-green-700 dark:text-green-300 uppercase tracking-wide mb-1">
-            Success Looks Like
-          </p>
-          <p className="text-sm text-green-800 dark:text-green-200">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/20 rounded-2xl border border-green-300 dark:border-green-800 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Trophy className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <p className="font-semibold text-green-800 dark:text-green-200">
+              Success Looks Like
+            </p>
+          </div>
+          <p className="text-sm text-green-700 dark:text-green-300">
             {roadmap.successLooksLike}
           </p>
         </div>
@@ -791,8 +1015,23 @@ export default function DashboardPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
 
-  // Mission state
-  const [currentMission, setCurrentMission] = useState<Mission | null>(null)
+  // Mission state - Initialize with a default mission immediately
+  const [currentMission, setCurrentMission] = useState<Mission | null>(() => {
+    // Create a default "start" mission so buttons always work
+    return {
+      id: `start-${Date.now()}`,
+      type: 'learn',
+      title: 'Begin Your Learning Journey',
+      directive: 'Tell me one thing you want to learn. Be specific.',
+      context: 'Clerva will create a personalized roadmap and guide you step by step.',
+      estimatedMinutes: 5,
+      proofRequired: 'submission',
+      criteria: {
+        type: 'completion',
+        description: 'Submit a specific learning goal',
+      },
+    }
+  })
 
   // User progress (would come from database in production)
   const [userProgress, setUserProgress] = useState<UserProgress>({
@@ -921,7 +1160,7 @@ export default function DashboardPage() {
     setIsNotificationPanelOpen(true)
   }, [])
 
-  const handleSubmitGoal = useCallback(async (goal: string) => {
+  const handleSubmitGoal = useCallback(async (goal: string, inputUrl?: string, inputImage?: string) => {
     if (isGuest && !hasTrials) {
       setShowTrialLimitModal(true)
       return
@@ -930,14 +1169,31 @@ export default function DashboardPage() {
     setIsProcessing(true)
 
     try {
+      // Build request body with optional input materials
+      const requestBody: {
+        question: string
+        struggleType: string
+        actionType: string
+        inputUrl?: string
+        inputImage?: string
+      } = {
+        question: goal,
+        struggleType: 'homework_help',
+        actionType: 'roadmap',
+      }
+
+      // Add input materials if provided
+      if (inputUrl) {
+        requestBody.inputUrl = inputUrl
+      }
+      if (inputImage) {
+        requestBody.inputImage = inputImage
+      }
+
       const response = await fetch('/api/guide-me', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: goal,
-          struggleType: 'homework_help',
-          actionType: 'roadmap',
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()
@@ -1139,21 +1395,45 @@ export default function DashboardPage() {
         )}
 
         {/* PROOF VIEW - Submit proof for mission */}
-        {viewState === 'proof' && currentMission && (
-          <ProofSubmission
-            mission={currentMission}
-            onSubmit={handleSubmitProof}
-            onBack={() => setViewState('mission')}
-            isLoading={isProcessing}
-          />
+        {viewState === 'proof' && (
+          currentMission ? (
+            <ProofSubmission
+              mission={currentMission}
+              onSubmit={handleSubmitProof}
+              onBack={() => setViewState('mission')}
+              isLoading={isProcessing}
+            />
+          ) : (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 text-center">
+              <p className="text-neutral-500 dark:text-neutral-400 mb-4">No active mission found.</p>
+              <button
+                onClick={() => setViewState('mission')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+              >
+                Go Back
+              </button>
+            </div>
+          )
         )}
 
         {/* ROADMAP VIEW - Full roadmap display */}
-        {viewState === 'roadmap' && activeRoadmap && (
-          <RoadmapView
-            roadmap={activeRoadmap}
-            onBack={() => setViewState('mission')}
-          />
+        {viewState === 'roadmap' && (
+          activeRoadmap ? (
+            <RoadmapView
+              roadmap={activeRoadmap}
+              onBack={() => setViewState('mission')}
+            />
+          ) : (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 text-center">
+              <p className="text-neutral-500 dark:text-neutral-400 mb-4">No roadmap found. Create one first.</p>
+              <button
+                onClick={() => setViewState('onboarding')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+              >
+                Create Roadmap
+              </button>
+            </div>
+          )
         )}
       </main>
 
