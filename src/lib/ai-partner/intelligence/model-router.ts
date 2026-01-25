@@ -2,8 +2,8 @@
  * Smart Model Router
  *
  * Routes queries to the appropriate model based on complexity:
- * - gpt-5-mini: Fast, efficient, good for simple/moderate queries
- * - gpt-5: Advanced reasoning, better for complex queries
+ * - gpt-4o-mini: Fast, efficient, good for simple/moderate queries
+ * - gpt-4o: Advanced reasoning, better for complex queries
  *
  * Also manages dynamic response length based on query analysis
  */
@@ -38,13 +38,13 @@ export interface RoutingDecision {
 
 const MODELS = {
   fast: {
-    id: 'gpt-5-mini',
+    id: 'gpt-4o-mini',
     costPer1kInput: 0.00015, // $0.15 per 1M input tokens
     costPer1kOutput: 0.0006, // $0.60 per 1M output tokens
     avgLatencyMs: 600,
   },
   advanced: {
-    id: 'gpt-5',
+    id: 'gpt-4o',
     costPer1kInput: 0.0025, // $2.50 per 1M input tokens
     costPer1kOutput: 0.01, // $10.00 per 1M output tokens
     avgLatencyMs: 1200,
@@ -131,7 +131,7 @@ export function routeQuery(analysis: QueryAnalysis): RoutingDecision {
 export function overrideRouting(
   decision: RoutingDecision,
   overrides: {
-    forceModel?: 'gpt-5-mini' | 'gpt-5'
+    forceModel?: 'gpt-4o-mini' | 'gpt-4o'
     forceMaxTokens?: number
     forceLength?: ResponseLength
     addToInstruction?: string
@@ -181,7 +181,7 @@ export function estimateCost(
   decision: RoutingDecision,
   estimatedInputTokens: number
 ): number {
-  const model = decision.model === 'gpt-5' ? MODELS.advanced : MODELS.fast
+  const model = decision.model === 'gpt-4o' ? MODELS.advanced : MODELS.fast
   const inputCost = (estimatedInputTokens / 1000) * model.costPer1kInput
   const outputCost = (decision.maxTokens / 1000) * model.costPer1kOutput
   return inputCost + outputCost

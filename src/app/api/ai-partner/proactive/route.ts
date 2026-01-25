@@ -13,11 +13,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { getProactiveSuggestion, ProactiveSuggestion } from '@/lib/ai-partner/openai'
 
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting - moderate for AI proactive suggestions
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json({
+        type: 'none',
+        shouldAsk: false,
+      } as ProactiveSuggestion)
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

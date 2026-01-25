@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 
 interface RouteParams {
@@ -11,6 +12,15 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // Rate limiting - lenient for read operations
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const { deckId } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -85,6 +95,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    // Rate limiting - moderate for updates
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const { deckId } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -141,6 +160,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    // Rate limiting - strict for delete operations
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const { deckId } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

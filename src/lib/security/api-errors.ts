@@ -188,3 +188,42 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<NextResp
   }) as T
 }
 
+/**
+ * Safely parse request JSON body with error handling
+ * Returns [data, null] on success, [null, error response] on failure
+ */
+export async function parseRequestBody<T = Record<string, unknown>>(
+  request: Request
+): Promise<[T, null] | [null, NextResponse]> {
+  try {
+    const body = await request.json()
+    return [body as T, null]
+  } catch (error) {
+    logger.warn('Failed to parse request body', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
+    return [null, ApiErrors.badRequest('Invalid JSON in request body')]
+  }
+}
+
+/**
+ * Validate sortBy parameter against a whitelist to prevent SQL injection
+ */
+export function validateSortBy(
+  sortBy: string | null | undefined,
+  allowedFields: string[],
+  defaultField: string = 'createdAt'
+): string {
+  if (!sortBy) return defaultField
+  return allowedFields.includes(sortBy) ? sortBy : defaultField
+}
+
+/**
+ * Validate sortOrder parameter
+ */
+export function validateSortOrder(
+  sortOrder: string | null | undefined
+): 'asc' | 'desc' {
+  if (sortOrder === 'asc' || sortOrder === 'desc') return sortOrder
+  return 'desc'
+}

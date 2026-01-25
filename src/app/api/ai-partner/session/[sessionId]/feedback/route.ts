@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 
 interface RouteParams {
@@ -17,6 +18,15 @@ interface RouteParams {
 // POST: Submit session feedback
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    // Rate limiting - moderate for feedback submission
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

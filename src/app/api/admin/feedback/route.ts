@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/admin/utils'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
 import { withCsrfProtection } from '@/lib/csrf'
+import { validateSortBy, validateSortOrder, parseRequestBody, ApiErrors } from '@/lib/security/api-errors'
+
+// Whitelist of allowed sortBy fields for feedback
+const ALLOWED_SORT_FIELDS = ['createdAt', 'rating', 'status', 'updatedAt']
 
 // GET - List feedback with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -38,8 +42,9 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, rawLimit))
     const status = searchParams.get('status') || ''
     const rating = searchParams.get('rating') || ''
-    const sortBy = searchParams.get('sortBy') || 'createdAt'
-    const sortOrder = searchParams.get('sortOrder') || 'desc'
+    // SECURITY: Validate sortBy against whitelist to prevent SQL injection
+    const sortBy = validateSortBy(searchParams.get('sortBy'), ALLOWED_SORT_FIELDS, 'createdAt')
+    const sortOrder = validateSortOrder(searchParams.get('sortOrder'))
 
     // Build where clause
     const where: any = {}

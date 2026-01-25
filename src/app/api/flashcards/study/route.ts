@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { notifyPartnersStartedStudying } from '@/lib/notifications/send'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 /**
  * POST /api/flashcards/study - Start a study session
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: moderate for study session starts
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+  
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

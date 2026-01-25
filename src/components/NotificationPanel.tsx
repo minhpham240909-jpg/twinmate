@@ -356,8 +356,8 @@ export default function NotificationPanel({ isOpen, onClose, onUnreadCountChange
         onClick={onClose}
       />
 
-      {/* Panel */}
-      <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl z-50 flex flex-col">
+      {/* Panel - responsive width for mobile */}
+      <div className="fixed top-16 right-4 left-4 sm:left-auto sm:w-96 max-h-[80vh] bg-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl z-50 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-slate-700/50">
           <div className="flex items-center justify-between mb-3">

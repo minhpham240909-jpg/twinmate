@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Star, Sparkles, Clock, MessageSquare, CheckCircle, Loader2 } from 'lucide-react'
 
@@ -26,6 +26,18 @@ export default function SessionFeedbackModal({
   const [feedback, setFeedback] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [hasSubmitted, setHasSubmitted] = useState(false)
+  
+  // MEMORY LEAK FIX: Track timeout with ref for cleanup
+  const autoCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimeoutRef.current) {
+        clearTimeout(autoCloseTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -42,8 +54,11 @@ export default function SessionFeedbackModal({
     try {
       await onSubmit(rating, feedback.trim() || null)
       setHasSubmitted(true)
-      // Auto close after success
-      setTimeout(() => {
+      // Auto close after success (with cleanup tracking)
+      if (autoCloseTimeoutRef.current) {
+        clearTimeout(autoCloseTimeoutRef.current)
+      }
+      autoCloseTimeoutRef.current = setTimeout(() => {
         onClose()
       }, 1500)
     } catch (error) {

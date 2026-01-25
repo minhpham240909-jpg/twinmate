@@ -139,6 +139,9 @@ model User {
   hostedArenas          ArenaSession[]       @relation("ArenaHost")
   arenaWeeklyStats      ArenaWeeklyStats[]   @relation("ArenaWeeklyStats")
 
+  // Learning Roadmap relations
+  roadmaps              LearningRoadmap[]    @relation("UserRoadmaps")
+
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -3739,4 +3742,325 @@ model ArenaWeeklyStats {
   @@index([weekStart, combinedScore])
   @@index([userId]) // PERF: User stat lookups (scale audit fix)
   @@map("arena_weekly_stats")
+}
+
+// ==========================================
+// LEARNING ROADMAP SYSTEM
+// Core persistence for Clerva's "Learning Operating System"
+// The SYSTEM controls roadmaps - AI just fills in content
+// ==========================================
+
+enum RoadmapStatus {
+  ACTIVE      // Currently being worked on
+  COMPLETED   // All steps done
+  PAUSED      // User paused progress
+  ABANDONED   // User started new roadmap without completing
+}
+
+enum RoadmapStepStatus {
+  LOCKED      // Not yet available
+  CURRENT     // Currently active step
+  COMPLETED   // User marked as done
+  SKIPPED     // User chose to skip
+}
+
+// Main roadmap - user's learning journey
+model LearningRoadmap {
+  id              String         @id @default(uuid())
+  userId          String
+
+  // Goal & Context
+  goal            String         @db.Text // Original user goal/question
+  subject         String?        // Extracted subject (Math, English, etc.)
+  goalType        String?        // learn_subject, test_prep, skill_build, etc.
+
+  // Roadmap Content (AI-generated, system-controlled)
+  title           String
+  overview        String?        @db.Text
+  pitfalls        String[]       @default([]) // Things to avoid
+  successLooksLike String?       @db.Text // What completion looks like
+
+  // Progress Tracking (SYSTEM controls this, not AI)
+  status          RoadmapStatus  @default(ACTIVE)
+  currentStepIndex Int           @default(0)
+  totalSteps      Int            @default(0)
+  completedSteps  Int            @default(0)
+  estimatedMinutes Int           @default(0)
+  actualMinutesSpent Int         @default(0)
+
+  // Is this the user's currently active roadmap?
+  isActive        Boolean        @default(true)
+
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  lastActivityAt  DateTime       @default(now())
+  completedAt     DateTime?
+
+  // Relations
+  user            User           @relation("UserRoadmaps", fields: [userId], references: [id], onDelete: Cascade)
+  steps           RoadmapStep[]
+
+  @@index([userId, isActive]) // PERF: Find user's active roadmap quickly
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@map("learning_roadmaps")
+}
+
+// Individual steps in a roadmap
+model RoadmapStep {
+  id              String           @id @default(uuid())
+  roadmapId       String
+
+  // Step Content (AI-generated within system boundaries)
+  order           Int
+  title           String
+  description     String           @db.Text
+  timeframe       String?          // "Days 1-3", "Week 1", etc.
+  method          String?          @db.Text // Specific how-to
+  avoid           String?          @db.Text // What NOT to do
+  doneWhen        String?          @db.Text // Success criterion
+  duration        Int              @default(5) // Estimated minutes
+
+  // Progress Tracking (SYSTEM controls this)
+  status          RoadmapStepStatus @default(LOCKED)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  minutesSpent    Int              @default(0)
+
+  // User notes/feedback on this step
+  userNotes       String?          @db.Text
+  difficultyRating Int?            // 1-5, user's rating of difficulty
+
+  // Timestamps
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  roadmap         LearningRoadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  attempts        MissionAttempt[] // Track attempts on this step
+
+  @@index([roadmapId, order])
+  @@index([roadmapId, status])
+  @@map("roadmap_steps")
+}
+
+// ==========================================
+// ENFORCEMENT & ACCOUNTABILITY SYSTEM
+// ==========================================
+// Tracks user behavior to enforce consequences and build identity
+
+// Skip reasons - why user chose to skip
+enum SkipReason {
+  TOO_HARD           // User found it too difficult
+  NOT_RELEVANT       // User thinks it's not relevant
+  ALREADY_KNOW       // User claims they already know this
+  NO_TIME            // User says they don't have time
+  UNCLEAR            // Instructions were unclear
+  BORED              // User is bored/disengaged
+  SYSTEM_ALLOWED     // System allowed skip (rare, validated)
+  ABANDONED          // User abandoned without reason
+}
+
+// Consequence types for enforcement
+enum ConsequenceType {
+  REMEDIATION        // Must complete remediation mission
+  DEBT_ADDED         // Study debt minutes added
+  STREAK_RESET       // Streak counter reset
+  REVIEW_REQUIRED    // Must review before continuing
+  SLOWDOWN           // Forced slower pace
+  PROOF_REQUIRED     // Must provide proof of understanding
+}
+
+// Mission attempt result
+enum AttemptResult {
+  SUCCESS            // Completed successfully
+  PARTIAL            // Partially completed
+  FAILED             // Failed to complete
+  SKIPPED            // Chose to skip
+  TIMEOUT            // Ran out of time
+  ABANDONED          // Left without completing
+}
+
+// Skip record - tracks every skip with consequences
+model SkipRecord {
+  id              String          @id @default(uuid())
+  userId          String
+  roadmapId       String
+  stepId          String
+
+  // Skip details
+  reason          SkipReason
+  userExplanation String?         @db.Text // Optional user explanation
+
+  // Consequences applied
+  consequenceType ConsequenceType?
+  consequenceData Json?           // Details of consequence
+  consequenceApplied Boolean      @default(false)
+
+  // Remediation tracking
+  requiresRemediation Boolean     @default(false)
+  remediationCompleted Boolean    @default(false)
+  remediationStepId String?       // Link to remediation step if created
+
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  resolvedAt      DateTime?       // When consequence was resolved
+
+  @@index([userId])
+  @@index([roadmapId])
+  @@index([userId, roadmapId]) // PERF: Composite for user's skips in a specific roadmap
+  @@index([userId, requiresRemediation])
+  @@index([stepId])
+  @@map("skip_records")
+}
+
+// Mission attempt - tracks every attempt at a step/mission
+model MissionAttempt {
+  id              String          @id @default(uuid())
+  userId          String
+  stepId          String
+
+  // Attempt details
+  attemptNumber   Int             @default(1) // 1st, 2nd, 3rd attempt
+  result          AttemptResult
+
+  // Time tracking
+  startedAt       DateTime        @default(now())
+  completedAt     DateTime?
+  minutesSpent    Int             @default(0)
+  minimumTimeMet  Boolean         @default(false) // Did they spend minimum required time?
+
+  // Proof of completion
+  proofType       String?         // explanation, quiz, submission, practice_set
+  proofData       Json?           // Store proof details
+  proofValidated  Boolean         @default(false)
+
+  // Quality metrics
+  difficultyRating Int?           // User's rating 1-5
+  confidenceLevel Int?            // User's confidence 1-5
+
+  // Failure tracking (for remediation)
+  failureReason   String?         @db.Text
+  needsRemediation Boolean        @default(false)
+
+  // Relations
+  step            RoadmapStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stepId])
+  @@index([userId, stepId]) // PERF: Composite for user's attempts on a specific step
+  @@index([userId, result])
+  @@index([stepId, attemptNumber])
+  @@map("mission_attempts")
+}
+
+// Weak spot - persistent record of user struggles
+model WeakSpot {
+  id              String          @id @default(uuid())
+  userId          String
+
+  // What they struggle with
+  subject         String          // Math, English, etc.
+  topic           String          // Specific topic within subject
+  subtopic        String?         // Even more specific (optional)
+
+  // Evidence of weakness
+  failedAttempts  Int             @default(1) // How many times failed
+  lastFailedAt    DateTime        @default(now())
+
+  // Remediation status
+  status          String          @default("ACTIVE") // ACTIVE, REMEDIATED, RESOLVED
+  remediationCount Int            @default(0) // How many remediation attempts
+  lastRemediatedAt DateTime?
+
+  // Source of identification
+  sourceStepId    String?         // Step where weakness was identified
+  sourceRoadmapId String?
+
+  // Severity (calculated)
+  severity        Int             @default(1) // 1-5, higher = more problematic
+
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  resolvedAt      DateTime?
+
+  @@unique([userId, subject, topic]) // One weak spot per topic per user
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, severity]) // PERF: Composite for user's weak spots by severity
+  @@index([severity])
+  @@map("weak_spots")
+}
+
+// User identity - tracks who the user is becoming
+model LearnerIdentity {
+  id              String          @id @default(uuid())
+  userId          String          @unique
+
+  // Strengths (what they're good at)
+  strengths       String[]        @default([])
+
+  // Growth areas (what they're working on)
+  growthAreas     String[]        @default([])
+
+  // Archetype (earned after 10+ missions)
+  archetype       String?         // "The Methodical Master", "The Steady Climber", etc.
+  archetypeUnlockedAt DateTime?
+
+  // Behavioral patterns
+  averageSessionMinutes Int       @default(0)
+  preferredStudyTime    String?   // "morning", "afternoon", "evening", "night"
+  consistencyScore      Int       @default(0) // 0-100
+
+  // Mission stats
+  totalMissionsCompleted Int      @default(0)
+  totalMissionsFailed    Int      @default(0)
+  totalMissionsSkipped   Int      @default(0)
+  currentStreak          Int      @default(0)
+  longestStreak          Int      @default(0)
+
+  // Last activity
+  lastMissionAt          DateTime?
+  daysSinceLastMission   Int      @default(0)
+
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([archetype])
+  @@map("learner_identities")
+}
+
+// Enforcement action log - audit trail of all enforcement actions
+model EnforcementAction {
+  id              String          @id @default(uuid())
+  userId          String
+
+  // What triggered this
+  triggerType     String          // skip, failure, abandonment, timeout, etc.
+  triggerId       String?         // ID of skip/attempt that triggered
+
+  // What action was taken
+  actionType      ConsequenceType
+  actionData      Json?           // Details of the action
+
+  // Authority message shown to user
+  authorityMessage String?        @db.Text
+
+  // Status
+  acknowledged    Boolean         @default(false) // User saw this
+  resolved        Boolean         @default(false) // User completed consequence
+
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+
+  @@index([userId])
+  @@index([userId, resolved])
+  @@index([triggerType])
+  @@map("enforcement_actions")
 }

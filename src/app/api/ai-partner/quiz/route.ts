@@ -8,11 +8,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { generateQuiz, generateQuizFromConversation, generateInteractiveQuiz } from '@/lib/ai-partner'
 
 // POST: Generate quiz question(s)
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - AI generation is expensive
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before generating more quizzes.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

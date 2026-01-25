@@ -7,6 +7,10 @@ import { handlePrivilegeChange } from '@/lib/security/session-rotation'
 import logger from '@/lib/logger'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
 import { withCsrfProtection } from '@/lib/csrf'
+import { validateSortBy, validateSortOrder, parseRequestBody, ApiErrors } from '@/lib/security/api-errors'
+
+// Whitelist of allowed sortBy fields for user listing
+const ALLOWED_SORT_FIELDS = ['createdAt', 'lastLoginAt', 'email', 'name', 'role']
 
 // GET - List users with search, filter, and pagination
 export async function GET(request: NextRequest) {
@@ -41,8 +45,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const role = searchParams.get('role') || ''
     const status = searchParams.get('status') || '' // active, deactivated, banned
-    const sortBy = searchParams.get('sortBy') || 'createdAt'
-    const sortOrder = searchParams.get('sortOrder') || 'desc'
+    // SECURITY: Validate sortBy against whitelist to prevent SQL injection
+    const sortBy = validateSortBy(searchParams.get('sortBy'), ALLOWED_SORT_FIELDS, 'createdAt')
+    const sortOrder = validateSortOrder(searchParams.get('sortOrder'))
 
     // Build where clause
     const where: Record<string, unknown> = {}
@@ -182,18 +187,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
       }
 
-      const body = await request.json()
+      // At this point, user and actingAdmin are guaranteed to be non-null
+      const authenticatedUser = user!
+      const admin = actingAdmin!
+
+      // SECURITY: Safe JSON parsing with error handling
+      const [body, parseError] = await parseRequestBody<{
+        action: string
+        userId: string
+        reason?: string
+        duration?: number
+        severity?: number
+      }>(request)
+      
+      if (parseError) return parseError
+      
       const { action, userId, reason, duration, severity } = body
 
       if (!action || !userId) {
-        return NextResponse.json(
-          { error: 'Missing required fields' },
-          { status: 400 }
-        )
+        return ApiErrors.badRequest('Missing required fields: action and userId')
       }
 
       // SECURITY: Prevent self-actions
-      if (userId === user.id) {
+      if (userId === authenticatedUser.id) {
         return NextResponse.json(
           { error: 'Cannot perform admin actions on yourself' },
           { status: 403 }
@@ -218,6 +234,9 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Type narrowing - targetUser is guaranteed non-null after the check above
+      const target = targetUser
+
       // ============================================
       // ADMIN HIERARCHY PROTECTION
       // ============================================
@@ -225,9 +244,9 @@ export async function POST(request: NextRequest) {
       // 2. Normal Admin - Can only ban/warn/deactivate NORMAL USERS (not other admins)
       // 3. Normal User - No admin actions
 
-      const isSuperAdmin = actingAdmin.isSuperAdmin === true
-      const targetIsSuperAdmin = targetUser.isSuperAdmin === true
-      const targetIsAdmin = targetUser.isAdmin === true
+      const isSuperAdmin = admin.isSuperAdmin === true
+      const targetIsSuperAdmin = target.isSuperAdmin === true
+      const targetIsAdmin = target.isAdmin === true
 
       // CRITICAL: No one can take action against a Super Admin
       if (targetIsSuperAdmin) {
@@ -283,13 +302,13 @@ export async function POST(request: NextRequest) {
             where: { userId },
             create: {
               userId,
-              issuedById: user.id,
+              issuedById: authenticatedUser.id,
               type: duration ? 'TEMPORARY' : 'PERMANENT',
               reason: reason || 'No reason provided',
               expiresAt,
             },
             update: {
-              issuedById: user.id,
+              issuedById: authenticatedUser.id,
               type: duration ? 'TEMPORARY' : 'PERMANENT',
               reason: reason || 'No reason provided',
               expiresAt,
@@ -301,7 +320,7 @@ export async function POST(request: NextRequest) {
           await handlePrivilegeChange(userId, { accountStatusChanged: true })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'user_banned',
             targetType: 'user',
             targetId: userId,
@@ -319,7 +338,7 @@ export async function POST(request: NextRequest) {
           })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'user_unbanned',
             targetType: 'user',
             targetId: userId,
@@ -335,14 +354,14 @@ export async function POST(request: NextRequest) {
           await prisma.userWarning.create({
             data: {
               userId,
-              issuedById: user.id,
+              issuedById: authenticatedUser.id,
               reason: reason || 'No reason provided',
               severity: severity || 1,
             },
           })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'user_warned',
             targetType: 'user',
             targetId: userId,
@@ -367,7 +386,7 @@ export async function POST(request: NextRequest) {
           await handlePrivilegeChange(userId, { accountStatusChanged: true })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'user_deactivated',
             targetType: 'user',
             targetId: userId,
@@ -389,7 +408,7 @@ export async function POST(request: NextRequest) {
           })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'user_reactivated',
             targetType: 'user',
             targetId: userId,
@@ -408,7 +427,7 @@ export async function POST(request: NextRequest) {
             data: {
               isAdmin: true,
               adminGrantedAt: new Date(),
-              adminGrantedBy: user.id,
+              adminGrantedBy: authenticatedUser.id,
             },
           })
 
@@ -416,7 +435,7 @@ export async function POST(request: NextRequest) {
           await handlePrivilegeChange(userId, { adminStatusChanged: true })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'admin_granted',
             targetType: 'user',
             targetId: userId,
@@ -425,7 +444,7 @@ export async function POST(request: NextRequest) {
             userAgent,
           })
 
-          logger.info('Admin access granted', { data: { targetUserId: userId, grantedBy: user.id } })
+          logger.info('Admin access granted', { data: { targetUserId: userId, grantedBy: authenticatedUser.id } })
           return NextResponse.json({ success: true, message: 'Admin access granted' })
         }
 
@@ -451,7 +470,7 @@ export async function POST(request: NextRequest) {
           await handlePrivilegeChange(userId, { adminStatusChanged: true })
 
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'admin_revoked',
             targetType: 'user',
             targetId: userId,
@@ -460,7 +479,7 @@ export async function POST(request: NextRequest) {
             userAgent,
           })
 
-          logger.info('Admin access revoked', { data: { targetUserId: userId, revokedBy: user.id } })
+          logger.info('Admin access revoked', { data: { targetUserId: userId, revokedBy: authenticatedUser.id } })
           return NextResponse.json({ success: true, message: 'Admin access revoked' })
         }
 
@@ -572,7 +591,7 @@ export async function POST(request: NextRequest) {
 
           // Log the permanent deletion action
           await logAdminAction({
-            adminId: user.id,
+            adminId: authenticatedUser.id,
             action: 'user_permanently_deleted',
             targetType: 'user',
             targetId: userId,
@@ -592,7 +611,7 @@ export async function POST(request: NextRequest) {
           logger.info('User permanently deleted', {
             data: {
               deletedUserId: userId,
-              deletedBy: user.id,
+              deletedBy: authenticatedUser.id,
               email: userToDelete.email,
             },
           })

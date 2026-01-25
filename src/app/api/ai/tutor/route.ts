@@ -20,6 +20,7 @@ import {
   getAnalysisBasedPrompt,
 } from '@/lib/ai/homework-guard-v2'
 import { withRetry, OPENAI_RETRY_OPTIONS } from '@/lib/retry'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
 const openai = new OpenAI({
@@ -53,6 +54,15 @@ interface StudyPlanContext {
  * Provides study help, explanations, quizzes, and study tips
  */
 export async function POST(request: NextRequest) {
+  // SECURITY: Rate limit AI tutor requests (100 per hour)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait a moment and try again.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+  
   try {
     // Verify user is authenticated
     const supabase = await createClient()
@@ -157,7 +167,7 @@ You have full access to their study plan and should use it to provide personaliz
     // Call OpenAI API with retry logic for reliability
     const result = await withRetry(
       () => openai.chat.completions.create({
-        model: 'gpt-5-mini',
+        model: 'gpt-4o-mini',
         messages,
         max_tokens: 1024,
         temperature: 0.7,

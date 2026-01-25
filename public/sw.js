@@ -33,9 +33,17 @@ const API_ROUTES = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('[SW] Caching static assets');
-        return cache.addAll(STATIC_ASSETS.filter(url => !url.includes('/api/')));
+        // Cache each asset individually to avoid failing entire install if one is missing
+        const assetsToCache = STATIC_ASSETS.filter(url => !url.includes('/api/'));
+        for (const url of assetsToCache) {
+          try {
+            await cache.add(url);
+          } catch (error) {
+            console.warn(`[SW] Failed to cache ${url}:`, error.message);
+          }
+        }
       })
       .then(() => self.skipWaiting())
   );

@@ -1,6 +1,7 @@
 // API Route: Google OAuth Sign In
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import logger from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
@@ -8,6 +9,14 @@ export async function GET(request: NextRequest) {
   const origin = requestUrl.origin
 
   try {
+    // Rate limiting - auth preset for OAuth
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.auth)
+    if (!rateLimitResult.success) {
+      return NextResponse.redirect(
+        new URL('/auth/error?message=' + encodeURIComponent('Too many login attempts. Please wait a moment and try again.'), origin)
+      )
+    }
+
     const supabase = await createClient()
     const redirectUrl = `${origin}/auth/callback`
 

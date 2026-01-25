@@ -2,9 +2,8 @@ export { default as DashboardTopBar } from './DashboardTopBar'
 export { default as DashboardMenuDropdown } from './DashboardMenuDropdown'
 export { default as DashboardSearch } from './DashboardSearch'
 
-// New Vision Components
+// Vision Components (kept for potential future use)
 export { default as StartStudyingCTA } from './StartStudyingCTA'
-export { default as ClassmatesStudying } from './ClassmatesStudying'
 export { default as ImStuckFlow } from './ImStuckFlow'
 export { default as StudySuggestions } from './StudySuggestions'
 export { default as StudyGuideModal } from './StudyGuideModal'
@@ -21,3 +20,5 @@ export {
   DISCLOSURE_THRESHOLDS,
 } from './ProgressiveDisclosure'
 export type { UserTier } from './ProgressiveDisclosure'
+
+// Note: ClassmatesStudying removed from exports - social feature hidden

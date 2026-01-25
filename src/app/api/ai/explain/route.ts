@@ -24,6 +24,7 @@ import {
   getHomeworkGuardPrompt,
   detectTestContent,
 } from '@/lib/ai/homework-guard'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -120,6 +121,15 @@ Guidelines:
 }
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Rate limit AI explain requests (100 per hour)
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait a moment and try again.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+  
   try {
     // Auth check (single query, no N+1)
     const supabase = await createClient()
@@ -244,7 +254,7 @@ ${
 
     // Call OpenAI (single API call)
     const response = await openai.chat.completions.create({
-      model: 'gpt-5', // Using GPT-5 for vision capabilities
+      model: 'gpt-4o', // Using GPT-4o for vision capabilities
       messages,
       max_tokens: 1500,
       temperature: 0.7,

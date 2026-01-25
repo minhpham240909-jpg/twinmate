@@ -4,12 +4,21 @@
  * Used by frontend to show appropriate UI
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { checkUserAccess } from '@/lib/security/checkUserBan'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limiting - lenient for access status checks
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

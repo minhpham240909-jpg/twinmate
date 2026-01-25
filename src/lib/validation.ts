@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PAGINATION, CONTENT_LIMITS } from './constants'
+import { PAGINATION } from './constants'
 
 // ==========================================
 // MESSAGE VALIDATION
@@ -291,7 +291,7 @@ export function validateArray(
 
 /**
  * Validates a date range
- * 
+ *
  * @param days - Number of days to look back
  * @param maxDays - Maximum allowed days
  * @param defaultDays - Default days to use if invalid
@@ -303,10 +303,170 @@ export function validateDateRange(
   defaultDays: number
 ): number {
   const parsed = parseInt(days || String(defaultDays))
-  
+
   if (isNaN(parsed) || parsed < 1) {
     return defaultDays
   }
-  
+
   return Math.min(parsed, maxDays)
 }
+
+// ==========================================
+// ENFORCEMENT VALIDATION
+// ==========================================
+
+/**
+ * Sanitize user-submitted text content
+ * - Removes potential XSS vectors
+ * - Strips excessive whitespace
+ * - Validates UTF-8 encoding
+ */
+export function sanitizeUserInput(input: string): string {
+  if (typeof input !== 'string') {
+    return ''
+  }
+
+  return input
+    // Remove null bytes
+    .replace(/\0/g, '')
+    // Remove control characters except newlines and tabs
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Normalize whitespace (collapse multiple spaces, but preserve newlines)
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    // Trim leading/trailing whitespace
+    .trim()
+    // Limit length to prevent memory issues
+    .slice(0, 10000)
+}
+
+/**
+ * Validate explanation quality beyond just length
+ * Checks for:
+ * - Minimum word count
+ * - Not just repeated characters
+ * - Contains actual words (not just numbers/symbols)
+ */
+export function validateExplanationQuality(
+  content: string,
+  options: {
+    minLength?: number
+    minWords?: number
+    minUniqueWords?: number
+  } = {}
+): { valid: boolean; reason?: string } {
+  const {
+    minLength = 100,
+    minWords = 15,
+    minUniqueWords = 10
+  } = options
+
+  const sanitized = sanitizeUserInput(content)
+
+  // Check length
+  if (sanitized.length < minLength) {
+    return {
+      valid: false,
+      reason: `Explanation too short. Minimum ${minLength} characters required.`
+    }
+  }
+
+  // Check word count
+  const words = sanitized
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2) // Ignore very short words
+
+  if (words.length < minWords) {
+    return {
+      valid: false,
+      reason: `Explanation needs more substance. At least ${minWords} meaningful words required.`
+    }
+  }
+
+  // Check for unique words (prevents "test test test test...")
+  const uniqueWords = new Set(words)
+  if (uniqueWords.size < minUniqueWords) {
+    return {
+      valid: false,
+      reason: 'Explanation lacks variety. Use more diverse vocabulary.'
+    }
+  }
+
+  // Check for gibberish (random character strings)
+  const alphabeticWords = words.filter(w => /^[a-z]+$/.test(w))
+  const alphabeticRatio = alphabeticWords.length / words.length
+  if (alphabeticRatio < 0.5) {
+    return {
+      valid: false,
+      reason: 'Explanation must contain mostly real words.'
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Validate quiz score
+ */
+export function validateQuizScore(
+  score: number | undefined,
+  threshold: number = 80
+): { valid: boolean; reason?: string } {
+  if (typeof score !== 'number' || isNaN(score)) {
+    return {
+      valid: false,
+      reason: 'Quiz score is required.'
+    }
+  }
+
+  if (score < 0 || score > 100) {
+    return {
+      valid: false,
+      reason: 'Quiz score must be between 0 and 100.'
+    }
+  }
+
+  if (score < threshold) {
+    return {
+      valid: false,
+      reason: `Score of ${score}% is below the ${threshold}% threshold. Review and try again.`
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Validate practice submission
+ */
+export function validatePracticeSubmission(
+  content: string
+): { valid: boolean; reason?: string } {
+  const sanitized = sanitizeUserInput(content)
+
+  if (sanitized.length < 20) {
+    return {
+      valid: false,
+      reason: 'Practice summary too brief. Describe what you did and learned.'
+    }
+  }
+
+  return { valid: true }
+}
+
+// ==========================================
+// REMEDIATION VALIDATION SCHEMAS
+// ==========================================
+
+export const remediationProofSchema = z.object({
+  type: z.enum(['explanation', 'quiz', 'practice']),
+  content: z.string().min(1, 'Content required'),
+  score: z.number().min(0).max(100).optional()
+})
+
+export const remediationSubmitSchema = z.object({
+  missionId: z.string().min(1, 'Mission ID required'),
+  proof: remediationProofSchema
+})

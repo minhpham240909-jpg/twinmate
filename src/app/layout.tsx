@@ -38,9 +38,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Clerva - Social Learning & Study Partners",
-  description: "Find study partners, collaborate in real-time, and supercharge your learning",
-  keywords: ["study partners", "learning", "collaboration", "education"],
+  title: "Clerva - Your Learning Operating System",
+  description: "Clerva takes full responsibility for your learning direction, progress, and outcomes. Never feel lost - always know exactly what to do next.",
+  keywords: ["learning", "education", "study", "roadmap", "progress", "guidance"],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -67,8 +67,8 @@ export const metadata: Metadata = {
   },
   // Open Graph image for social sharing
   openGraph: {
-    title: 'Clerva - Social Learning & Study Partners',
-    description: 'Find study partners, collaborate in real-time, and supercharge your learning',
+    title: 'Clerva - Your Learning Operating System',
+    description: 'Clerva takes full responsibility for your learning direction, progress, and outcomes. Never feel lost - always know exactly what to do next.',
     siteName: 'Clerva',
     images: [
       {
@@ -83,8 +83,8 @@ export const metadata: Metadata = {
   // Twitter card
   twitter: {
     card: 'summary',
-    title: 'Clerva - Social Learning & Study Partners',
-    description: 'Find study partners, collaborate in real-time, and supercharge your learning',
+    title: 'Clerva - Your Learning Operating System',
+    description: 'Clerva takes full responsibility for your learning direction, progress, and outcomes. Never feel lost - always know exactly what to do next.',
     images: ['/icon-512.png'],
   },
 };
@@ -111,7 +111,7 @@ export default function RootLayout({
                     <AuthProvider>
                       <SettingsProvider>
                         <IntlProvider>
-                        {/* DeferredProviders loads Presence, BackgroundSession, IncomingCall
+                        {/* DeferredProviders loads PWA and Presence tracking
                             AFTER first paint to improve initial load time */}
                         <DeferredProviders>
                           <ConfirmModalProvider>

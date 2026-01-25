@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
           where: { createdAt: { gte: startDate }, cached: true },
         }).catch(() => 0),
 
-        // Smart routing: gpt-5-mini requests (routed to efficient model)
+        // Smart routing: gpt-4o-mini requests (routed to efficient model)
         prisma.aIUsageLog.count({
           where: {
             createdAt: { gte: startDate },

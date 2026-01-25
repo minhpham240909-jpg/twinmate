@@ -53,7 +53,7 @@ export async function analyzeIntentWithAI(
     // Use retry logic for reliability
     const result = await withRetry(
       () => openai.chat.completions.create({
-        model: 'gpt-5-mini', // Fast and efficient for classification
+        model: 'gpt-4o-mini', // Fast and efficient for classification
         messages: [
           {
             role: 'system',

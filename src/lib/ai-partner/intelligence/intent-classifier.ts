@@ -232,7 +232,7 @@ async function classifyIntentWithAI(
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-5-mini', // Fast and efficient
+      model: 'gpt-4o-mini', // Fast and efficient
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 30,
       temperature: 0, // Deterministic

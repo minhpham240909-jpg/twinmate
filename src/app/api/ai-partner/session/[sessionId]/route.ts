@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { getSession, endSession } from '@/lib/ai-partner'
 
 interface RouteParams {
@@ -15,6 +16,15 @@ interface RouteParams {
 // GET: Get session details with messages
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // Rate limiting - lenient for read operations
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -45,6 +55,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // DELETE: End session
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    // Rate limiting - strict for session termination
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

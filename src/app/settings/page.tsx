@@ -193,9 +193,16 @@ function InstallAppSection({ onClose }: { onClose: () => void }) {
           </div>
 
           {!isInstallable && !isIOS && (
-            <p className="text-xs text-neutral-400 text-center mt-3">
-              Install not available. Try opening in Chrome or Safari.
-            </p>
+            <div className="text-center mt-3 space-y-2">
+              <p className="text-xs text-neutral-400">
+                Install button not ready? Try these steps:
+              </p>
+              <ul className="text-xs text-neutral-500 space-y-1">
+                <li>• Use Chrome, Edge, or Safari (iOS)</li>
+                <li>• Refresh the page (Ctrl/Cmd + Shift + R)</li>
+                <li>• Or use browser menu → &quot;Install app&quot;</li>
+              </ul>
+            </div>
           )}
         </div>
       </div>

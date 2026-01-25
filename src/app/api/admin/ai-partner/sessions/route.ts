@@ -18,6 +18,10 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { AISessionStatus, Prisma } from '@prisma/client'
 import { adminRateLimit } from '@/lib/admin/rate-limit'
+import { validateSortOrder } from '@/lib/security/api-errors'
+
+// Whitelist of allowed sortBy fields for AI sessions
+const ALLOWED_SORT_FIELDS = ['createdAt', 'messageCount', 'duration']
 
 export async function GET(request: NextRequest) {
   // SCALABILITY: Rate limit admin AI sessions list requests
@@ -56,8 +60,10 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId')
     const flaggedOnly = searchParams.get('flagged') === 'true'
     const search = searchParams.get('search')
-    const sortBy = searchParams.get('sortBy') || 'createdAt'
-    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc'
+    // SECURITY: Validate sortBy against whitelist to prevent injection
+    const rawSortBy = searchParams.get('sortBy') || 'createdAt'
+    const sortBy = ALLOWED_SORT_FIELDS.includes(rawSortBy) ? rawSortBy : 'createdAt'
+    const sortOrder = validateSortOrder(searchParams.get('sortOrder'))
 
     // Build where clause
     const where: Prisma.AIPartnerSessionWhereInput = {}

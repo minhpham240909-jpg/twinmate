@@ -1,10 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/history/achievements - Get user's badges and achievements
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limiting - lenient for achievements reads
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

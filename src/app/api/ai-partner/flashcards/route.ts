@@ -6,11 +6,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { generateFlashcardsForSession, generateFlashcardsFromConversation } from '@/lib/ai-partner'
 
 // POST: Generate flashcards for a topic or from conversation
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - AI generation is expensive
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before generating more flashcards.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

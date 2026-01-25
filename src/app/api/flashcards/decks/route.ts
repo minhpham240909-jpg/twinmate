@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 /**
  * GET /api/flashcards/decks - Get user's flashcard decks
  */
 export async function GET(request: NextRequest) {
+  // Rate limit: lenient for read operations
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+  
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -80,6 +90,15 @@ export async function GET(request: NextRequest) {
  * POST /api/flashcards/decks - Create a new deck
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: moderate for write operations
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+  
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

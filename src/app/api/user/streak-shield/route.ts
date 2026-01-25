@@ -8,8 +8,9 @@
  * Cost: 200 XP per shield
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { cacheDelete, CacheKeys } from '@/lib/redis'
 
@@ -19,8 +20,17 @@ const STREAK_SHIELD_COST = 200
  * GET /api/user/streak-shield
  * Get user's streak shield count
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limiting - lenient for streak shield status check
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -70,8 +80,17 @@ export async function GET() {
  * POST /api/user/streak-shield
  * Purchase a streak shield
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - moderate for purchases
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

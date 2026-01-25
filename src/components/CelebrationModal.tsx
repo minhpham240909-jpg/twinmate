@@ -7,7 +7,7 @@
  * Clean, simple animation without being overwhelming.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { X, Sparkles } from 'lucide-react'
 import { type MilestoneDefinition, RARITY_COLORS } from '@/lib/milestones'
 
@@ -24,6 +24,30 @@ export default function CelebrationModal({
 }: CelebrationModalProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
+  
+  // MEMORY LEAK FIX: Track timeouts with ref for cleanup
+  const closeAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (closeAnimationTimeoutRef.current) {
+        clearTimeout(closeAnimationTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleClose = useCallback(() => {
+    setIsAnimating(false)
+    // Clear any existing timeout before setting new one
+    if (closeAnimationTimeoutRef.current) {
+      clearTimeout(closeAnimationTimeoutRef.current)
+    }
+    closeAnimationTimeoutRef.current = setTimeout(() => {
+      setIsVisible(false)
+      onClose()
+    }, 300)
+  }, [onClose])
 
   useEffect(() => {
     if (milestone) {
@@ -43,15 +67,7 @@ export default function CelebrationModal({
         clearTimeout(closeTimer)
       }
     }
-  }, [milestone])
-
-  const handleClose = () => {
-    setIsAnimating(false)
-    setTimeout(() => {
-      setIsVisible(false)
-      onClose()
-    }, 300)
-  }
+  }, [milestone, handleClose])
 
   if (!milestone || !isVisible) return null
 

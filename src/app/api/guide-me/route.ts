@@ -33,6 +33,12 @@ import {
 } from '@/lib/ai-partner/memory'
 import type { AIMemoryCategory } from '@prisma/client'
 import logger, { createRequestLogger, getCorrelationId } from '@/lib/logger'
+import {
+  analyzeInput,
+  hasAnalyzableContent,
+  formatInputForRoadmap,
+  type AnalyzedInput,
+} from '@/lib/roadmap-engine/input-analyzer'
 
 // Type for extracted memory entries
 interface ExtractedMemory {
@@ -104,15 +110,22 @@ interface FlashcardAction {
 interface RoadmapAction {
   type: 'roadmap'
   title: string
+  overview?: string // Brief approach summary
   encouragement: string
   steps: {
     id: string
     order: number
     duration: number // minutes
+    timeframe: string // "Days 1-3", "Week 1", etc.
     title: string
     description: string
-    hints: string[] // Progressive hints for each step (hint ladder)
+    method?: string // Specific how-to
+    avoid?: string // What NOT to do
+    doneWhen?: string // Success criterion
+    hints: string[] // Progressive hints (legacy, kept for compatibility)
   }[]
+  pitfalls?: string[] // Overall things to avoid
+  successLooksLike?: string // What completion looks like
   totalMinutes: number
   acknowledgment?: string // Natural recognition of their effort (only when earned)
   nextSuggestion?: string // Automatic "what's next" in tutor voice
@@ -132,6 +145,8 @@ interface GuideRequest {
   subject?: string // Optional subject context
   struggleType?: StruggleType // Type of struggle
   actionType?: MicroActionType // Preferred action type (or 'auto' to let AI decide)
+  inputUrl?: string // Optional URL/video/PDF to analyze for roadmap context
+  inputImage?: string // Optional base64 image (homework, worksheet, etc.)
 }
 
 interface GuideResponse {
@@ -275,10 +290,35 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GuideRequest = await request.json()
-    const { question, subject, struggleType = 'general', actionType = 'auto' } = body
+    const { question, subject, struggleType = 'general', actionType = 'auto', inputUrl, inputImage } = body
 
     if (!question || typeof question !== 'string' || question.trim().length < 3) {
       return NextResponse.json({ error: 'Please provide a question or topic' }, { status: 400 })
+    }
+
+    // Analyze input material if provided (URL, video, PDF, image)
+    // This extracts learning context to enhance roadmap quality
+    let analyzedInput: AnalyzedInput | undefined
+    const inputToAnalyze = inputUrl || inputImage
+
+    if (inputToAnalyze && hasAnalyzableContent(inputToAnalyze)) {
+      try {
+        log.debug('Analyzing input material', { type: inputUrl ? 'url' : 'image' })
+        analyzedInput = await analyzeInput({
+          input: inputToAnalyze,
+          userGoal: question,
+          userLevel: undefined, // Will be filled from profile below
+        })
+        if (analyzedInput.success) {
+          log.info('Input analysis complete', {
+            type: analyzedInput.type,
+            topic: analyzedInput.extractedContext.topic,
+          })
+        }
+      } catch (err) {
+        log.warn('Input analysis failed, continuing without', { error: err instanceof Error ? err.message : String(err) })
+        // Continue without analyzed input - graceful degradation
+      }
     }
 
     // Get user context (only for authenticated users)
@@ -344,7 +384,8 @@ export async function POST(request: NextRequest) {
       : actionType
 
     // Check cache for common queries (speeds up repeated questions)
-    const cacheKey = getCacheKey(question, determinedActionType, struggleType)
+    // Don't cache if analyzed input is provided (personalized content)
+    const cacheKey = analyzedInput ? null : getCacheKey(question, determinedActionType, struggleType)
     let action: MicroAction
     let fromCache = false
 
@@ -362,20 +403,22 @@ export async function POST(request: NextRequest) {
           struggleType,
           determinedActionType,
           userContext,
-          memoryContext
+          memoryContext,
+          analyzedInput
         )
         // Cache the response for future use
         cacheResponse(cacheKey, action)
       }
     } else {
-      // Long or personalized query - don't cache
+      // Long or personalized query or has analyzed input - don't cache
       action = await generateMicroAction(
         question,
         subject,
         struggleType,
         determinedActionType,
         userContext,
-        memoryContext
+        memoryContext,
+        analyzedInput
       )
     }
 
@@ -650,6 +693,10 @@ function preprocessInput(rawQuestion: string): { question: string; maxTokens: nu
 /**
  * Generate a micro-action using AI - now with full memory context!
  * Optimized for fast, high-quality responses across all input sizes
+ *
+ * Enhanced: Now supports analyzed input (URLs, videos, PDFs, images) for
+ * richer roadmap generation. The input is used to understand WHAT the user
+ * wants to learn - NOT to summarize or explain the content.
  */
 async function generateMicroAction(
   question: string,
@@ -657,7 +704,8 @@ async function generateMicroAction(
   struggleType: StruggleType,
   actionType: MicroActionType,
   userContext: string,
-  memoryContext: string = ''
+  memoryContext: string = '',
+  analyzedInput?: AnalyzedInput
 ): Promise<MicroAction> {
   // Preprocess input for optimal handling
   const { question: processedQuestion, maxTokens, isLarge } = preprocessInput(question)
@@ -666,6 +714,11 @@ async function generateMicroAction(
   const userContextLine = userContext ? `Student context: ${userContext}\n` : ''
   // Memory context includes past sessions, struggles, successes, preferences
   const memorySection = memoryContext ? `\n${memoryContext}\n` : ''
+
+  // Format analyzed input context for roadmap generation
+  const inputMaterialContext = analyzedInput?.success
+    ? formatInputForRoadmap(analyzedInput)
+    : ''
 
   // Add hint for large inputs to help AI focus
   const largeInputHint = isLarge
@@ -683,8 +736,21 @@ async function generateMicroAction(
   let systemPrompt = ''
   let responseFormat = ''
 
+  // Universal spelling correction instruction - added to ALL prompts
+  const spellingInstruction = `
+=== SPELLING & UNDERSTANDING ===
+IMPORTANT: Users often make typos and spelling mistakes. You MUST:
+1. AUTOMATICALLY understand what they mean even with misspellings (e.g., "engglis" = "English", "mathmatics" = "mathematics", "fizics" = "physics")
+2. ALWAYS use CORRECT spelling in your response - never repeat their typos
+3. Interpret their intent intelligently - focus on what they're trying to ask, not how they spelled it
+4. Never mention or correct their spelling errors - just understand and respond correctly
+5. This applies to ALL words - subjects, concepts, questions, everything
+
+`
+
   if (actionType === 'explanation') {
     systemPrompt = `You are a Socratic tutor creating a LEARNING PACK. Your job is to guide the student to DISCOVER understanding themselves - NEVER hand them answers.
+${spellingInstruction}
 
 ${subjectContext}${userContextLine}
 Situation: ${struggleDescription}
@@ -756,7 +822,7 @@ Be concise. Teach concepts, not answers.`
 }`
   } else if (actionType === 'flashcards') {
     systemPrompt = `You are a Socratic tutor creating flashcards that TEST UNDERSTANDING - not memory recall.
-
+${spellingInstruction}
 ${subjectContext}${userContextLine}
 Situation: ${struggleDescription}
 ${memorySection}
@@ -812,95 +878,117 @@ Test thinking, not memory.`
   "nextSuggestion": "Natural offer for what to do next"
 }`
   } else if (actionType === 'roadmap') {
-    systemPrompt = `You are a Socratic tutor creating a LEARNING ROADMAP with progressive hints. This is for ANY educational goal - studying for a test, learning a new skill, mastering a subject, planning a project, or yes, approaching homework.
-
+    // CLERVA ROADMAP ENGINE - System-controlled, professional output
+    // Philosophy: The SYSTEM decides structure. The AI ONLY fills in content.
+    // This prompt is "boring and strict" by design - that's what makes it reliable.
+    //
+    // Enhanced: Now supports analyzed input (URLs, videos, PDFs, images) for context.
+    // The roadmap guides HOW to learn from the material - it does NOT summarize it.
+    systemPrompt = `You are Clerva, a Learning Operating System. Create PROFESSIONAL roadmaps.
+${spellingInstruction}
 ${subjectContext}${userContextLine}
-Situation: ${struggleDescription}
+Goal: ${struggleDescription}
 ${memorySection}
+${inputMaterialContext ? `
+=== INPUT MATERIAL PROVIDED ===
+The user has provided learning material (URL, video, PDF, or image).
+Your roadmap should guide them on HOW TO EFFECTIVELY LEARN from this material.
 
-=== CRITICAL RULES - READ CAREFULLY ===
+CRITICAL RULES FOR INPUT MATERIAL:
+- DO NOT summarize the content
+- DO NOT explain what the material says
+- DO teach HOW to extract value from it
+- DO guide which parts to focus on vs. skip
+- DO warn about common mistakes when using this type of material
+- The roadmap teaches the PATH to understanding, not the content itself
 
-🚫 NEVER DO THESE:
-- NEVER give the answer to their problem/question
-- NEVER tell them what to write or what the solution is
-- NEVER provide content they can copy as their answer
-- NEVER do ANY part of their work for them
-- NEVER say "the answer is..." or "you should write..."
+${inputMaterialContext}
+` : ''}
+=== SYSTEM RULES (NON-NEGOTIABLE) ===
 
-✅ ALWAYS DO THESE:
-- Create steps that teach them HOW TO THINK about the problem
-- Each step should be an ACTION they take to discover the answer themselves
-- Use hint ladders that GUIDE thinking, not reveal answers
-- If they're stuck on homework, teach the APPROACH - not the solution
-- If they want to learn something new, create a discovery path
+The SYSTEM decides structure. You ONLY fill in content within strict boundaries.
 
-HINT LADDER PHILOSOPHY:
-Each step has 3 progressive hints. These are NOT answers - they're thinking prompts:
-- Hint 1: "What if you started by looking at..." (direction)
-- Hint 2: "Notice how X relates to Y..." (connection)
-- Hint 3: "Try applying the concept of Z here..." (almost there)
-NEVER: "The answer is..." or "You should write..."
+OUTPUT REQUIREMENTS:
+1. TITLE: Clear, specific goal (e.g., "Master English Vocabulary in 30 Days")
+2. OVERVIEW: 1-2 sentences on the approach and expected outcome
+3. STEPS: 3-5 specific, time-boxed steps. Each step MUST have:
+   - TIMEFRAME: Specific period (Days 1-3, Week 1, Hour 1-2)
+   - TITLE: Action-oriented (e.g., "Master Core Vocabulary", not "Set Goals")
+   - DESCRIPTION: Exact what to do
+   - METHOD: Specific how (technique, resource, tool)
+   - AVOID: Common mistake NOT to make
+   - DONE_WHEN: Clear success criterion
+4. PITFALLS: 2-3 things to avoid overall
+5. SUCCESS: What completion looks like
 
-EXAMPLES OF GOOD ROADMAPS:
+=== CORRECT vs WRONG OUTPUT ===
 
-For "Help me with this math problem":
-✅ Step 1: "Identify what type of problem this is" (hints guide them to recognize the pattern)
-✅ Step 2: "Write down what you know and what you need to find" (hints help them organize)
-✅ Step 3: "Apply the method we discussed to solve" (hints guide the process)
-❌ NOT: "First, multiply 5 by 3, then add 7, the answer is 22"
+WRONG (generic, vague, question-based):
+- "Set Clear Goals" with "What do you want to achieve?"
+- "Create a Study Schedule" with vague suggestions
+- "Practice Regularly" without specific actions
+- "Stay Motivated" - meaningless advice
 
-For "I want to learn Python":
-✅ Step 1: "Write a program that asks for your name and says hello"
-✅ Step 2: "Modify it to ask for your age and calculate your birth year"
-✅ Step 3: "Add a check that responds differently if you're under 18"
-
-For "Prepare for my history test":
-✅ Step 1: "List the 5 most important events - why did each one matter?"
-✅ Step 2: "Draw connections between events - what caused what?"
-✅ Step 3: "Explain to yourself why this period changed history"
-
-STRUCTURE:
-1. Create 2-4 ACTIONABLE steps (specific actions, not vague advice)
-2. Each step: 3-8 minutes, builds on the previous
-3. Each step has 2-3 progressive hints (hint ladder)
-4. Include an encouraging message specific to their goal
-5. Total time: 10-25 minutes
-
-ACKNOWLEDGMENT (optional - only if earned):
-- Only add if they're tackling something genuinely challenging
-- Examples: "This is a big goal — breaking it down is the smart approach." or "Good instinct to plan this out."
-- If basic, set to null. Be genuine.
-
-NEXT SUGGESTION (always include):
-- Examples: "Work through these steps, then tell me which one tripped you up." or "After this, want to test yourself on what you learned?"
-
-Create a roadmap that guides discovery, not one that hands over answers.`
-
-    responseFormat = `{
-  "title": "Plan: [specific goal]",
-  "encouragement": "A personalized encouraging message",
+CORRECT (specific, actionable, professional):
+{
+  "title": "Master English Vocabulary: 500 Words in 30 Days",
+  "overview": "Build vocabulary through spaced repetition and active usage.",
   "steps": [
     {
       "order": 1,
-      "duration": 5,
-      "title": "Step title",
-      "description": "Exactly what to do...",
-      "hints": [
-        "Gentle nudge: First hint to get started",
-        "More specific: Second hint with more detail",
-        "Almost there: Third hint that guides to the answer"
-      ]
+      "timeframe": "Days 1-7",
+      "title": "Foundation: 100 Most Common Words",
+      "description": "Learn the 100 most frequently used English words",
+      "method": "Use Anki flashcards. Add 15 words daily. Review 20 min each morning.",
+      "avoid": "Don't learn more than 15 new words per day - retention drops sharply.",
+      "doneWhen": "Recognize and use all 100 words in sentences without hints.",
+      "duration": 7
     }
   ],
-  "totalMinutes": 15,
-  "acknowledgment": "Only if earned - recognition of good approach (or null if not earned)",
-  "nextSuggestion": "Natural offer for what to do after completing the plan"
+  "pitfalls": [
+    "Cramming too many words at once - leads to poor retention",
+    "Skipping daily reviews - spaced repetition requires consistency"
+  ],
+  "successLooksLike": "Read English articles understanding 95% of vocabulary."
+}
+
+=== TONE ===
+
+- Professional, authoritative - like a senior professor's study plan
+- Direct statements, NOT questions ("Do X" not "Have you considered X?")
+- Specific timeframes ("Days 1-3" not "start by...")
+- Include WHAT TO AVOID at each step - this is crucial
+- No emojis, no fluff, no excessive encouragement
+- Mature, calm, premium feel
+
+The user should read this and know EXACTLY what to do next.`
+
+    responseFormat = `{
+  "title": "Specific Goal Statement",
+  "overview": "1-2 sentence approach and outcome summary",
+  "steps": [
+    {
+      "order": 1,
+      "timeframe": "Days 1-3",
+      "title": "Action-oriented step title",
+      "description": "Exact what to do",
+      "method": "Specific how to do it",
+      "avoid": "Common mistake NOT to make",
+      "doneWhen": "Clear success criterion",
+      "duration": 5
+    }
+  ],
+  "pitfalls": ["Specific thing to avoid 1", "Specific thing to avoid 2"],
+  "successLooksLike": "What completion looks like",
+  "totalMinutes": 30,
+  "acknowledgment": null,
+  "nextSuggestion": "What to do after completing this roadmap"
 }`
   }
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini', // Fast, smart, cost-effective model
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Student's question: "${processedQuestion}"\n\nRespond in this exact JSON format:\n${responseFormat}` },
@@ -967,30 +1055,45 @@ Create a roadmap that guides discovery, not one that hands over answers.`
         nextSuggestion: parsed.nextSuggestion || "Ready to go through these?",
       }
     } else {
-      // roadmap - now with hints for each step
-      const steps = (parsed.steps || []).slice(0, 4).map((step: { order?: number; duration?: number; title?: string; description?: string; hints?: string[] }, index: number) => ({
+      // roadmap - professional, system-controlled output
+      // New format includes: timeframe, method, avoid, doneWhen, pitfalls
+      interface RoadmapStepInput {
+        order?: number
+        duration?: number
+        timeframe?: string
+        title?: string
+        description?: string
+        method?: string
+        avoid?: string
+        doneWhen?: string
+        hints?: string[]
+      }
+
+      const steps = (parsed.steps || []).slice(0, 5).map((step: RoadmapStepInput, index: number) => ({
         id: uuidv4(),
         order: step.order || index + 1,
-        duration: Math.min(Math.max(step.duration || 5, 2), 10),
+        duration: Math.min(Math.max(step.duration || 5, 2), 15),
+        timeframe: step.timeframe || `Step ${index + 1}`,
         title: step.title || `Step ${index + 1}`,
-        description: step.description || 'Work on this step',
-        hints: Array.isArray(step.hints) && step.hints.length > 0
-          ? step.hints.slice(0, 3)
-          : [
-              'Start by reading the step carefully',
-              'Break it into smaller parts if needed',
-              'Try working through a similar example first',
-            ],
+        description: step.description || '',
+        method: step.method || '',
+        avoid: step.avoid || '',
+        doneWhen: step.doneWhen || '',
+        // Keep hints for backwards compatibility, but prefer new format
+        hints: step.hints || (step.avoid ? [`Avoid: ${step.avoid}`] : []),
       }))
 
       return {
         type: 'roadmap',
         title: parsed.title || `Plan: ${question.slice(0, 40)}`,
-        encouragement: parsed.encouragement || "You've got this! Take it one step at a time.",
+        overview: parsed.overview || '',
+        encouragement: parsed.encouragement || parsed.overview || '',
         steps: steps.length > 0 ? steps : createFallbackSteps(),
+        pitfalls: Array.isArray(parsed.pitfalls) ? parsed.pitfalls : [],
+        successLooksLike: parsed.successLooksLike || '',
         totalMinutes: steps.reduce((sum: number, s: { duration: number }) => sum + s.duration, 0),
         acknowledgment: parsed.acknowledgment && parsed.acknowledgment !== 'null' ? parsed.acknowledgment : undefined,
-        nextSuggestion: parsed.nextSuggestion || "Let me know how it goes!",
+        nextSuggestion: parsed.nextSuggestion || "Complete these steps, then let me know how it went.",
       }
     }
   } catch (error) {
@@ -1162,11 +1265,17 @@ function createFallbackFlashcards(question?: string): FlashcardAction {
 function createFallbackRoadmap(question?: string): RoadmapAction {
   return {
     type: 'roadmap',
-    title: question ? `Plan: ${question.slice(0, 40)}` : 'Quick Study Plan',
-    encouragement: "You've got this! Let's break it down together.",
+    title: question ? `Study Plan: ${question.slice(0, 40)}` : 'Quick Study Plan',
+    overview: 'A structured approach to master this topic step by step.',
+    encouragement: 'Follow these steps in order for best results.',
     steps: createFallbackSteps(),
+    pitfalls: [
+      'Skipping steps - each builds on the previous',
+      'Moving on before understanding - take your time',
+    ],
+    successLooksLike: 'You can explain the concept and apply it independently.',
     totalMinutes: 15,
-    nextSuggestion: 'Let me know if any step gives you trouble!',
+    nextSuggestion: 'Complete these steps, then let me know how it went.',
   }
 }
 
@@ -1176,37 +1285,37 @@ function createFallbackSteps() {
       id: uuidv4(),
       order: 1,
       duration: 5,
-      title: 'Identify the gap',
+      timeframe: 'First 5 minutes',
+      title: 'Identify What You Need to Learn',
       description: 'Write down exactly what confuses you in 1-2 sentences',
-      hints: [
-        'Ask yourself: what specifically feels unclear?',
-        'Try to pinpoint the exact moment you get lost',
-        'Write it down - seeing it helps clarify the confusion',
-      ],
+      method: 'Take out paper or open a notes app. Write "I am confused about..." and complete the sentence.',
+      avoid: 'Being vague. "I don\'t get it" is not specific enough.',
+      doneWhen: 'You have written a specific confusion point you can point to.',
+      hints: ['Be specific about where you get lost'],
     },
     {
       id: uuidv4(),
       order: 2,
       duration: 5,
-      title: 'Find one example',
-      description: 'Look at one worked example and trace each step',
-      hints: [
-        'Check your textbook or notes for a similar problem',
-        'Follow each step and ask "why" at each point',
-        'Cover the solution and try to predict the next step',
-      ],
+      timeframe: 'Minutes 5-10',
+      title: 'Study One Worked Example',
+      description: 'Find and trace through one complete example',
+      method: 'Look in your textbook, notes, or reliable online source. Follow each step and ask "why" at each point.',
+      avoid: 'Skimming. Actually trace through every step.',
+      doneWhen: 'You can explain why each step in the example was done.',
+      hints: ['Cover the solution and predict before revealing'],
     },
     {
       id: uuidv4(),
       order: 3,
       duration: 5,
-      title: 'Try it yourself',
-      description: 'Attempt a similar problem on your own',
-      hints: [
-        'Start with the approach you just learned',
-        'If stuck, go back to the example - which step matches?',
-        'Even a partial attempt teaches you something',
-      ],
+      timeframe: 'Minutes 10-15',
+      title: 'Apply It Yourself',
+      description: 'Attempt a similar problem without looking at the example',
+      method: 'Find a practice problem. Work through it step by step. Only check your work after completing.',
+      avoid: 'Looking at the solution too early. Struggle is part of learning.',
+      doneWhen: 'You solved a problem independently, even if it took multiple attempts.',
+      hints: ['If stuck, go back to the example - which step matches?'],
     },
   ]
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { z } from 'zod'
 import logger from '@/lib/logger'
 import { fetchWithBackoff } from '@/lib/api/timeout'
@@ -16,6 +17,15 @@ const requestSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - moderate for external API calls
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     // Verify user is authenticated
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()

@@ -162,7 +162,7 @@ Return a JSON object with this exact structure:
 IMPORTANT: Return ONLY valid JSON, no markdown code blocks or explanations.`
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Generate flashcards from this content:\n\n${content.trim()}` },
@@ -219,7 +219,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks or explanations.`
           subject: subject || generated.subject,
           source: 'AI_GENERATED',
           aiPrompt: content.substring(0, 5000), // Store first 5000 chars
-          aiModel: 'gpt-5-mini',
+          aiModel: 'gpt-4o-mini',
           cardCount: generated.cards.length,
         },
       })

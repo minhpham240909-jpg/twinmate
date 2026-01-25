@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 
 // POST /api/history/cleanup - Cleanup permanently delete items older than 30 days
 // This should be called by a cron job or scheduled task
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Authentication: Support multiple methods
     const authHeader = request.headers.get('authorization')
@@ -178,7 +179,16 @@ export async function POST(request: Request) {
 }
 
 // GET /api/history/cleanup - Health check endpoint
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Rate limiting - lenient for health check
+  const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: rateLimitResult.headers }
+    )
+  }
+
   return NextResponse.json({
     status: 'ok',
     message: 'Cleanup endpoint is active',

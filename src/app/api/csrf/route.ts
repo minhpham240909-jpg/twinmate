@@ -1,12 +1,21 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { generateCsrfToken } from '@/lib/csrf'
 
 /**
  * GET /api/csrf - Get CSRF token for the current session
  * Client must call this before making any state-changing requests
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limiting - lenient for CSRF token generation
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.lenient)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
     const token = await generateCsrfToken()
     
     if (!token) {

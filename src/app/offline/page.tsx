@@ -3,52 +3,42 @@
 import { WifiOff, RefreshCw } from 'lucide-react'
 
 export default function OfflinePage() {
-  const handleRefresh = () => {
+  const handleRetry = () => {
     window.location.reload()
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
-        <div className="mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-800 mb-4">
-            <WifiOff className="w-10 h-10 text-gray-500 dark:text-gray-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            You&apos;re Offline
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            It looks like you&apos;ve lost your internet connection.
-            Some features may not be available until you&apos;re back online.
-          </p>
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center p-6">
+      <div className="max-w-sm w-full text-center">
+        {/* Icon */}
+        <div className="w-20 h-20 bg-neutral-200 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-6">
+          <WifiOff className="w-10 h-10 text-neutral-400 dark:text-neutral-500" />
         </div>
 
-        <div className="space-y-4">
-          <button
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Try Again
-          </button>
+        {/* Title */}
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+          You're offline
+        </h1>
 
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            <p className="mb-2">While offline, you can still:</p>
-            <ul className="text-left space-y-1 inline-block">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Review cached flashcards
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                View your study history
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                See your progress stats
-              </li>
-            </ul>
-          </div>
+        {/* Description */}
+        <p className="text-neutral-500 dark:text-neutral-400 mb-8">
+          Check your internet connection and try again.
+        </p>
+
+        {/* Retry Button */}
+        <button
+          onClick={handleRetry}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors"
+        >
+          <RefreshCw className="w-5 h-5" />
+          Try again
+        </button>
+
+        {/* Branding */}
+        <div className="mt-12">
+          <p className="text-xs text-neutral-400 dark:text-neutral-600">
+            Clerva · Your AI Study Partner
+          </p>
         </div>
       </div>
     </div>

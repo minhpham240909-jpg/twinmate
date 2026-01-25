@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+// NOTE: withSentryConfig import kept but unused - causes runtime errors with React 19/Next.js 15
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { withSentryConfig } from "@sentry/nextjs";
 import path from "path";
 
@@ -256,6 +258,9 @@ const nextConfig: NextConfig = {
 };
 
 // Sentry configuration options
+// NOTE: Sentry webpack plugin disabled due to "Cannot read properties of undefined (reading 'call')"
+// error with React 19/Next.js 15. Sentry error tracking still works via instrumentation files.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const sentryWebpackPluginOptions = {
   // Suppresses source map uploading logs during build
   silent: true,
@@ -269,10 +274,6 @@ const sentryWebpackPluginOptions = {
   disableLogger: true,
 };
 
-// Export with Sentry and bundle analyzer wrappers
-// Sentry wraps first, then bundle analyzer
-const configWithSentry = process.env.NEXT_PUBLIC_SENTRY_DSN
-  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
-  : nextConfig;
-
-export default withBundleAnalyzer(configWithSentry);
+// Export with bundle analyzer wrapper only
+// Sentry withSentryConfig wrapper disabled - causes runtime errors with React 19
+export default withBundleAnalyzer(nextConfig);

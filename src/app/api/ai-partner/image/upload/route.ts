@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { sendMessageWithImage } from '@/lib/ai-partner'
 
 // Max image size: 10MB
@@ -21,6 +22,15 @@ const ALLOWED_MIME_TYPES = [
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - AI image analysis is expensive
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before uploading more images.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

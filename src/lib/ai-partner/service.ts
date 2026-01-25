@@ -51,7 +51,7 @@ import { INTELLIGENCE_VERSION, INITIAL_ADAPTIVE_STATE } from './intelligence'
  * Smart Routing Feature Flags
  *
  * Controls the rollout of smart AI features:
- * - Model routing (gpt-5-mini vs gpt-5)
+ * - Model routing (gpt-4o-mini vs gpt-4o)
  * - Dynamic response length
  * - Response caching
  *

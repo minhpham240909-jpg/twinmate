@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { PAGINATION } from '@/lib/constants'
 import { validatePaginationLimit } from '@/lib/validation'
@@ -7,6 +8,14 @@ import { validatePaginationLimit } from '@/lib/validation'
 // GET /api/users/mentions?query=john
 export async function GET(req: NextRequest) {
   try {
+    // Rate limiting - moderate for user search (potential abuse vector)
+    const rateLimitResult = await rateLimit(req, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

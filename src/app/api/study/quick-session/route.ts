@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import OpenAI from 'openai'
 import { z } from 'zod'
 
@@ -84,6 +85,15 @@ export async function POST(request: NextRequest) {
   let parsedBody: { intent?: string; question?: string; subject?: string } = {}
 
   try {
+    // Rate limiting - AI preset for expensive operations
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.ai)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before asking more questions.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     // Auth check
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -117,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     try {
       const response = await openai.chat.completions.create({
-        model: 'gpt-5-mini',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

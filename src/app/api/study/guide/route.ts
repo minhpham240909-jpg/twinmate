@@ -5,7 +5,7 @@
  * based on the subject and user's last session data.
  *
  * PERFORMANCE:
- * - Uses gpt-5-mini for efficiency
+ * - Uses gpt-4o-mini for efficiency
  * - Caches generated guides for 10 minutes per subject
  * - Lightweight prompt for fast response
  */
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         const prompt = buildPrompt(subject, suggestionType, context)
 
         const completion = await openai.chat.completions.create({
-          model: 'gpt-5-mini',
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',

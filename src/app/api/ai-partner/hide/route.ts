@@ -6,11 +6,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 
 // POST: Hide AI Partner from dashboard (ends active session first)
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - strict for preference changes
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -81,6 +91,15 @@ export async function POST(request: NextRequest) {
 // DELETE: Show AI Partner on dashboard again
 export async function DELETE(request: NextRequest) {
   try {
+    // Rate limiting - strict for preference changes
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.strict)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

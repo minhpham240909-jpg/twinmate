@@ -1,10 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/history/deleted-groups - Get user's deleted groups
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limiting - moderate for deleted groups (includes cleanup operations)
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

@@ -229,7 +229,7 @@ Respond in this exact JSON format:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `The student is stuck on: "${subject}". Ask a diagnostic question.` },
@@ -349,7 +349,7 @@ Respond in this exact JSON format:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Create a study plan for: "${subject}"` },
