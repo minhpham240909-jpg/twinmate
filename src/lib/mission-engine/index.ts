@@ -318,30 +318,30 @@ export class MissionEngine {
       return {
         id: `start-${Date.now()}`,
         type: 'learn',
-        title: 'Continue Your Journey',
-        directive: 'Set your next learning goal. What skill do you want to master?',
-        context: `As a ${progress.identity.archetype || 'dedicated learner'}, you've shown strength in ${progress.identity.strengths[0]}.`,
+        title: 'Ready for Your Next Challenge',
+        directive: 'What would you like to master next? Pick something that excites you.',
+        context: `You've already shown strength in ${progress.identity.strengths[0]}. Let's build on that momentum.`,
         estimatedMinutes: 5,
         proofRequired: 'submission',
         criteria: {
           type: 'completion',
-          description: 'Define a specific learning goal',
+          description: 'Share your next learning goal',
         },
       }
     }
 
-    // New user
+    // New user - warm, welcoming, exciting first experience
     return {
       id: `start-${Date.now()}`,
       type: 'learn',
-      title: 'Begin Your Learning Journey',
-      directive: 'Tell me one thing you want to learn. Be specific.',
-      context: 'Clerva will create a personalized roadmap and guide you step by step.',
+      title: 'Welcome to Clerva',
+      directive: 'What do you want to learn? It can be anything - a skill, a subject, or a goal you\'ve been putting off.',
+      context: 'I\'ll create a personalized roadmap just for you. Small steps, real progress, no overwhelm.',
       estimatedMinutes: 5,
       proofRequired: 'submission',
       criteria: {
         type: 'completion',
-        description: 'Submit a specific learning goal',
+        description: 'Tell me what you want to learn',
       },
     }
   }

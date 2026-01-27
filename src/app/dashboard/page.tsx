@@ -2170,6 +2170,16 @@ export default function DashboardPage() {
     setIsProcessing(true)
 
     try {
+      // Special case: First "start" mission - user is submitting their learning goal
+      // This should create a roadmap, not just evaluate proof
+      const isStartMission = currentMission.id.startsWith('start-') && !activeRoadmap
+
+      if (isStartMission && proof.content.trim()) {
+        // Treat this as a goal submission - create a roadmap
+        await createRoadmapFromGoal(proof.content.trim())
+        return // createRoadmapFromGoal handles its own state management
+      }
+
       // Evaluate proof
       const result = MissionEngine.evaluateProof(currentMission, {
         type: proof.type as 'explanation' | 'quiz' | 'submission' | 'practice_set' | 'self_report',
@@ -2240,7 +2250,7 @@ export default function DashboardPage() {
     } finally {
       setIsProcessing(false)
     }
-  }, [currentMission, activeRoadmap, completeStep, refreshRoadmap])
+  }, [currentMission, activeRoadmap, completeStep, refreshRoadmap, createRoadmapFromGoal])
 
   // ============================================
   // RENDER
