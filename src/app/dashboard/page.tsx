@@ -926,17 +926,34 @@ const RoadmapView = memo(function RoadmapView({
   onBack,
   onDelete,
   isDeleting,
+  onRefine,
 }: {
   roadmap: Roadmap
   onBack: () => void
   onDelete: () => void
   isDeleting: boolean
+  onRefine?: (type: 'faster_pace' | 'more_depth' | 'different_focus') => Promise<void>
 }) {
   const [showAllSteps, setShowAllSteps] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showHelpPanel, setShowHelpPanel] = useState(false)
   const [isLoadingHelp, setIsLoadingHelp] = useState(false)
   const [adaptiveFeedback, setAdaptiveFeedback] = useState<AdaptiveFeedback | null>(null)
+  const [isRefining, setIsRefining] = useState(false)
+  const [refiningType, setRefiningType] = useState<string | null>(null)
+
+  // Handle refinement
+  const handleRefine = async (type: 'faster_pace' | 'more_depth' | 'different_focus') => {
+    if (!onRefine || isRefining) return
+    setIsRefining(true)
+    setRefiningType(type)
+    try {
+      await onRefine(type)
+    } finally {
+      setIsRefining(false)
+      setRefiningType(null)
+    }
+  }
 
   // Find current step
   const currentStep = roadmap.steps.find(s => s.status === 'current')
@@ -1026,17 +1043,62 @@ const RoadmapView = memo(function RoadmapView({
       <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-3 mb-4">
         <div className="flex items-center justify-between">
           <span className="text-xs text-neutral-500 dark:text-neutral-400">
-            Refine this roadmap
+            {isRefining ? 'Refining roadmap...' : 'Refine this roadmap'}
           </span>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-              Faster pace
+            <button
+              onClick={() => handleRefine('faster_pace')}
+              disabled={isRefining}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                isRefining
+                  ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              }`}
+            >
+              {refiningType === 'faster_pace' ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Speeding up...
+                </span>
+              ) : (
+                'Faster pace'
+              )}
             </button>
-            <button className="px-3 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-              More depth
+            <button
+              onClick={() => handleRefine('more_depth')}
+              disabled={isRefining}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                isRefining
+                  ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              }`}
+            >
+              {refiningType === 'more_depth' ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Adding depth...
+                </span>
+              ) : (
+                'More depth'
+              )}
             </button>
-            <button className="px-3 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-              Different focus
+            <button
+              onClick={() => handleRefine('different_focus')}
+              disabled={isRefining}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                isRefining
+                  ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              }`}
+            >
+              {refiningType === 'different_focus' ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Changing focus...
+                </span>
+              ) : (
+                'Different focus'
+              )}
             </button>
           </div>
         </div>
@@ -2178,7 +2240,12 @@ export default function DashboardPage() {
 
 
   const handleSubmitProof = useCallback(async (proof: { type: string; content: string; score?: number }) => {
-    if (!currentMission) return
+    console.log('[handleSubmitProof] Called with:', { proof, currentMission: currentMission?.id, hasActiveRoadmap: !!activeRoadmap })
+    
+    if (!currentMission) {
+      console.error('[handleSubmitProof] No current mission!')
+      return
+    }
 
     setIsProcessing(true)
 
@@ -2199,11 +2266,19 @@ export default function DashboardPage() {
         content: proof.content,
         score: proof.score,
       })
+      
+      console.log('[handleSubmitProof] Evaluation result:', { passed: result.passed, feedback: result.feedback })
 
       // If linked to a roadmap step, complete it
       // Also check activeRoadmap directly in case linkedStep is not set (fallback)
       const currentStepFromRoadmap = activeRoadmap?.steps.find(s => s.status === 'current')
       const stepIdToComplete = currentMission.linkedStep?.stepId || currentStepFromRoadmap?.id
+      
+      console.log('[handleSubmitProof] Step completion check:', { 
+        stepIdToComplete, 
+        linkedStepId: currentMission.linkedStep?.stepId,
+        currentStepId: currentStepFromRoadmap?.id 
+      })
 
       if (result.passed && stepIdToComplete) {
         const success = await completeStep(stepIdToComplete)
@@ -2425,6 +2500,35 @@ export default function DashboardPage() {
               onBack={() => setViewState('mission')}
               onDelete={handleDeleteRoadmap}
               isDeleting={isDeleting}
+              onRefine={async (type) => {
+                try {
+                  const response = await fetch('/api/roadmap/refine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      roadmapId: activeRoadmap.id,
+                      refinementType: type,
+                    }),
+                  })
+                  if (!response.ok) {
+                    throw new Error('Failed to refine roadmap')
+                  }
+                  // Refresh the roadmap to get updated data
+                  await refreshRoadmap()
+                  setFeedbackMessage(
+                    type === 'faster_pace' ? 'Roadmap optimized for speed.' :
+                    type === 'more_depth' ? 'Roadmap expanded with more depth.' :
+                    'Roadmap refocused with new approach.'
+                  )
+                  if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+                  feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 3000)
+                } catch (error) {
+                  console.error('Failed to refine roadmap:', error)
+                  setFeedbackMessage('Failed to refine roadmap. Please try again.')
+                  if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+                  feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 3000)
+                }
+              }}
             />
           ) : (
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 text-center">
