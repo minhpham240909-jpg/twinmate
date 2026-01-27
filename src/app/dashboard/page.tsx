@@ -2140,6 +2140,14 @@ export default function DashboardPage() {
         )
         if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
         feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 4000)
+      } else {
+        // Roadmap generation returned unexpected format
+        console.error('Roadmap creation failed: unexpected response format', {
+          actionType: data.action?.type,
+          hasSteps: !!data.action?.steps,
+          stepsLength: data.action?.steps?.length,
+        })
+        throw new Error('Failed to generate study plan. Please try again with a different goal.')
       }
 
     } catch (err) {
