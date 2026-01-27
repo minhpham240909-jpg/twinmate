@@ -153,9 +153,32 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    log.error('Failed to create roadmap', error instanceof Error ? error : { error })
+    // Detailed error logging for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    log.error('Failed to create roadmap', {
+      error: errorMessage,
+      stack: errorStack,
+      userId: user?.id,
+      goalLength: body?.goal?.length,
+      titleLength: body?.title?.length,
+      stepsCount: body?.steps?.length,
+      // Log first step structure if available
+      firstStep: body?.steps?.[0] ? {
+        hasTitle: !!body.steps[0].title,
+        hasDescription: !!body.steps[0].description,
+        hasOrder: typeof body.steps[0].order === 'number',
+      } : null,
+    })
+
+    // Return more descriptive error in development
+    const isDev = process.env.NODE_ENV === 'development'
     return NextResponse.json(
-      { error: 'Failed to create roadmap' },
+      { 
+        error: isDev ? `Failed to create roadmap: ${errorMessage}` : 'Failed to create roadmap',
+        details: isDev ? { message: errorMessage } : undefined,
+      },
       { status: 500 }
     )
   }

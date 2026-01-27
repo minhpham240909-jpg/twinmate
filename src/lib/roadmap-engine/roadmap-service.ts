@@ -115,19 +115,45 @@ export interface StepResource {
 export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapWithSteps> {
   const { userId, steps, recommendedPlatforms, ...roadmapData } = input
 
+  // Validate input before database operation
+  if (!userId) {
+    throw new Error('userId is required')
+  }
+  if (!roadmapData.goal) {
+    throw new Error('goal is required')
+  }
+  if (!roadmapData.title) {
+    throw new Error('title is required')
+  }
+  if (!steps || steps.length === 0) {
+    throw new Error('At least one step is required')
+  }
+
+  // Validate each step has required fields
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]
+    if (!step.title) {
+      throw new Error(`Step ${i + 1} is missing a title`)
+    }
+    if (!step.description) {
+      throw new Error(`Step ${i + 1} is missing a description`)
+    }
+  }
+
   // Use transaction to ensure atomicity
-  return prisma.$transaction(async (tx) => {
-    // Deactivate any existing active roadmaps (user can only have one active)
-    await tx.learningRoadmap.updateMany({
-      where: {
-        userId,
-        isActive: true,
-      },
-      data: {
-        isActive: false,
-        status: RoadmapStatus.ABANDONED,
-      },
-    })
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Deactivate any existing active roadmaps (user can only have one active)
+      await tx.learningRoadmap.updateMany({
+        where: {
+          userId,
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+          status: RoadmapStatus.ABANDONED,
+        },
+      })
 
     // Create the new roadmap
     const roadmap = await tx.learningRoadmap.create({
@@ -163,8 +189,32 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
       },
     })
 
-    return roadmap as RoadmapWithSteps
-  })
+      return roadmap as RoadmapWithSteps
+    })
+  } catch (error) {
+    // Re-throw with more context for debugging
+    const prismaError = error as { code?: string; meta?: { target?: string[] }; message?: string }
+    
+    if (prismaError.code === 'P2002') {
+      throw new Error(`Unique constraint violation: ${prismaError.meta?.target?.join(', ')}`)
+    }
+    if (prismaError.code === 'P2003') {
+      throw new Error(`Foreign key constraint failed: ${prismaError.meta?.target?.join(', ')}`)
+    }
+    if (prismaError.code === 'P2025') {
+      throw new Error('Record not found during operation')
+    }
+    
+    // Log and re-throw the original error with context
+    console.error('[RoadmapService] createRoadmap failed:', {
+      errorCode: prismaError.code,
+      errorMessage: prismaError.message,
+      userId,
+      stepsCount: steps.length,
+    })
+    
+    throw error
+  }
 }
 
 // ============================================
