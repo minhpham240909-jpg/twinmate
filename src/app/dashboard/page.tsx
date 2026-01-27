@@ -2106,7 +2106,7 @@ export default function DashboardPage() {
 
       // Save roadmap
       if (data.action?.type === 'roadmap' && data.action.steps?.length > 0) {
-        await saveRoadmap({
+        const savedRoadmap = await saveRoadmap({
           goal,
           title: data.action.title || 'Study Plan',
           overview: data.action.overview || data.action.encouragement,
@@ -2126,6 +2126,11 @@ export default function DashboardPage() {
             resources: step.resources,
           })),
         })
+
+        // Check if save was successful
+        if (!savedRoadmap) {
+          throw new Error('Failed to save roadmap. Please try again.')
+        }
 
         await refreshRoadmap()
 

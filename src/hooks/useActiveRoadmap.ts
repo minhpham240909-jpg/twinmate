@@ -295,7 +295,7 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
 
       return responseData.roadmap
     } catch (err) {
-      console.error('Error saving roadmap:', err)
+      console.error('Error saving roadmap:', err instanceof Error ? err.message : err)
       return null
     }
   }, [queryClient])

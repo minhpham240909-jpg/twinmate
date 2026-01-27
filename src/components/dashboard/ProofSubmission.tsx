@@ -292,8 +292,14 @@ export const ProofSubmission = memo(function ProofSubmission({
     })
   }
 
+  // Check if this is a "start" mission (first-time goal submission)
+  const isStartMission = mission.id.startsWith('start-')
+
   // Validation: text OR files OR URLs
-  const hasContent = content.trim().length >= 20
+  // For start missions, only require 3 characters (e.g., "SQL", "CSS", "Git")
+  // For regular submissions, require 20 characters minimum
+  const minContentLength = isStartMission ? 3 : 20
+  const hasContent = content.trim().length >= minContentLength
   const hasFiles = files.some(f => f.url && !f.error)
   const hasUrls = urls.length > 0
   const isUploading = files.some(f => f.uploading)
@@ -456,18 +462,24 @@ export const ProofSubmission = memo(function ProofSubmission({
             {activeTab === 'text' && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  Describe your work
+                  {isStartMission ? 'What do you want to learn?' : 'Describe your work'}
                 </label>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Describe what you completed or paste your work..."
-                  rows={5}
+                  placeholder={isStartMission
+                    ? "e.g., Learn Python programming, Master calculus, Improve my writing skills..."
+                    : "Describe what you completed or paste your work..."
+                  }
+                  rows={isStartMission ? 3 : 5}
                   disabled={isLoading}
                   className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-400 outline-none focus:border-blue-500 resize-none"
                 />
                 <p className="text-xs text-neutral-400">
-                  {content.length} characters {!hasFiles && !hasUrls && '(20 minimum unless adding files/URLs)'}
+                  {isStartMission
+                    ? `${content.length} characters (${minContentLength} minimum)`
+                    : `${content.length} characters ${!hasFiles && !hasUrls ? `(${minContentLength} minimum unless adding files/URLs)` : ''}`
+                  }
                 </p>
               </div>
             )}
