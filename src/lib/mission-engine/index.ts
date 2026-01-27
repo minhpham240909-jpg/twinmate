@@ -88,7 +88,7 @@ export interface UserProgress {
   // Learning patterns
   patterns: {
     averageSessionMinutes: number
-    preferredTime: 'morning' | 'afternoon' | 'evening'
+    preferredTime: 'morning' | 'afternoon' | 'evening' | 'night'
     streakDays: number
     longestStreak: number
   }
@@ -218,8 +218,8 @@ export class MissionEngine {
       title: `Master: ${failure.topic}`,
       directive: `You struggled with ${failure.topic}. Today, we fix that. No shortcuts.`,
       context: failure.failCount > 1
-        ? `This has tripped you up ${failure.failCount} times. Let's break it down differently.`
-        : `One stumble doesn't define you. Let's approach this from a new angle.`,
+        ? `This has caused difficulty ${failure.failCount} times. Try a different approach.`
+        : `Initial difficulty is normal. Try a different strategy.`,
       estimatedMinutes: 15,
       proofRequired: 'explanation',
       criteria: {
@@ -404,10 +404,13 @@ export class MissionEngine {
         }
 
       case 'completion':
-        // For completion-based, we trust self-report but track patterns
+        // For completion-based, check if user self-reported as completed or struggled
+        const userCompleted = proof.content !== 'struggled'
         return {
-          passed: true,
-          feedback: 'Marked complete. Your consistency builds momentum.',
+          passed: userCompleted,
+          feedback: userCompleted
+            ? 'Marked complete. Your consistency builds momentum.'
+            : 'Noted. Let\'s work through this. The step remains active until you\'re ready.',
         }
 
       case 'quality':

@@ -1,6 +1,7 @@
 // Content Moderation API - Scan messages for inappropriate content
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 // OpenAI Moderation API endpoint
 const OPENAI_MODERATION_URL = 'https://api.openai.com/v1/moderations'
@@ -73,6 +74,17 @@ function checkBannedKeywords(content: string): string[] {
 // POST - Scan content for moderation
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 60 requests per minute (messaging preset)
+    // This prevents abuse of the OpenAI Moderation API
+    const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many moderation requests. Please slow down.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const body = await request.json()
     const {
       content,

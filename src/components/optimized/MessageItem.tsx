@@ -35,12 +35,12 @@ export const MessageItem = memo(function MessageItem({
         {senderAvatar ? (
           <img
             src={senderAvatar}
-            alt={senderName}
+            alt={`${senderName}'s avatar`}
             className="w-8 h-8 rounded-full"
             loading="lazy"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-neutral-700 flex items-center justify-center text-gray-700 dark:text-gray-300" aria-label={`${senderName}'s avatar`}>
             {senderName[0]?.toUpperCase()}
           </div>
         )}
@@ -48,10 +48,10 @@ export const MessageItem = memo(function MessageItem({
 
       {/* Message content */}
       <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
-        <div className={`px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-900'}`}>
+        <div className={`px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white'}`}>
           <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
         </div>
-        <span className="text-xs text-gray-500 mt-1">
+        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
         </span>
       </div>

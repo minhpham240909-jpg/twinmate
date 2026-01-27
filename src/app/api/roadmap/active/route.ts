@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/api-auth'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { getActiveRoadmap, getUserRoadmapStats, deleteRoadmap } from '@/lib/roadmap-engine/roadmap-service'
 import { createRequestLogger, getCorrelationId } from '@/lib/logger'
@@ -30,13 +30,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Auth check
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Auth check - uses cached auth context
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }
@@ -99,6 +98,8 @@ export async function GET(request: NextRequest) {
         actualMinutesSpent: activeRoadmap.actualMinutesSpent,
         pitfalls: activeRoadmap.pitfalls,
         successLooksLike: activeRoadmap.successLooksLike,
+        recommendedPlatforms: activeRoadmap.recommendedPlatforms, // Recommended learning platforms
+        targetDate: activeRoadmap.targetDate, // Accountability deadline
         createdAt: activeRoadmap.createdAt,
         lastActivityAt: activeRoadmap.lastActivityAt,
         steps: activeRoadmap.steps.map(step => ({
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
           avoid: step.avoid,
           doneWhen: step.doneWhen,
           duration: step.duration,
+          resources: step.resources, // Suggested resources
           status: step.status.toLowerCase(), // Convert enum to lowercase for frontend
           completedAt: step.completedAt,
           minutesSpent: step.minutesSpent,
@@ -164,13 +166,12 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Auth check
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Auth check - uses cached auth context
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }

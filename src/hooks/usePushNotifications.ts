@@ -44,11 +44,6 @@ export function usePushNotifications() {
       const pushManagerSupported = 'PushManager' in window
 
       if (!notificationSupported || !serviceWorkerSupported || !pushManagerSupported) {
-        console.log('[PushHooks] Not supported:', {
-          notification: notificationSupported,
-          serviceWorker: serviceWorkerSupported,
-          pushManager: pushManagerSupported
-        })
         if (isMounted) {
           setState(s => ({
             ...s,
@@ -70,7 +65,6 @@ export function usePushNotifications() {
 
       try {
         // Fetch VAPID public key from server
-        console.log('[PushHooks] Fetching VAPID key from /api/push/subscribe...')
         const keyResponse = await fetch('/api/push/subscribe', {
           signal: abortController.signal,
         })
@@ -78,14 +72,10 @@ export function usePushNotifications() {
         // Check if aborted before processing response
         if (abortController.signal.aborted) return
 
-        console.log('[PushHooks] VAPID response status:', keyResponse.status)
-
         if (keyResponse.ok) {
           const data = await keyResponse.json()
-          console.log('[PushHooks] VAPID key received:', data.publicKey ? 'yes (length: ' + data.publicKey.length + ')' : 'no')
           if (isMounted) setVapidPublicKey(data.publicKey)
         } else if (keyResponse.status === 503) {
-          console.log('[PushHooks] Push not configured (503) - VAPID keys missing on server')
           // Push not configured on server
           if (isMounted) {
             setState(s => ({
@@ -95,15 +85,12 @@ export function usePushNotifications() {
             }))
           }
           return
-        } else {
-          console.log('[PushHooks] Unexpected response:', keyResponse.status)
         }
 
         // Check if aborted before registering service worker
         if (abortController.signal.aborted) return
 
         // Register service worker
-        console.log('[PushHooks] Registering SW...')
         const reg = await navigator.serviceWorker.register('/sw.js', {
           scope: '/',
         })
@@ -112,15 +99,12 @@ export function usePushNotifications() {
         setRegistration(reg)
 
         // Wait for service worker to be ready
-        console.log('[PushHooks] Waiting for SW ready...')
         await navigator.serviceWorker.ready
 
         if (!isMounted) return
-        console.log('[PushHooks] SW Ready')
 
         // Check current subscription
         const subscription = await reg.pushManager.getSubscription()
-        console.log('[PushHooks] Initial subscription:', !!subscription)
         if (isMounted) {
           setState(s => ({
             ...s,

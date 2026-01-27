@@ -305,12 +305,12 @@ export default function ProgressPage() {
               stats.streak > 0 ? 'opacity-80' : 'text-neutral-500 dark:text-neutral-400'
             }`}>
               {stats.streak >= 7
-                ? "Amazing consistency! You've built a habit."
+                ? `${stats.streak}-day streak maintained`
                 : stats.streak >= 3
-                ? 'Building momentum. Keep it going!'
+                ? `${stats.streak} consecutive days`
                 : stats.streak > 0
-                ? "Great start! Let's keep the streak alive."
-                : "Start learning today to begin your streak!"}
+                ? `${stats.streak} day${stats.streak > 1 ? 's' : ''} active`
+                : 'No active streak'}
             </p>
           </div>
         )}

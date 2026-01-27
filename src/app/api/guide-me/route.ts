@@ -39,6 +39,12 @@ import {
   formatInputForRoadmap,
   type AnalyzedInput,
 } from '@/lib/roadmap-engine/input-analyzer'
+import {
+  getPlatformsForSubject,
+  getPlatformSearchUrl,
+  detectCategory,
+  type Platform,
+} from '@/lib/platforms/platform-database'
 
 // Type for extracted memory entries
 interface ExtractedMemory {
@@ -107,6 +113,26 @@ interface FlashcardAction {
   nextSuggestion?: string // Automatic "what's next" in tutor voice
 }
 
+// Resource suggestion for a step
+interface StepResourceSuggestion {
+  type: 'video' | 'article' | 'exercise' | 'tool' | 'book'
+  title: string
+  description?: string
+  url?: string
+  searchQuery?: string // What to search for
+}
+
+// Recommended platform for the roadmap
+interface RecommendedPlatform {
+  id: string
+  name: string
+  description: string
+  url: string
+  icon: string
+  color: string
+  searchUrl?: string // Direct search URL for this topic
+}
+
 interface RoadmapAction {
   type: 'roadmap'
   title: string
@@ -123,12 +149,22 @@ interface RoadmapAction {
     avoid?: string // What NOT to do
     doneWhen?: string // Success criterion
     hints: string[] // Progressive hints (legacy, kept for compatibility)
+    resources?: StepResourceSuggestion[] // Suggested resources
   }[]
   pitfalls?: string[] // Overall things to avoid
   successLooksLike?: string // What completion looks like
   totalMinutes: number
+  recommendedPlatforms?: RecommendedPlatform[] // Top 2-3 platforms for this learning goal
   acknowledgment?: string // Natural recognition of their effort (only when earned)
   nextSuggestion?: string // Automatic "what's next" in tutor voice
+  // Professor-level roadmap fields
+  estimatedDays?: number // Total estimated days to complete
+  dailyCommitment?: string // e.g., "30-45 minutes"
+  totalSteps?: number // Total number of steps
+  vision?: string // WHY this journey matters
+  targetUser?: string // Who this roadmap is for
+  successMetrics?: string[] // Measurable KPIs
+  outOfScope?: string[] // What NOT to focus on yet
 }
 
 type MicroAction = ExplanationAction | FlashcardAction | RoadmapAction
@@ -493,7 +529,7 @@ export async function POST(request: NextRequest) {
       fallbackAction: createFallbackExplanation(),
       xpEarned: 0,
       streakUpdated: false,
-      encouragement: "Let's work through this together!",
+      encouragement: 'Request processing failed.',
     }, { 
       status: 500,
       headers: {
@@ -878,174 +914,189 @@ Test thinking, not memory.`
   "nextSuggestion": "Natural offer for what to do next"
 }`
   } else if (actionType === 'roadmap') {
-    // CLERVA GPS-STYLE ROADMAP ENGINE
-    // Philosophy: Show ONLY current step in detail. Lock future steps. Enforce discipline.
-    // This is NOT ChatGPT. We don't give full plans - we guide step by step.
-    systemPrompt = `You are Clerva, a GPS-style Learning Operating System.
+    // CLERVA ROADMAP ENGINE v5 - PROFESSOR-LEVEL QUALITY
+    // World-class roadmaps that outperform ChatGPT, Gemini, and any other AI tool
+    // Content so clear a struggling student understands, so rich a professor approves
+    systemPrompt = `You are CLERVA - a world-class learning architect who creates roadmaps that TRANSFORM how people learn. Your roadmaps are legendary: professors approve them, struggling students finally understand, and advanced learners are genuinely satisfied.
 
-=== CRITICAL IDENTITY - READ THIS FIRST ===
-You are NOT ChatGPT. You do NOT:
-- Give full plans for users to "save and study"
-- Show all steps at once with long explanations
-- Use emojis, phases, or motivational fluff
-- Write paragraph after paragraph of advice
+=== YOUR PHILOSOPHY ===
+"A roadmap is not a list of tasks. It's a STRATEGIC DOCUMENT that shows someone exactly how to get from where they are to where they want to be - with confidence, clarity, and measurable progress."
 
-You ARE a GPS that:
-- Shows ONLY what matters NOW (current step in full detail)
-- HIDES 80% of the roadmap (future steps = titles only)
-- Enforces the current step with RISK warnings
-- Prevents damage with clear consequences
+=== WHAT MAKES YOUR ROADMAPS LEGENDARY ===
+
+1. VISION STATEMENT: Start with WHY this journey matters
+   - What transformation happens after completing this?
+   - What doors open? What becomes possible?
+   - Make them FEEL the destination before starting
+
+2. TARGET USER CLARITY: Who is this for?
+   - Be specific: "Complete beginner with zero experience"
+   - Not: "Anyone who wants to learn"
+
+3. SUCCESS METRICS (KPIs): How do we MEASURE progress?
+   - Specific, measurable outcomes for each phase
+   - "Can build X" not "Understands X"
+   - Numbers when possible: "Write 50 lines of working code"
+
+4. STRATEGIC MILESTONES: Celebrate progress
+   - Major checkpoints that prove advancement
+   - Each milestone unlocks new capabilities
+
+5. PHASE STRUCTURE: Now / Next / Later
+   - NOW: Immediate focus (this week)
+   - NEXT: Coming soon (next 2-4 weeks)
+   - LATER: Future phases (beyond that)
+
+6. CRYSTAL CLEAR STEPS: Professor-level specificity
+   - WHY this step: Deep explanation of reasoning
+   - HOW to do it: Exact method, not vague instructions
+   - TIME required: Daily commitment + total + flexible options
+   - DONE WHEN: Verifiable, provable completion criteria
+   - SELF-TEST: Quick challenge to prove mastery
+   - ABILITIES GAINED: Specific capabilities after this step
+
+7. RISK MANAGEMENT: Prevent failure before it happens
+   - Common mistakes with CONSEQUENCES
+   - What to AVOID and WHY
+   - Warning signs you're going wrong
+
+8. OUT OF SCOPE: What NOT to focus on (prevents overwhelm)
+   - Explicit list of what to ignore for now
+   - "Don't worry about X until you've mastered Y"
+
+=== CONTENT QUALITY STANDARDS ===
+
+FOR STRUGGLING STUDENTS:
+- Use simple language a 12-year-old could understand
+- Break complex ideas into tiny pieces
+- Give concrete examples for EVERYTHING
+- Never assume prior knowledge
+
+FOR ADVANCED LEARNERS:
+- Include depth and nuance
+- Explain the "why" behind best practices
+- Reference industry standards
+- Connect to bigger picture
+
+SPECIFICITY RULES:
+GOOD: "Write 10 variable declarations using const, let, and var. Then explain to yourself (out loud) why const is preferred. Time: 15 minutes."
+BAD: "Practice variables"
+
+GOOD: "By end of step: You can write any function from scratch, debug basic errors, and explain to someone else how functions work."
+BAD: "You understand functions"
 
 ${spellingInstruction}
 ${subjectContext}${userContextLine}
-Goal: ${struggleDescription}
-${memorySection}
-${inputMaterialContext ? `
-=== INPUT MATERIAL PROVIDED ===
-User provided learning material. Guide HOW to learn from it, not what it says.
-${inputMaterialContext}
-` : ''}
+Learning Context: ${struggleDescription}
+${memorySection}${inputMaterialContext ? `\nInput material provided - guide ACTIONS to learn from it.\n${inputMaterialContext}` : ''}
 
-=== GPS-STYLE OUTPUT STRUCTURE ===
+=== RESOURCE REQUIREMENTS ===
+Each step MUST include 1-2 high-quality resources:
+- Type: video, article, exercise, tool, book
+- Title: Descriptive name
+- searchQuery: Specific search term for the platform
+- Priority: Which resource to use first
 
-You output TWO types of steps:
-1. CURRENT STEP: Full detail with method, risk, doneWhen
-2. LOCKED STEPS: Title only - details hidden until earned
-
-=== OUTPUT FORMAT (EXACT JSON) ===
-
-{
-  "title": "Short, direct title (NO emojis)",
-  "overview": "One sentence goal",
-  "totalSteps": 4,
-  "estimatedDays": 30,
-
-  "currentStep": {
-    "order": 1,
-    "title": "Specific action title",
-    "description": "Direct instruction - what to do NOW",
-    "timeframe": "Days 1-7",
-    "method": "Exact method: use X, do Y exercises, complete Z",
-    "risk": {
-      "warning": "What NOT to do - specific bad behavior",
-      "consequence": "What happens if ignored - specific damage",
-      "severity": "RISK"
-    },
-    "doneWhen": "Clear, verifiable success criterion",
-    "duration": 15
-  },
-
-  "lockedSteps": [
-    { "order": 2, "title": "Title only" },
-    { "order": 3, "title": "Title only" },
-    { "order": 4, "title": "Title only" }
-  ],
-
-  "criticalWarning": {
-    "warning": "The ONE thing that ruins this entire plan",
-    "consequence": "Specific damage",
-    "severity": "RISK"
-  },
-
-  "successLooksLike": "One sentence - measurable outcome"
-}
-
-=== EXAMPLE ===
-
-WRONG (ChatGPT-style):
-"🌍 English Learning Roadmap
-PHASE 1: Foundation (2-3 months)
-1️⃣ Pronunciation & Listening
-Focus first on sounds..."
-[continues for paragraphs with emojis]
-
-CORRECT (Clerva GPS-style):
-{
-  "title": "English Fluency Path",
-  "overview": "Speak English confidently in real conversations",
-  "totalSteps": 4,
-  "estimatedDays": 60,
-
-  "currentStep": {
-    "order": 1,
-    "title": "Sound & Listening Base",
-    "description": "Train your ear to hear English sounds correctly. This controls everything after.",
-    "timeframe": "Days 1-21",
-    "method": "Daily 15 min: Listen to 60-second native audio, repeat immediately (shadowing), copy rhythm. Focus: th, r/l, stress.",
-    "risk": {
-      "warning": "Studying grammar or memorizing vocabulary lists first",
-      "consequence": "Delays fluency by months. You cannot speak what you cannot hear.",
-      "severity": "RISK"
-    },
-    "doneWhen": "Understand short native sentences without translating in your head",
-    "duration": 15
-  },
-
-  "lockedSteps": [
-    { "order": 2, "title": "Core Vocabulary in Sentences" },
-    { "order": 3, "title": "Speaking Without Freezing" },
-    { "order": 4, "title": "Real Conversations" }
-  ],
-
-  "criticalWarning": {
-    "warning": "Skipping to speaking before completing sound training",
-    "consequence": "You develop bad pronunciation habits that are nearly impossible to fix",
-    "severity": "RISK"
-  },
-
-  "successLooksLike": "5-minute conversation with a native speaker without freezing"
-}
-
-=== RULES ===
-- NO emojis
-- NO phases
-- NO motivational text
-- NO "you might want to" or "consider"
-- ONLY direct commands
-- ALWAYS include risk warning
-- Future steps = TITLES ONLY
-- Maximum 3-5 total steps`
+Remember: You're not just creating a roadmap. You're creating a TRANSFORMATION DOCUMENT that will change someone's life. Make it worthy of that responsibility.`
 
     responseFormat = `{
-  "title": "Short direct title",
-  "overview": "One sentence goal",
-  "totalSteps": 4,
-  "estimatedDays": 30,
+  "title": "Clear, motivating title",
+  "vision": "WHY this journey matters - what transformation awaits (1-2 sentences)",
+  "targetUser": "Specific description of who this is for",
+  "overview": "Brief summary of the learning path",
+  "totalSteps": 3,
+  "estimatedDays": 14,
+  "totalMinutes": 180,
+  "dailyCommitment": "15-20 min/day",
+  "successMetrics": [
+    "Specific measurable outcome 1",
+    "Specific measurable outcome 2"
+  ],
+  "outOfScope": [
+    "What NOT to focus on yet",
+    "What to ignore for now"
+  ],
   "currentStep": {
     "order": 1,
-    "title": "Action title",
-    "description": "What to do NOW",
-    "timeframe": "Days 1-7",
-    "method": "Exact method",
+    "phase": "NOW",
+    "title": "Action-oriented title",
+    "description": "Clear, direct command",
+    "whyFirst": "Deep explanation of why this must come first",
+    "timeframe": "Days 1-5",
+    "method": "Exact step-by-step method with daily breakdown",
+    "timeBreakdown": {
+      "daily": "15 min",
+      "total": "75 min over 5 days",
+      "flexible": "Can do 30 min/day to finish in 3 days"
+    },
     "risk": {
-      "warning": "What NOT to do",
-      "consequence": "Damage if ignored",
+      "warning": "Specific warning about what can go wrong",
+      "consequence": "Exact damage if ignored",
       "severity": "RISK"
     },
-    "doneWhen": "Success criterion",
-    "duration": 15
+    "commonMistakes": [
+      "Mistake 1 - specific consequence",
+      "Mistake 2 - specific consequence",
+      "Mistake 3 - specific consequence"
+    ],
+    "doneWhen": "Verifiable, provable completion criterion",
+    "selfTest": {
+      "challenge": "Quick test to prove mastery",
+      "passCriteria": "Exactly what proves you're ready"
+    },
+    "abilities": [
+      "Specific capability gained",
+      "Another specific capability"
+    ],
+    "milestone": "What this step unlocks (optional)",
+    "duration": 15,
+    "resources": [
+      {"type": "video", "title": "Resource name", "searchQuery": "specific search term", "priority": 1}
+    ]
   },
   "lockedSteps": [
-    { "order": 2, "title": "Title only" }
+    {
+      "order": 2,
+      "phase": "NEXT",
+      "title": "Step 2 title",
+      "whyAfterPrevious": "Why this must come after step 1",
+      "previewAbilities": ["What you'll be able to do after this"],
+      "milestone": "Major achievement this unlocks",
+      "resources": [{"type": "exercise", "title": "Resource", "searchQuery": "search term"}]
+    },
+    {
+      "order": 3,
+      "phase": "LATER",
+      "title": "Step 3 title",
+      "whyAfterPrevious": "Why this comes last",
+      "previewAbilities": ["Final capabilities gained"],
+      "milestone": "Final milestone achievement",
+      "resources": [{"type": "article", "title": "Resource", "searchQuery": "search term"}]
+    }
   ],
   "criticalWarning": {
-    "warning": "Biggest mistake",
-    "consequence": "Damage",
-    "severity": "RISK"
+    "warning": "The ONE behavior that ruins everything",
+    "consequence": "Specific, harsh damage",
+    "severity": "CRITICAL"
   },
-  "successLooksLike": "Measurable outcome"
+  "successLooksLike": "Vivid description of what you can DO after completing this roadmap"
 }`
   }
 
   try {
+    // Optimize for quality: roadmap uses more tokens for enhanced format
+    const isRoadmap = actionType === 'roadmap'
+    const optimizedTokens = isRoadmap ? 1800 : maxTokens // Professor-level roadmap needs more tokens
+    const optimizedTemp = isRoadmap ? 0.5 : 0.7 // Lower temp for consistent quality
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Fast, smart, cost-effective model
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Student's question: "${processedQuestion}"\n\nRespond in this exact JSON format:\n${responseFormat}` },
+        { role: 'user', content: `Goal: "${processedQuestion}"\n\nJSON format:\n${responseFormat}` },
       ],
-      temperature: 0.7,
-      max_tokens: maxTokens, // Adaptive based on input size (600-1000)
+      temperature: optimizedTemp,
+      max_tokens: optimizedTokens,
       response_format: { type: 'json_object' },
     })
 
@@ -1109,8 +1160,17 @@ CORRECT (Clerva GPS-style):
       // roadmap - GPS-STYLE output with currentStep + lockedSteps
       // New format: Only current step has full detail, locked steps have titles only
 
-      // Build steps array from GPS-style response
-      const steps: Array<{
+      // Resource type definition
+      interface ParsedResource {
+        type?: string
+        title?: string
+        description?: string
+        url?: string
+        searchQuery?: string
+      }
+
+      // Enhanced step interface with professor-level quality improvements
+      interface EnhancedStep {
         id: string
         order: number
         duration: number
@@ -1122,12 +1182,49 @@ CORRECT (Clerva GPS-style):
         doneWhen: string
         hints: string[]
         isLocked: boolean
+        resources?: Array<{ type: string; title: string; description?: string; url?: string; searchQuery?: string; platformId?: string; platformName?: string; directUrl?: string; priority?: number }>
         risk?: { warning: string; consequence: string; severity: string }
-      }> = []
+        // Enhanced fields for professor-level quality
+        phase?: 'NOW' | 'NEXT' | 'LATER'
+        whyFirst?: string
+        timeBreakdown?: { daily: string; total: string; flexible: string }
+        commonMistakes?: string[]
+        selfTest?: { challenge: string; passCriteria: string }
+        abilities?: string[]
+        milestone?: string
+        whyAfterPrevious?: string
+        previewAbilities?: string[]
+      }
 
-      // Add current step (full detail)
+      const steps: EnhancedStep[] = []
+
+      // Import smart resources for direct platform links
+      const { createSmartResource } = await import('@/lib/roadmap-engine/smart-resources')
+      const detectedSubject = subject || detectCategory(question) || question
+
+      // Add current step (full detail with enhanced fields)
       if (parsed.currentStep) {
         const cs = parsed.currentStep
+
+        // Transform resources to smart resources with direct platform links
+        const smartResources = cs.resources?.map((r: ParsedResource) => {
+          const smart = createSmartResource({
+            type: r.type || 'article',
+            title: r.title || 'Resource',
+            description: r.description,
+            searchQuery: r.searchQuery,
+          }, detectedSubject)
+          return {
+            type: smart.type,
+            title: smart.title,
+            description: smart.description,
+            searchQuery: smart.searchQuery,
+            platformId: smart.platformId,
+            platformName: smart.platformName,
+            directUrl: smart.directUrl,
+          }
+        })
+
         steps.push({
           id: uuidv4(),
           order: cs.order || 1,
@@ -1140,13 +1237,49 @@ CORRECT (Clerva GPS-style):
           doneWhen: cs.doneWhen || '',
           hints: cs.risk ? [`RISK: ${cs.risk.warning}`, `Consequence: ${cs.risk.consequence}`] : [],
           isLocked: false,
+          resources: smartResources,
           risk: cs.risk,
+          // Professor-level enhanced fields
+          phase: cs.phase || 'NOW',
+          whyFirst: cs.whyFirst,
+          timeBreakdown: cs.timeBreakdown,
+          commonMistakes: cs.commonMistakes,
+          selfTest: cs.selfTest,
+          abilities: cs.abilities,
+          milestone: cs.milestone,
         })
       }
 
-      // Add locked steps (titles only - no details)
+      // Add locked steps with preview info
       if (parsed.lockedSteps && Array.isArray(parsed.lockedSteps)) {
-        parsed.lockedSteps.forEach((ls: { order?: number; title?: string }, index: number) => {
+        parsed.lockedSteps.forEach((ls: {
+          order?: number
+          title?: string
+          phase?: 'NOW' | 'NEXT' | 'LATER'
+          milestone?: string
+          resources?: ParsedResource[]
+          whyAfterPrevious?: string
+          previewAbilities?: string[]
+        }, index: number) => {
+          // Transform resources to smart resources
+          const smartResources = ls.resources?.map((r: ParsedResource) => {
+            const smart = createSmartResource({
+              type: r.type || 'article',
+              title: r.title || 'Resource',
+              description: r.description,
+              searchQuery: r.searchQuery,
+            }, detectedSubject)
+            return {
+              type: smart.type,
+              title: smart.title,
+              description: smart.description,
+              searchQuery: smart.searchQuery,
+              platformId: smart.platformId,
+              platformName: smart.platformName,
+              directUrl: smart.directUrl,
+            }
+          })
+
           steps.push({
             id: uuidv4(),
             order: ls.order || index + 2,
@@ -1159,6 +1292,12 @@ CORRECT (Clerva GPS-style):
             doneWhen: '',
             hints: [],
             isLocked: true,
+            resources: smartResources,
+            // Professor-level preview info for locked steps
+            phase: ls.phase || (index === 0 ? 'NEXT' : 'LATER'),
+            milestone: ls.milestone,
+            whyAfterPrevious: ls.whyAfterPrevious,
+            previewAbilities: ls.previewAbilities,
           })
         })
       }
@@ -1169,6 +1308,18 @@ CORRECT (Clerva GPS-style):
         pitfalls.push(`RISK: ${parsed.criticalWarning.warning} - ${parsed.criticalWarning.consequence}`)
       }
 
+      // Get recommended platforms based on the goal/subject (reuse detectedSubject from above)
+      const platforms = getPlatformsForSubject(detectedSubject, 3)
+      const recommendedPlatforms: RecommendedPlatform[] = platforms.map((p: Platform) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        url: p.url,
+        icon: p.icon,
+        color: p.color,
+        searchUrl: p.searchUrl ? getPlatformSearchUrl(p, question.slice(0, 50)) : undefined,
+      }))
+
       return {
         type: 'roadmap',
         title: parsed.title || `Plan: ${question.slice(0, 40)}`,
@@ -1177,9 +1328,19 @@ CORRECT (Clerva GPS-style):
         steps: steps.length > 0 ? steps : createFallbackSteps(),
         pitfalls,
         successLooksLike: parsed.successLooksLike || '',
-        totalMinutes: parsed.currentStep?.duration || 15,
+        totalMinutes: parsed.totalMinutes || parsed.currentStep?.duration * (parsed.totalSteps || 3) || 60,
+        recommendedPlatforms: recommendedPlatforms.length > 0 ? recommendedPlatforms : undefined,
         acknowledgment: undefined, // GPS style doesn't use acknowledgment
         nextSuggestion: "Focus on the current step. Complete it before moving on.",
+        // Professor-level roadmap fields
+        estimatedDays: parsed.estimatedDays,
+        dailyCommitment: parsed.dailyCommitment,
+        totalSteps: parsed.totalSteps || steps.length,
+        // NEW: Vision and strategic fields
+        vision: parsed.vision,
+        targetUser: parsed.targetUser,
+        successMetrics: parsed.successMetrics,
+        outOfScope: parsed.outOfScope,
       }
     }
   } catch (error) {
@@ -1199,6 +1360,8 @@ CORRECT (Clerva GPS-style):
 /**
  * Award XP and update streak
  * FIX: Uses atomic transaction to prevent race conditions on concurrent requests
+ * NOTE: Profile.totalPoints update is kept in transaction for atomicity with streak,
+ *       but we also log to GamificationEvent and DailyProgress for audit trail
  */
 async function awardXPAndUpdateStreak(userId: string): Promise<{ xpEarned: number; streakUpdated: boolean }> {
   const today = new Date()
@@ -1254,13 +1417,48 @@ async function awardXPAndUpdateStreak(userId: string): Promise<{ xpEarned: numbe
         },
       })
 
-      return { xpEarned: XP_PER_ACTION, streakUpdated }
+      return { xpEarned: XP_PER_ACTION, streakUpdated, newStreak }
     }, {
       // FIX: Use serializable isolation for streak updates to prevent race conditions
       isolationLevel: 'Serializable',
     })
 
-    return result
+    // Log XP to GamificationEvent and DailyProgress (non-blocking, for audit trail)
+    if (result.xpEarned > 0) {
+      Promise.all([
+        // Log to DailyProgress
+        prisma.dailyProgress.upsert({
+          where: { userId_date: { userId, date: today } },
+          update: { xpEarned: { increment: result.xpEarned } },
+          create: {
+            userId,
+            date: today,
+            xpEarned: result.xpEarned,
+            targetMinutes: 15,
+            actualMinutes: 0,
+            stepsCompleted: 0,
+          },
+        }),
+        // Log to GamificationEvent
+        prisma.gamificationEvent.create({
+          data: {
+            userId,
+            eventType: 'xp_earned',
+            eventData: {
+              source: 'other',
+              action: 'guide_me_action',
+              streakUpdated: result.streakUpdated,
+            },
+            xpEarned: result.xpEarned,
+            wasVisible: true,
+          },
+        }),
+      ]).catch(err => {
+        logger.warn('[Guide Me] Failed to log XP event', { error: err })
+      })
+    }
+
+    return { xpEarned: result.xpEarned, streakUpdated: result.streakUpdated }
   } catch (error) {
     // Log error but don't fail the request - XP award is not critical
     logger.error('[Guide Me] XP/Streak update error', error instanceof Error ? error : { error })
@@ -1274,19 +1472,19 @@ async function awardXPAndUpdateStreak(userId: string): Promise<{ xpEarned: numbe
 function getEncouragement(actionType: MicroAction['type']): string {
   const messages = {
     explanation: [
-      "Nice! Understanding is the first step to mastery.",
-      "Great question! Keep that curiosity going.",
-      "You're building a solid foundation!",
+      'Explanation generated.',
+      'Concept breakdown ready.',
+      'Analysis complete.',
     ],
     flashcards: [
-      "Practice makes progress!",
-      "You're preparing smart!",
-      "Keep reviewing - you've got this!",
+      'Flashcards generated.',
+      'Review cards ready.',
+      'Practice set created.',
     ],
     roadmap: [
-      "One step at a time - you're on your way!",
-      "Great plan! Now let's do it.",
-      "Breaking it down is the smart approach!",
+      'Roadmap generated.',
+      'Study plan ready.',
+      'Step-by-step plan created.',
     ],
   }
 

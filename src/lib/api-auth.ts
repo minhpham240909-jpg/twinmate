@@ -1,44 +1,83 @@
 /**
  * API Route Authorization Utilities
  *
- * Provides server-side authentication and authorization for API routes.
- * Ensures users can only access their own data and prevents unauthorized access.
+ * STANDARDIZED AUTH PATTERN FOR CLERVA API ROUTES
+ * ================================================
  *
- * Usage:
+ * This module provides server-side authentication and authorization for API routes.
+ * All API routes should use these utilities for consistent auth handling.
+ *
+ * FEATURES:
+ * - Request-scoped caching (eliminates N+1 queries)
+ * - Deactivation checking
+ * - Admin/ownership validation
+ * - CSRF protection integration
+ *
+ * RECOMMENDED PATTERNS:
+ *
+ * 1. Simple authenticated route (RECOMMENDED):
  * ```typescript
- * import { withAuth, withOwnership, withAdmin } from '@/lib/api-auth'
+ * import { getCurrentUser } from '@/lib/api-auth'
  *
- * // Require authentication
+ * export async function GET(request: NextRequest) {
+ *   const user = await getCurrentUser()
+ *   if (!user) {
+ *     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ *   }
+ *   // ... handle request
+ * }
+ * ```
+ *
+ * 2. Using wrapper for cleaner code:
+ * ```typescript
+ * import { withAuth } from '@/lib/api-auth'
+ *
  * export const GET = withAuth(async (request, { user }) => {
  *   return NextResponse.json({ userId: user.id })
  * })
+ * ```
  *
- * // Require ownership of a resource
- * export const PUT = withOwnership(
- *   async (request, { user, resourceOwnerId }) => {
- *     // User is verified to own this resource
- *     return NextResponse.json({ success: true })
- *   },
- *   { getOwnerId: async (req) => req.params.userId }
- * )
+ * 3. Admin-only routes:
+ * ```typescript
+ * import { withAdmin } from '@/lib/api-auth'
  *
- * // Require admin role
  * export const DELETE = withAdmin(async (request, { user }) => {
  *   return NextResponse.json({ deleted: true })
  * })
  * ```
+ *
+ * 4. Resource ownership:
+ * ```typescript
+ * import { withOwnership } from '@/lib/api-auth'
+ *
+ * export const PUT = withOwnership(
+ *   async (request, { user, resourceOwnerId }) => {
+ *     return NextResponse.json({ success: true })
+ *   },
+ *   { getOwnerId: async (req) => req.params.userId }
+ * )
+ * ```
+ *
+ * AVOID:
+ * - Direct use of `createClient` for auth in route handlers
+ * - Inconsistent error responses for auth failures
+ * - Missing deactivation checks
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 
+// ============================================================================
 // Types
+// ============================================================================
+
 export interface AuthenticatedUser {
   id: string
   email: string
-  role?: string
-  isAdmin?: boolean
+  role: string
+  isAdmin: boolean
 }
 
 export interface AuthContext {
@@ -62,24 +101,80 @@ type OwnershipHandler = (
 
 interface OwnershipOptions {
   getOwnerId: (request: NextRequest, params?: Record<string, string>) => Promise<string | null>
-  allowAdmin?: boolean // If true, admins can access any resource
+  allowAdmin?: boolean
 }
 
+// ============================================================================
+// Request-scoped Auth Cache (eliminates N+1 queries)
+// ============================================================================
+
+// WeakMap ensures automatic garbage collection when request is done
+const authCache = new WeakMap<
+  object,
+  {
+    supabase: Awaited<ReturnType<typeof createClient>>
+    supabaseUser: SupabaseUser | null
+    dbUser: AuthenticatedUser | null
+    resolved: boolean
+  }
+>()
+
+// Symbol used as cache key for requests without object reference
+const REQUEST_CACHE_SYMBOL = Symbol.for('clerva-auth-cache')
+
+// In-memory cache for the current async context (fallback)
+let currentRequestCache: {
+  supabase?: Awaited<ReturnType<typeof createClient>>
+  supabaseUser?: SupabaseUser | null
+  dbUser?: AuthenticatedUser | null
+  timestamp?: number
+} = {}
+
 /**
- * Get the current authenticated user from Supabase session
+ * Get or create a cached auth context for the current request
+ * This ensures we only make ONE Supabase call and ONE Prisma call per request
  */
-export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return null
+async function getAuthContext(requestKey?: object): Promise<{
+  supabase: Awaited<ReturnType<typeof createClient>>
+  supabaseUser: SupabaseUser | null
+  user: AuthenticatedUser | null
+}> {
+  // Check WeakMap cache first (preferred for memory efficiency)
+  if (requestKey) {
+    const cached = authCache.get(requestKey)
+    if (cached?.resolved) {
+      return {
+        supabase: cached.supabase,
+        supabaseUser: cached.supabaseUser,
+        user: cached.dbUser,
+      }
     }
+  }
 
-    // Get user info from database
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
+  // Check in-memory cache (expires after 100ms to handle same-request scenarios)
+  const now = Date.now()
+  if (
+    currentRequestCache.timestamp &&
+    now - currentRequestCache.timestamp < 100 &&
+    currentRequestCache.supabase
+  ) {
+    return {
+      supabase: currentRequestCache.supabase,
+      supabaseUser: currentRequestCache.supabaseUser ?? null,
+      user: currentRequestCache.dbUser ?? null,
+    }
+  }
+
+  // Create new auth context
+  const supabase = await createClient()
+  const { data: { user: supabaseUser }, error } = await supabase.auth.getUser()
+
+  let dbUser: AuthenticatedUser | null = null
+
+  if (!error && supabaseUser) {
+    // Single optimized database query
+    const userData = await prisma.user.findUnique({
+      where: { id: supabaseUser.id },
       select: {
         id: true,
         email: true,
@@ -89,17 +184,65 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       },
     })
 
-    // Check if user is deactivated
-    if (dbUser?.deactivatedAt) {
-      return null
+    // Check if user exists and is not deactivated
+    if (userData && !userData.deactivatedAt) {
+      dbUser = {
+        id: userData.id,
+        email: userData.email || supabaseUser.email || '',
+        role: userData.role || 'FREE',
+        isAdmin: userData.isAdmin ?? false,
+      }
     }
+  }
 
-    return {
-      id: user.id,
-      email: user.email || '',
-      role: dbUser?.role || 'FREE',
-      isAdmin: dbUser?.isAdmin ?? false,
-    }
+  // Cache the result
+  const cacheEntry = {
+    supabase,
+    supabaseUser: supabaseUser ?? null,
+    dbUser,
+    resolved: true,
+  }
+
+  if (requestKey) {
+    authCache.set(requestKey, cacheEntry)
+  }
+
+  // Also update in-memory cache
+  currentRequestCache = {
+    supabase,
+    supabaseUser: supabaseUser ?? null,
+    dbUser,
+    timestamp: now,
+  }
+
+  return {
+    supabase,
+    supabaseUser: supabaseUser ?? null,
+    user: dbUser,
+  }
+}
+
+/**
+ * Clear the request cache (call at end of request if needed)
+ */
+export function clearAuthCache(): void {
+  currentRequestCache = {}
+}
+
+// ============================================================================
+// Core Auth Functions
+// ============================================================================
+
+/**
+ * Get the current authenticated user
+ * Uses request-scoped caching to eliminate duplicate queries
+ *
+ * @returns AuthenticatedUser if authenticated and not deactivated, null otherwise
+ */
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  try {
+    const { user } = await getAuthContext()
+    return user
   } catch (error) {
     console.error('[API Auth] Error getting current user:', error)
     return null
@@ -107,27 +250,99 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 }
 
 /**
+ * Get the current user with the Supabase client
+ * Useful when you need both the user and supabase client
+ */
+export async function getCurrentUserWithClient(): Promise<{
+  user: AuthenticatedUser | null
+  supabase: Awaited<ReturnType<typeof createClient>>
+}> {
+  const { user, supabase } = await getAuthContext()
+  return { user, supabase }
+}
+
+/**
+ * Check if current user is an admin
+ */
+export async function isCurrentUserAdmin(): Promise<boolean> {
+  const user = await getCurrentUser()
+  return user?.isAdmin ?? false
+}
+
+// ============================================================================
+// Auth Response Helpers
+// ============================================================================
+
+const AUTH_RESPONSES = {
+  unauthorized: () =>
+    NextResponse.json(
+      { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
+      { status: 401 }
+    ),
+  deactivated: () =>
+    NextResponse.json(
+      { error: 'Account deactivated', code: 'ACCOUNT_DEACTIVATED' },
+      { status: 401 }
+    ),
+  forbidden: () =>
+    NextResponse.json(
+      { error: 'Forbidden', code: 'ACCESS_DENIED' },
+      { status: 403 }
+    ),
+  adminRequired: () =>
+    NextResponse.json(
+      { error: 'Admin access required', code: 'ADMIN_REQUIRED' },
+      { status: 403 }
+    ),
+  notFound: () =>
+    NextResponse.json(
+      { error: 'Resource not found', code: 'NOT_FOUND' },
+      { status: 404 }
+    ),
+  csrfInvalid: () =>
+    NextResponse.json(
+      { error: 'Invalid or missing CSRF token', code: 'CSRF_INVALID' },
+      { status: 403 }
+    ),
+} as const
+
+// ============================================================================
+// Auth Wrappers (Higher-Order Functions)
+// ============================================================================
+
+/**
  * Wrapper that requires authentication for an API route
+ * Optimized to use cached auth context
  */
 export function withAuth(handler: AuthenticatedHandler) {
   return async (request: NextRequest): Promise<NextResponse> => {
-    const supabase = await createClient()
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthContext(request)
 
-    if (error || !supabaseUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in' },
-        { status: 401 }
-      )
+    if (!user) {
+      return AUTH_RESPONSES.unauthorized()
     }
 
-    // Get full user info including role
-    const user = await getCurrentUser()
+    return handler(request, { user, supabase })
+  }
+}
+
+/**
+ * Wrapper that requires admin role
+ * Optimized to use cached auth context
+ */
+export function withAdmin(handler: AuthenticatedHandler) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const { user, supabase } = await getAuthContext(request)
+
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Account not found or deactivated' },
-        { status: 401 }
+      return AUTH_RESPONSES.unauthorized()
+    }
+
+    if (!user.isAdmin) {
+      console.warn(
+        `[API Auth] Non-admin user ${user.id} attempted admin access: ${request.url}`
       )
+      return AUTH_RESPONSES.adminRequired()
     }
 
     return handler(request, { user, supabase })
@@ -140,46 +355,26 @@ export function withAuth(handler: AuthenticatedHandler) {
  */
 export function withOwnership(handler: OwnershipHandler, options: OwnershipOptions) {
   return async (request: NextRequest): Promise<NextResponse> => {
-    const supabase = await createClient()
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthContext(request)
 
-    if (error || !supabaseUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in' },
-        { status: 401 }
-      )
-    }
-
-    const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Account not found or deactivated' },
-        { status: 401 }
-      )
+      return AUTH_RESPONSES.unauthorized()
     }
 
-    // Get the resource owner ID
     const resourceOwnerId = await options.getOwnerId(request)
 
     if (!resourceOwnerId) {
-      return NextResponse.json(
-        { error: 'Resource not found' },
-        { status: 404 }
-      )
+      return AUTH_RESPONSES.notFound()
     }
 
-    // Check ownership or admin access
     const isOwner = user.id === resourceOwnerId
     const isAdminAllowed = options.allowAdmin && user.isAdmin
 
     if (!isOwner && !isAdminAllowed) {
-      // Log unauthorized access attempt for security monitoring
-      console.warn(`[API Auth] Unauthorized access attempt: User ${user.id} tried to access resource owned by ${resourceOwnerId}`)
-
-      return NextResponse.json(
-        { error: 'Forbidden - You do not have permission to access this resource' },
-        { status: 403 }
+      console.warn(
+        `[API Auth] Unauthorized access: User ${user.id} -> resource owned by ${resourceOwnerId}`
       )
+      return AUTH_RESPONSES.forbidden()
     }
 
     return handler(request, { user, supabase, resourceOwnerId })
@@ -187,83 +382,33 @@ export function withOwnership(handler: OwnershipHandler, options: OwnershipOptio
 }
 
 /**
- * Wrapper that requires admin role
- */
-export function withAdmin(handler: AuthenticatedHandler) {
-  return async (request: NextRequest): Promise<NextResponse> => {
-    const supabase = await createClient()
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser()
-
-    if (error || !supabaseUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in' },
-        { status: 401 }
-      )
-    }
-
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Account not found or deactivated' },
-        { status: 401 }
-      )
-    }
-
-    if (!user.isAdmin) {
-      // Log unauthorized admin access attempt
-      console.warn(`[API Auth] Non-admin user ${user.id} attempted to access admin route: ${request.url}`)
-
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    return handler(request, { user, supabase })
-  }
-}
-
-/**
  * Combined wrapper with both CSRF and authentication
+ * For sensitive operations (password change, account deletion, etc.)
  */
 export function withSecureAuth(handler: AuthenticatedHandler) {
   return async (request: NextRequest): Promise<NextResponse> => {
-    // Import CSRF dynamically to avoid circular dependencies
-    const { validateCsrfToken, shouldSkipCsrfProtection } = await import('@/lib/csrf')
-
     const method = request.method.toUpperCase()
     const pathname = new URL(request.url).pathname
 
     // Check CSRF for state-changing methods
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+      const { validateCsrfToken, shouldSkipCsrfProtection } = await import(
+        '@/lib/csrf'
+      )
+
       if (!shouldSkipCsrfProtection(pathname)) {
         const isValidCsrf = await validateCsrfToken(request)
         if (!isValidCsrf) {
-          return NextResponse.json(
-            { error: 'Invalid or missing CSRF token' },
-            { status: 403 }
-          )
+          return AUTH_RESPONSES.csrfInvalid()
         }
       }
     }
 
-    // Then check authentication
-    const supabase = await createClient()
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser()
+    // Use cached auth context
+    const { user, supabase } = await getAuthContext(request)
 
-    if (error || !supabaseUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in' },
-        { status: 401 }
-      )
-    }
-
-    const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Account not found or deactivated' },
-        { status: 401 }
-      )
+      return AUTH_RESPONSES.unauthorized()
     }
 
     return handler(request, { user, supabase })
@@ -271,16 +416,35 @@ export function withSecureAuth(handler: AuthenticatedHandler) {
 }
 
 /**
- * Helper to extract user ID from URL path
+ * Optional auth wrapper - allows both authenticated and unauthenticated access
+ * User will be null if not authenticated
+ */
+export function withOptionalAuth(
+  handler: (
+    request: NextRequest,
+    context: { user: AuthenticatedUser | null; supabase: Awaited<ReturnType<typeof createClient>> }
+  ) => Promise<NextResponse>
+) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const { user, supabase } = await getAuthContext(request)
+    return handler(request, { user, supabase })
+  }
+}
+
+// ============================================================================
+// Utility Helpers
+// ============================================================================
+
+/**
+ * Extract user ID from URL path
  * Useful for routes like /api/users/[userId]/...
  */
-export function getUserIdFromPath(request: NextRequest, paramName = 'userId'): string | null {
+export function getUserIdFromPath(
+  request: NextRequest,
+  paramName = 'userId'
+): string | null {
   const url = new URL(request.url)
   const pathParts = url.pathname.split('/')
-
-  // Find the index of the param in common patterns
-  // /api/users/[userId] -> userId is at index 3
-  // /api/users/[userId]/profile -> userId is at index 3
 
   const usersIndex = pathParts.indexOf('users')
   if (usersIndex !== -1 && pathParts[usersIndex + 1]) {
@@ -291,7 +455,7 @@ export function getUserIdFromPath(request: NextRequest, paramName = 'userId'): s
 }
 
 /**
- * Helper to extract resource ID from request body
+ * Extract resource ID from request body
  */
 export async function getResourceOwnerFromBody(
   request: NextRequest,
@@ -302,5 +466,56 @@ export async function getResourceOwnerFromBody(
     return body[field] || null
   } catch {
     return null
+  }
+}
+
+/**
+ * Create a standardized error response
+ */
+export function authError(
+  message: string,
+  status: number = 401,
+  code?: string
+): NextResponse {
+  return NextResponse.json(
+    { error: message, ...(code && { code }) },
+    { status }
+  )
+}
+
+// ============================================================================
+// Batch Auth Check (for routes that need to check multiple users)
+// ============================================================================
+
+/**
+ * Check if multiple user IDs are valid and not deactivated
+ * Useful for batch operations
+ */
+export async function validateUserIds(userIds: string[]): Promise<{
+  valid: string[]
+  invalid: string[]
+  deactivated: string[]
+}> {
+  if (userIds.length === 0) {
+    return { valid: [], invalid: [], deactivated: [] }
+  }
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: {
+      id: true,
+      deactivatedAt: true,
+    },
+  })
+
+  const foundIds = new Set(users.map((u) => u.id))
+  const deactivatedIds = new Set(
+    users.filter((u) => u.deactivatedAt).map((u) => u.id)
+  )
+
+  return {
+    valid: userIds.filter((id) => foundIds.has(id) && !deactivatedIds.has(id)),
+    invalid: userIds.filter((id) => !foundIds.has(id)),
+    deactivated: userIds.filter((id) => deactivatedIds.has(id)),
   }
 }

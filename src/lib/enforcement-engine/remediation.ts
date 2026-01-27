@@ -187,11 +187,11 @@ export class RemediationEngine {
     const attempts = weakSpot.failedAttempts
 
     if (attempts >= 4) {
-      return `${weakSpot.topic} has blocked you ${attempts} times. This stops now. Focus only on this until it clicks.`
+      return `${weakSpot.topic}: ${attempts} unsuccessful attempts recorded. Focused review required before proceeding.`
     } else if (attempts >= 2) {
-      return `You've struggled with ${weakSpot.topic} ${attempts} times. Let's approach it differently.`
+      return `${weakSpot.topic}: ${attempts} unsuccessful attempts. Alternative approach recommended.`
     } else {
-      return `${weakSpot.topic} needs reinforcement. Take time to understand it properly.`
+      return `${weakSpot.topic}: Reinforcement required.`
     }
   }
 
@@ -202,10 +202,10 @@ export class RemediationEngine {
     const remediationCount = weakSpot.remediationCount
 
     if (remediationCount > 0) {
-      return `This is remediation attempt #${remediationCount + 1}. The previous approach didn't work. Try a different method: find a different explanation, work through different examples, or explain it to someone else.`
+      return `Remediation attempt #${remediationCount + 1}. Previous approach unsuccessful. Recommended: use alternative explanations, different examples, or teach the concept to verify understanding.`
     }
 
-    return `Remediation is focused practice on specific gaps. Don't rush through it - depth matters more than speed.`
+    return `Remediation targets specific knowledge gaps. Depth of understanding is prioritized over completion speed.`
   }
 
   /**

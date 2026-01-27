@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { PAGINATION } from '@/lib/constants'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     ...RateLimitPresets.lenient, // 100 requests per minute
     keyPrefix: 'notifications',
   })
-  
+
   if (!rateLimitResult.success) {
     return NextResponse.json(
       { error: 'Too many requests. Please slow down.' },
@@ -19,13 +19,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Verify user is authenticated
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Auth check - uses cached auth context
+    const user = await getCurrentUser()
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }

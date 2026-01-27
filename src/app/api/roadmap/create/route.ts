@@ -16,6 +16,26 @@ import { createRoadmap } from '@/lib/roadmap-engine/roadmap-service'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { createRequestLogger, getCorrelationId } from '@/lib/logger'
 
+// Resource suggestion type for steps
+interface StepResource {
+  type: 'video' | 'article' | 'exercise' | 'tool' | 'book'
+  title: string
+  description?: string
+  url?: string
+  searchQuery?: string
+}
+
+// Recommended platform type
+interface RecommendedPlatform {
+  id: string
+  name: string
+  description: string
+  url: string
+  icon: string
+  color: string
+  searchUrl?: string
+}
+
 interface CreateRoadmapRequest {
   goal: string
   subject?: string
@@ -25,6 +45,7 @@ interface CreateRoadmapRequest {
   pitfalls?: string[]
   successLooksLike?: string
   estimatedMinutes?: number
+  recommendedPlatforms?: RecommendedPlatform[]
   steps: {
     order: number
     title: string
@@ -34,6 +55,7 @@ interface CreateRoadmapRequest {
     avoid?: string
     doneWhen?: string
     duration?: number
+    resources?: StepResource[]
   }[]
 }
 
@@ -84,6 +106,7 @@ export async function POST(request: NextRequest) {
       pitfalls: body.pitfalls || [],
       successLooksLike: body.successLooksLike,
       estimatedMinutes: body.estimatedMinutes,
+      recommendedPlatforms: body.recommendedPlatforms,
       steps: body.steps,
     })
 
@@ -109,6 +132,7 @@ export async function POST(request: NextRequest) {
         estimatedMinutes: roadmap.estimatedMinutes,
         pitfalls: roadmap.pitfalls,
         successLooksLike: roadmap.successLooksLike,
+        recommendedPlatforms: roadmap.recommendedPlatforms,
         createdAt: roadmap.createdAt,
         steps: roadmap.steps.map(step => ({
           id: step.id,
@@ -120,6 +144,7 @@ export async function POST(request: NextRequest) {
           avoid: step.avoid,
           doneWhen: step.doneWhen,
           duration: step.duration,
+          resources: step.resources,
           status: step.status.toLowerCase(),
         })),
       },

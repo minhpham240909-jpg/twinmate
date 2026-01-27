@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { addXp } from '@/lib/xp/xp-manager'
 
 /**
  * SM-2 Spaced Repetition Algorithm
@@ -272,11 +273,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Award XP
+    // Award XP using centralized XP manager
     const xpEarned = calculateXP(qualityScore, isNew)
-    await prisma.profile.update({
-      where: { userId: user.id },
-      data: { totalPoints: { increment: xpEarned } },
+    await addXp(user.id, xpEarned, 'flashcard', {
+      cardId,
+      quality: qualityScore,
+      isNew,
+      sessionId,
     })
 
     // Update deck progress

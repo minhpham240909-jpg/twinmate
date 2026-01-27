@@ -32,16 +32,6 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
 
   // Show prompt after delay if appropriate
   useEffect(() => {
-    // Debug logging for production troubleshooting
-    console.log('[PushPrompt] Checking conditions:', {
-      supported: isSupported,
-      subscribed: isSubscribed,
-      permission,
-      loading: isLoading,
-      dismissed,
-      shouldPrompt: shouldPrompt()
-    })
-
     if (!shouldPrompt() || dismissed) {
       return
     }
@@ -82,11 +72,6 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
 
   // Don't render anything if not supported or already subscribed
   if (!isSupported || isSubscribed || permission === 'denied') {
-    console.log('[PushPrompt] Not rendering because:', {
-      notSupported: !isSupported,
-      alreadySubscribed: isSubscribed,
-      permissionDenied: permission === 'denied'
-    })
     return null
   }
 

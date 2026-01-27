@@ -11,7 +11,8 @@
  * Design: Clean, always visible, familiar mobile pattern
  */
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Home, BarChart3, Settings } from 'lucide-react'
 import { memo, useCallback } from 'react'
 
@@ -49,15 +50,10 @@ const navItems: NavItem[] = [
 
 function BottomNavComponent() {
   const pathname = usePathname()
-  const router = useRouter()
 
   const isActive = useCallback((item: NavItem): boolean => {
     return item.matchPaths.some(path => pathname === path || pathname?.startsWith(path + '/'))
   }, [pathname])
-
-  const handleNavClick = useCallback((href: string) => {
-    router.push(href)
-  }, [router])
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 safe-area-bottom">
@@ -68,14 +64,9 @@ function BottomNavComponent() {
             const Icon = item.icon
 
             return (
-              <button
+              <Link
                 key={item.id}
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  handleNavClick(item.href)
-                }}
+                href={item.href}
                 className={`flex flex-col items-center justify-center w-20 h-full transition-colors cursor-pointer select-none active:scale-95 ${
                   active
                     ? 'text-blue-600 dark:text-blue-400'
@@ -88,7 +79,7 @@ function BottomNavComponent() {
                 <span className={`text-xs mt-1 ${active ? 'font-semibold' : 'font-medium'}`}>
                   {item.label}
                 </span>
-              </button>
+              </Link>
             )
           })}
         </div>

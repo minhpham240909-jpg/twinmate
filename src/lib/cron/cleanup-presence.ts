@@ -16,8 +16,6 @@ import { prisma } from '@/lib/prisma'
  * 4. Increased stale threshold with safety margin
  */
 export async function cleanupPresence() {
-  console.log('[CLEANUP] Starting presence cleanup job...')
-
   try {
     const now = new Date()
     
@@ -40,7 +38,10 @@ export async function cleanupPresence() {
       },
     })
 
-    console.log(`[CLEANUP] Marked ${staleSessionsResult.count} stale sessions as inactive`)
+    // Only log if there were changes
+    if (staleSessionsResult.count > 0) {
+      console.log(`[CLEANUP] Marked ${staleSessionsResult.count} stale sessions as inactive`)
+    }
 
     // STEP 2: Use transaction for atomic presence updates
     // RACE CONDITION FIX: Get users and update in single transaction
@@ -94,7 +95,9 @@ export async function cleanupPresence() {
       timeout: 30000, // 30 second timeout for transaction
     })
 
-    console.log(`[CLEANUP] Updated presence for ${result.updatedCount} users`)
+    if (result.updatedCount > 0) {
+      console.log(`[CLEANUP] Updated presence for ${result.updatedCount} users`)
+    }
 
     // STEP 3: Restore online status for users who have active sessions
     // RACE CONDITION FIX: Handle case where user became online during cleanup
@@ -125,7 +128,9 @@ export async function cleanupPresence() {
       },
     })
 
-    console.log(`[CLEANUP] Deleted ${expiredTypingResult.count} expired typing indicators`)
+    if (expiredTypingResult.count > 0) {
+      console.log(`[CLEANUP] Deleted ${expiredTypingResult.count} expired typing indicators`)
+    }
 
     // STEP 5: Delete old device sessions (>7 days old)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -139,9 +144,9 @@ export async function cleanupPresence() {
       },
     })
 
-    console.log(`[CLEANUP] Deleted ${oldSessionsResult.count} old device sessions`)
-
-    console.log('[CLEANUP] Presence cleanup job completed successfully')
+    if (oldSessionsResult.count > 0) {
+      console.log(`[CLEANUP] Deleted ${oldSessionsResult.count} old device sessions`)
+    }
   } catch (error) {
     console.error('[CLEANUP ERROR]', error)
     throw error

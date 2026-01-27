@@ -1,6 +1,6 @@
 // API Route: Get User Settings
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserWithClient } from '@/lib/api-auth'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
@@ -14,13 +14,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Verify authentication with Supabase
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Auth check - uses cached auth context (also returns supabase client)
+    const { user, supabase } = await getCurrentUserWithClient()
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }

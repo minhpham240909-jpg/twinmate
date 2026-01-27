@@ -46,6 +46,13 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'Clerva',
+    // Note: For full iOS splash screen support, add apple-touch-startup-image
+    // link tags in a custom head component with device-specific images.
+    // Required sizes: iPhone 14 Pro Max (1290x2796), iPhone 14/13 (1170x2532),
+    // iPhone SE (750x1334), iPad Pro 12.9" (2048x2732), iPad 10.2" (1620x2160)
+    startupImage: [
+      { url: '/icon-512.png' }, // Fallback for devices without specific splash
+    ],
   },
   icons: {
     // Primary favicon for all browsers

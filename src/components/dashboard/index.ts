@@ -1,24 +1,35 @@
-export { default as DashboardTopBar } from './DashboardTopBar'
-export { default as DashboardMenuDropdown } from './DashboardMenuDropdown'
-export { default as DashboardSearch } from './DashboardSearch'
+/**
+ * Dashboard Components Barrel Export
+ * Centralized exports for all dashboard components
+ */
 
-// Vision Components (kept for potential future use)
-export { default as StartStudyingCTA } from './StartStudyingCTA'
-export { default as ImStuckFlow } from './ImStuckFlow'
-export { default as StudySuggestions } from './StudySuggestions'
-export { default as StudyGuideModal } from './StudyGuideModal'
-export { default as GlobalLeaderboard } from './GlobalLeaderboard'
+// Types
+export type {
+  ViewState,
+  StepResource,
+  RoadmapStep,
+  RecommendedPlatform,
+  Roadmap,
+  InputMaterial,
+  AdaptiveFeedback,
+  DaysRemaining,
+  LevelData,
+  UserIdentity,
+} from './types'
 
-// Progressive Disclosure System
+// Utility functions
 export {
-  calculateUserTier,
-  shouldShowFeature,
-  getSuggestionsLimit,
-  NewUserWelcome,
-  UnlockTeasersSection,
-  FeatureGate,
-  DISCLOSURE_THRESHOLDS,
-} from './ProgressiveDisclosure'
-export type { UserTier } from './ProgressiveDisclosure'
+  getDaysRemaining,
+  calculateLevel,
+  getInputTypeLabel,
+  QUICK_SUGGESTIONS,
+} from './utils'
 
-// Note: ClassmatesStudying removed from exports - social feature hidden
+// Components
+export { DashboardHeader } from './DashboardHeader'
+export { TodaysMission } from './TodaysMission'
+export { IdentityCard } from './IdentityCard'
+export { DashboardCelebrationModal } from './DashboardCelebrationModal'
+export { OnboardingPrompt } from './OnboardingPrompt'
+export { ProofSubmission } from './ProofSubmission'
+export { default as IdentityDiscovery, IdentityReveal } from './IdentityDiscovery'

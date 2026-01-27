@@ -365,7 +365,7 @@ export default function SettingsPage() {
 
     setChangingPassword(true)
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await fetch('/api/settings/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,8 +417,12 @@ export default function SettingsPage() {
 
     setDeleting(true)
     try {
-      const res = await fetch('/api/user/delete', {
-        method: 'DELETE',
+      const res = await fetch('/api/settings/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmation: 'DELETE',
+        }),
       })
 
       if (res.ok) {

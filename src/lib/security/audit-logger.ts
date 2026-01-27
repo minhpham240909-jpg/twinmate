@@ -201,7 +201,7 @@ export async function logAudit(event: AuditEvent): Promise<void> {
     : 'info'
   
   logger[logLevel](`[AUDIT] ${event.category}:${event.action}`, {
-    userId: event.userId,
+    userId: event.userId || undefined,
     targetId: event.targetId,
     success: event.success,
     ip: sanitizeIp(event.ip),

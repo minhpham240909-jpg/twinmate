@@ -2,45 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
-
-// Rate limiting - max 5 messages per hour per IP
-// Prevents spam and abuse while allowing legitimate users to submit multiple issues
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour
-const RATE_LIMIT_MAX = 5
-
-// In-memory rate limit store
-// NOTE: For production with multiple server instances, use Redis instead:
-// import { Redis } from '@upstash/redis' or similar
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now()
-  const record = rateLimitStore.get(ip)
-
-  if (!record || now > record.resetAt) {
-    // Reset or create new record
-    const resetAt = now + RATE_LIMIT_WINDOW
-    rateLimitStore.set(ip, { count: 1, resetAt })
-    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetAt }
-  }
-
-  if (record.count >= RATE_LIMIT_MAX) {
-    return { allowed: false, remaining: 0, resetAt: record.resetAt }
-  }
-
-  record.count++
-  return { allowed: true, remaining: RATE_LIMIT_MAX - record.count, resetAt: record.resetAt }
-}
-
-// Clean up old rate limit entries periodically
-setInterval(() => {
-  const now = Date.now()
-  for (const [ip, record] of rateLimitStore) {
-    if (now > record.resetAt) {
-      rateLimitStore.delete(ip)
-    }
-  }
-}, 60 * 1000) // Clean every minute
+import { rateLimit } from '@/lib/rate-limit'
 
 // Validation schema
 const helpMessageSchema = z.object({
@@ -54,28 +16,28 @@ const helpMessageSchema = z.object({
 /**
  * POST /api/help - Submit a help/support message
  * No authentication required - anyone can submit
+ * Uses Redis-based rate limiting for production scalability
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get IP for rate limiting
+    // Rate limiting - 5 requests per hour using Redis (production-ready)
+    const rateLimitResult = await rateLimit(request, {
+      max: 5,
+      windowMs: 60 * 60 * 1000, // 1 hour
+      keyPrefix: 'help',
+    })
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
+    // Get IP for logging
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
                request.headers.get('x-real-ip') ||
                'unknown'
-
-    // Check rate limit
-    const rateLimit = checkRateLimit(ip)
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil(rateLimit.resetAt / 1000)),
-          }
-        }
-      )
-    }
 
     // Parse and validate body
     const body = await request.json()
@@ -124,13 +86,7 @@ export async function POST(request: NextRequest) {
         message: 'Your message has been submitted. We\'ll get back to you soon.',
         id: helpMessage.id,
       },
-      {
-        status: 201,
-        headers: {
-          'X-RateLimit-Remaining': String(rateLimit.remaining),
-          'X-RateLimit-Reset': String(Math.ceil(rateLimit.resetAt / 1000)),
-        }
-      }
+      { status: 201, headers: rateLimitResult.headers }
     )
   } catch (error) {
     console.error('Error submitting help message:', error)

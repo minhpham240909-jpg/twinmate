@@ -108,6 +108,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchAbortControllerRef = useRef<AbortController | null>(null)
   // Track if component is mounted to prevent state updates after unmount
   const isMountedRef = useRef(true)
+  // Track last visibility change time to prevent rapid refreshes
+  const lastVisibilityRefreshRef = useRef<number>(0)
+  // Track if session refresh is in progress
+  const isRefreshingSessionRef = useRef(false)
 
   // Note: Presence heartbeat is handled by PresenceProvider in root layout
 
@@ -406,6 +410,135 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [router, supabase, debouncedFetchProfile])
+
+  // Visibility change handler - refresh session when tab becomes visible after being idle
+  // This fixes the issue where the app stops working after being in background for 5-30+ minutes
+  useEffect(() => {
+    const REFRESH_COOLDOWN_MS = 30 * 1000 // Don't refresh more than once per 30 seconds
+    const IDLE_THRESHOLD_MS = 5 * 60 * 1000 // Consider idle after 5 minutes hidden
+
+    let lastHiddenAt: number | null = null
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        // Track when the tab was hidden
+        lastHiddenAt = Date.now()
+        return
+      }
+
+      // Tab is now visible
+      if (document.visibilityState !== 'visible') return
+
+      // Check if we should refresh
+      const now = Date.now()
+      const timeSinceLastRefresh = now - lastVisibilityRefreshRef.current
+      const wasHiddenLongEnough = lastHiddenAt && (now - lastHiddenAt) >= IDLE_THRESHOLD_MS
+
+      // Skip if:
+      // - Already refreshing
+      // - Recently refreshed
+      // - Wasn't hidden long enough
+      // - No user logged in
+      if (
+        isRefreshingSessionRef.current ||
+        timeSinceLastRefresh < REFRESH_COOLDOWN_MS ||
+        !wasHiddenLongEnough ||
+        !user
+      ) {
+        return
+      }
+
+      // Refresh the session
+      isRefreshingSessionRef.current = true
+      lastVisibilityRefreshRef.current = now
+
+      if (!isProduction) {
+        console.log('[AuthContext] Tab visible after idle - refreshing session...')
+      }
+
+      try {
+        // First, refresh the Supabase session to get a new token
+        const { data, error } = await supabase.auth.refreshSession()
+
+        if (error) {
+          if (!isProduction) {
+            console.error('[AuthContext] Session refresh failed:', error.message)
+          }
+          // If refresh fails, try to get the current user anyway
+          // The session might still be valid
+          const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+          if (!currentUser) {
+            // User is logged out - clear state
+            if (!isProduction) {
+              console.log('[AuthContext] Session expired - user needs to log in again')
+            }
+            setUser(null)
+            setProfile(null)
+            setProfileError('Your session has expired. Please sign in again.')
+          }
+        } else if (data.session?.user) {
+          // Session refreshed successfully
+          if (!isProduction) {
+            console.log('[AuthContext] Session refreshed successfully')
+          }
+          setUser(data.session.user)
+          // Refresh profile data too
+          debouncedFetchProfile(data.session.user.id, true)
+          // Clear any previous errors
+          setProfileError(null)
+        }
+      } catch (err) {
+        if (!isProduction) {
+          console.error('[AuthContext] Error refreshing session:', err)
+        }
+      } finally {
+        isRefreshingSessionRef.current = false
+      }
+    }
+
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Also handle online event - refresh when connection is restored
+    const handleOnline = async () => {
+      if (!user || isRefreshingSessionRef.current) return
+
+      const now = Date.now()
+      const timeSinceLastRefresh = now - lastVisibilityRefreshRef.current
+
+      if (timeSinceLastRefresh < REFRESH_COOLDOWN_MS) return
+
+      isRefreshingSessionRef.current = true
+      lastVisibilityRefreshRef.current = now
+
+      if (!isProduction) {
+        console.log('[AuthContext] Back online - refreshing session...')
+      }
+
+      try {
+        const { data, error } = await supabase.auth.refreshSession()
+        if (!error && data.session?.user) {
+          setUser(data.session.user)
+          debouncedFetchProfile(data.session.user.id, true)
+          setProfileError(null)
+        }
+      } catch (err) {
+        if (!isProduction) {
+          console.error('[AuthContext] Error refreshing session on reconnect:', err)
+        }
+      } finally {
+        isRefreshingSessionRef.current = false
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [user, supabase, debouncedFetchProfile])
 
   const signOut = async () => {
     try {

@@ -94,12 +94,14 @@ export function trackRequestPerformance(
     }
   } else if (duration >= verySlowThreshold) {
     logger.warn(`Very slow request: ${method} ${endpoint}`, {
-      duration: `${duration}ms`,
+      duration,
+      durationFormatted: `${duration}ms`,
       statusCode,
     })
   } else if (duration >= slowThreshold) {
     logger.info(`Slow request: ${method} ${endpoint}`, {
-      duration: `${duration}ms`,
+      duration,
+      durationFormatted: `${duration}ms`,
       statusCode,
     })
   }

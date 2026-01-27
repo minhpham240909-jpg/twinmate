@@ -733,7 +733,7 @@ export class EnforcementEngine {
     // Warning threshold
     if (daysSince >= ENFORCEMENT_CONFIG.inactivityWarningDays && daysSince < ENFORCEMENT_CONFIG.inactivityConsequenceDays) {
       return {
-        message: `${daysSince} days away. Your streak is at risk. One session today saves it.`,
+        message: `${daysSince} days inactive. Streak at risk.`,
         tone: 'warning',
       }
     }
@@ -757,18 +757,18 @@ export class EnforcementEngine {
         await this.logEnforcementAction(userId, {
           triggerType: 'inactivity',
           actionType: 'STREAK_RESET',
-          authorityMessage: `Your ${identity.currentStreak}-day streak is gone. Rebuilding starts now.`,
+          authorityMessage: `${identity.currentStreak}-day streak reset due to inactivity.`,
         })
 
         return {
-          message: `Your ${identity.currentStreak}-day streak is gone. Rebuilding starts now.`,
+          message: `${identity.currentStreak}-day streak reset due to inactivity.`,
           tone: 'consequence',
           actionRequired: 'Complete one mission to start a new streak.',
         }
       }
 
       return {
-        message: `${daysSince} days away. Let's get back on track.`,
+        message: `${daysSince} days inactive.`,
         tone: 'neutral',
       }
     }
@@ -839,31 +839,31 @@ export class EnforcementEngine {
       case 'failure':
         const failCount = (data?.failCount as number) || 1
         if (failCount === 1) {
-          return { message: 'Not there yet. One stumble doesn\'t define you.', tone: 'encouragement' }
+          return { message: 'Attempt 1 unsuccessful. Review and retry.', tone: 'encouragement' }
         } else if (failCount === 2) {
-          return { message: `Attempt ${failCount}. The approach changes now.`, tone: 'warning' }
+          return { message: `Attempt ${failCount} unsuccessful. Consider a different approach.`, tone: 'warning' }
         } else {
-          return { message: `${failCount} attempts. This requires a different strategy.`, tone: 'consequence', actionRequired: 'Remediation mission assigned' }
+          return { message: `${failCount} unsuccessful attempts. Remediation required.`, tone: 'consequence', actionRequired: 'Remediation mission assigned' }
         }
 
       case 'success':
         const streak = (data?.streak as number) || 1
         if (streak >= 7) {
-          return { message: `${streak} days strong. Mastery in progress.`, tone: 'encouragement' }
+          return { message: `Current streak: ${streak} days.`, tone: 'encouragement' }
         } else if (streak >= 3) {
-          return { message: 'Momentum building. Keep it going.', tone: 'encouragement' }
+          return { message: `Current streak: ${streak} days.`, tone: 'encouragement' }
         } else {
-          return { message: 'Complete. Next step unlocked.', tone: 'neutral' }
+          return { message: 'Step completed. Next step unlocked.', tone: 'neutral' }
         }
 
       case 'return':
         const days = (data?.daysSince as number) || 0
         if (days >= 7) {
-          return { message: `${days} days away. Your streak reset. Start rebuilding.`, tone: 'consequence' }
+          return { message: `${days} days inactive. Streak reset.`, tone: 'consequence' }
         } else if (days >= 3) {
-          return { message: `${days} days away. Your streak is at risk. Let's fix that today.`, tone: 'warning' }
+          return { message: `${days} days inactive. Streak at risk.`, tone: 'warning' }
         } else {
-          return { message: 'Welcome back. Let\'s continue where you left off.', tone: 'neutral' }
+          return { message: 'Session resumed.', tone: 'neutral' }
         }
 
       case 'debt':
@@ -879,13 +879,13 @@ export class EnforcementEngine {
       case 'streak':
         const currentStreak = (data?.streak as number) || 0
         if (currentStreak >= 30) {
-          return { message: `${currentStreak} days. Legendary consistency.`, tone: 'encouragement' }
+          return { message: `Current streak: ${currentStreak} days.`, tone: 'encouragement' }
         } else if (currentStreak >= 7) {
-          return { message: `${currentStreak} day streak. Keep building.`, tone: 'encouragement' }
+          return { message: `Current streak: ${currentStreak} days.`, tone: 'encouragement' }
         } else if (currentStreak > 0) {
-          return { message: `${currentStreak} days. Growing.`, tone: 'neutral' }
+          return { message: `Current streak: ${currentStreak} days.`, tone: 'neutral' }
         } else {
-          return { message: 'No active streak. Start one today.', tone: 'neutral' }
+          return { message: 'No active streak.', tone: 'neutral' }
         }
 
       default:

@@ -145,17 +145,29 @@ export async function POST(request: NextRequest) {
     // Parse and validate request body
     const body = await request.json()
 
-    logger.info('[Settings Update] Received body', { body })
+    // Log setting categories being updated (not actual values to protect privacy)
+    const settingCategories = Object.keys(body)
+    logger.info('[Settings Update] Updating settings', {
+      userId: user.id,
+      settingCount: settingCategories.length,
+      categories: settingCategories,
+    })
 
     const validation = updateSettingsSchema.safeParse(body)
 
     if (!validation.success) {
-      logger.error('[Settings Update] Validation failed', { issues: validation.error.issues })
+      // Log validation errors without exposing to client
+      logger.error('[Settings Update] Validation failed', {
+        userId: user.id,
+        errorCount: validation.error.issues.length,
+        fields: validation.error.issues.map(i => i.path.join('.')),
+      })
+      // Return user-friendly error without schema details
       return NextResponse.json(
         {
-          error: 'Invalid data',
-          details: validation.error.issues,
-          message: 'Settings validation failed. Check console for details.'
+          error: 'Invalid settings data',
+          message: 'Some settings values are invalid. Please check your input and try again.',
+          invalidFields: validation.error.issues.map(i => i.path.join('.')),
         },
         { status: 400 }
       )

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/api-auth'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { cacheGet, CacheKeys, CacheTTL } from '@/lib/redis'
@@ -30,12 +30,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Auth check - uses cached auth context
+    const user = await getCurrentUser()
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }
@@ -280,7 +280,8 @@ async function fetchUserStats(userId: string) {
   const allTimeQuickFocusMins = calculateAllTimeMinutes(quickModeStatsAggregated)
 
   // Total focus minutes (both modes)
-  const totalFocusMinutes = (focusAggregate._sum?.actualMinutes || 0) || (focusAggregate._sum?.durationMinutes || 0)
+  // FIX: Use ?? for null coalescing - || treats 0 as falsy which causes incorrect calculations
+  const totalFocusMinutes = focusAggregate._sum?.actualMinutes ?? focusAggregate._sum?.durationMinutes ?? 0
 
   // FIX: Use actual durations for StudySession and AIPartnerSession (no more estimates!)
   const allTimeStudyMins = calculateSessionMinutes(allTimeStudySessions)

@@ -216,9 +216,7 @@ export function validateSortBy(
 ): string {
   if (!sortBy) return defaultField
   return allowedFields.includes(sortBy) ? sortBy : defaultField
-}
-
-/**
+}/**
  * Validate sortOrder parameter
  */
 export function validateSortOrder(

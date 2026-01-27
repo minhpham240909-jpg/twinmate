@@ -1,61 +1,36 @@
 /**
  * AI Partner Whiteboard API
  * POST /api/ai-partner/whiteboard - Analyze whiteboard image or get drawing suggestions
+ * Uses Redis-based rate limiting for production scalability
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeWhiteboard, getWhiteboardSuggestions } from '@/lib/ai-partner'
-
-// Simple in-memory rate limiter for scalability (1000-3000 DAU)
-// In production, use Redis for distributed rate limiting
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
-const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 20 // 20 requests per minute per user
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now()
-  const userLimit = rateLimitMap.get(userId)
-
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
-    return true
-  }
-
-  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return false
-  }
-
-  userLimit.count++
-  return true
-}
-
-// Clean up stale rate limit entries every 5 minutes to prevent memory leaks
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, value] of rateLimitMap.entries()) {
-    if (now > value.resetTime) {
-      rateLimitMap.delete(key)
-    }
-  }
-}, 5 * 60 * 1000)
+import { rateLimit } from '@/lib/rate-limit'
 
 // POST: Analyze whiteboard image or get drawing suggestions
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 20 requests per minute using Redis (production-ready)
+    const rateLimitResult = await rateLimit(request, {
+      max: 20,
+      windowMs: 60 * 1000, // 1 minute
+      keyPrefix: 'whiteboard',
+    })
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment before trying again.' },
+        { status: 429, headers: rateLimitResult.headers }
+      )
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Rate limiting check
-    if (!checkRateLimit(user.id)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please wait a moment before trying again.' },
-        { status: 429 }
-      )
     }
 
     const body = await request.json()
@@ -83,7 +58,7 @@ export async function POST(request: NextRequest) {
         drawingIdeas: result.drawingIdeas,
         visualizationTips: result.visualizationTips,
         messageId: result.messageId,
-      })
+      }, { headers: rateLimitResult.headers })
     }
 
     // Default: analyze mode - requires image
@@ -111,7 +86,7 @@ export async function POST(request: NextRequest) {
       suggestions: result.suggestions,
       relatedConcepts: result.relatedConcepts,
       messageId: result.messageId,
-    })
+    }, { headers: rateLimitResult.headers })
   } catch (error) {
     console.error('[AI Partner] Whiteboard API error:', error)
 

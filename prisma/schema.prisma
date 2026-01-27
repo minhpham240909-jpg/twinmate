@@ -135,12 +135,26 @@ model User {
   // AI Partner preferences
   hideAIPartner         Boolean  @default(false) // User chose to hide AI Partner from dashboard
 
+  // Onboarding tracking
+  onboardingCompletedAt DateTime?              // When user completed full onboarding
+  onboardingStep        String    @default("not_started") // Current step: not_started, identity, commitment, goal, completed
+  onboardingSkippedAt   DateTime?              // If user skipped onboarding
+
   // Practice Arena relations
   hostedArenas          ArenaSession[]       @relation("ArenaHost")
   arenaWeeklyStats      ArenaWeeklyStats[]   @relation("ArenaWeeklyStats")
 
   // Learning Roadmap relations
   roadmaps              LearningRoadmap[]    @relation("UserRoadmaps")
+
+  // Daily Commitment & Engagement relations
+  dailyCommitment       DailyCommitment?
+  dailyProgress         DailyProgress[]
+  userStreak            UserStreak?
+  learningCaptures      LearningCapture[]
+  reviewSessions        ReviewSession[]
+  scheduledSessions     ScheduledSession[]
+  sharedRoadmaps        SharedRoadmap[]
 
   @@index([email])
   @@index([googleId])
@@ -890,6 +904,8 @@ enum NotificationType {
   FOUNDER_MESSAGE        // Messages from founder
   PARTNER_STARTED_STUDYING // Study partner started a session - pull back notification
   LEADERBOARD_RANK_DROP  // User dropped in leaderboard rank - competitive engagement
+  MISSION_REMINDER       // Daily mission reminder notification
+  MISSION_COMPLETE       // Mission/step completed celebration
 }
 
 model Notification {
@@ -3779,6 +3795,7 @@ model LearningRoadmap {
   overview        String?        @db.Text
   pitfalls        String[]       @default([]) // Things to avoid
   successLooksLike String?       @db.Text // What completion looks like
+  recommendedPlatforms Json?     // Recommended learning platforms [{id, name, url, icon, color}]
 
   // Progress Tracking (SYSTEM controls this, not AI)
   status          RoadmapStatus  @default(ACTIVE)
@@ -3790,6 +3807,9 @@ model LearningRoadmap {
 
   // Is this the user's currently active roadmap?
   isActive        Boolean        @default(true)
+
+  // Accountability - Target date for completion
+  targetDate      DateTime?      // User-set deadline for completing this roadmap
 
   // Timestamps
   createdAt       DateTime       @default(now())
@@ -3821,6 +3841,7 @@ model RoadmapStep {
   avoid           String?          @db.Text // What NOT to do
   doneWhen        String?          @db.Text // Success criterion
   duration        Int              @default(5) // Estimated minutes
+  resources       Json?            // Suggested resources: [{type, title, url?, description}]
 
   // Progress Tracking (SYSTEM controls this)
   status          RoadmapStepStatus @default(LOCKED)
@@ -4063,4 +4084,392 @@ model EnforcementAction {
   @@index([userId, resolved])
   @@index([triggerType])
   @@map("enforcement_actions")
+}
+
+// ==========================================
+// RESOURCE ENGAGEMENT TRACKING
+// ==========================================
+
+// Track which resources users click and find helpful
+// Used for smart resource curation ("Recommended by X learners")
+model ResourceEngagement {
+  id            String   @id @default(uuid())
+
+  // Resource identification (composite key for aggregation)
+  resourceType  String   // video, article, exercise, tool, book
+  resourceTitle String   // Title of the resource
+  searchQuery   String?  // Search query used to find this resource
+  platformId    String?  // Platform ID (youtube, khan-academy, etc.)
+  url           String?  // Actual URL if available
+
+  // Context
+  subject       String?  // Subject/topic this resource was shown for
+  stepTitle     String?  // Step title where resource was shown
+
+  // Engagement metrics
+  clicked       Boolean  @default(false)
+  helpfulVote   Boolean? // null = not voted, true = helpful, false = not helpful
+
+  // User (optional - can be anonymous for aggregation)
+  userId        String?
+
+  // Timestamps
+  createdAt     DateTime @default(now())
+  clickedAt     DateTime?
+  votedAt       DateTime?
+
+  @@index([resourceTitle, platformId])
+  @@index([subject])
+  @@index([resourceType])
+  @@index([helpfulVote])
+  @@map("resource_engagements")
+}
+
+// Aggregated resource quality scores (updated periodically)
+model ResourceQuality {
+  id            String   @id @default(uuid())
+
+  // Resource identification
+  resourceType  String
+  resourceTitle String
+  platformId    String?
+  subject       String   // Subject this score applies to
+
+  // Quality metrics
+  totalShown    Int      @default(0)  // How many times shown
+  totalClicks   Int      @default(0)  // How many clicks
+  helpfulVotes  Int      @default(0)  // Positive votes
+  notHelpfulVotes Int    @default(0)  // Negative votes
+
+  // Computed score (0-100)
+  qualityScore  Float    @default(50) // Higher = better
+
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([resourceTitle, platformId, subject])
+  @@index([subject, qualityScore])
+  @@map("resource_quality")
+}
+
+// ==========================================
+// DAILY COMMITMENT & ENGAGEMENT SYSTEM
+// ==========================================
+// Tracks user's daily learning commitment and progress
+
+// Daily commitment settings (user's chosen daily goal)
+model DailyCommitment {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Commitment level (minutes per day)
+  dailyMinutes      Int      @default(15) // 5, 15, 30, 45, 60
+
+  // Preferred learning times (optional)
+  preferredStartTime String?  // e.g., "09:00"
+  preferredEndTime   String?  // e.g., "21:00"
+  preferredDays      String[] @default(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+
+  // Notification preferences
+  reminderEnabled    Boolean  @default(true)
+  reminderTime       String?  // e.g., "08:00" - when to send daily reminder
+
+  // Streak settings
+  allowMakeupDays    Boolean  @default(true) // Can user catch up on missed days?
+  weekendMode        String   @default("SAME") // SAME, REDUCED, OFF
+
+  // Timestamps
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("daily_commitments")
+}
+
+// Daily progress tracking (one record per user per day)
+model DailyProgress {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date              DateTime @db.Date // The date this record is for
+
+  // Progress metrics
+  targetMinutes     Int      // Goal for this day (from DailyCommitment)
+  actualMinutes     Int      @default(0) // Actual time spent
+  goalMet           Boolean  @default(false) // Did they meet their goal?
+
+  // Activity breakdown
+  stepsCompleted    Int      @default(0)
+  capturesCreated   Int      @default(0)
+  reviewsCompleted  Int      @default(0)
+
+  // Session tracking
+  sessionsStarted   Int      @default(0)
+  totalFocusTime    Int      @default(0) // Actual focused learning time
+
+  // Roadmap context
+  activeRoadmapId   String?  // Which roadmap they worked on
+
+  // XP earned
+  xpEarned          Int      @default(0)
+  bonusXp           Int      @default(0) // Extra XP for streaks, etc.
+
+  // Timestamps
+  firstActivityAt   DateTime? // When they first started learning
+  lastActivityAt    DateTime? // When they last did something
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@index([userId, goalMet])
+  @@map("daily_progress")
+}
+
+// Streak tracking (continuous days of meeting goals)
+model UserStreak {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Current streak
+  currentStreak     Int      @default(0) // Days in current streak
+  currentStreakStart DateTime? // When current streak started
+
+  // Best streak ever
+  longestStreak     Int      @default(0)
+  longestStreakStart DateTime?
+  longestStreakEnd  DateTime?
+
+  // Weekly stats
+  thisWeekDays      Int      @default(0) // Days completed this week
+  thisWeekMinutes   Int      @default(0) // Minutes this week
+
+  // Monthly stats
+  thisMonthDays     Int      @default(0)
+  thisMonthMinutes  Int      @default(0)
+
+  // All-time stats
+  totalDaysCompleted Int     @default(0)
+  totalMinutesLearned Int    @default(0)
+  totalXpEarned     Int      @default(0)
+
+  // Streak protection
+  freezesAvailable  Int      @default(0) // Streak freezes earned
+  freezesUsed       Int      @default(0)
+  lastFreezeUsedAt  DateTime?
+
+  // Last activity
+  lastCompletedDate DateTime? @db.Date
+  lastActivityAt    DateTime?
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([currentStreak])
+  @@index([longestStreak])
+  @@map("user_streaks")
+}
+
+// ==========================================
+// QUICK CAPTURE / LEARNING NOTES SYSTEM
+// ==========================================
+// Captures user insights during learning
+
+enum CaptureType {
+  NOTE        // Text note
+  PHOTO       // Screenshot or photo
+  LINK        // URL bookmark
+  HIGHLIGHT   // Highlighted text
+  VOICE       // Voice memo (future)
+}
+
+model LearningCapture {
+  id                String      @id @default(uuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Content
+  type              CaptureType @default(NOTE)
+  content           String      @db.Text // Main content (text or URL)
+  title             String?     // Optional title
+
+  // Media (for photos)
+  mediaUrl          String?     // URL to uploaded media
+  mediaType         String?     // image/jpeg, image/png, etc.
+
+  // Context - what were they learning when captured?
+  roadmapId         String?     // Linked roadmap
+  stepId            String?     // Linked step
+  subject           String?     // Subject tag
+
+  // Organization
+  tags              String[]    @default([])
+  isFavorite        Boolean     @default(false)
+  isArchived        Boolean     @default(false)
+
+  // Spaced Repetition (for review)
+  nextReviewAt      DateTime?   // When to review next
+  reviewCount       Int         @default(0) // How many times reviewed
+  lastReviewedAt    DateTime?
+  retentionScore    Float       @default(0.5) // 0-1, how well they remember
+
+  // SM-2 Algorithm fields
+  easeFactor        Float       @default(2.5)
+  intervalDays      Int         @default(1)
+  repetitions       Int         @default(0)
+
+  // Timestamps
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([userId, roadmapId])
+  @@index([userId, stepId])
+  @@index([userId, nextReviewAt])
+  @@index([userId, isArchived])
+  @@index([userId, subject])
+  @@index([userId, createdAt])
+  @@map("learning_captures")
+}
+
+// Review session - tracks a review session
+model ReviewSession {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session details
+  capturesReviewed  Int      @default(0)
+  capturesCorrect   Int      @default(0) // "Got it" responses
+  capturesPartial   Int      @default(0) // "Partially" responses
+  capturesForgot    Int      @default(0) // "Forgot" responses
+
+  // Time tracking
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  durationSeconds   Int      @default(0)
+
+  // Context
+  subject           String?  // If reviewing specific subject
+  roadmapId         String?  // If reviewing specific roadmap
+
+  @@index([userId])
+  @@index([userId, startedAt])
+  @@map("review_sessions")
+}
+
+// ==========================================
+// CALENDAR & SCHEDULING SYSTEM
+// ==========================================
+
+// Scheduled learning sessions (linked to calendar)
+model ScheduledSession {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What to learn
+  roadmapId         String?
+  stepId            String?
+  title             String   // Display title
+  description       String?  @db.Text
+
+  // When
+  scheduledDate     DateTime @db.Date
+  scheduledTime     String?  // e.g., "14:00"
+  durationMinutes   Int      @default(15)
+
+  // Status
+  status            String   @default("SCHEDULED") // SCHEDULED, STARTED, COMPLETED, SKIPPED, RESCHEDULED
+  completedAt       DateTime?
+  actualMinutes     Int?
+
+  // External calendar sync
+  externalCalendarId String? // Google/Apple calendar event ID
+  externalCalendarType String? // "google", "apple"
+  syncedAt          DateTime?
+
+  // Recurrence (optional)
+  isRecurring       Boolean  @default(false)
+  recurrenceRule    String?  // iCal RRULE format
+  parentSessionId   String?  // If this is an occurrence of a recurring session
+
+  // Reminders
+  reminderSent      Boolean  @default(false)
+  reminderSentAt    DateTime?
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, scheduledDate])
+  @@index([userId, status])
+  @@index([roadmapId])
+  @@index([stepId])
+  @@map("scheduled_sessions")
+}
+
+// ==========================================
+// PUBLIC SHARING SYSTEM
+// ==========================================
+
+// Shared roadmap (public link)
+model SharedRoadmap {
+  id                String   @id @default(uuid())
+  roadmapId         String
+  userId            String   // Owner
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Share settings
+  shareCode         String   @unique // Short unique code for URL
+  isPublic          Boolean  @default(true) // Anyone can view
+  allowCopy         Boolean  @default(true) // Allow others to copy this roadmap
+
+  // Display
+  customTitle       String?  // Optional custom title for sharing
+  customDescription String?  @db.Text
+
+  // Stats
+  viewCount         Int      @default(0)
+  copyCount         Int      @default(0)
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  expiresAt         DateTime? // Optional expiration
+
+  @@index([shareCode])
+  @@index([roadmapId])
+  @@index([userId])
+  @@index([isPublic])
+  @@map("shared_roadmaps")
+}
+
+// Roadmap copy tracking
+model RoadmapCopy {
+  id                String   @id @default(uuid())
+
+  // Source
+  originalRoadmapId String   // Original roadmap
+  sharedRoadmapId   String?  // If copied from shared link
+
+  // Destination
+  copiedRoadmapId   String   // New roadmap created
+  copiedByUserId    String   // User who copied
+
+  // Attribution
+  originalUserId    String   // Original creator
+
+  // Timestamps
+  copiedAt          DateTime @default(now())
+
+  @@index([originalRoadmapId])
+  @@index([copiedByUserId])
+  @@index([originalUserId])
+  @@map("roadmap_copies")
 }

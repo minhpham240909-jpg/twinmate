@@ -250,7 +250,7 @@ export default function ImStuckFlow({
     id: crypto.randomUUID(),
     subject: topic,
     totalMinutes: 25,
-    encouragement: "Let's work through this together. You've got this!",
+    encouragement: 'Structured approach for this topic.',
     steps: [
       {
         id: crypto.randomUUID(),
@@ -327,10 +327,10 @@ export default function ImStuckFlow({
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
-                      {step === 'input' && "Let's figure it out"}
-                      {step === 'questions' && 'Understanding your situation'}
-                      {step === 'generating' && 'Creating your plan...'}
-                      {step === 'plan' && 'Your study plan'}
+                      {step === 'input' && 'Study Guidance'}
+                      {step === 'questions' && 'Diagnostic Questions'}
+                      {step === 'generating' && 'Generating Plan...'}
+                      {step === 'plan' && 'Study Plan'}
                     </h2>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
                       {step === 'input' && 'What are you stuck on?'}

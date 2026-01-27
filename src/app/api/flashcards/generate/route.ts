@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
+import { addXp } from '@/lib/xp/xp-manager'
 import OpenAI from 'openai'
 
 // SCALE: OpenAI request timeout (30 seconds) for 2000-3000 concurrent users
@@ -251,10 +252,11 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks or explanations.`
       return { ...newDeck, cards }
     })
 
-    // Award XP for creating AI flashcards
-    await prisma.profile.update({
-      where: { userId: user.id },
-      data: { totalPoints: { increment: 10 } }, // 10 XP for creating AI deck
+    // Award XP for creating AI flashcards using centralized XP manager
+    await addXp(user.id, 10, 'flashcard', {
+      action: 'ai_deck_created',
+      deckId: deck.id,
+      cardCount: deck.cards.length,
     })
 
     return NextResponse.json({

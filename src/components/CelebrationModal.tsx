@@ -163,7 +163,7 @@ export default function CelebrationModal({
             onClick={handleClose}
             className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl font-semibold transition-all shadow-lg shadow-orange-500/25"
           >
-            Awesome!
+            Continue
           </button>
         </div>
       </div>

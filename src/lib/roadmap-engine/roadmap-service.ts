@@ -11,7 +11,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { RoadmapStatus, RoadmapStepStatus } from '@prisma/client'
+import { RoadmapStatus, RoadmapStepStatus, Prisma } from '@prisma/client'
 
 // ============================================
 // TYPES
@@ -27,6 +27,7 @@ export interface CreateRoadmapInput {
   pitfalls?: string[]
   successLooksLike?: string
   estimatedMinutes?: number
+  recommendedPlatforms?: RecommendedPlatform[]
   steps: {
     order: number
     title: string
@@ -36,7 +37,19 @@ export interface CreateRoadmapInput {
     avoid?: string
     doneWhen?: string
     duration?: number
+    resources?: StepResource[]
   }[]
+}
+
+// Recommended platform type
+export interface RecommendedPlatform {
+  id: string
+  name: string
+  description: string
+  url: string
+  icon: string
+  color: string
+  searchUrl?: string
 }
 
 export interface RoadmapWithSteps {
@@ -49,6 +62,7 @@ export interface RoadmapWithSteps {
   overview: string | null
   pitfalls: string[]
   successLooksLike: string | null
+  recommendedPlatforms: RecommendedPlatform[] | null
   status: RoadmapStatus
   currentStepIndex: number
   totalSteps: number
@@ -56,6 +70,7 @@ export interface RoadmapWithSteps {
   estimatedMinutes: number
   actualMinutesSpent: number
   isActive: boolean
+  targetDate: Date | null // Accountability deadline
   createdAt: Date
   updatedAt: Date
   lastActivityAt: Date
@@ -70,6 +85,7 @@ export interface RoadmapWithSteps {
     avoid: string | null
     doneWhen: string | null
     duration: number
+    resources: StepResource[] | null
     status: RoadmapStepStatus
     startedAt: Date | null
     completedAt: Date | null
@@ -77,6 +93,15 @@ export interface RoadmapWithSteps {
     userNotes: string | null
     difficultyRating: number | null
   }[]
+}
+
+// Resource suggestion type
+export interface StepResource {
+  type: 'video' | 'article' | 'exercise' | 'tool' | 'book'
+  title: string
+  description?: string
+  url?: string // Optional - user finds their own if not provided
+  searchQuery?: string // Suggested search term
 }
 
 // ============================================
@@ -88,7 +113,7 @@ export interface RoadmapWithSteps {
  * Automatically deactivates any existing active roadmap
  */
 export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapWithSteps> {
-  const { userId, steps, ...roadmapData } = input
+  const { userId, steps, recommendedPlatforms, ...roadmapData } = input
 
   // Use transaction to ensure atomicity
   return prisma.$transaction(async (tx) => {
@@ -109,6 +134,7 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
       data: {
         userId,
         ...roadmapData,
+        recommendedPlatforms: recommendedPlatforms ? (recommendedPlatforms as unknown as Prisma.InputJsonValue) : undefined,
         totalSteps: steps.length,
         estimatedMinutes: roadmapData.estimatedMinutes || steps.reduce((sum, s) => sum + (s.duration || 5), 0),
         isActive: true,
@@ -123,6 +149,7 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
             avoid: step.avoid,
             doneWhen: step.doneWhen,
             duration: step.duration || 5,
+            resources: step.resources ? (step.resources as unknown as Prisma.InputJsonValue) : undefined, // Store resource suggestions as JSON
             // First step is CURRENT, rest are LOCKED
             status: index === 0 ? RoadmapStepStatus.CURRENT : RoadmapStepStatus.LOCKED,
             startedAt: index === 0 ? new Date() : null,
@@ -408,6 +435,228 @@ export async function deleteRoadmap(roadmapId: string, userId: string): Promise<
       isActive: false,
     },
   })
+}
+
+/**
+ * Archive a roadmap (save for later without abandoning)
+ * This pauses the roadmap but keeps progress intact
+ */
+export async function archiveRoadmap(roadmapId: string, userId: string): Promise<RoadmapWithSteps> {
+  const roadmap = await prisma.learningRoadmap.update({
+    where: { id: roadmapId, userId },
+    data: {
+      status: RoadmapStatus.PAUSED,
+      isActive: false,
+      lastActivityAt: new Date(),
+    },
+    include: { steps: { orderBy: { order: 'asc' } } },
+  })
+
+  return roadmap as RoadmapWithSteps
+}
+
+/**
+ * Set a specific roadmap as active (switch to it)
+ * Deactivates all other roadmaps for this user
+ */
+export async function setActiveRoadmap(roadmapId: string, userId: string): Promise<RoadmapWithSteps> {
+  return prisma.$transaction(async (tx) => {
+    // Verify the roadmap exists and belongs to user
+    const targetRoadmap = await tx.learningRoadmap.findFirst({
+      where: { id: roadmapId, userId },
+    })
+
+    if (!targetRoadmap) {
+      throw new Error('Roadmap not found')
+    }
+
+    // Cannot activate an abandoned roadmap
+    if (targetRoadmap.status === RoadmapStatus.ABANDONED) {
+      throw new Error('Cannot activate an abandoned roadmap')
+    }
+
+    // Archive (pause) any other active roadmaps
+    await tx.learningRoadmap.updateMany({
+      where: {
+        userId,
+        isActive: true,
+        id: { not: roadmapId },
+      },
+      data: {
+        isActive: false,
+        status: RoadmapStatus.PAUSED,
+      },
+    })
+
+    // Activate the target roadmap
+    const roadmap = await tx.learningRoadmap.update({
+      where: { id: roadmapId, userId },
+      data: {
+        status: targetRoadmap.status === RoadmapStatus.COMPLETED
+          ? RoadmapStatus.COMPLETED // Keep completed status
+          : RoadmapStatus.ACTIVE,
+        isActive: true,
+        lastActivityAt: new Date(),
+      },
+      include: { steps: { orderBy: { order: 'asc' } } },
+    })
+
+    return roadmap as RoadmapWithSteps
+  })
+}
+
+/**
+ * Get all user's roadmaps with filtering and pagination
+ * Supports filtering by status, search, and sorting
+ */
+export async function getAllUserRoadmaps(
+  userId: string,
+  options: {
+    status?: 'active' | 'paused' | 'completed' | 'all'
+    search?: string
+    sortBy?: 'recent' | 'oldest' | 'progress' | 'name'
+    limit?: number
+    offset?: number
+  } = {}
+): Promise<{
+  roadmaps: RoadmapWithSteps[]
+  total: number
+  hasMore: boolean
+}> {
+  const {
+    status = 'all',
+    search,
+    sortBy = 'recent',
+    limit = 20,
+    offset = 0,
+  } = options
+
+  // Build where clause
+  const where: Prisma.LearningRoadmapWhereInput = {
+    userId,
+    // Always exclude abandoned unless explicitly requested
+    status: { not: RoadmapStatus.ABANDONED },
+  }
+
+  // Filter by status
+  if (status !== 'all') {
+    switch (status) {
+      case 'active':
+        where.isActive = true
+        where.status = RoadmapStatus.ACTIVE
+        break
+      case 'paused':
+        where.status = RoadmapStatus.PAUSED
+        break
+      case 'completed':
+        where.status = RoadmapStatus.COMPLETED
+        break
+    }
+  }
+
+  // Search by title or goal
+  if (search && search.trim()) {
+    const searchTerm = search.trim()
+    where.OR = [
+      { title: { contains: searchTerm, mode: 'insensitive' } },
+      { goal: { contains: searchTerm, mode: 'insensitive' } },
+      { subject: { contains: searchTerm, mode: 'insensitive' } },
+    ]
+  }
+
+  // Determine sort order
+  let orderBy: Prisma.LearningRoadmapOrderByWithRelationInput
+  switch (sortBy) {
+    case 'oldest':
+      orderBy = { createdAt: 'asc' }
+      break
+    case 'progress':
+      // Sort by completion percentage (completedSteps/totalSteps)
+      // Prisma doesn't support computed fields, so we'll sort by completedSteps
+      orderBy = { completedSteps: 'desc' }
+      break
+    case 'name':
+      orderBy = { title: 'asc' }
+      break
+    case 'recent':
+    default:
+      orderBy = { lastActivityAt: 'desc' }
+  }
+
+  // Execute queries in parallel for efficiency
+  const [roadmaps, total] = await Promise.all([
+    prisma.learningRoadmap.findMany({
+      where,
+      include: {
+        steps: {
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy,
+      take: limit,
+      skip: offset,
+    }),
+    prisma.learningRoadmap.count({ where }),
+  ])
+
+  return {
+    roadmaps: roadmaps as RoadmapWithSteps[],
+    total,
+    hasMore: offset + roadmaps.length < total,
+  }
+}
+
+/**
+ * Get roadmap summary (lightweight, without steps)
+ * For list views where full step data isn't needed
+ */
+export async function getRoadmapSummaries(
+  userId: string,
+  options: { limit?: number; status?: RoadmapStatus } = {}
+): Promise<{
+  id: string
+  title: string
+  goal: string
+  subject: string | null
+  status: RoadmapStatus
+  isActive: boolean
+  completedSteps: number
+  totalSteps: number
+  estimatedMinutes: number
+  actualMinutesSpent: number
+  createdAt: Date
+  lastActivityAt: Date
+  completedAt: Date | null
+}[]> {
+  const { limit = 20, status } = options
+
+  const where: Prisma.LearningRoadmapWhereInput = {
+    userId,
+    status: status || { not: RoadmapStatus.ABANDONED },
+  }
+
+  const roadmaps = await prisma.learningRoadmap.findMany({
+    where,
+    select: {
+      id: true,
+      title: true,
+      goal: true,
+      subject: true,
+      status: true,
+      isActive: true,
+      completedSteps: true,
+      totalSteps: true,
+      estimatedMinutes: true,
+      actualMinutesSpent: true,
+      createdAt: true,
+      lastActivityAt: true,
+      completedAt: true,
+    },
+    orderBy: { lastActivityAt: 'desc' },
+    take: limit,
+  })
+
+  return roadmaps
 }
 
 // ============================================

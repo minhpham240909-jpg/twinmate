@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/server'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { cacheGet, cacheDelete, CacheTTL, CacheKeys } from '@/lib/redis'
+import { addXp } from '@/lib/xp/xp-manager'
 import {
   MILESTONES,
   checkNewMilestones,
@@ -28,6 +29,9 @@ import {
 
 // Extend CacheKeys if not already there
 const MILESTONE_CACHE_KEY = (userId: string) => `user:milestones:${userId}`
+
+// Pre-compute milestone lookup map for O(1) access instead of O(n) find()
+const MILESTONES_BY_NAME = new Map(MILESTONES.map(m => [m.name, m]))
 
 interface MilestoneResponse {
   success: boolean
@@ -134,19 +138,19 @@ export async function GET(request: NextRequest) {
         // Each guide-me action gives 10 XP
         const totalSessions = Math.floor(totalXp / 10)
 
-        // Map earned badges to our milestone IDs
+        // Map earned badges to our milestone IDs (O(1) lookup via Map)
         const earnedMilestoneIds = earnedBadges
           .map(b => {
-            // Find matching milestone by badge name
-            const milestone = MILESTONES.find(m => m.name === b.badge.name)
+            // O(1) lookup instead of O(n) find()
+            const milestone = MILESTONES_BY_NAME.get(b.badge.name)
             return milestone?.id
           })
           .filter((id): id is string => !!id)
 
-        // Build earned milestones with definitions
+        // Build earned milestones with definitions (O(1) lookup via Map)
         const earnedMilestones = earnedBadges
           .map(badge => {
-            const milestone = MILESTONES.find(m => m.name === badge.badge.name)
+            const milestone = MILESTONES_BY_NAME.get(badge.badge.name)
             if (!milestone) return null
             return {
               id: badge.id,
@@ -247,7 +251,7 @@ export async function POST(request: NextRequest) {
 
     const earnedMilestoneIds = earnedBadges
       .map(b => {
-        const milestone = MILESTONES.find(m => m.name === b.badge.name)
+        const milestone = MILESTONES_BY_NAME.get(b.badge.name)
         return milestone?.id
       })
       .filter((id): id is string => !!id)
@@ -324,17 +328,16 @@ export async function POST(request: NextRequest) {
           awardedMilestones.push(milestone)
         }
       }
-
-      // Award bonus XP
-      if (totalXpBonus > 0) {
-        await tx.profile.update({
-          where: { userId: user.id },
-          data: {
-            totalPoints: { increment: totalXpBonus },
-          },
-        })
-      }
     })
+
+    // Award bonus XP using centralized XP manager (outside transaction for proper logging)
+    if (totalXpBonus > 0) {
+      await addXp(user.id, totalXpBonus, 'mission', {
+        action: 'milestone_bonus',
+        milestones: awardedMilestones.map(m => m.name),
+        milestoneCount: awardedMilestones.length,
+      })
+    }
 
     // Invalidate cache
     await cacheDelete(MILESTONE_CACHE_KEY(user.id))

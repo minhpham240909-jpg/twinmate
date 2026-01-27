@@ -186,8 +186,11 @@ export async function GET(request: NextRequest) {
 
     logger.info('[Message Archive] Job completed', {
       jobId,
-      duration: `${duration}ms`,
-      ...results,
+      duration,
+      messagesFound: results.messagesFound,
+      messagesArchived: results.messagesArchived,
+      messagesDeleted: results.messagesDeleted,
+      errorCount: results.errors.length,
     })
 
     return NextResponse.json({
