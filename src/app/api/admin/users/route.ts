@@ -69,9 +69,8 @@ export async function GET(request: NextRequest) {
       where.deactivatedAt = { not: null }
     }
 
-    // PERF: Fetch users, count, and all bans in parallel
-    // Note: We fetch ALL bans for this page's potential users to avoid sequential query
-    const [users, total, allBans] = await Promise.all([
+    // PERF: Fetch users and count in parallel first
+    const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
         select: {
@@ -102,27 +101,26 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.user.count({ where }),
-      // PERF: Fetch only active bans (not expired), filter in JS after
-      prisma.userBan.findMany({
-        where: {
-          OR: [
-            { expiresAt: null }, // Permanent bans
-            { expiresAt: { gt: new Date() } }, // Not yet expired
-          ],
-        },
-        select: {
-          userId: true,
-          type: true,
-          expiresAt: true,
-          reason: true,
-        },
-        take: 500, // Reduced limit since we filter out expired
-      }),
     ])
 
-    // Create a map for O(1) lookup
-    const userIds = new Set(users.map((u) => u.id))
-    const bans = allBans.filter(b => userIds.has(b.userId))
+    // PERF FIX: Only fetch bans for the specific users on this page
+    // This avoids fetching 500 bans when we only need bans for ~50 users
+    const userIds = users.map((u) => u.id)
+    const bans = userIds.length > 0 ? await prisma.userBan.findMany({
+      where: {
+        userId: { in: userIds },
+        OR: [
+          { expiresAt: null }, // Permanent bans
+          { expiresAt: { gt: new Date() } }, // Not yet expired
+        ],
+      },
+      select: {
+        userId: true,
+        type: true,
+        expiresAt: true,
+        reason: true,
+      },
+    }) : []
 
     // Create a map for O(1) lookup
     const bansByUserId = new Map(bans.map((b) => [b.userId, b]))

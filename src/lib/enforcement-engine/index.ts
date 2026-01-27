@@ -502,7 +502,7 @@ export class EnforcementEngine {
    * OPTIMIZED: Uses transaction for batch updates
    */
   static async payStudyDebt(userId: string, minutesStudied: number): Promise<number> {
-    // Get oldest unpaid debts first
+    // Get oldest unpaid debts first (limited to prevent unbounded queries)
     const debts = await prisma.studyDebt.findMany({
       where: {
         userId,
@@ -511,7 +511,8 @@ export class EnforcementEngine {
       orderBy: [
         { priority: 'asc' },
         { createdAt: 'asc' }
-      ]
+      ],
+      take: 100 // Limit to prevent loading too many debts into memory
     })
 
     if (debts.length === 0) return 0
@@ -561,17 +562,14 @@ export class EnforcementEngine {
 
   /**
    * Get or create learner identity
+   * Uses upsert to prevent race condition when two requests try to create simultaneously
    */
   static async getIdentity(userId: string): Promise<LearnerIdentity> {
-    let identity = await prisma.learnerIdentity.findUnique({
-      where: { userId }
+    const identity = await prisma.learnerIdentity.upsert({
+      where: { userId },
+      update: {}, // No update needed, just return existing
+      create: { userId }
     })
-
-    if (!identity) {
-      identity = await prisma.learnerIdentity.create({
-        data: { userId }
-      })
-    }
 
     return identity
   }

@@ -72,7 +72,10 @@ export default function DashboardSearch({ onShowAIPartnerModal }: DashboardSearc
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ searchQuery: cleanedQuery, searchType: 'simple' }),
-        }).then(r => r.json()).catch(() => ({ profiles: [] })),
+        }).then(async r => {
+          if (!r.ok) return { profiles: [] }
+          return r.json()
+        }).catch(() => ({ profiles: [] })),
         fetch('/api/groups/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -81,7 +84,10 @@ export default function DashboardSearch({ onShowAIPartnerModal }: DashboardSearc
             subject: cleanedQuery,
             subjectCustomDescription: cleanedQuery
           }),
-        }).then(r => r.json()).catch(() => ({ groups: [] }))
+        }).then(async r => {
+          if (!r.ok) return { groups: [] }
+          return r.json()
+        }).catch(() => ({ groups: [] }))
       ])
 
       let partners = partnersRes.profiles || []

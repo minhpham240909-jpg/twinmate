@@ -20,8 +20,10 @@ import logger from '@/lib/logger'
 function verifyCronSecret(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
-    // In development, allow without secret
-    return process.env.NODE_ENV === 'development'
+    // SECURITY FIX: Require secret even in development to prevent accidental exposure
+    // Log warning so developers know to set the secret
+    console.warn('[CRON SECURITY] CRON_SECRET not set - rejecting request. Set CRON_SECRET in .env')
+    return false
   }
   
   const authHeader = request.headers.get('authorization')

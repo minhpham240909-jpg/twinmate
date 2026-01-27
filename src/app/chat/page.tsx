@@ -28,7 +28,17 @@ export default function ChatPage() {
     )
   }
 
-  if (!user) return null
+  if (!user) {
+    // Show redirecting state instead of blank page
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to sign in...</p>
+        </div>
+      </div>
+    )
+  }
 
   const sampleChats = [
     { id: '1', name: 'Study Partner 1', lastMessage: 'Hey, ready for tomorrow?', time: '2m ago', unread: 2 },
