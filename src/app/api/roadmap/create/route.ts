@@ -63,6 +63,10 @@ export async function POST(request: NextRequest) {
   const log = createRequestLogger(request)
   const correlationId = getCorrelationId(request)
 
+  // Declare outside try block for error logging access
+  let userId: string | undefined
+  let body: CreateRoadmapRequest | undefined
+
   try {
     // Auth check
     const supabase = await createClient()
@@ -74,6 +78,7 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+    userId = user.id
 
     // Rate limiting
     const rateLimitResult = await rateLimit(request, RateLimitPresets.moderate)
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request
-    const body: CreateRoadmapRequest = await request.json()
+    body = await request.json()
 
     // Validate required fields
     if (!body.goal || !body.title || !body.steps || body.steps.length === 0) {
@@ -160,7 +165,7 @@ export async function POST(request: NextRequest) {
     log.error('Failed to create roadmap', {
       error: errorMessage,
       stack: errorStack,
-      userId: user?.id,
+      userId,
       goalLength: body?.goal?.length,
       titleLength: body?.title?.length,
       stepsCount: body?.steps?.length,
