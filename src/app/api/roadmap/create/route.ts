@@ -90,10 +90,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request
-    body = await request.json()
+    body = await request.json() as CreateRoadmapRequest
 
     // Validate required fields
-    if (!body.goal || !body.title || !body.steps || body.steps.length === 0) {
+    if (!body || !body.goal || !body.title || !body.steps || body.steps.length === 0) {
       return NextResponse.json(
         { error: 'Missing required fields: goal, title, and steps are required' },
         { status: 400 }
