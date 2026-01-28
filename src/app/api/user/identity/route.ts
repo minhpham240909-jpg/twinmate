@@ -39,35 +39,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch LearnerIdentity
-    const identity = await prisma.learnerIdentity.findUnique({
-      where: { userId: user.id },
-      select: {
-        archetype: true,
-        strengths: true,
-        growthAreas: true,
-        preferredStudyTime: true,
-        consistencyScore: true,
-        currentStreak: true,
-        longestStreak: true,
-        totalMissionsCompleted: true,
-        totalMissionsFailed: true,
-        archetypeUnlockedAt: true,
-        lastMissionAt: true,
-      },
-    })
+    // Fetch LearnerIdentity (with graceful fallback if table doesn't exist)
+    let identity = null
+    try {
+      identity = await prisma.learnerIdentity.findUnique({
+        where: { userId: user.id },
+        select: {
+          archetype: true,
+          strengths: true,
+          growthAreas: true,
+          preferredStudyTime: true,
+          consistencyScore: true,
+          currentStreak: true,
+          longestStreak: true,
+          totalMissionsCompleted: true,
+          totalMissionsFailed: true,
+          archetypeUnlockedAt: true,
+          lastMissionAt: true,
+        },
+      })
+    } catch (dbError) {
+      console.warn('LearnerIdentity table may not exist:', dbError)
+      // Continue with null identity - app still works
+    }
 
-    // Also fetch LearningProfile for additional data
-    const learningProfile = await prisma.learningProfile.findUnique({
-      where: { userId: user.id },
-      select: {
-        strengths: true,
-        weaknesses: true,
-        recommendedFocus: true,
-        learningVelocity: true,
-        preferredDifficulty: true,
-      },
-    })
+    // Also fetch LearningProfile for additional data (with graceful fallback)
+    let learningProfile = null
+    try {
+      learningProfile = await prisma.learningProfile.findUnique({
+        where: { userId: user.id },
+        select: {
+          strengths: true,
+          weaknesses: true,
+          recommendedFocus: true,
+          learningVelocity: true,
+          preferredDifficulty: true,
+        },
+      })
+    } catch (dbError) {
+      console.warn('LearningProfile table may not exist:', dbError)
+      // Continue with null profile - app still works
+    }
 
     // Merge data for complete identity picture
     const hasIdentity = identity?.archetype || (identity?.strengths && identity.strengths.length > 0)
