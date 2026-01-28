@@ -1327,6 +1327,16 @@ const RoadmapView = memo(function RoadmapView({
             </div>
           )}
 
+          {/* Mark as Complete Button */}
+          {onStepComplete && (
+            <button
+              onClick={() => onStepComplete(currentStep.id)}
+              className="w-full mt-4 py-3 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-medium text-sm hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors rounded-xl"
+            >
+              I have completed this step
+            </button>
+          )}
+
           {/* Need Help Button */}
           {!showHelpPanel && (
             <button
@@ -2165,6 +2175,11 @@ export default function DashboardPage() {
         setFeedbackMessage('Roadmap deleted. Start a new learning journey.')
         if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
         feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 3000)
+      } else {
+        // deleteRoadmap returns false on failure (doesn't throw)
+        setFeedbackMessage('Failed to delete roadmap. Please refresh and try again.')
+        if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 4000)
       }
     } catch (err) {
       console.error('Error deleting roadmap:', err)

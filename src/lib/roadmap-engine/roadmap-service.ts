@@ -494,8 +494,17 @@ export async function completeStep(
     // Return updated roadmap
     const updated = await tx.learningRoadmap.findUnique({
       where: { id: roadmapId },
-      include: { steps: { orderBy: { order: 'asc' } } },
+      include: {
+        steps: {
+          orderBy: { order: 'asc' },
+          include: { microTasks: { orderBy: { order: 'asc' } } },
+        },
+      },
     })
+
+    if (!updated) {
+      throw new Error('Roadmap verification failed after completion')
+    }
 
     return updated as RoadmapWithSteps
   })
@@ -505,13 +514,28 @@ export async function completeStep(
  * Pause the current roadmap
  */
 export async function pauseRoadmap(roadmapId: string, userId: string): Promise<RoadmapWithSteps> {
-  const roadmap = await prisma.learningRoadmap.update({
+  // First verify the roadmap exists and belongs to user
+  const existing = await prisma.learningRoadmap.findFirst({
     where: { id: roadmapId, userId },
+    select: { id: true },
+  })
+
+  if (!existing) {
+    throw new Error('Roadmap not found or access denied')
+  }
+
+  const roadmap = await prisma.learningRoadmap.update({
+    where: { id: roadmapId },
     data: {
       status: RoadmapStatus.PAUSED,
       lastActivityAt: new Date(),
     },
-    include: { steps: { orderBy: { order: 'asc' } } },
+    include: {
+      steps: {
+        orderBy: { order: 'asc' },
+        include: { microTasks: { orderBy: { order: 'asc' } } },
+      },
+    },
   })
 
   return roadmap as RoadmapWithSteps
@@ -522,6 +546,20 @@ export async function pauseRoadmap(roadmapId: string, userId: string): Promise<R
  */
 export async function resumeRoadmap(roadmapId: string, userId: string): Promise<RoadmapWithSteps> {
   return prisma.$transaction(async (tx) => {
+    // First verify the roadmap exists and belongs to user
+    const existing = await tx.learningRoadmap.findFirst({
+      where: { id: roadmapId, userId },
+      select: { id: true, status: true },
+    })
+
+    if (!existing) {
+      throw new Error('Roadmap not found or access denied')
+    }
+
+    if (existing.status === RoadmapStatus.ABANDONED) {
+      throw new Error('Cannot resume an abandoned roadmap')
+    }
+
     // Deactivate any other active roadmaps
     await tx.learningRoadmap.updateMany({
       where: {
@@ -537,13 +575,18 @@ export async function resumeRoadmap(roadmapId: string, userId: string): Promise<
 
     // Resume this roadmap
     const roadmap = await tx.learningRoadmap.update({
-      where: { id: roadmapId, userId },
+      where: { id: roadmapId },
       data: {
         status: RoadmapStatus.ACTIVE,
         isActive: true,
         lastActivityAt: new Date(),
       },
-      include: { steps: { orderBy: { order: 'asc' } } },
+      include: {
+        steps: {
+          orderBy: { order: 'asc' },
+          include: { microTasks: { orderBy: { order: 'asc' } } },
+        },
+      },
     })
 
     return roadmap as RoadmapWithSteps
@@ -552,6 +595,7 @@ export async function resumeRoadmap(roadmapId: string, userId: string): Promise<
 
 /**
  * Update time spent on current step
+ * Uses a transaction to ensure atomic updates
  */
 export async function updateStepTime(
   roadmapId: string,
@@ -559,28 +603,32 @@ export async function updateStepTime(
   userId: string,
   minutesSpent: number
 ): Promise<void> {
-  // Verify ownership
-  const roadmap = await prisma.learningRoadmap.findFirst({
-    where: { id: roadmapId, userId },
-  })
+  await prisma.$transaction(async (tx) => {
+    // Verify ownership
+    const roadmap = await tx.learningRoadmap.findFirst({
+      where: { id: roadmapId, userId },
+      select: { id: true },
+    })
 
-  if (!roadmap) {
-    throw new Error('Roadmap not found')
-  }
+    if (!roadmap) {
+      throw new Error('Roadmap not found or access denied')
+    }
 
-  await prisma.roadmapStep.update({
-    where: { id: stepId },
-    data: {
-      minutesSpent: { increment: minutesSpent },
-    },
-  })
+    // Update both step and roadmap atomically
+    await tx.roadmapStep.update({
+      where: { id: stepId },
+      data: {
+        minutesSpent: { increment: minutesSpent },
+      },
+    })
 
-  await prisma.learningRoadmap.update({
-    where: { id: roadmapId },
-    data: {
-      actualMinutesSpent: { increment: minutesSpent },
-      lastActivityAt: new Date(),
-    },
+    await tx.learningRoadmap.update({
+      where: { id: roadmapId },
+      data: {
+        actualMinutesSpent: { increment: minutesSpent },
+        lastActivityAt: new Date(),
+      },
+    })
   })
 }
 
@@ -592,8 +640,18 @@ export async function updateStepTime(
  * Delete a roadmap (soft delete by marking as abandoned)
  */
 export async function deleteRoadmap(roadmapId: string, userId: string): Promise<void> {
-  await prisma.learningRoadmap.update({
+  // First verify the roadmap exists and belongs to user
+  const roadmap = await prisma.learningRoadmap.findFirst({
     where: { id: roadmapId, userId },
+    select: { id: true },
+  })
+
+  if (!roadmap) {
+    throw new Error('Roadmap not found or access denied')
+  }
+
+  await prisma.learningRoadmap.update({
+    where: { id: roadmapId },
     data: {
       status: RoadmapStatus.ABANDONED,
       isActive: false,

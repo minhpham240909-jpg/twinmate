@@ -85,34 +85,43 @@ export async function POST(request: NextRequest) {
 
     const minutesSpent = body.minutesSpent || 0
 
-    // ENFORCEMENT: Validate completion requirements
-    const validation = await EnforcementEngine.validateCompletion(
-      user.id,
-      body.stepId,
-      minutesSpent,
-      body.proof
-    )
+    // ENFORCEMENT: Validate completion requirements (non-blocking)
+    let validation = { valid: true, minimumTimeMet: true, proofValidated: true, warnings: [] as string[] }
+    try {
+      validation = await EnforcementEngine.validateCompletion(
+        user.id,
+        body.stepId,
+        minutesSpent,
+        body.proof
+      )
+    } catch (enforcementError) {
+      log.warn('Enforcement validation failed, proceeding anyway', { error: enforcementError })
+    }
 
     // Get warnings for the response
     const warnings = validation.warnings
 
-    // Record the attempt (SUCCESS or PARTIAL based on validation)
-    await EnforcementEngine.recordAttempt(
-      user.id,
-      body.stepId,
-      validation.valid ? 'SUCCESS' : 'PARTIAL',
-      {
-        minutesSpent,
-        minimumTimeMet: validation.minimumTimeMet,
-        proofType: body.proof?.type,
-        proofData: body.proof,
-        proofValidated: validation.proofValidated,
-        difficultyRating: body.difficultyRating,
-        confidenceLevel: body.confidenceLevel,
-      }
-    )
+    // Record the attempt (SUCCESS or PARTIAL based on validation) - non-blocking
+    try {
+      await EnforcementEngine.recordAttempt(
+        user.id,
+        body.stepId,
+        validation.valid ? 'SUCCESS' : 'PARTIAL',
+        {
+          minutesSpent,
+          minimumTimeMet: validation.minimumTimeMet,
+          proofType: body.proof?.type,
+          proofData: body.proof,
+          proofValidated: validation.proofValidated,
+          difficultyRating: body.difficultyRating,
+          confidenceLevel: body.confidenceLevel,
+        }
+      )
+    } catch (enforcementError) {
+      log.warn('Failed to record attempt, proceeding anyway', { error: enforcementError })
+    }
 
-    // Complete the step (this handles progression)
+    // Complete the step (this handles progression) - THIS IS THE CRITICAL PART
     const updatedRoadmap = await completeStep(
       body.roadmapId,
       body.stepId,
@@ -124,17 +133,35 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    // ENFORCEMENT: Pay down study debt with time spent
+    // ENFORCEMENT: Pay down study debt with time spent (non-blocking)
     if (minutesSpent > 0) {
-      await EnforcementEngine.payStudyDebt(user.id, minutesSpent)
+      try {
+        await EnforcementEngine.payStudyDebt(user.id, minutesSpent)
+      } catch (enforcementError) {
+        log.warn('Failed to pay study debt, proceeding anyway', { error: enforcementError })
+      }
     }
 
     // Check if roadmap is now complete
     const isRoadmapComplete = updatedRoadmap.status === 'COMPLETED'
     const currentStep = updatedRoadmap.steps.find(s => s.status === 'CURRENT')
 
-    // Get identity update
-    const identity = await EnforcementEngine.getIdentity(user.id)
+    // Get identity update (non-blocking)
+    let identity: { currentStreak: number; totalMissionsCompleted: number; archetype: string | null | undefined } = {
+      currentStreak: 0,
+      totalMissionsCompleted: 0,
+      archetype: undefined
+    }
+    try {
+      const fetchedIdentity = await EnforcementEngine.getIdentity(user.id)
+      identity = {
+        currentStreak: fetchedIdentity.currentStreak,
+        totalMissionsCompleted: fetchedIdentity.totalMissionsCompleted,
+        archetype: fetchedIdentity.archetype,
+      }
+    } catch (enforcementError) {
+      log.warn('Failed to get identity, using defaults', { error: enforcementError })
+    }
 
     // Get authority message based on completion
     const authorityMessage = EnforcementEngine.getAuthorityMessage('success', {

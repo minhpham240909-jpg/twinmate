@@ -232,9 +232,19 @@ export async function DELETE(request: NextRequest) {
     })
 
   } catch (error) {
-    log.error('Failed to delete roadmap', error instanceof Error ? error : { error })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    log.error('Failed to delete roadmap', { error: errorMessage, stack: error instanceof Error ? error.stack : undefined })
+
+    // Handle specific errors
+    if (errorMessage.includes('not found') || errorMessage.includes('access denied')) {
+      return NextResponse.json(
+        { error: 'Roadmap not found or you do not have permission to delete it' },
+        { status: 404 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Failed to delete roadmap' },
+      { error: 'Failed to delete roadmap. Please try again.' },
       { status: 500 }
     )
   }
