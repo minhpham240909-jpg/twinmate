@@ -264,31 +264,15 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
             // First step is CURRENT, rest are LOCKED
             status: index === 0 ? RoadmapStepStatus.CURRENT : RoadmapStepStatus.LOCKED,
             startedAt: index === 0 ? new Date() : null,
-            // Create micro-tasks for this step if provided
-            ...(step.microTasks && step.microTasks.length > 0 ? {
-              microTasks: {
-                create: step.microTasks.map((task, taskIndex) => ({
-                  order: task.order || taskIndex + 1,
-                  title: task.title,
-                  description: task.description,
-                  taskType: task.taskType || 'ACTION',
-                  duration: task.duration || 5,
-                  verificationMethod: task.verificationMethod,
-                  proofRequired: task.proofRequired || false,
-                })),
-              },
-            } : {}),
+            // NOTE: microTasks creation removed - table may not exist yet
+            // Run add_enhanced_roadmap_fields.sql migration to enable microTasks
           })),
         },
       },
       include: {
         steps: {
           orderBy: { order: 'asc' },
-          include: {
-            microTasks: {
-              orderBy: { order: 'asc' },
-            },
-          },
+          // NOTE: microTasks include removed - table may not exist yet
         },
       },
     })
@@ -337,11 +321,7 @@ export async function getActiveRoadmap(userId: string): Promise<RoadmapWithSteps
     include: {
       steps: {
         orderBy: { order: 'asc' },
-        include: {
-          microTasks: {
-            orderBy: { order: 'asc' },
-          },
-        },
+        // NOTE: microTasks include removed - table may not exist yet
       },
     },
   })
@@ -361,11 +341,7 @@ export async function getRoadmapById(roadmapId: string, userId: string): Promise
     include: {
       steps: {
         orderBy: { order: 'asc' },
-        include: {
-          microTasks: {
-            orderBy: { order: 'asc' },
-          },
-        },
+        // NOTE: microTasks include removed - table may not exist yet
       },
     },
   })
@@ -491,13 +467,13 @@ export async function completeStep(
       })
     }
 
-    // Return updated roadmap
+    // Return updated roadmap (without microTasks to avoid errors if table doesn't exist)
+    // microTasks are optional and may not be migrated yet
     const updated = await tx.learningRoadmap.findUnique({
       where: { id: roadmapId },
       include: {
         steps: {
           orderBy: { order: 'asc' },
-          include: { microTasks: { orderBy: { order: 'asc' } } },
         },
       },
     })
@@ -506,7 +482,23 @@ export async function completeStep(
       throw new Error('Roadmap verification failed after completion')
     }
 
-    return updated as RoadmapWithSteps
+    // Try to fetch microTasks separately (graceful fallback if table doesn't exist)
+    const stepsWithMicroTasks = await Promise.all(
+      updated.steps.map(async (step) => {
+        try {
+          const microTasks = await tx.microTask.findMany({
+            where: { stepId: step.id },
+            orderBy: { order: 'asc' },
+          })
+          return { ...step, microTasks }
+        } catch {
+          // microTasks table may not exist yet - return step without them
+          return { ...step, microTasks: [] }
+        }
+      })
+    )
+
+    return { ...updated, steps: stepsWithMicroTasks } as RoadmapWithSteps
   })
 }
 
@@ -533,7 +525,6 @@ export async function pauseRoadmap(roadmapId: string, userId: string): Promise<R
     include: {
       steps: {
         orderBy: { order: 'asc' },
-        include: { microTasks: { orderBy: { order: 'asc' } } },
       },
     },
   })
@@ -584,7 +575,6 @@ export async function resumeRoadmap(roadmapId: string, userId: string): Promise<
       include: {
         steps: {
           orderBy: { order: 'asc' },
-          include: { microTasks: { orderBy: { order: 'asc' } } },
         },
       },
     })
