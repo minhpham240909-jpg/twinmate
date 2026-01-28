@@ -4,6 +4,12 @@
  * Orchestrates the 6-prompt pipeline for generating professor-level roadmaps.
  * Optimized to run in 2-3 API calls instead of 6 for cost and latency.
  *
+ * Now integrated with the 4-Layer Content Quality System:
+ * - Layer 1: Clerva Doctrine (fixed rules)
+ * - Layer 2: Domain Playbooks (expert knowledge)
+ * - Layer 3: Generation Engine (context builder)
+ * - Layer 4: Quality Evaluator (gatekeeper)
+ *
  * Pipeline Phases:
  * 1. Diagnostic (Call 1): Goal decomposition + Knowledge gap analysis
  * 2. Strategy (Call 2): Transformation design + Risk assessment + Learning strategy
@@ -13,6 +19,11 @@
 import OpenAI from 'openai'
 import { v4 as uuidv4 } from 'uuid'
 import logger from '@/lib/logger'
+
+// Import 4-Layer Content Quality System
+import { getContextBuilder } from './generator/context-builder'
+import { getQualityEvaluator } from './evaluator/quality-evaluator'
+import { getDomainContext } from './domains'
 
 // Import prompt modules
 import {
@@ -298,11 +309,37 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
 
 /**
  * Phase 1: Diagnostic - Understand the goal and gaps
+ * Now enhanced with Layer 2 Domain Intelligence
  */
 async function runDiagnosticPhase(input: PipelineInput): Promise<DiagnosticResult> {
   const openai = getOpenAI()
 
-  const systemPrompt = COMBINED_DIAGNOSTIC_PROMPT
+  // Get domain context from Layer 2
+  const domainInfo = getDomainContext(input.goal)
+
+  // Build domain-enhanced system prompt
+  let systemPrompt = COMBINED_DIAGNOSTIC_PROMPT
+
+  // Inject domain intelligence if available
+  if (domainInfo.domain !== 'generic') {
+    const domainInjection = `
+
+## DOMAIN INTELLIGENCE: ${domainInfo.domain}${domainInfo.subdomain ? ` (${domainInfo.subdomain})` : ''}
+
+### Expert Priorities (Consider these in your analysis)
+${domainInfo.expertPriorities.map(p => `- ${p}`).join('\n')}
+
+### Known Wrong Beliefs (Watch for these)
+${domainInfo.wrongBeliefs.map(wb => `- BELIEF: "${wb.belief}" → REALITY: ${wb.reality}`).join('\n')}
+
+### Known Failure Modes (Design to prevent)
+${domainInfo.failureModes.slice(0, 5).map(f => `- TRAP: ${f.trap} → CONSEQUENCE: ${f.consequence}`).join('\n')}
+
+Use this domain knowledge to provide deeper, more specific analysis.
+`
+    systemPrompt = systemPrompt + domainInjection
+  }
+
   const userPrompt = `User's learning goal: "${input.goal}"${input.subject ? `\nSubject area: ${input.subject}` : ''}${input.userContext ? `\nUser context: ${input.userContext}` : ''}
 
 Analyze this goal and provide the diagnostic report in JSON format.
@@ -383,6 +420,7 @@ ${STRATEGY_RESPONSE_FORMAT}`
 
 /**
  * Phase 3: Execution - Create detailed steps
+ * Now enhanced with Layer 1 Clerva Doctrine and Layer 2 Domain Intelligence
  */
 async function runExecutionPhase(
   diagnostic: DiagnosticResult,
@@ -393,14 +431,47 @@ async function runExecutionPhase(
   const stepCount = calculateStepCount(diagnostic)
   const { diagnosticContext, strategyContext } = formatExecutionContext(diagnostic, strategy)
 
-  const systemPrompt = COMBINED_EXECUTION_PROMPT
+  // Get context builder for Clerva Doctrine injection
+  const contextBuilder = getContextBuilder()
+  const clervaContext = contextBuilder.buildFullPromptInjection(diagnostic.goal.original)
+
+  // Get domain context for additional intelligence
+  const domainInfo = getDomainContext(diagnostic.goal.original)
+
+  // Build enhanced system prompt with Clerva Doctrine
+  let systemPrompt = COMBINED_EXECUTION_PROMPT
     .replace('{diagnosticContext}', diagnosticContext)
     .replace('{strategyContext}', strategyContext)
     .replace(/{totalSteps}/g, String(stepCount))
     .replace(/{estimatedDays}/g, String(strategy.strategy.estimatedDays))
     .replace(/{dailyCommitment}/g, strategy.strategy.dailyCommitment)
 
+  // Inject Clerva Doctrine and Domain Intelligence
+  systemPrompt = `${clervaContext}
+
+---
+
+${systemPrompt}
+
+---
+
+## ADDITIONAL DOMAIN CONSTRAINTS
+
+${domainInfo.sequenceRules.length > 0 ? `### Sequence Rules (Must Follow)
+${domainInfo.sequenceRules.map(r => `- ${r.prerequisite} must come before ${r.required_for}`).join('\n')}` : ''}
+
+### Failure Modes to Address in commonMistakes
+${domainInfo.failureModes.slice(0, 6).map(f => `- ${f.trap} → ${f.consequence}`).join('\n')}
+`
+
   const userPrompt = `Create the execution plan with ${stepCount} total steps.
+
+CRITICAL REMINDERS:
+1. Every step title must use ACTION VERBS (not "understand", "learn", "know")
+2. Every step needs whyFirst explaining why NOW
+3. Every step needs 2+ commonMistakes with trap AND consequence
+4. Every step needs selfTest with challenge and passCriteria
+5. Every step needs abilities (what user CAN DO after)
 
 Expected JSON structure:
 ${EXECUTION_RESPONSE_FORMAT}`
@@ -447,8 +518,60 @@ ${EXECUTION_RESPONSE_FORMAT}`
  *
  * This catches cases where AI output is too vague and enhances it
  * with concrete, actionable details.
+ *
+ * Now integrated with Layer 4 Quality Evaluator for validation.
  */
 function enforceActionability(execution: ExecutionResult, goal: string): ExecutionResult {
+  // Use quality evaluator to check the output
+  const evaluator = getQualityEvaluator()
+
+  // Convert execution to roadmap format for evaluation
+  const roadmapForEval = {
+    title: execution.title,
+    overview: '',
+    steps: [
+      {
+        order: execution.currentStep.order,
+        title: execution.currentStep.title,
+        description: execution.currentStep.description,
+        duration: execution.currentStep.duration,
+        whyFirst: execution.currentStep.whyFirst,
+        method: execution.currentStep.method,
+        doneWhen: execution.currentStep.doneWhen,
+        commonMistakes: execution.currentStep.commonMistakes?.map(m => ({
+          trap: m,
+          consequence: 'See above'
+        })),
+        selfTest: execution.currentStep.selfTest,
+        abilities: execution.currentStep.abilities,
+        risk: execution.currentStep.risk,
+      },
+      ...execution.lockedSteps.map(ls => ({
+        order: ls.order,
+        title: ls.title,
+        description: '',
+        whyFirst: ls.whyAfterPrevious,
+        abilities: ls.previewAbilities,
+      })),
+    ],
+  }
+
+  // Evaluate and log quality score
+  const evaluation = evaluator.evaluate(roadmapForEval)
+  logger.info('[Pipeline] Quality evaluation', {
+    score: evaluation.score,
+    passed: evaluation.passed,
+    failureCount: evaluation.failures.length,
+    criticalFailures: evaluation.failures.filter(f => f.severity === 'critical').length,
+  })
+
+  // Log suggestions for improvement
+  if (!evaluation.passed && evaluation.failures.length > 0) {
+    logger.warn('[Pipeline] Quality issues detected', {
+      failures: evaluation.failures.slice(0, 5).map(f => f.fix),
+    })
+  }
+
   const VAGUE_PATTERNS = [
     /^learn\s/i,
     /^study\s/i,

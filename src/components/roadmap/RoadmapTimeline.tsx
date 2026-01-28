@@ -23,7 +23,6 @@ import {
   Lock,
   ChevronDown,
   ChevronUp,
-  Clock,
   Target,
   AlertTriangle,
   Zap,
@@ -182,13 +181,11 @@ function groupStepsByPhase(steps: EnhancedStep[]): Map<RoadmapPhase | 'default',
 // PHASE HEADER COMPONENT
 // ============================================
 
-function PhaseHeader({ phase, stepCount, completedCount }: {
+function PhaseHeader({ phase, stepCount }: {
   phase: RoadmapPhase
   stepCount: number
-  completedCount: number
 }) {
   const config = getPhaseConfig(phase)
-  const isComplete = completedCount === stepCount
 
   return (
     <div className={`
@@ -207,17 +204,8 @@ function PhaseHeader({ phase, stepCount, completedCount }: {
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {isComplete ? (
-          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
-            <CheckCircle className="w-4 h-4" />
-            Complete
-          </span>
-        ) : (
-          <span className="text-xs text-neutral-500">
-            {completedCount}/{stepCount} steps
-          </span>
-        )}
+      <div className="text-xs text-neutral-500">
+        {stepCount} {stepCount === 1 ? 'gate' : 'gates'}
       </div>
     </div>
   )
@@ -336,17 +324,12 @@ function TimelineStepCard({
           <div className="flex items-center gap-2 mb-1">
             {isCurrent && (
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded-full">
-                Current
+                Current Gate
               </span>
             )}
             {isCompleted && (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50 px-2 py-0.5 rounded-full">
-                Done
-              </span>
-            )}
-            {step.timeframe && !isLocked && (
-              <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                {step.timeframe}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
+                Passed
               </span>
             )}
           </div>
@@ -363,16 +346,8 @@ function TimelineStepCard({
           {/* Preview for locked steps */}
           {isLocked && step.previewAbilities && step.previewAbilities.length > 0 && (
             <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-              You'll learn: {step.previewAbilities[0]}
+              Capability: {step.previewAbilities[0]}
             </p>
-          )}
-
-          {/* Duration for unlocked steps */}
-          {!isLocked && step.duration && step.duration > 0 && (
-            <div className="flex items-center gap-1 mt-1 text-xs text-neutral-500">
-              <Clock className="w-3 h-3" />
-              <span>{step.duration} min/day</span>
-            </div>
           )}
         </div>
 
@@ -425,38 +400,6 @@ function TimelineStepCard({
                 </span>
               </div>
               <p className="text-sm text-blue-800 dark:text-blue-200">{step.method}</p>
-            </div>
-          )}
-
-          {/* Time Breakdown */}
-          {step.timeBreakdown && (
-            <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-neutral-600" />
-                <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase">
-                  Time Commitment
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="text-center p-2 bg-white dark:bg-neutral-700 rounded">
-                  <div className="font-bold text-neutral-800 dark:text-neutral-100">
-                    {step.timeBreakdown.daily}
-                  </div>
-                  <div className="text-neutral-500">Daily</div>
-                </div>
-                <div className="text-center p-2 bg-white dark:bg-neutral-700 rounded">
-                  <div className="font-bold text-neutral-800 dark:text-neutral-100">
-                    {step.timeBreakdown.total}
-                  </div>
-                  <div className="text-neutral-500">Total</div>
-                </div>
-                <div className="text-center p-2 bg-white dark:bg-neutral-700 rounded">
-                  <div className="font-bold text-neutral-800 dark:text-neutral-100">
-                    {step.timeBreakdown.flexible}
-                  </div>
-                  <div className="text-neutral-500">Flexible</div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -599,9 +542,6 @@ export function RoadmapTimeline({
     steps[currentStepIndex]?.id || null
   )
 
-  const completedCount = completedStepIds.length
-  const progressPercent = (completedCount / steps.length) * 100
-
   // Group steps by phase
   const hasPhases = steps.some(s => s.phase)
   const phaseGroups = hasPhases ? groupStepsByPhase(steps) : null
@@ -627,13 +567,11 @@ export function RoadmapTimeline({
       if (!phaseSteps || phaseSteps.length === 0) return
 
       if (phase !== 'default') {
-        const phaseCompletedCount = phaseSteps.filter(s => completedStepIds.includes(s.id)).length
         elements.push(
           <PhaseHeader
             key={`phase-${phase}`}
             phase={phase as RoadmapPhase}
             stepCount={phaseSteps.length}
-            completedCount={phaseCompletedCount}
           />
         )
       }
@@ -743,54 +681,9 @@ export function RoadmapTimeline({
           </div>
         )}
 
-        {/* Stats bar */}
-        <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-neutral-500">
-          <div className="flex items-center gap-1">
-            <Target className="w-4 h-4" />
-            <span>{steps.length} steps</span>
-          </div>
-          {estimatedDays && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>~{estimatedDays} days</span>
-            </div>
-          )}
-          {dailyCommitment && (
-            <div className="flex items-center gap-1">
-              <Zap className="w-4 h-4" />
-              <span>{dailyCommitment}</span>
-            </div>
-          )}
-          {totalMinutes && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{Math.round(totalMinutes / 60)}h total</span>
-            </div>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span id="roadmap-progress-label" className="text-neutral-500">Progress</span>
-            <span className="font-medium text-neutral-700 dark:text-neutral-300">
-              {completedCount}/{steps.length} steps
-            </span>
-          </div>
-          <div
-            role="progressbar"
-            aria-labelledby="roadmap-progress-label"
-            aria-valuenow={Math.round(progressPercent)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuetext={`${completedCount} of ${steps.length} steps completed`}
-            className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden"
-          >
-            <div
-              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
+        {/* Gate count - simple, not gamified */}
+        <div className="mt-3 text-xs text-neutral-500">
+          <span>{steps.length} gates in this training program</span>
         </div>
 
         {/* Success metrics preview */}

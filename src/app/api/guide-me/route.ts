@@ -46,6 +46,7 @@ import {
   type Platform,
 } from '@/lib/platforms/platform-database'
 import { runPipeline, type PipelineOutput } from '@/lib/roadmap-engine/pipeline'
+import { getDomainContext } from '@/lib/roadmap-engine/domains'
 
 // Type for extracted memory entries
 interface ExtractedMemory {
@@ -442,6 +443,36 @@ export async function POST(request: NextRequest) {
     const determinedActionType = actionType === 'auto'
       ? determineActionType(question, struggleType)
       : actionType
+
+    // Smart Goal Detection: For roadmaps, check if goal is too vague
+    // If vague, return clarifying questions instead of generating
+    if (determinedActionType === 'roadmap') {
+      const domainInfo = getDomainContext(question)
+
+      // If goal is vague and has clarifying questions, return them
+      if (domainInfo.isVague && domainInfo.clarifyingQuestions.length > 0) {
+        log.info('Goal is vague, returning clarifying questions', {
+          domain: domainInfo.domain,
+          questionCount: domainInfo.clarifyingQuestions.length,
+        })
+
+        return NextResponse.json({
+          success: true,
+          needsClarification: true,
+          clarifyingQuestions: domainInfo.clarifyingQuestions,
+          domain: domainInfo.domain,
+          subdomain: domainInfo.subdomain,
+          message: 'To create the best roadmap for you, I need a bit more context.',
+          xpEarned: 0,
+          streakUpdated: false,
+          encouragement: 'Let me understand your goal better.',
+        }, {
+          headers: {
+            'x-correlation-id': correlationId,
+          },
+        })
+      }
+    }
 
     // Check cache for common queries (speeds up repeated questions)
     // Don't cache if analyzed input is provided (personalized content)

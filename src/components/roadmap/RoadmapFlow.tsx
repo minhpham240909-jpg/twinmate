@@ -19,7 +19,6 @@ import {
   Circle,
   Lock,
   ArrowRight,
-  Clock,
   Target,
   Zap,
   X,
@@ -167,24 +166,11 @@ function FlowNode({
         <span
           className={`
             text-sm font-semibold text-center line-clamp-2
-            ${isCompleted ? 'line-through opacity-80' : ''}
+            ${isCompleted ? 'opacity-80' : ''}
           `}
         >
           {step.title}
         </span>
-
-        {/* Duration badge */}
-        {!isLocked && step.duration && step.duration > 0 && (
-          <div
-            className={`
-              mt-2 flex items-center gap-1 text-xs px-2 py-1 rounded-full
-              ${isCurrent || isCompleted ? 'bg-white/20' : 'bg-neutral-300 dark:bg-neutral-600'}
-            `}
-          >
-            <Clock className="w-3 h-3" />
-            <span>{step.duration}m</span>
-          </div>
-        )}
 
         {/* Current indicator pulse */}
         {isCurrent && (
@@ -325,40 +311,6 @@ function StepDetailModal({
             </div>
           )}
 
-          {/* Time Breakdown */}
-          {step.timeBreakdown && (
-            <div className="bg-neutral-100 dark:bg-neutral-800 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-neutral-600" />
-                <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase">
-                  Time Commitment
-                </span>
-              </div>
-              <div className="flex justify-between text-center">
-                <div>
-                  <div className="text-lg font-bold text-neutral-800 dark:text-neutral-100">
-                    {step.timeBreakdown.daily}
-                  </div>
-                  <div className="text-xs text-neutral-500">Daily</div>
-                </div>
-                <div className="border-l border-neutral-300 dark:border-neutral-600" />
-                <div>
-                  <div className="text-lg font-bold text-neutral-800 dark:text-neutral-100">
-                    {step.timeBreakdown.total}
-                  </div>
-                  <div className="text-xs text-neutral-500">Total</div>
-                </div>
-                <div className="border-l border-neutral-300 dark:border-neutral-600" />
-                <div>
-                  <div className="text-lg font-bold text-neutral-800 dark:text-neutral-100">
-                    {step.timeBreakdown.flexible}
-                  </div>
-                  <div className="text-xs text-neutral-500">Flexible</div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Common Mistakes */}
           {step.commonMistakes && step.commonMistakes.length > 0 && (
             <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-4 border border-red-200 dark:border-red-800">
@@ -485,18 +437,11 @@ export function RoadmapFlow({
   completedStepIds,
   title,
   overview,
-  estimatedDays,
-  dailyCommitment,
-  totalMinutes: _totalMinutes,
   successLooksLike,
   onStepClick,
   onResourceClick,
 }: RoadmapFlowProps) {
-  // Note: _totalMinutes is available for future use but not currently displayed
   const [selectedStep, setSelectedStep] = useState<EnhancedStep | null>(null)
-
-  const completedCount = completedStepIds.length
-  const progressPercent = steps.length > 0 ? (completedCount / steps.length) * 100 : 0
 
   // Handle empty steps case
   if (steps.length === 0) {
@@ -528,37 +473,9 @@ export function RoadmapFlow({
           <p className="text-sm text-neutral-600 dark:text-neutral-400">{overview}</p>
         )}
 
-        {/* Stats */}
-        <div className="flex justify-center flex-wrap gap-4 mt-3 text-xs text-neutral-500">
-          <div className="flex items-center gap-1">
-            <Target className="w-4 h-4" />
-            <span>{steps.length} steps</span>
-          </div>
-          {estimatedDays && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>~{estimatedDays} days</span>
-            </div>
-          )}
-          {dailyCommitment && (
-            <div className="flex items-center gap-1">
-              <Zap className="w-4 h-4" />
-              <span>{dailyCommitment}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        <div className="max-w-md mx-auto mt-4">
-          <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <div className="text-xs text-neutral-500 mt-1">
-            {completedCount}/{steps.length} completed
-          </div>
+        {/* Gate count - simple, not gamified */}
+        <div className="mt-3 text-xs text-neutral-500">
+          <span>{steps.length} gates in this training program</span>
         </div>
       </div>
 

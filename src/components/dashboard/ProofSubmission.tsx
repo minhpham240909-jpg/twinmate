@@ -357,25 +357,47 @@ export const ProofSubmission = memo(function ProofSubmission({
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setContent('completed')}
-                className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
+                onClick={() => {
+                  // Auto-submit for self_report - user expects immediate action
+                  onSubmit({
+                    type: mission.proofRequired,
+                    content: 'completed',
+                  })
+                }}
+                disabled={isLoading}
+                className={`flex-1 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   content === 'completed'
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-2 border-green-500'
-                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-2 border-transparent'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-2 border-transparent hover:bg-green-50 dark:hover:bg-green-900/20'
                 }`}
               >
-                <CheckCircle2 className="w-5 h-5 mx-auto mb-1" />
+                {isLoading && content === 'completed' ? (
+                  <Loader2 className="w-5 h-5 mx-auto mb-1 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 mx-auto mb-1" />
+                )}
                 Yes, completed
               </button>
               <button
-                onClick={() => setContent('struggled')}
-                className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
+                onClick={() => {
+                  // Auto-submit for self_report - user expects immediate action
+                  onSubmit({
+                    type: mission.proofRequired,
+                    content: 'struggled',
+                  })
+                }}
+                disabled={isLoading}
+                className={`flex-1 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   content === 'struggled'
                     ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-2 border-amber-500'
-                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-2 border-transparent'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-2 border-transparent hover:bg-amber-50 dark:hover:bg-amber-900/20'
                 }`}
               >
-                <AlertTriangle className="w-5 h-5 mx-auto mb-1" />
+                {isLoading && content === 'struggled' ? (
+                  <Loader2 className="w-5 h-5 mx-auto mb-1 animate-spin" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 mx-auto mb-1" />
+                )}
                 I struggled
               </button>
             </div>
@@ -658,7 +680,8 @@ export const ProofSubmission = memo(function ProofSubmission({
           </div>
         )}
 
-        {/* Submit Button */}
+        {/* Submit Button - Only show for non-self_report missions */}
+        {mission.proofRequired !== 'self_report' && (
         <button
           onClick={handleSubmit}
           disabled={!isValid || isLoading || isUploading}
@@ -676,6 +699,7 @@ export const ProofSubmission = memo(function ProofSubmission({
             </>
           )}
         </button>
+        )}
       </div>
     </div>
   )

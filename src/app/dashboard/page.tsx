@@ -932,12 +932,14 @@ const RoadmapView = memo(function RoadmapView({
   onDelete,
   isDeleting,
   onRefine,
+  onStepComplete,
 }: {
   roadmap: Roadmap
   onBack: () => void
   onDelete: () => void
   isDeleting: boolean
   onRefine?: (type: 'faster_pace' | 'more_depth' | 'different_focus') => Promise<void>
+  onStepComplete?: (stepId: string) => Promise<void>
 }) {
   const [showAllSteps, setShowAllSteps] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -1020,36 +1022,87 @@ const RoadmapView = memo(function RoadmapView({
 
       {/* VISUAL VIEW - New Timeline/Flow visualization */}
       {viewMode === 'visual' ? (
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
-          <RoadmapVisualizer
-            roadmapId={roadmap.id}
-            steps={visualSteps}
-            currentStepIndex={currentStepIndex >= 0 ? currentStepIndex : 0}
-            completedStepIds={completedStepIds}
-            title={roadmap.title}
-            overview={roadmap.overview}
-            estimatedDays={roadmap.estimatedDays}
-            dailyCommitment={roadmap.dailyCommitment}
-            totalMinutes={roadmap.estimatedMinutes}
-            successLooksLike={roadmap.successLooksLike}
-            // Vision & Strategy fields
-            vision={roadmap.vision}
-            targetUser={roadmap.targetUser}
-            successMetrics={roadmap.successMetrics}
-            outOfScope={roadmap.outOfScope}
-            criticalWarning={roadmap.criticalWarning}
-            showVisionBanner={true}
-            onStepClick={(stepId) => {
-              // Could add step selection logic here
-              console.log('Step clicked:', stepId)
-            }}
-            onResourceClick={(resource, stepId) => {
-              // Track resource click
-              console.log('Resource clicked:', resource.title, 'in step:', stepId)
-            }}
-            showViewToggle={false}
-          />
-        </div>
+        <>
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
+            <RoadmapVisualizer
+              roadmapId={roadmap.id}
+              steps={visualSteps}
+              currentStepIndex={currentStepIndex >= 0 ? currentStepIndex : 0}
+              completedStepIds={completedStepIds}
+              title={roadmap.title}
+              overview={roadmap.overview}
+              estimatedDays={roadmap.estimatedDays}
+              dailyCommitment={roadmap.dailyCommitment}
+              totalMinutes={roadmap.estimatedMinutes}
+              successLooksLike={roadmap.successLooksLike}
+              // Vision & Strategy fields
+              vision={roadmap.vision}
+              targetUser={roadmap.targetUser}
+              successMetrics={roadmap.successMetrics}
+              outOfScope={roadmap.outOfScope}
+              criticalWarning={roadmap.criticalWarning}
+              showVisionBanner={true}
+              onStepClick={(stepId) => {
+                // Could add step selection logic here
+                console.log('Step clicked:', stepId)
+              }}
+              onResourceClick={(resource, stepId) => {
+                // Track resource click
+                console.log('Resource clicked:', resource.title, 'in step:', stepId)
+              }}
+              onStepComplete={onStepComplete}
+              showViewToggle={false}
+            />
+          </div>
+
+          {/* Delete Roadmap Section - Visual View */}
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-4">
+            {!showDeleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete this roadmap</span>
+              </button>
+            ) : (
+              <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-4 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                  Are you sure you want to delete this roadmap? This action cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    className="flex-1 py-2 px-3 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete()
+                      setShowDeleteConfirm(false)
+                    }}
+                    disabled={isDeleting}
+                    className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <>
       {/* POST-ACTION REFINEMENT BAR - Appears after roadmap is created */}
@@ -2580,6 +2633,29 @@ export default function DashboardPage() {
                   setFeedbackMessage('Failed to refine roadmap. Please try again.')
                   if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
                   feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 3000)
+                }
+              }}
+              onStepComplete={async (stepId) => {
+                const success = await completeStep(stepId)
+                if (success) {
+                  await refreshRoadmap()
+
+                  // Get step info for celebration
+                  const step = activeRoadmap?.steps.find(s => s.id === stepId)
+                  const minutesSpent = step?.duration || 10
+                  triggerStepComplete(minutesSpent)
+
+                  // Show celebration
+                  const isLastStep = activeRoadmap
+                    ? activeRoadmap.completedSteps + 1 >= activeRoadmap.totalSteps
+                    : false
+
+                  setCelebrationData({
+                    xpEarned: 25,
+                    stepCompleted: step?.title || 'Gate',
+                    isRoadmapComplete: isLastStep,
+                  })
+                  setShowCelebration(true)
                 }
               }}
             />
