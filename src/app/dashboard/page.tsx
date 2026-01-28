@@ -2092,6 +2092,13 @@ export default function DashboardPage() {
       if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
       feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 2000)
     },
+    onSimplifyStep: () => {
+      // Navigate to roadmap view where breakdown is shown
+      setViewState('roadmap')
+      setFeedbackMessage('Showing step breakdown...')
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 2000)
+    },
     onOpenChat: () => {
       // Expand chat panel
       setShouldExpandChat(true)
@@ -2401,7 +2408,37 @@ export default function DashboardPage() {
             isRoadmapComplete: isLastStep,
           })
           setShowCelebration(true)
+
+          // Note: The useEffect will update currentMission when activeRoadmap changes
+          // from the refreshRoadmap() call above
+          return // Exit early - celebration modal will handle the transition
         }
+      } else if (result.passed && !stepIdToComplete) {
+        // Mission passed but no roadmap step to complete (standalone mission or no active roadmap)
+        // Decide the next mission based on current progress
+        const currentStep = activeRoadmap?.steps.find(s => s.status === 'current') || null
+        const roadmapForEngine = activeRoadmap ? {
+          id: activeRoadmap.id,
+          currentStep: currentStep ? {
+            id: currentStep.id,
+            order: currentStep.order,
+            title: currentStep.title,
+            description: currentStep.description,
+            method: currentStep.method,
+            avoid: currentStep.avoid,
+            doneWhen: currentStep.doneWhen,
+            duration: currentStep.duration || 10,
+          } : null,
+          totalSteps: activeRoadmap.totalSteps,
+          completedSteps: activeRoadmap.completedSteps,
+        } : null
+
+        // Get next mission
+        const decision = MissionEngine.decideNextMission(userProgress, roadmapForEngine)
+        setCurrentMission(decision.mission)
+
+        // Small celebration for completing standalone mission
+        triggerStepComplete(10)
       }
 
       // Update user progress
@@ -2427,6 +2464,12 @@ export default function DashboardPage() {
       if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
       feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 4000)
 
+      // If user struggled, navigate to roadmap view where they can get help
+      if (!result.passed) {
+        setViewState('roadmap')
+        return
+      }
+
       // Return to mission view
       setViewState('mission')
 
@@ -2438,7 +2481,7 @@ export default function DashboardPage() {
     } finally {
       setIsProcessing(false)
     }
-  }, [currentMission, activeRoadmap, completeStep, refreshRoadmap, createRoadmapFromGoal])
+  }, [currentMission, activeRoadmap, completeStep, refreshRoadmap, createRoadmapFromGoal, userProgress, triggerStepComplete])
 
   // ============================================
   // RENDER
@@ -2471,7 +2514,11 @@ export default function DashboardPage() {
       {/* Celebration Modal */}
       <DashboardCelebrationModal
         isOpen={showCelebration}
-        onClose={() => setShowCelebration(false)}
+        onClose={() => {
+          setShowCelebration(false)
+          // Ensure we return to mission view after celebrating
+          setViewState('mission')
+        }}
         xpEarned={celebrationData?.xpEarned || 25}
         stepCompleted={celebrationData?.stepCompleted || ''}
         isRoadmapComplete={celebrationData?.isRoadmapComplete || false}
@@ -2671,6 +2718,8 @@ export default function DashboardPage() {
                     isRoadmapComplete: isLastStep,
                   })
                   setShowCelebration(true)
+
+                  // Celebration modal onClose will navigate to mission view
                 }
               }}
             />

@@ -568,7 +568,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-20">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-4">
@@ -1205,6 +1205,9 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   )
 }
