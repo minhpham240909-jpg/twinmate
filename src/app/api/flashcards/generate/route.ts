@@ -78,12 +78,23 @@ export async function POST(request: NextRequest) {
 
     // Allow shorter content if study plan context is provided (the context adds value)
     const minContentLength = studyPlanContext ? 20 : 50
+    const maxContentLength = 50000 // 50k chars max to prevent abuse
     if (!content || typeof content !== 'string' || content.trim().length < minContentLength) {
       return NextResponse.json(
         { error: `Content must be at least ${minContentLength} characters` },
         { status: 400 }
       )
     }
+
+    if (content.length > maxContentLength) {
+      return NextResponse.json(
+        { error: `Content must be less than ${maxContentLength} characters` },
+        { status: 400 }
+      )
+    }
+
+    // Validate cardCount - must be between 1 and 50
+    const validatedCardCount = Math.max(1, Math.min(50, cardCount || 10))
 
     // Build the prompt
     const questionTypeInstructions = questionTypes.includes('MULTIPLE_CHOICE')
@@ -123,7 +134,7 @@ Use this study plan to:
 
     const systemPrompt = `You are an expert educational content creator specializing in creating effective flashcards for studying.
 
-Your task is to analyze the provided text and create ${cardCount} high-quality flashcards.
+Your task is to analyze the provided text and create ${validatedCardCount} high-quality flashcards.
 ${studyPlanSection}
 
 Guidelines:

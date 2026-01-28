@@ -141,10 +141,18 @@ export const TodaysMission = memo(function TodaysMission({
       {hasRoadmap && mission.linkedStep && (
         <div className="mb-4">
           <div className="flex items-center justify-between text-xs text-neutral-500 mb-1.5">
-            <span>Step {mission.linkedStep.stepOrder} of {roadmap.totalSteps}</span>
+            <span id="mission-step-label">Step {mission.linkedStep.stepOrder} of {roadmap.totalSteps}</span>
             <span>{Math.round((roadmap.completedSteps / roadmap.totalSteps) * 100)}%</span>
           </div>
-          <div className="h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+          <div
+            role="progressbar"
+            aria-labelledby="mission-step-label"
+            aria-valuenow={Math.round((roadmap.completedSteps / roadmap.totalSteps) * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuetext={`${roadmap.completedSteps} of ${roadmap.totalSteps} steps completed`}
+            className="h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden"
+          >
             <div
               className="h-full bg-blue-500 rounded-full transition-all duration-500"
               style={{ width: `${(roadmap.completedSteps / roadmap.totalSteps) * 100}%` }}

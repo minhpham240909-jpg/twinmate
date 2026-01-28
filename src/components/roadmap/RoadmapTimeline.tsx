@@ -307,6 +307,9 @@ function TimelineStepCard({
       <button
         onClick={onToggle}
         disabled={isLocked}
+        aria-expanded={isExpanded}
+        aria-controls={`step-content-${step.id}`}
+        aria-label={`${step.title}${isLocked ? ' (locked)' : isCompleted ? ' (completed)' : isCurrent ? ' (current step)' : ''}`}
         className={`
           w-full p-4 text-left flex items-start gap-3
           ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5'}
@@ -387,7 +390,10 @@ function TimelineStepCard({
 
       {/* Expanded content */}
       {isExpanded && !isLocked && (
-        <div className="px-4 pb-4 space-y-4 border-t border-neutral-200 dark:border-neutral-700 pt-4 ml-11">
+        <div
+          id={`step-content-${step.id}`}
+          className="px-4 pb-4 space-y-4 border-t border-neutral-200 dark:border-neutral-700 pt-4 ml-11"
+        >
           {/* Micro-actions for AI assistance */}
           <StepMicroActions
             stepId={step.id}
@@ -766,12 +772,20 @@ export function RoadmapTimeline({
         {/* Progress bar */}
         <div className="mt-4">
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-neutral-500">Progress</span>
+            <span id="roadmap-progress-label" className="text-neutral-500">Progress</span>
             <span className="font-medium text-neutral-700 dark:text-neutral-300">
               {completedCount}/{steps.length} steps
             </span>
           </div>
-          <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+          <div
+            role="progressbar"
+            aria-labelledby="roadmap-progress-label"
+            aria-valuenow={Math.round(progressPercent)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuetext={`${completedCount} of ${steps.length} steps completed`}
+            className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden"
+          >
             <div
               className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}

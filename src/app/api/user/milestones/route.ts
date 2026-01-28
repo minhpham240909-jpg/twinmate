@@ -281,52 +281,76 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Award new milestones - use transaction
+    // Award new milestones - use transaction with batched operations
     let totalXpBonus = 0
     const awardedMilestones: MilestoneDefinition[] = []
 
     await prisma.$transaction(async (tx) => {
-      for (const milestone of newMilestones) {
-        // Find or create badge
-        let badge = await tx.badge.findUnique({
-          where: { name: milestone.name },
+      // 1. Batch fetch all badges at once (avoiding N+1)
+      const milestoneNames = newMilestones.map(m => m.name)
+      const existingBadges = await tx.badge.findMany({
+        where: { name: { in: milestoneNames } },
+      })
+      const badgesByName = new Map(existingBadges.map(b => [b.name, b]))
+
+      // 2. Create missing badges in parallel
+      const missingMilestones = newMilestones.filter(m => !badgesByName.has(m.name))
+      if (missingMilestones.length > 0) {
+        await tx.badge.createMany({
+          data: missingMilestones.map(milestone => ({
+            name: milestone.name,
+            description: milestone.description,
+            type: milestone.category === 'streak' ? 'STUDY_STREAK' :
+                  milestone.category === 'xp' ? 'HOURS_LOGGED' :
+                  milestone.category === 'sessions' ? 'QUIZZES_PASSED' : 'SPECIAL',
+            iconUrl: milestone.icon,
+            requirement: milestone.requirement,
+          })),
+          skipDuplicates: true,
         })
 
-        if (!badge) {
-          // Create badge if it doesn't exist
-          badge = await tx.badge.create({
-            data: {
-              name: milestone.name,
-              description: milestone.description,
-              type: milestone.category === 'streak' ? 'STUDY_STREAK' :
-                    milestone.category === 'xp' ? 'HOURS_LOGGED' :
-                    milestone.category === 'sessions' ? 'QUIZZES_PASSED' : 'SPECIAL',
-              iconUrl: milestone.icon,
-              requirement: milestone.requirement,
-            },
-          })
-        }
+        // Refetch to get the newly created badges
+        const newlyCreatedBadges = await tx.badge.findMany({
+          where: { name: { in: missingMilestones.map(m => m.name) } },
+        })
+        newlyCreatedBadges.forEach(b => badgesByName.set(b.name, b))
+      }
 
-        // Check if already earned (race condition protection)
-        const existing = await tx.userBadge.findFirst({
-          where: {
+      // 3. Get all badge IDs for the milestones
+      const badgeIds = newMilestones
+        .map(m => badgesByName.get(m.name)?.id)
+        .filter((id): id is string => !!id)
+
+      // 4. Batch check which badges user already has (avoiding N+1)
+      const existingUserBadges = await tx.userBadge.findMany({
+        where: {
+          userId: user.id,
+          badgeId: { in: badgeIds },
+        },
+        select: { badgeId: true },
+      })
+      const earnedBadgeIds = new Set(existingUserBadges.map(ub => ub.badgeId))
+
+      // 5. Create user badges for ones not yet earned
+      const badgesToAward = newMilestones.filter(m => {
+        const badge = badgesByName.get(m.name)
+        return badge && !earnedBadgeIds.has(badge.id)
+      })
+
+      if (badgesToAward.length > 0) {
+        await tx.userBadge.createMany({
+          data: badgesToAward.map(m => ({
             userId: user.id,
-            badgeId: badge.id,
-          },
+            badgeId: badgesByName.get(m.name)!.id,
+          })),
+          skipDuplicates: true,
         })
 
-        if (!existing) {
-          // Award badge
-          await tx.userBadge.create({
-            data: {
-              userId: user.id,
-              badgeId: badge.id,
-            },
-          })
-
+        // Track awarded milestones and XP bonus
+        badgesToAward.forEach(milestone => {
           totalXpBonus += milestone.xpBonus
           awardedMilestones.push(milestone)
-        }
+        })
       }
     })
 

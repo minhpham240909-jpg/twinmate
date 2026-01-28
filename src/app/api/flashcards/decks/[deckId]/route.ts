@@ -29,11 +29,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Single query with card progress included - no N+1
     const deck = await prisma.flashcardDeck.findUnique({
       where: { id: deckId },
       include: {
         cards: {
           orderBy: { position: 'asc' },
+          include: {
+            // Include progress for this user directly - eliminates N+1
+            userProgress: {
+              where: { userId: user.id },
+              take: 1,
+            },
+          },
         },
         userProgress: {
           where: { userId: user.id },
@@ -54,20 +62,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // Get card progress for the user
-    const cardIds = deck.cards.map((c) => c.id)
-    const cardProgress = await prisma.flashcardCardProgress.findMany({
-      where: {
-        userId: user.id,
-        cardId: { in: cardIds },
-      },
-    })
-
-    // Map progress to cards
-    const progressMap = new Map(cardProgress.map((p) => [p.cardId, p]))
+    // Map cards with progress from the included relation
     const cardsWithProgress = deck.cards.map((card) => ({
       ...card,
-      progress: progressMap.get(card.id) || null,
+      progress: card.userProgress[0] || null,
+      userProgress: undefined, // Remove the raw array from response
     }))
 
     return NextResponse.json({

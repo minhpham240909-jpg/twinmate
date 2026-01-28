@@ -98,10 +98,18 @@ export async function GET(request: NextRequest) {
         actualMinutesSpent: activeRoadmap.actualMinutesSpent,
         pitfalls: activeRoadmap.pitfalls,
         successLooksLike: activeRoadmap.successLooksLike,
-        recommendedPlatforms: activeRoadmap.recommendedPlatforms, // Recommended learning platforms
-        targetDate: activeRoadmap.targetDate, // Accountability deadline
+        recommendedPlatforms: activeRoadmap.recommendedPlatforms,
+        targetDate: activeRoadmap.targetDate,
         createdAt: activeRoadmap.createdAt,
         lastActivityAt: activeRoadmap.lastActivityAt,
+        // Vision & Strategy fields
+        vision: activeRoadmap.vision,
+        targetUser: activeRoadmap.targetUser,
+        successMetrics: activeRoadmap.successMetrics,
+        outOfScope: activeRoadmap.outOfScope,
+        criticalWarning: activeRoadmap.criticalWarning,
+        estimatedDays: activeRoadmap.estimatedDays,
+        dailyCommitment: activeRoadmap.dailyCommitment,
         steps: activeRoadmap.steps.map(step => ({
           id: step.id,
           order: step.order,
@@ -112,10 +120,35 @@ export async function GET(request: NextRequest) {
           avoid: step.avoid,
           doneWhen: step.doneWhen,
           duration: step.duration,
-          resources: step.resources, // Suggested resources
-          status: step.status.toLowerCase(), // Convert enum to lowercase for frontend
+          resources: step.resources,
+          status: step.status.toLowerCase(),
           completedAt: step.completedAt,
           minutesSpent: step.minutesSpent,
+          // Enhanced professor-level fields
+          phase: step.phase,
+          whyFirst: step.whyFirst,
+          whyAfterPrevious: step.whyAfterPrevious,
+          timeBreakdown: step.timeBreakdown,
+          commonMistakes: step.commonMistakes,
+          selfTest: step.selfTest,
+          abilities: step.abilities,
+          previewAbilities: step.previewAbilities,
+          milestone: step.milestone,
+          risk: step.risk,
+          // Micro-tasks for task-based progression
+          microTasks: step.microTasks?.map(task => ({
+            id: task.id,
+            order: task.order,
+            title: task.title,
+            description: task.description,
+            taskType: task.taskType,
+            duration: task.duration,
+            verificationMethod: task.verificationMethod,
+            proofRequired: task.proofRequired,
+            status: task.status,
+            completedAt: task.completedAt,
+            attempts: task.attempts,
+          })) || [],
         })),
       },
       currentStep: currentStep ? {

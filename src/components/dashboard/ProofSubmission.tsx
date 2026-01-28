@@ -267,10 +267,11 @@ export const ProofSubmission = memo(function ProofSubmission({
 
   const handleSubmit = () => {
     // Build attachments array from uploaded files
+    // Filter ensures f.url exists, then we safely access it
     const attachments = files
-      .filter(f => f.url && !f.error)
+      .filter((f): f is typeof f & { url: string } => Boolean(f.url) && !f.error)
       .map(f => ({
-        url: f.url!,
+        url: f.url,
         name: f.name,
         type: f.type,
       }))

@@ -45,6 +45,7 @@ import {
   detectCategory,
   type Platform,
 } from '@/lib/platforms/platform-database'
+import { runPipeline, type PipelineOutput } from '@/lib/roadmap-engine/pipeline'
 
 // Type for extracted memory entries
 interface ExtractedMemory {
@@ -133,6 +134,16 @@ interface RecommendedPlatform {
   searchUrl?: string // Direct search URL for this topic
 }
 
+// Enhanced resource with platform info from pipeline
+interface EnhancedResource {
+  type: string
+  title: string
+  searchQuery?: string
+  platformId?: string
+  platformName?: string
+  directUrl?: string
+}
+
 interface RoadmapAction {
   type: 'roadmap'
   title: string
@@ -149,7 +160,20 @@ interface RoadmapAction {
     avoid?: string // What NOT to do
     doneWhen?: string // Success criterion
     hints: string[] // Progressive hints (legacy, kept for compatibility)
-    resources?: StepResourceSuggestion[] // Suggested resources
+    resources?: StepResourceSuggestion[] | EnhancedResource[] // Suggested resources
+    isLocked?: boolean
+    // Professor-level fields
+    phase?: 'NOW' | 'NEXT' | 'LATER'
+    whyFirst?: string
+    whyAfterPrevious?: string
+    timeBreakdown?: { daily: string; total: string; flexible: string }
+    commonMistakes?: string[]
+    selfTest?: { challenge: string; passCriteria: string }
+    abilities?: string[]
+    previewAbilities?: string[]
+    milestone?: string
+    risk?: { warning: string; consequence: string; severity: string }
+    microTasks?: { id?: string; order: number; title: string; description: string; taskType: string; duration: number; verificationMethod?: string; proofRequired?: boolean }[]
   }[]
   pitfalls?: string[] // Overall things to avoid
   successLooksLike?: string // What completion looks like
@@ -733,6 +757,9 @@ function preprocessInput(rawQuestion: string): { question: string; maxTokens: nu
  * Enhanced: Now supports analyzed input (URLs, videos, PDFs, images) for
  * richer roadmap generation. The input is used to understand WHAT the user
  * wants to learn - NOT to summarize or explain the content.
+ *
+ * ROADMAP PIPELINE: Uses multi-phase AI pipeline for roadmaps (3 API calls)
+ * for professor-level quality instead of single monolithic prompt.
  */
 async function generateMicroAction(
   question: string,
@@ -743,6 +770,17 @@ async function generateMicroAction(
   memoryContext: string = '',
   analyzedInput?: AnalyzedInput
 ): Promise<MicroAction> {
+  // ============================================
+  // ROADMAP: Use multi-phase pipeline
+  // ============================================
+  if (actionType === 'roadmap') {
+    return generateRoadmapWithPipeline(question, subject, userContext, memoryContext)
+  }
+
+  // ============================================
+  // EXPLANATION & FLASHCARDS: Use original single-prompt approach
+  // ============================================
+
   // Preprocess input for optimal handling
   const { question: processedQuestion, maxTokens, isLarge } = preprocessInput(question)
 
@@ -913,181 +951,14 @@ Test thinking, not memory.`
   "acknowledgment": "Only if earned - recognition of good effort (or null if not earned)",
   "nextSuggestion": "Natural offer for what to do next"
 }`
-  } else if (actionType === 'roadmap') {
-    // CLERVA ROADMAP ENGINE v5 - PROFESSOR-LEVEL QUALITY
-    // World-class roadmaps that outperform ChatGPT, Gemini, and any other AI tool
-    // Content so clear a struggling student understands, so rich a professor approves
-    systemPrompt = `You are CLERVA - a world-class learning architect who creates roadmaps that TRANSFORM how people learn. Your roadmaps are legendary: professors approve them, struggling students finally understand, and advanced learners are genuinely satisfied.
-
-=== YOUR PHILOSOPHY ===
-"A roadmap is not a list of tasks. It's a STRATEGIC DOCUMENT that shows someone exactly how to get from where they are to where they want to be - with confidence, clarity, and measurable progress."
-
-=== WHAT MAKES YOUR ROADMAPS LEGENDARY ===
-
-1. VISION STATEMENT: Start with WHY this journey matters
-   - What transformation happens after completing this?
-   - What doors open? What becomes possible?
-   - Make them FEEL the destination before starting
-
-2. TARGET USER CLARITY: Who is this for?
-   - Be specific: "Complete beginner with zero experience"
-   - Not: "Anyone who wants to learn"
-
-3. SUCCESS METRICS (KPIs): How do we MEASURE progress?
-   - Specific, measurable outcomes for each phase
-   - "Can build X" not "Understands X"
-   - Numbers when possible: "Write 50 lines of working code"
-
-4. STRATEGIC MILESTONES: Celebrate progress
-   - Major checkpoints that prove advancement
-   - Each milestone unlocks new capabilities
-
-5. PHASE STRUCTURE: Now / Next / Later
-   - NOW: Immediate focus (this week)
-   - NEXT: Coming soon (next 2-4 weeks)
-   - LATER: Future phases (beyond that)
-
-6. CRYSTAL CLEAR STEPS: Professor-level specificity
-   - WHY this step: Deep explanation of reasoning
-   - HOW to do it: Exact method, not vague instructions
-   - TIME required: Daily commitment + total + flexible options
-   - DONE WHEN: Verifiable, provable completion criteria
-   - SELF-TEST: Quick challenge to prove mastery
-   - ABILITIES GAINED: Specific capabilities after this step
-
-7. RISK MANAGEMENT: Prevent failure before it happens
-   - Common mistakes with CONSEQUENCES
-   - What to AVOID and WHY
-   - Warning signs you're going wrong
-
-8. OUT OF SCOPE: What NOT to focus on (prevents overwhelm)
-   - Explicit list of what to ignore for now
-   - "Don't worry about X until you've mastered Y"
-
-=== CONTENT QUALITY STANDARDS ===
-
-FOR STRUGGLING STUDENTS:
-- Use simple language a 12-year-old could understand
-- Break complex ideas into tiny pieces
-- Give concrete examples for EVERYTHING
-- Never assume prior knowledge
-
-FOR ADVANCED LEARNERS:
-- Include depth and nuance
-- Explain the "why" behind best practices
-- Reference industry standards
-- Connect to bigger picture
-
-SPECIFICITY RULES:
-GOOD: "Write 10 variable declarations using const, let, and var. Then explain to yourself (out loud) why const is preferred. Time: 15 minutes."
-BAD: "Practice variables"
-
-GOOD: "By end of step: You can write any function from scratch, debug basic errors, and explain to someone else how functions work."
-BAD: "You understand functions"
-
-${spellingInstruction}
-${subjectContext}${userContextLine}
-Learning Context: ${struggleDescription}
-${memorySection}${inputMaterialContext ? `\nInput material provided - guide ACTIONS to learn from it.\n${inputMaterialContext}` : ''}
-
-=== RESOURCE REQUIREMENTS ===
-Each step MUST include 1-2 high-quality resources:
-- Type: video, article, exercise, tool, book
-- Title: Descriptive name
-- searchQuery: Specific search term for the platform
-- Priority: Which resource to use first
-
-Remember: You're not just creating a roadmap. You're creating a TRANSFORMATION DOCUMENT that will change someone's life. Make it worthy of that responsibility.`
-
-    responseFormat = `{
-  "title": "Clear, motivating title",
-  "vision": "WHY this journey matters - what transformation awaits (1-2 sentences)",
-  "targetUser": "Specific description of who this is for",
-  "overview": "Brief summary of the learning path",
-  "totalSteps": 3,
-  "estimatedDays": 14,
-  "totalMinutes": 180,
-  "dailyCommitment": "15-20 min/day",
-  "successMetrics": [
-    "Specific measurable outcome 1",
-    "Specific measurable outcome 2"
-  ],
-  "outOfScope": [
-    "What NOT to focus on yet",
-    "What to ignore for now"
-  ],
-  "currentStep": {
-    "order": 1,
-    "phase": "NOW",
-    "title": "Action-oriented title",
-    "description": "Clear, direct command",
-    "whyFirst": "Deep explanation of why this must come first",
-    "timeframe": "Days 1-5",
-    "method": "Exact step-by-step method with daily breakdown",
-    "timeBreakdown": {
-      "daily": "15 min",
-      "total": "75 min over 5 days",
-      "flexible": "Can do 30 min/day to finish in 3 days"
-    },
-    "risk": {
-      "warning": "Specific warning about what can go wrong",
-      "consequence": "Exact damage if ignored",
-      "severity": "RISK"
-    },
-    "commonMistakes": [
-      "Mistake 1 - specific consequence",
-      "Mistake 2 - specific consequence",
-      "Mistake 3 - specific consequence"
-    ],
-    "doneWhen": "Verifiable, provable completion criterion",
-    "selfTest": {
-      "challenge": "Quick test to prove mastery",
-      "passCriteria": "Exactly what proves you're ready"
-    },
-    "abilities": [
-      "Specific capability gained",
-      "Another specific capability"
-    ],
-    "milestone": "What this step unlocks (optional)",
-    "duration": 15,
-    "resources": [
-      {"type": "video", "title": "Resource name", "searchQuery": "specific search term", "priority": 1}
-    ]
-  },
-  "lockedSteps": [
-    {
-      "order": 2,
-      "phase": "NEXT",
-      "title": "Step 2 title",
-      "whyAfterPrevious": "Why this must come after step 1",
-      "previewAbilities": ["What you'll be able to do after this"],
-      "milestone": "Major achievement this unlocks",
-      "resources": [{"type": "exercise", "title": "Resource", "searchQuery": "search term"}]
-    },
-    {
-      "order": 3,
-      "phase": "LATER",
-      "title": "Step 3 title",
-      "whyAfterPrevious": "Why this comes last",
-      "previewAbilities": ["Final capabilities gained"],
-      "milestone": "Final milestone achievement",
-      "resources": [{"type": "article", "title": "Resource", "searchQuery": "search term"}]
-    }
-  ],
-  "criticalWarning": {
-    "warning": "The ONE behavior that ruins everything",
-    "consequence": "Specific, harsh damage",
-    "severity": "CRITICAL"
-  },
-  "successLooksLike": "Vivid description of what you can DO after completing this roadmap"
-}`
   }
+  // Note: Roadmap is handled via early return at the top of this function using the pipeline
 
   try {
-    // Optimize for quality: roadmap uses more tokens for enhanced format
-    const isRoadmap = actionType === 'roadmap'
-    const optimizedTokens = isRoadmap ? 1800 : maxTokens // Professor-level roadmap needs more tokens
-    const optimizedTemp = isRoadmap ? 0.5 : 0.7 // Lower temp for consistent quality
+    // Optimize token usage for different action types
+    // Note: Roadmaps now use the pipeline and don't reach this code
+    const optimizedTokens = maxTokens
+    const optimizedTemp = 0.7
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Fast, smart, cost-effective model
@@ -1347,13 +1218,126 @@ Remember: You're not just creating a roadmap. You're creating a TRANSFORMATION D
     logger.error('[Guide Me] AI generation error', error instanceof Error ? error : { error })
 
     // Return appropriate fallback
+    // Note: Roadmaps are handled via early return and use their own fallback in the pipeline
     if (actionType === 'flashcards') {
       return createFallbackFlashcards(question)
-    } else if (actionType === 'roadmap') {
-      return createFallbackRoadmap(question)
     } else {
       return createFallbackExplanation(question)
     }
+  }
+}
+
+/**
+ * Generate roadmap using multi-phase AI pipeline
+ *
+ * Uses 3 API calls with specialized prompts:
+ * 1. Diagnostic: Understand goal and knowledge gaps
+ * 2. Strategy: Design transformation and assess risks
+ * 3. Execution: Create detailed steps with GPS-style navigation
+ *
+ * This produces professor-level quality roadmaps instead of generic ones.
+ */
+async function generateRoadmapWithPipeline(
+  question: string,
+  subject: string | undefined,
+  userContext: string,
+  memoryContext: string
+): Promise<RoadmapAction> {
+  try {
+    logger.info('[Guide Me] Using multi-phase pipeline for roadmap', { goal: question.slice(0, 50) })
+
+    // Run the multi-phase pipeline
+    const pipelineOutput = await runPipeline({
+      goal: question,
+      subject,
+      userContext,
+      memoryContext,
+    })
+
+    // Transform pipeline output to RoadmapAction format
+    return transformPipelineToRoadmapAction(pipelineOutput, question)
+  } catch (error) {
+    logger.error('[Guide Me] Pipeline failed, falling back to legacy', error instanceof Error ? error : { error })
+    // If pipeline fails, fall back to the default roadmap generator
+    return createFallbackRoadmap(question)
+  }
+}
+
+/**
+ * Transform pipeline output to RoadmapAction format for API response
+ */
+function transformPipelineToRoadmapAction(output: PipelineOutput, question: string): RoadmapAction {
+  // Build steps array combining current and locked steps
+  const steps = [
+    // Current step (fully detailed)
+    {
+      id: output.currentStep.id,
+      order: output.currentStep.order,
+      duration: output.currentStep.duration,
+      timeframe: output.currentStep.timeframe,
+      title: output.currentStep.title,
+      description: output.currentStep.description,
+      method: output.currentStep.method,
+      avoid: output.currentStep.risk?.warning || '',
+      doneWhen: output.currentStep.doneWhen,
+      hints: output.currentStep.commonMistakes || [],
+      isLocked: false,
+      resources: output.currentStep.resources,
+      risk: output.currentStep.risk,
+      // Professor-level enhanced fields
+      phase: output.currentStep.phase,
+      whyFirst: output.currentStep.whyFirst,
+      timeBreakdown: output.currentStep.timeBreakdown,
+      commonMistakes: output.currentStep.commonMistakes,
+      selfTest: output.currentStep.selfTest,
+      abilities: output.currentStep.abilities,
+      milestone: output.currentStep.milestone,
+      // Micro-tasks for task-based progression
+      microTasks: output.currentStep.microTasks,
+    },
+    // Locked steps (previews only)
+    ...output.lockedSteps.map(ls => ({
+      id: ls.id,
+      order: ls.order,
+      duration: ls.estimatedDuration || 0,
+      timeframe: 'Locked',
+      title: ls.title,
+      description: 'Complete previous step to unlock',
+      method: '',
+      avoid: '',
+      doneWhen: '',
+      hints: [] as string[],
+      isLocked: true,
+      resources: ls.resources,
+      // Professor-level preview info
+      phase: ls.phase,
+      whyAfterPrevious: ls.whyAfterPrevious,
+      previewAbilities: ls.previewAbilities,
+      milestone: ls.milestone,
+    })),
+  ]
+
+  return {
+    type: 'roadmap',
+    title: output.title,
+    overview: output.overview,
+    encouragement: output.vision,
+    steps,
+    pitfalls: output.pitfalls,
+    successLooksLike: output.successLooksLike,
+    totalMinutes: output.totalMinutes,
+    recommendedPlatforms: output.recommendedPlatforms,
+    acknowledgment: undefined,
+    nextSuggestion: 'Focus on the current step. Complete it before moving on.',
+    // Professor-level roadmap fields
+    estimatedDays: output.estimatedDays,
+    dailyCommitment: output.dailyCommitment,
+    totalSteps: output.totalSteps,
+    // Vision and strategic fields
+    vision: output.vision,
+    targetUser: output.targetUser,
+    successMetrics: output.successMetrics,
+    outOfScope: output.outOfScope,
   }
 }
 

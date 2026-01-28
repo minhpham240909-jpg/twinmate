@@ -351,13 +351,14 @@ export function useDeepAnalysis(): UseDeepAnalysisReturn {
         throw new Error(data.error || 'Analysis failed')
       }
 
-      setProgress({
+      // Use functional update to get current totalFiles value (avoid stale closure)
+      setProgress(prev => ({
         stage: 'complete',
         message: 'Analysis complete!',
         percent: 100,
-        filesProcessed: progress.totalFiles,
-        totalFiles: progress.totalFiles,
-      })
+        filesProcessed: prev.totalFiles,
+        totalFiles: prev.totalFiles,
+      }))
 
       setResult(data.analysis)
       return data.analysis
@@ -382,7 +383,7 @@ export function useDeepAnalysis(): UseDeepAnalysisReturn {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [progress.totalFiles])
+  }, []) // Removed progress.totalFiles dependency - using functional update instead
 
   // ============================================
   // PUBLIC ANALYSIS METHODS

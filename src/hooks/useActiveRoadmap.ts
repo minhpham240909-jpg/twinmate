@@ -88,6 +88,21 @@ export interface StepResource {
   searchQuery?: string
 }
 
+// Micro-task for task-based progression
+export interface MicroTask {
+  id: string
+  order: number
+  title: string
+  description: string
+  taskType: 'ACTION' | 'LEARN' | 'PRACTICE' | 'TEST' | 'REFLECT'
+  duration: number
+  verificationMethod?: string
+  proofRequired: boolean
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED'
+  completedAt?: string
+  attempts: number
+}
+
 export interface RoadmapStep {
   id: string
   order: number
@@ -102,6 +117,19 @@ export interface RoadmapStep {
   status: 'locked' | 'current' | 'completed' | 'skipped'
   completedAt?: string
   minutesSpent?: number
+  // Enhanced fields for professor-level roadmaps
+  whyFirst?: string
+  timeBreakdown?: { daily: string; total: string; flexible: string }
+  commonMistakes?: string[]
+  selfTest?: { challenge: string; passCriteria: string }
+  abilities?: string[]
+  whyAfterPrevious?: string
+  previewAbilities?: string[]
+  phase?: 'NOW' | 'NEXT' | 'LATER'
+  milestone?: string
+  risk?: { warning: string; consequence: string; severity: string }
+  // Micro-tasks for task-based progression
+  microTasks?: MicroTask[]
 }
 
 // Recommended platform type
@@ -113,6 +141,13 @@ export interface RecommendedPlatform {
   icon: string
   color: string
   searchUrl?: string
+}
+
+// Critical warning structure
+export interface CriticalWarning {
+  warning: string
+  consequence: string
+  severity: 'CRITICAL'
 }
 
 export interface ActiveRoadmap {
@@ -134,6 +169,14 @@ export interface ActiveRoadmap {
   createdAt: string
   lastActivityAt: string
   steps: RoadmapStep[]
+  // Vision & Strategy fields
+  vision?: string
+  targetUser?: string
+  successMetrics?: string[]
+  outOfScope?: string[]
+  criticalWarning?: CriticalWarning
+  estimatedDays?: number
+  dailyCommitment?: string
 }
 
 export interface TodaysMission {

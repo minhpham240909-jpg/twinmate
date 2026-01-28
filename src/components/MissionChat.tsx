@@ -50,6 +50,10 @@ interface MissionChatProps {
   missionContext?: string
   isGuest: boolean
   onTrialExhausted?: () => void
+  // External control props
+  shouldExpand?: boolean  // Force expand the chat
+  initialMessage?: string | null  // Pre-fill a message (e.g., hint request)
+  onExpandChange?: (expanded: boolean) => void  // Callback when expand state changes
 }
 
 // ============================================
@@ -95,15 +99,43 @@ const MissionChat = memo(function MissionChat({
   missionContext,
   isGuest,
   onTrialExhausted,
+  shouldExpand,
+  initialMessage,
+  onExpandChange,
 }: MissionChatProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   // Initialize messages from localStorage on mount
   const [messages, setMessages] = useState<Message[]>(() => loadMessagesFromStorage())
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [lastError, setLastError] = useState<{ message: string; retryContent: string } | null>(null)
   const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const hasProcessedInitialMessage = useRef(false)
+
+  // Handle external expand control
+  useEffect(() => {
+    if (shouldExpand && !isExpanded) {
+      setIsExpanded(true)
+      onExpandChange?.(true)
+    }
+  }, [shouldExpand, isExpanded, onExpandChange])
+
+  // Handle initial message (e.g., hint request from nudge)
+  useEffect(() => {
+    if (initialMessage && isExpanded && !hasProcessedInitialMessage.current) {
+      hasProcessedInitialMessage.current = true
+      setInputValue(initialMessage)
+    }
+  }, [initialMessage, isExpanded])
+
+  // Reset the processed flag when initialMessage changes
+  useEffect(() => {
+    if (!initialMessage) {
+      hasProcessedInitialMessage.current = false
+    }
+  }, [initialMessage])
 
   // Persist messages to localStorage whenever they change
   useEffect(() => {
@@ -153,6 +185,7 @@ const MissionChat = memo(function MissionChat({
     })
     setInputValue('')
     setIsLoading(true)
+    setLastError(null) // Clear any previous error
 
     try {
       // Build context for AI
@@ -222,18 +255,10 @@ const MissionChat = memo(function MissionChat({
 
     } catch (err) {
       console.error('Chat error:', err)
-      const errorMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: 'Something went wrong. Please try again.',
-        timestamp: new Date(),
-      }
-      setMessages(prev => {
-        const newMessages = [...prev, errorMessage]
-        if (newMessages.length > MAX_MESSAGES) {
-          return newMessages.slice(-MAX_MESSAGES)
-        }
-        return newMessages
+      // Store error with retry capability
+      setLastError({
+        message: err instanceof Error ? err.message : 'Failed to get response',
+        retryContent: content,
       })
     } finally {
       setIsLoading(false)
@@ -258,6 +283,18 @@ const MissionChat = memo(function MissionChat({
       sendMessage(inputValue)
     }
   }, [inputValue, sendMessage])
+
+  // Handle retry after error
+  const handleRetry = useCallback(() => {
+    if (lastError?.retryContent) {
+      sendMessage(lastError.retryContent)
+    }
+  }, [lastError, sendMessage])
+
+  // Dismiss error without retry
+  const dismissError = useCallback(() => {
+    setLastError(null)
+  }, [])
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
@@ -354,6 +391,32 @@ const MissionChat = memo(function MissionChat({
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
                     <span className="text-sm text-neutral-500">Thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error with retry option */}
+            {lastError && !isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3 max-w-[85%]">
+                  <p className="text-sm text-red-700 dark:text-red-300 mb-2">
+                    {lastError.message || 'Something went wrong'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRetry}
+                      className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
+                    >
+                      Try again
+                    </button>
+                    <span className="text-red-300 dark:text-red-700">|</span>
+                    <button
+                      onClick={dismissError}
+                      className="text-xs text-red-500 dark:text-red-500 hover:text-red-600"
+                    >
+                      Dismiss
+                    </button>
                   </div>
                 </div>
               </div>

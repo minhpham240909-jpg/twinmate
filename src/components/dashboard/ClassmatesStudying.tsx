@@ -48,13 +48,13 @@ export default function ClassmatesStudying({
     return null
   }
 
-  // Get avatar or initials
+  // Get avatar or initials - with null safety
   const getAvatar = (partner: StudyingPartner) => {
     if (partner.avatarUrl) {
       return (
         <Image
           src={partner.avatarUrl}
-          alt={partner.name}
+          alt={partner.name || 'Study partner'}
           width={32}
           height={32}
           className="w-8 h-8 rounded-full object-cover"
@@ -62,17 +62,22 @@ export default function ClassmatesStudying({
       )
     }
 
-    const initials = partner.name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+    // Safe initials extraction - handle null, undefined, or empty name
+    const name = partner.name || ''
+    const initials = name.length > 0
+      ? name
+          .split(' ')
+          .filter(n => n.length > 0)
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2)
+      : '?'
 
     return (
       <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
         <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-          {initials}
+          {initials || '?'}
         </span>
       </div>
     )

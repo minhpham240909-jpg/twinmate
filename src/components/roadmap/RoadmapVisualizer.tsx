@@ -21,6 +21,8 @@ import { useState, useEffect } from 'react'
 import { LayoutGrid, List, Sparkles } from 'lucide-react'
 import { RoadmapTimeline } from './RoadmapTimeline'
 import { RoadmapFlow } from './RoadmapFlow'
+import { VisionBanner } from './VisionBanner'
+import { RiskWarning } from './RiskWarning'
 
 // ============================================
 // TYPES
@@ -60,6 +62,12 @@ interface EnhancedStep {
 
 type ViewMode = 'timeline' | 'flow' | 'auto'
 
+interface CriticalWarning {
+  warning: string
+  consequence: string
+  severity: 'CRITICAL'
+}
+
 interface RoadmapVisualizerProps {
   roadmapId: string
   steps: EnhancedStep[]
@@ -71,11 +79,19 @@ interface RoadmapVisualizerProps {
   dailyCommitment?: string
   totalMinutes?: number
   successLooksLike?: string
+  // NEW: Vision & Strategy fields
+  vision?: string
+  targetUser?: string
+  successMetrics?: string[]
+  outOfScope?: string[]
+  criticalWarning?: CriticalWarning
+  // Handlers
   onStepClick?: (stepId: string) => void
   onStepComplete?: (stepId: string, xpEarned: number) => void
   onResourceClick?: (resource: StepResource, stepId: string) => void
   defaultView?: ViewMode
   showViewToggle?: boolean
+  showVisionBanner?: boolean
 }
 
 // ============================================
@@ -84,6 +100,9 @@ interface RoadmapVisualizerProps {
 
 /**
  * Determine the best view mode based on roadmap characteristics
+ *
+ * Updated: Changed threshold from 4 to 3 steps for flow view
+ * Most roadmaps have 3-4 steps, so this ensures timeline is shown more often
  */
 function determineOptimalView(
   steps: EnhancedStep[],
@@ -92,10 +111,10 @@ function determineOptimalView(
   // Always use timeline on mobile for better UX
   if (isMobile) return 'timeline'
 
-  // Use flow for short, simple roadmaps
-  if (steps.length <= 4) return 'flow'
+  // Use flow only for very short roadmaps (2-3 steps)
+  if (steps.length <= 3) return 'flow'
 
-  // Use timeline for longer roadmaps
+  // Use timeline for 4+ steps (most roadmaps)
   return 'timeline'
 }
 
@@ -207,11 +226,19 @@ export function RoadmapVisualizer({
   dailyCommitment,
   totalMinutes,
   successLooksLike,
+  // NEW: Vision & Strategy fields
+  vision,
+  targetUser,
+  successMetrics,
+  outOfScope,
+  criticalWarning,
+  // Handlers
   onStepClick,
   onStepComplete: _onStepComplete,
   onResourceClick,
   defaultView = 'auto',
   showViewToggle = true,
+  showVisionBanner = true,
 }: RoadmapVisualizerProps) {
   // Note: _onStepComplete is available for future XP integration
   const isMobile = useIsMobile()
@@ -280,10 +307,32 @@ export function RoadmapVisualizer({
   }
 
   return (
-    <div className="relative">
+    <div className="relative space-y-4">
+      {/* Vision Banner - Shows transformation narrative */}
+      {showVisionBanner && (vision || targetUser || successMetrics?.length) && (
+        <VisionBanner
+          vision={vision}
+          targetUser={targetUser}
+          successMetrics={successMetrics}
+          outOfScope={outOfScope}
+          estimatedDays={estimatedDays}
+          dailyCommitment={dailyCommitment}
+          defaultExpanded={false}
+        />
+      )}
+
+      {/* Critical Warning - Shows major risk */}
+      {criticalWarning && (
+        <RiskWarning
+          criticalWarning={criticalWarning}
+          variant="critical"
+          defaultExpanded={false}
+        />
+      )}
+
       {/* View toggle */}
       {showViewToggle && !isMobile && steps.length <= 6 && (
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end">
           <ViewToggle currentView={currentView} onViewChange={setCurrentView} />
         </div>
       )}

@@ -44,6 +44,8 @@ import {
   DashboardHeader,
   TodaysMission,
   IdentityCard,
+  SkillProgressCard,
+  StruggleNudge,
   DashboardCelebrationModal,
   OnboardingPrompt,
   ProofSubmission,
@@ -58,6 +60,9 @@ import {
   getDaysRemaining,
   calculateLevel,
 } from '@/components/dashboard'
+// Hooks for skill progress and struggle detection
+import { useSkillProgress } from '@/hooks/useSkillProgress'
+import { useStruggleDetection } from '@/hooks/useStruggleDetection'
 import Image from 'next/image'
 import {
   Loader2,
@@ -969,7 +974,8 @@ const RoadmapView = memo(function RoadmapView({
   const currentStepIndex = roadmap.steps.findIndex(s => s.status === 'current')
 
   // AI auto-selects view based on roadmap size - no user choice needed
-  const viewMode = roadmap.steps.length > 5 ? 'visual' : 'detail'
+  // Use visual view (Timeline/Flow) for 4+ steps for better navigation
+  const viewMode = roadmap.steps.length >= 4 ? 'visual' : 'detail'
 
   // Request adaptive feedback
   const requestHelp = async (struggleType: 'confused' | 'stuck' | 'overwhelmed' | 'too_hard') => {
@@ -1026,6 +1032,13 @@ const RoadmapView = memo(function RoadmapView({
             dailyCommitment={roadmap.dailyCommitment}
             totalMinutes={roadmap.estimatedMinutes}
             successLooksLike={roadmap.successLooksLike}
+            // Vision & Strategy fields
+            vision={roadmap.vision}
+            targetUser={roadmap.targetUser}
+            successMetrics={roadmap.successMetrics}
+            outOfScope={roadmap.outOfScope}
+            criticalWarning={roadmap.criticalWarning}
+            showVisionBanner={true}
             onStepClick={(stepId) => {
               // Could add step selection logic here
               console.log('Step clicked:', stepId)
@@ -1756,6 +1769,10 @@ export default function DashboardPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
 
+  // Chat control state - for triggering chat from nudges
+  const [shouldExpandChat, setShouldExpandChat] = useState(false)
+  const [chatHintMessage, setChatHintMessage] = useState<string | null>(null)
+
   // Celebration state for completed missions
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationData, setCelebrationData] = useState<{
@@ -1938,6 +1955,10 @@ export default function DashboardPage() {
       avoid: step.avoid,
       doneWhen: step.doneWhen,
       resources: step.resources as StepResource[] | undefined,
+      // Include abilities for skill progress tracking
+      abilities: step.abilities,
+      previewAbilities: step.previewAbilities,
+      completedAt: step.completedAt,
     })),
     currentStepIndex: persistedRoadmap.currentStepIndex,
     totalSteps: persistedRoadmap.totalSteps,
@@ -1948,6 +1969,9 @@ export default function DashboardPage() {
     recommendedPlatforms: persistedRoadmap.recommendedPlatforms as RecommendedPlatform[] | undefined,
     targetDate: persistedRoadmap.targetDate,
   } : null
+
+  // Extract skill progress from roadmap steps for visceral progress indicators
+  const skillProgress = useSkillProgress(persistedRoadmap?.steps)
 
   // Notifications
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
@@ -1997,12 +2021,20 @@ export default function DashboardPage() {
     totalMinutesLearned: stats?.weekMinutes || 0,
     lastActiveDate: userProgress.lastActiveAt,
     onShowHint: () => {
-      // Could open AI chat with hint request
-      console.log('Show hint requested')
+      // Expand chat and pre-fill with hint request
+      setShouldExpandChat(true)
+      setChatHintMessage('I need a hint for this step')
+      // Provide feedback to user
+      setFeedbackMessage('Opening chat for assistance...')
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 2000)
     },
     onOpenChat: () => {
-      // Navigate to chat if available
-      console.log('Open chat requested')
+      // Expand chat panel
+      setShouldExpandChat(true)
+      setFeedbackMessage('Chat opened')
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(null), 2000)
     },
   })
 
@@ -2417,6 +2449,18 @@ export default function DashboardPage() {
               isLoading={isRoadmapLoading}
             />
 
+            {/* Skill Progress - Show what abilities user has unlocked */}
+            {!isGuest && activeRoadmap && skillProgress.totalAbilitiesUnlocked > 0 && (
+              <SkillProgressCard
+                unlockedAbilities={skillProgress.unlockedAbilities}
+                currentAbility={skillProgress.currentAbility}
+                nextAbility={skillProgress.nextAbility}
+                roadmapTitle={activeRoadmap.title}
+                completedSteps={activeRoadmap.completedSteps}
+                totalSteps={activeRoadmap.totalSteps}
+              />
+            )}
+
             {/* Mission Chat - Contextual help, clickable suggestions */}
             {currentMission && (
               <SectionErrorBoundary section="chat" fallbackMessage="Chat assistance is temporarily unavailable.">
@@ -2425,6 +2469,15 @@ export default function DashboardPage() {
                   missionContext={currentMission.directive}
                   isGuest={isGuest}
                   onTrialExhausted={() => setShowTrialLimitModal(true)}
+                  shouldExpand={shouldExpandChat}
+                  initialMessage={chatHintMessage}
+                  onExpandChange={(expanded) => {
+                    if (!expanded) {
+                      // Reset state when chat closes
+                      setShouldExpandChat(false)
+                      setChatHintMessage(null)
+                    }
+                  }}
                 />
               </SectionErrorBoundary>
             )}

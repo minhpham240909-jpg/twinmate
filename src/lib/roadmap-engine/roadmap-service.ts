@@ -17,6 +17,13 @@ import { RoadmapStatus, RoadmapStepStatus, Prisma } from '@prisma/client'
 // TYPES
 // ============================================
 
+// Critical warning structure
+export interface CriticalWarning {
+  warning: string
+  consequence: string
+  severity: 'CRITICAL'
+}
+
 export interface CreateRoadmapInput {
   userId: string
   goal: string
@@ -28,6 +35,15 @@ export interface CreateRoadmapInput {
   successLooksLike?: string
   estimatedMinutes?: number
   recommendedPlatforms?: RecommendedPlatform[]
+  // Vision & Strategy fields
+  vision?: string
+  targetUser?: string
+  successMetrics?: string[]
+  outOfScope?: string[]
+  criticalWarning?: CriticalWarning
+  estimatedDays?: number
+  dailyCommitment?: string
+  milestones?: { order: number; title: string; description: string; marker: string; unlocks: string }[]
   steps: {
     order: number
     title: string
@@ -38,6 +54,27 @@ export interface CreateRoadmapInput {
     doneWhen?: string
     duration?: number
     resources?: StepResource[]
+    // Enhanced professor-level fields
+    phase?: 'NOW' | 'NEXT' | 'LATER'
+    whyFirst?: string
+    whyAfterPrevious?: string
+    timeBreakdown?: { daily: string; total: string; flexible: string }
+    commonMistakes?: string[]
+    selfTest?: { challenge: string; passCriteria: string }
+    abilities?: string[]
+    previewAbilities?: string[]
+    milestone?: string
+    risk?: { warning: string; consequence: string; severity: string }
+    // Micro-tasks for task-based progression
+    microTasks?: {
+      order: number
+      title: string
+      description: string
+      taskType: 'ACTION' | 'LEARN' | 'PRACTICE' | 'TEST' | 'REFLECT'
+      duration: number
+      verificationMethod?: string
+      proofRequired?: boolean
+    }[]
   }[]
 }
 
@@ -75,6 +112,15 @@ export interface RoadmapWithSteps {
   updatedAt: Date
   lastActivityAt: Date
   completedAt: Date | null
+  // Vision & Strategy fields
+  vision: string | null
+  targetUser: string | null
+  successMetrics: string[]
+  outOfScope: string[]
+  criticalWarning: CriticalWarning | null
+  estimatedDays: number | null
+  dailyCommitment: string | null
+  milestones: { order: number; title: string; description: string; marker: string; unlocks: string }[] | null
   steps: {
     id: string
     order: number
@@ -92,6 +138,31 @@ export interface RoadmapWithSteps {
     minutesSpent: number
     userNotes: string | null
     difficultyRating: number | null
+    // Enhanced professor-level fields
+    phase: string | null
+    whyFirst: string | null
+    whyAfterPrevious: string | null
+    timeBreakdown: { daily: string; total: string; flexible: string } | null
+    commonMistakes: string[]
+    selfTest: { challenge: string; passCriteria: string } | null
+    abilities: string[]
+    previewAbilities: string[]
+    milestone: string | null
+    risk: { warning: string; consequence: string; severity: string } | null
+    // Micro-tasks
+    microTasks?: {
+      id: string
+      order: number
+      title: string
+      description: string
+      taskType: string
+      duration: number
+      verificationMethod: string | null
+      proofRequired: boolean
+      status: string
+      completedAt: Date | null
+      attempts: number
+    }[]
   }[]
 }
 
@@ -113,7 +184,7 @@ export interface StepResource {
  * Automatically deactivates any existing active roadmap
  */
 export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapWithSteps> {
-  const { userId, steps, recommendedPlatforms, ...roadmapData } = input
+  const { userId, steps, recommendedPlatforms, criticalWarning, milestones, ...roadmapData } = input
 
   // Validate input before database operation
   if (!userId) {
@@ -129,14 +200,15 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
     throw new Error('At least one step is required')
   }
 
-  // Validate each step has required fields
+  // Validate each step has required fields (be lenient with description)
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
     if (!step.title) {
       throw new Error(`Step ${i + 1} is missing a title`)
     }
+    // Description can be empty - use title as fallback
     if (!step.description) {
-      throw new Error(`Step ${i + 1} is missing a description`)
+      steps[i].description = step.title
     }
   }
 
@@ -161,6 +233,8 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
         userId,
         ...roadmapData,
         recommendedPlatforms: recommendedPlatforms ? (recommendedPlatforms as unknown as Prisma.InputJsonValue) : undefined,
+        criticalWarning: criticalWarning ? (criticalWarning as unknown as Prisma.InputJsonValue) : undefined,
+        milestones: milestones ? (milestones as unknown as Prisma.InputJsonValue) : undefined,
         totalSteps: steps.length,
         estimatedMinutes: roadmapData.estimatedMinutes || steps.reduce((sum, s) => sum + (s.duration || 5), 0),
         isActive: true,
@@ -175,16 +249,46 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
             avoid: step.avoid,
             doneWhen: step.doneWhen,
             duration: step.duration || 5,
-            resources: step.resources ? (step.resources as unknown as Prisma.InputJsonValue) : undefined, // Store resource suggestions as JSON
+            resources: step.resources ? (step.resources as unknown as Prisma.InputJsonValue) : undefined,
+            // Enhanced professor-level fields
+            phase: step.phase,
+            whyFirst: step.whyFirst,
+            whyAfterPrevious: step.whyAfterPrevious,
+            timeBreakdown: step.timeBreakdown ? (step.timeBreakdown as unknown as Prisma.InputJsonValue) : undefined,
+            commonMistakes: step.commonMistakes || [],
+            selfTest: step.selfTest ? (step.selfTest as unknown as Prisma.InputJsonValue) : undefined,
+            abilities: step.abilities || [],
+            previewAbilities: step.previewAbilities || [],
+            milestone: step.milestone,
+            risk: step.risk ? (step.risk as unknown as Prisma.InputJsonValue) : undefined,
             // First step is CURRENT, rest are LOCKED
             status: index === 0 ? RoadmapStepStatus.CURRENT : RoadmapStepStatus.LOCKED,
             startedAt: index === 0 ? new Date() : null,
+            // Create micro-tasks for this step if provided
+            ...(step.microTasks && step.microTasks.length > 0 ? {
+              microTasks: {
+                create: step.microTasks.map((task, taskIndex) => ({
+                  order: task.order || taskIndex + 1,
+                  title: task.title,
+                  description: task.description,
+                  taskType: task.taskType || 'ACTION',
+                  duration: task.duration || 5,
+                  verificationMethod: task.verificationMethod,
+                  proofRequired: task.proofRequired || false,
+                })),
+              },
+            } : {}),
           })),
         },
       },
       include: {
         steps: {
           orderBy: { order: 'asc' },
+          include: {
+            microTasks: {
+              orderBy: { order: 'asc' },
+            },
+          },
         },
       },
     })
@@ -233,6 +337,11 @@ export async function getActiveRoadmap(userId: string): Promise<RoadmapWithSteps
     include: {
       steps: {
         orderBy: { order: 'asc' },
+        include: {
+          microTasks: {
+            orderBy: { order: 'asc' },
+          },
+        },
       },
     },
   })
@@ -252,6 +361,11 @@ export async function getRoadmapById(roadmapId: string, userId: string): Promise
     include: {
       steps: {
         orderBy: { order: 'asc' },
+        include: {
+          microTasks: {
+            orderBy: { order: 'asc' },
+          },
+        },
       },
     },
   })

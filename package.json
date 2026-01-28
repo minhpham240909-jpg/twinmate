@@ -28,6 +28,14 @@
     "generate-tests:watch": "tsx scripts/generate-tests.ts --watch",
     "qa:full": "npm run typecheck && npm run test && npm run test:e2e && npm run security",
     "cleanup:history": "tsx scripts/cleanup-history.ts",
+    "db:migrate": "bash scripts/db-migrate.sh migrate",
+    "db:status": "bash scripts/db-migrate.sh status",
+    "db:backup": "bash scripts/db-migrate.sh backup",
+    "load-test:smoke": "k6 run scripts/load-test/smoke.js",
+    "load-test:load": "k6 run scripts/load-test/load.js",
+    "load-test:stress": "k6 run scripts/load-test/stress.js",
+    "load-test:spike": "k6 run scripts/load-test/spike.js",
+    "load-test:endurance": "k6 run scripts/load-test/endurance.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {

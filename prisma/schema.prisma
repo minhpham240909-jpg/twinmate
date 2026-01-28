@@ -3797,6 +3797,20 @@ model LearningRoadmap {
   successLooksLike String?       @db.Text // What completion looks like
   recommendedPlatforms Json?     // Recommended learning platforms [{id, name, url, icon, color}]
 
+  // NEW: Vision & Strategy fields from multi-phase AI pipeline
+  vision          String?        @db.Text  // WHY this journey matters - transformation narrative
+  targetUser      String?        // Who this roadmap is for (identity description)
+  successMetrics  String[]       @default([]) // Measurable outcomes (3-5 KPIs)
+  outOfScope      String[]       @default([]) // What NOT to focus on yet
+  estimatedDays   Int?           // Total estimated days to complete
+  dailyCommitment String?        // e.g., "15-20 min/day"
+
+  // NEW: Critical warning from risk assessment
+  criticalWarning Json?          // {warning: "...", consequence: "...", severity: "CRITICAL"}
+
+  // NEW: Milestones for progress celebration
+  milestones      Json?          // [{order, title, description, marker, unlocks}]
+
   // Progress Tracking (SYSTEM controls this, not AI)
   status          RoadmapStatus  @default(ACTIVE)
   currentStepIndex Int           @default(0)
@@ -3843,6 +3857,18 @@ model RoadmapStep {
   duration        Int              @default(5) // Estimated minutes
   resources       Json?            // Suggested resources: [{type, title, url?, description}]
 
+  // NEW: Professor-level fields from multi-phase AI pipeline
+  phase           String?          // "NOW", "NEXT", "LATER"
+  whyFirst        String?          @db.Text // Deep explanation of why this step must come first
+  whyAfterPrevious String?         @db.Text // Why this must come after previous step (for locked steps)
+  timeBreakdown   Json?            // {daily: "15 min", total: "45 min", flexible: "Can do..."}
+  commonMistakes  String[]         @default([]) // Specific mistakes with consequences
+  selfTest        Json?            // {challenge: "...", passCriteria: "..."}
+  abilities       String[]         @default([]) // Specific capabilities gained after this step
+  previewAbilities String[]        @default([]) // Preview for locked steps
+  milestone       String?          // Achievement marker for this step
+  risk            Json?            // {warning: "...", consequence: "...", severity: "RISK"}
+
   // Progress Tracking (SYSTEM controls this)
   status          RoadmapStepStatus @default(LOCKED)
   startedAt       DateTime?
@@ -3860,10 +3886,63 @@ model RoadmapStep {
   // Relations
   roadmap         LearningRoadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
   attempts        MissionAttempt[] // Track attempts on this step
+  microTasks      MicroTask[]      // Task-based progression within step
 
   @@index([roadmapId, order])
   @@index([roadmapId, status])
   @@map("roadmap_steps")
+}
+
+// ==========================================
+// MICRO-TASKS (Task-based progression)
+// ==========================================
+// Breaks steps into small, actionable tasks for better tracking
+
+enum MicroTaskType {
+  ACTION      // Do something
+  LEARN       // Read/watch/study
+  PRACTICE    // Practice exercise
+  TEST        // Self-assessment
+  REFLECT     // Reflection/journaling
+}
+
+enum MicroTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model MicroTask {
+  id                 String          @id @default(uuid())
+  stepId             String
+
+  // Task content
+  order              Int
+  title              String
+  description        String          @db.Text
+  taskType           MicroTaskType   @default(ACTION)
+  duration           Int             @default(5) // minutes
+
+  // Verification
+  verificationMethod String?         // How to verify completion
+  proofRequired      Boolean         @default(false)
+
+  // Progress
+  status             MicroTaskStatus @default(PENDING)
+  completedAt        DateTime?
+  attempts           Int             @default(0)
+
+  // Timestamps
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relations
+  step               RoadmapStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([stepId, order])
+  @@index([stepId, status])
+  @@map("micro_tasks")
 }
 
 // ==========================================

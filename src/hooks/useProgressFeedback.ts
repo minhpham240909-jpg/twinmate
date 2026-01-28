@@ -117,6 +117,7 @@ export function useProgressFeedback({
   const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const feedbackQueueRef = useRef<FeedbackItem[]>([])
   const lastNudgeAtRef = useRef<number | null>(null)
+  const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // ============================================
   // FEEDBACK QUEUE MANAGEMENT (moved up to avoid hoisting issues)
@@ -143,8 +144,12 @@ export function useProgressFeedback({
 
   const dismissFeedback = useCallback(() => {
     setActiveFeedback(null)
+    // Clear any existing timeout to prevent memory leak
+    if (dismissTimeoutRef.current) {
+      clearTimeout(dismissTimeoutRef.current)
+    }
     // Small delay before showing next
-    setTimeout(showNextFeedback, 500)
+    dismissTimeoutRef.current = setTimeout(showNextFeedback, 500)
   }, [showNextFeedback])
 
   // ============================================
@@ -332,6 +337,10 @@ export function useProgressFeedback({
       }
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current)
+      }
+      // Clean up dismiss timeout
+      if (dismissTimeoutRef.current) {
+        clearTimeout(dismissTimeoutRef.current)
       }
     }
   }, [])

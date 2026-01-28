@@ -120,15 +120,24 @@ export function useFocusTrap(isActive: boolean) {
   useEffect(() => {
     if (isActive) return
 
+    // Store the element to restore focus to (prevents issues if ref changes)
+    const elementToFocus = previousActiveElement.current
+
     // Restore focus to previous element
-    if (previousActiveElement.current && typeof previousActiveElement.current.focus === 'function') {
+    if (elementToFocus && typeof elementToFocus.focus === 'function') {
       // Small delay to ensure modal close animation completes
       const timeoutId = setTimeout(() => {
-        previousActiveElement.current?.focus()
+        // Check element is still in the DOM before focusing
+        if (document.body.contains(elementToFocus)) {
+          elementToFocus.focus()
+        }
       }, 10)
 
       return () => clearTimeout(timeoutId)
     }
+
+    // Always return cleanup function to avoid memory leak warning
+    return undefined
   }, [isActive])
 
   return {

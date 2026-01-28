@@ -135,6 +135,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'At least one card is required' }, { status: 400 })
     }
 
+    // Limit batch size to prevent abuse (max 100 cards per request)
+    const MAX_CARDS_PER_REQUEST = 100
+    if (cardsArray.length > MAX_CARDS_PER_REQUEST) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_CARDS_PER_REQUEST} cards can be added per request` },
+        { status: 400 }
+      )
+    }
+
     // Get current max position
     const lastCard = await prisma.flashcardCard.findFirst({
       where: { deckId },

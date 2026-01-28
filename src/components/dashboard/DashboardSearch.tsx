@@ -274,7 +274,7 @@ export default function DashboardSearch({ onShowAIPartnerModal }: DashboardSearc
                         <Image src={partner.user.avatarUrl} alt={partner.user.name} width={48} height={48} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full ring-2 ring-neutral-200 dark:ring-neutral-700 group-hover:ring-neutral-400 dark:group-hover:ring-neutral-500 transition-all" />
                       ) : (
                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-900 dark:bg-white rounded-full flex items-center justify-center text-white dark:text-neutral-900 font-semibold text-base sm:text-lg ring-2 ring-neutral-200 dark:ring-neutral-700 group-hover:ring-neutral-400 dark:group-hover:ring-neutral-500 transition-all">
-                          {partner.user.name[0]}
+                          {partner.user.name?.[0] || '?'}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -328,7 +328,7 @@ export default function DashboardSearch({ onShowAIPartnerModal }: DashboardSearc
                       className="w-full flex items-start gap-3 p-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all duration-200 text-left group"
                     >
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-800 dark:bg-neutral-200 rounded-xl flex items-center justify-center text-white dark:text-neutral-900 font-bold text-base sm:text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
-                        {group.name[0]}
+                        {group.name?.[0] || 'G'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">

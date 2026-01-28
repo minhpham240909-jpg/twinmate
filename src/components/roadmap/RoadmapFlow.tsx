@@ -496,7 +496,26 @@ export function RoadmapFlow({
   const [selectedStep, setSelectedStep] = useState<EnhancedStep | null>(null)
 
   const completedCount = completedStepIds.length
-  const progressPercent = (completedCount / steps.length) * 100
+  const progressPercent = steps.length > 0 ? (completedCount / steps.length) * 100 : 0
+
+  // Handle empty steps case
+  if (steps.length === 0) {
+    return (
+      <div className="w-full">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-neutral-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+            No steps yet
+          </h3>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">
+            This roadmap is being set up. Steps will appear here once the learning path is defined.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full">

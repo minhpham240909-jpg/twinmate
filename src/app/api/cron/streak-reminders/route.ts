@@ -107,19 +107,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Send notifications
-    for (const [userId, data] of userCardCounts) {
-      if (data.count < 3 || notifiedUsers.has(userId)) continue
+    // Send notifications in parallel batches for better performance
+    const reviewDueUsers = Array.from(userCardCounts.entries())
+      .filter(([userId, data]) => data.count >= 3 && !notifiedUsers.has(userId))
 
-      try {
+    const reviewDueResults = await Promise.allSettled(
+      reviewDueUsers.map(async ([userId, data]) => {
         await pushReviewDue(userId, data.topic, data.count)
+        return userId
+      })
+    )
+
+    for (let i = 0; i < reviewDueResults.length; i++) {
+      const result = reviewDueResults[i]
+      const [userId] = reviewDueUsers[i]
+      if (result.status === 'fulfilled') {
         notifiedUsers.add(userId)
         reviewDueSent++
-      } catch (error) {
+      } else {
         errorCount++
         logger.warn('Failed to send review due notification', {
           userId,
-          error: error instanceof Error ? error.message : String(error),
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         })
       }
     }
@@ -157,20 +166,29 @@ export async function GET(request: NextRequest) {
     )
 
     const variants: ('stuck' | 'quick' | 'easy')[] = ['stuck', 'quick', 'easy']
-    for (let i = 0; i < Math.min(newUsersWithoutSessions.length, 50); i++) {
-      const user = newUsersWithoutSessions[i]
-      if (notifiedUsers.has(user.id)) continue
+    const activationUsers = newUsersWithoutSessions
+      .slice(0, 50)
+      .filter(user => !notifiedUsers.has(user.id))
 
-      try {
+    const activationResults = await Promise.allSettled(
+      activationUsers.map(async (user, i) => {
         const variant = variants[i % variants.length]
         await pushActivationNudge(user.id, variant)
+        return user.id
+      })
+    )
+
+    for (let i = 0; i < activationResults.length; i++) {
+      const result = activationResults[i]
+      const user = activationUsers[i]
+      if (result.status === 'fulfilled') {
         notifiedUsers.add(user.id)
         activationSent++
-      } catch (error) {
+      } else {
         errorCount++
         logger.warn('Failed to send activation nudge', {
           userId: user.id,
-          error: error instanceof Error ? error.message : String(error),
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         })
       }
     }
@@ -217,19 +235,27 @@ export async function GET(request: NextRequest) {
     })
     const lastSessionMap = new Map(lastSessions.map(s => [s.userId, s.subject]))
 
-    for (let i = 0; i < Math.min(usersToNotify.length, 50); i++) {
-      const profile = usersToNotify[i]
+    const missionUsers = usersToNotify.slice(0, 50)
 
-      try {
+    const missionResults = await Promise.allSettled(
+      missionUsers.map(async (profile) => {
         const topic = lastSessionMap.get(profile.userId) || 'your learning'
         await pushMissionReady(profile.userId, topic, 10)
+        return profile.userId
+      })
+    )
+
+    for (let i = 0; i < missionResults.length; i++) {
+      const result = missionResults[i]
+      const profile = missionUsers[i]
+      if (result.status === 'fulfilled') {
         notifiedUsers.add(profile.userId)
         missionSent++
-      } catch (error) {
+      } else {
         errorCount++
         logger.warn('Failed to send mission ready notification', {
           userId: profile.userId,
-          error: error instanceof Error ? error.message : String(error),
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         })
       }
     }

@@ -74,6 +74,7 @@ export default function DashboardTopBar({
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   // Search functionality
   const performSearch = useCallback(async (query: string) => {
@@ -83,6 +84,7 @@ export default function DashboardTopBar({
     }
 
     setIsSearching(true)
+    setSearchError(null)
     try {
       const queryLower = query.toLowerCase()
       const hasGroupKeyword = queryLower.includes('group')
@@ -100,15 +102,23 @@ export default function DashboardTopBar({
         cleanedQuery = query
       }
 
+      // Track if any fetch fails to show error state
+      let hadError = false
       const [partnersRes, groupsRes] = await Promise.all([
         fetch('/api/partners/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ searchQuery: cleanedQuery, searchType: 'simple' }),
         }).then(async r => {
-          if (!r.ok) return { profiles: [] }
+          if (!r.ok) {
+            hadError = true
+            return { profiles: [] }
+          }
           return r.json()
-        }).catch(() => ({ profiles: [] })),
+        }).catch(() => {
+          hadError = true
+          return { profiles: [] }
+        }),
         fetch('/api/groups/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -118,10 +128,20 @@ export default function DashboardTopBar({
             subjectCustomDescription: cleanedQuery
           }),
         }).then(async r => {
-          if (!r.ok) return { groups: [] }
+          if (!r.ok) {
+            hadError = true
+            return { groups: [] }
+          }
           return r.json()
-        }).catch(() => ({ groups: [] }))
+        }).catch(() => {
+          hadError = true
+          return { groups: [] }
+        })
       ])
+
+      if (hadError) {
+        setSearchError('Some results may be missing due to a connection issue')
+      }
 
       let partners = partnersRes.profiles || []
       let groups = groupsRes.groups || []
@@ -219,6 +239,12 @@ export default function DashboardTopBar({
           {/* Search Results Dropdown */}
           {showResults && hasSearched && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto">
+              {/* Show error message if search had issues */}
+              {searchError && (
+                <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">{searchError}</p>
+                </div>
+              )}
               {searchResults.partners.length === 0 && searchResults.groups.length === 0 ? (
                 <div className="p-6 text-center">
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">

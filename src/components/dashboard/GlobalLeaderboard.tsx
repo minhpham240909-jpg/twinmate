@@ -247,12 +247,17 @@ export default function GlobalLeaderboard({
       )
     }
 
-    const initials = entry.name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+    // Safe initials extraction - handle null, undefined, or empty name
+    const name = entry.name || ''
+    const initials = name.length > 0
+      ? name
+          .split(' ')
+          .filter(n => n.length > 0)
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2)
+      : ''
 
     return (
       <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">

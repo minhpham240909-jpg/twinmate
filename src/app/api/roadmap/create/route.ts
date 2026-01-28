@@ -36,6 +36,13 @@ interface RecommendedPlatform {
   searchUrl?: string
 }
 
+// Critical warning structure
+interface CriticalWarning {
+  warning: string
+  consequence: string
+  severity: 'CRITICAL'
+}
+
 interface CreateRoadmapRequest {
   goal: string
   subject?: string
@@ -46,6 +53,15 @@ interface CreateRoadmapRequest {
   successLooksLike?: string
   estimatedMinutes?: number
   recommendedPlatforms?: RecommendedPlatform[]
+  // Vision & Strategy fields
+  vision?: string
+  targetUser?: string
+  successMetrics?: string[]
+  outOfScope?: string[]
+  criticalWarning?: CriticalWarning
+  estimatedDays?: number
+  dailyCommitment?: string
+  milestones?: { order: number; title: string; description: string; marker: string; unlocks: string }[]
   steps: {
     order: number
     title: string
@@ -56,6 +72,17 @@ interface CreateRoadmapRequest {
     doneWhen?: string
     duration?: number
     resources?: StepResource[]
+    // Enhanced professor-level fields
+    phase?: 'NOW' | 'NEXT' | 'LATER'
+    whyFirst?: string
+    whyAfterPrevious?: string
+    timeBreakdown?: { daily: string; total: string; flexible: string }
+    commonMistakes?: string[]
+    selfTest?: { challenge: string; passCriteria: string }
+    abilities?: string[]
+    previewAbilities?: string[]
+    milestone?: string
+    risk?: { warning: string; consequence: string; severity: string }
   }[]
 }
 
@@ -112,6 +139,15 @@ export async function POST(request: NextRequest) {
       successLooksLike: body.successLooksLike,
       estimatedMinutes: body.estimatedMinutes,
       recommendedPlatforms: body.recommendedPlatforms,
+      // Vision & Strategy fields
+      vision: body.vision,
+      targetUser: body.targetUser,
+      successMetrics: body.successMetrics,
+      outOfScope: body.outOfScope,
+      criticalWarning: body.criticalWarning,
+      estimatedDays: body.estimatedDays,
+      dailyCommitment: body.dailyCommitment,
+      milestones: body.milestones,
       steps: body.steps,
     })
 
@@ -139,6 +175,14 @@ export async function POST(request: NextRequest) {
         successLooksLike: roadmap.successLooksLike,
         recommendedPlatforms: roadmap.recommendedPlatforms,
         createdAt: roadmap.createdAt,
+        // Vision & Strategy fields
+        vision: roadmap.vision,
+        targetUser: roadmap.targetUser,
+        successMetrics: roadmap.successMetrics,
+        outOfScope: roadmap.outOfScope,
+        criticalWarning: roadmap.criticalWarning,
+        estimatedDays: roadmap.estimatedDays,
+        dailyCommitment: roadmap.dailyCommitment,
         steps: roadmap.steps.map(step => ({
           id: step.id,
           order: step.order,
@@ -151,6 +195,17 @@ export async function POST(request: NextRequest) {
           duration: step.duration,
           resources: step.resources,
           status: step.status.toLowerCase(),
+          // Enhanced professor-level fields
+          phase: step.phase,
+          whyFirst: step.whyFirst,
+          whyAfterPrevious: step.whyAfterPrevious,
+          timeBreakdown: step.timeBreakdown,
+          commonMistakes: step.commonMistakes,
+          selfTest: step.selfTest,
+          abilities: step.abilities,
+          previewAbilities: step.previewAbilities,
+          milestone: step.milestone,
+          risk: step.risk,
         })),
       },
     }, {

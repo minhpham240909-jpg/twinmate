@@ -262,24 +262,45 @@ RULES:
 
 /**
  * Track struggle for future AI learning
+ * Note: Arrays are bounded to prevent unbounded growth
  */
+const MAX_STRUGGLING_TOPICS = 50
+const MAX_PENDING_QUESTIONS = 100
+
 async function trackStruggle(userId: string, stepTitle: string, struggleType: string): Promise<void> {
   try {
-    // Update user memory with this struggle
+    // Get current memory to check array sizes
+    const existingMemory = await prisma.aIUserMemory.findUnique({
+      where: { userId },
+      select: {
+        strugglingTopics: true,
+        pendingQuestions: true,
+      },
+    })
+
+    // Bound arrays to prevent unbounded growth
+    const currentTopics = existingMemory?.strugglingTopics || []
+    const currentQuestions = existingMemory?.pendingQuestions || []
+
+    // Only add if not already at limit, or trim oldest entries
+    const newTopics = currentTopics.includes(stepTitle)
+      ? currentTopics
+      : [...currentTopics, stepTitle].slice(-MAX_STRUGGLING_TOPICS)
+
+    const newQuestion = `struggled:${struggleType}:${stepTitle}`
+    const newQuestions = [...currentQuestions, newQuestion].slice(-MAX_PENDING_QUESTIONS)
+
+    // Update user memory with bounded arrays
     await prisma.aIUserMemory.upsert({
       where: { userId },
       create: {
         userId,
         strugglingTopics: [stepTitle],
-        pendingQuestions: [`struggled:${struggleType}:${stepTitle}`],
+        pendingQuestions: [newQuestion],
       },
       update: {
-        strugglingTopics: {
-          push: stepTitle,
-        },
-        pendingQuestions: {
-          push: `struggled:${struggleType}:${stepTitle}`,
-        },
+        strugglingTopics: newTopics,
+        pendingQuestions: newQuestions,
       },
     })
   } catch (error) {

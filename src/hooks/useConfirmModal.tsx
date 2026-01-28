@@ -72,6 +72,13 @@ export function ConfirmModalProvider({ children }: { children: ReactNode }) {
       requireAction = false
     ): Promise<boolean> => {
       return new Promise((resolve) => {
+        // For non-confirm modals (alerts), we store the resolve function directly
+        // and always resolve with true when closed
+        // This fixes the stale closure issue where resolve was captured incorrectly
+        const resolveHandler = isConfirm
+          ? resolve
+          : (_: boolean) => resolve(true) // Always resolve true for alerts
+
         setModalState({
           isOpen: true,
           title,
@@ -80,7 +87,7 @@ export function ConfirmModalProvider({ children }: { children: ReactNode }) {
           confirmText,
           cancelText,
           requireAction,
-          resolve: isConfirm ? resolve : () => resolve(true),
+          resolve: resolveHandler,
         })
       })
     },
@@ -199,6 +206,11 @@ export function useLocalConfirmModal() {
       cancelText = 'Cancel'
     ): Promise<boolean> => {
       return new Promise((resolve) => {
+        // Fix stale closure: properly handle resolve for confirm vs alert modals
+        const resolveHandler = isConfirm
+          ? resolve
+          : (_: boolean) => resolve(true) // Always resolve true for alerts
+
         setModalState({
           isOpen: true,
           title,
@@ -207,7 +219,7 @@ export function useLocalConfirmModal() {
           confirmText,
           cancelText,
           requireAction: false,
-          resolve: isConfirm ? resolve : () => resolve(true),
+          resolve: resolveHandler,
         })
       })
     },

@@ -12,7 +12,7 @@
  * - Delightful: Celebrations have subtle animations
  */
 
-import { useEffect, useState, useCallback, memo } from 'react'
+import { useEffect, useState, useCallback, memo, useRef } from 'react'
 import { X, ArrowRight, Sparkles } from 'lucide-react'
 import type { FeedbackItem } from '@/hooks/useProgressFeedback'
 
@@ -45,12 +45,27 @@ function ProgressToast({ feedback, onDismiss, onAction }: ProgressToastProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
 
+  // Store onDismiss in a ref to avoid stale closure in timer
+  const onDismissRef = useRef(onDismiss)
+  useEffect(() => {
+    onDismissRef.current = onDismiss
+  }, [onDismiss])
+
+  const handleDismiss = useCallback(() => {
+    setIsLeaving(true)
+    setTimeout(() => {
+      setIsLeaving(false)
+      setIsVisible(false)
+      onDismissRef.current()
+    }, 300)
+  }, [])
+
   // Handle entrance animation
   useEffect(() => {
     if (feedback) {
       // Small delay for entrance animation
       const showTimer = setTimeout(() => setIsVisible(true), 50)
-      
+
       // Auto dismiss celebrations (not nudges - they need action)
       if (feedback.type === 'celebration') {
         const duration = feedback.celebration?.duration || 4000
@@ -60,21 +75,12 @@ function ProgressToast({ feedback, onDismiss, onAction }: ProgressToastProps) {
           clearTimeout(dismissTimer)
         }
       }
-      
+
       return () => clearTimeout(showTimer)
     } else {
       setIsVisible(false)
     }
-  }, [feedback])
-
-  const handleDismiss = useCallback(() => {
-    setIsLeaving(true)
-    setTimeout(() => {
-      setIsLeaving(false)
-      setIsVisible(false)
-      onDismiss()
-    }, 300)
-  }, [onDismiss])
+  }, [feedback, handleDismiss])
 
   const handleAction = useCallback((handler: string) => {
     onAction?.(handler)
