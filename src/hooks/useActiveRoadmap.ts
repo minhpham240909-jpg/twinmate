@@ -296,6 +296,15 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
         throw new Error(data.error || 'Failed to fetch active roadmap')
       }
 
+      // Debug logging for production issues
+      if (data.activeRoadmap && !data.activeRoadmap.steps) {
+        console.error('[useActiveRoadmap] API returned roadmap without steps!', {
+          roadmapId: data.activeRoadmap.id,
+          hasSteps: !!data.activeRoadmap.steps,
+          keys: Object.keys(data.activeRoadmap),
+        })
+      }
+
       return {
         activeRoadmap: data.activeRoadmap,
         currentStep: data.currentStep,

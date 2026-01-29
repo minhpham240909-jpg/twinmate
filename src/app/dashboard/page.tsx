@@ -2000,13 +2000,22 @@ export default function DashboardPage() {
   // State for delete operation
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Convert to UI format
-  const activeRoadmap: Roadmap | null = persistedRoadmap ? {
+  // Debug logging for production issues
+  if (persistedRoadmap && !persistedRoadmap.steps) {
+    console.error('[Dashboard] CRITICAL: persistedRoadmap exists but steps is missing!', {
+      roadmapId: persistedRoadmap.id,
+      hasSteps: !!persistedRoadmap.steps,
+      stepsType: typeof persistedRoadmap.steps,
+    })
+  }
+
+  // Convert to UI format - with defensive null checks
+  const activeRoadmap: Roadmap | null = persistedRoadmap && persistedRoadmap.steps ? {
     id: persistedRoadmap.id,
     title: persistedRoadmap.title,
     overview: persistedRoadmap.overview,
     goal: persistedRoadmap.goal,
-    steps: persistedRoadmap.steps.map((step) => ({
+    steps: (persistedRoadmap.steps || []).map((step) => ({
       id: step.id,
       order: step.order,
       title: step.title,

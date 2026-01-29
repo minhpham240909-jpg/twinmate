@@ -156,7 +156,12 @@ export default function ProgressPage() {
   }
 
   if (!user || !profile) {
-    return null
+    // Still loading user/profile - show loading spinner instead of blank page
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    )
   }
 
   return (
