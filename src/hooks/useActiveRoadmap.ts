@@ -342,8 +342,8 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
         throw new Error(responseData.error || 'Failed to save roadmap')
       }
 
-      // Invalidate and refetch the query to get fresh data
-      await queryClient.invalidateQueries({ queryKey: ROADMAP_QUERY_KEY })
+      // Refetch the query to get fresh data (wait for refetch to complete)
+      await queryClient.refetchQueries({ queryKey: ROADMAP_QUERY_KEY })
 
       return responseData.roadmap
     } catch (err) {
@@ -383,8 +383,8 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
         throw new Error(responseData.error || 'Failed to complete step')
       }
 
-      // Invalidate and refetch the query to get fresh data
-      await queryClient.invalidateQueries({ queryKey: ROADMAP_QUERY_KEY })
+      // Refetch the query to get fresh data (wait for refetch to complete)
+      await queryClient.refetchQueries({ queryKey: ROADMAP_QUERY_KEY })
 
       return true
     } catch (err) {

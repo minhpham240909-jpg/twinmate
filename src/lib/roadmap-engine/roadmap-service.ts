@@ -227,55 +227,55 @@ export async function createRoadmap(input: CreateRoadmapInput): Promise<RoadmapW
         },
       })
 
-    // Create the new roadmap
-    const roadmap = await tx.learningRoadmap.create({
-      data: {
-        userId,
-        ...roadmapData,
-        recommendedPlatforms: recommendedPlatforms ? (recommendedPlatforms as unknown as Prisma.InputJsonValue) : undefined,
-        criticalWarning: criticalWarning ? (criticalWarning as unknown as Prisma.InputJsonValue) : undefined,
-        milestones: milestones ? (milestones as unknown as Prisma.InputJsonValue) : undefined,
-        totalSteps: steps.length,
-        estimatedMinutes: roadmapData.estimatedMinutes || steps.reduce((sum, s) => sum + (s.duration || 5), 0),
-        isActive: true,
-        status: RoadmapStatus.ACTIVE,
-        steps: {
-          create: steps.map((step, index) => ({
-            order: step.order || index + 1,
-            title: step.title,
-            description: step.description,
-            timeframe: step.timeframe,
-            method: step.method,
-            avoid: step.avoid,
-            doneWhen: step.doneWhen,
-            duration: step.duration || 5,
-            resources: step.resources ? (step.resources as unknown as Prisma.InputJsonValue) : undefined,
-            // Enhanced professor-level fields
-            phase: step.phase,
-            whyFirst: step.whyFirst,
-            whyAfterPrevious: step.whyAfterPrevious,
-            timeBreakdown: step.timeBreakdown ? (step.timeBreakdown as unknown as Prisma.InputJsonValue) : undefined,
-            commonMistakes: step.commonMistakes || [],
-            selfTest: step.selfTest ? (step.selfTest as unknown as Prisma.InputJsonValue) : undefined,
-            abilities: step.abilities || [],
-            previewAbilities: step.previewAbilities || [],
-            milestone: step.milestone,
-            risk: step.risk ? (step.risk as unknown as Prisma.InputJsonValue) : undefined,
-            // First step is CURRENT, rest are LOCKED
-            status: index === 0 ? RoadmapStepStatus.CURRENT : RoadmapStepStatus.LOCKED,
-            startedAt: index === 0 ? new Date() : null,
-            // NOTE: microTasks creation removed - table may not exist yet
-            // Run add_enhanced_roadmap_fields.sql migration to enable microTasks
-          })),
+      // Create the new roadmap
+      const roadmap = await tx.learningRoadmap.create({
+        data: {
+          userId,
+          ...roadmapData,
+          recommendedPlatforms: recommendedPlatforms ? (recommendedPlatforms as unknown as Prisma.InputJsonValue) : undefined,
+          criticalWarning: criticalWarning ? (criticalWarning as unknown as Prisma.InputJsonValue) : undefined,
+          milestones: milestones ? (milestones as unknown as Prisma.InputJsonValue) : undefined,
+          totalSteps: steps.length,
+          estimatedMinutes: roadmapData.estimatedMinutes || steps.reduce((sum, s) => sum + (s.duration || 5), 0),
+          isActive: true,
+          status: RoadmapStatus.ACTIVE,
+          steps: {
+            create: steps.map((step, index) => ({
+              order: step.order || index + 1,
+              title: step.title,
+              description: step.description,
+              timeframe: step.timeframe,
+              method: step.method,
+              avoid: step.avoid,
+              doneWhen: step.doneWhen,
+              duration: step.duration || 5,
+              resources: step.resources ? (step.resources as unknown as Prisma.InputJsonValue) : undefined,
+              // Enhanced professor-level fields
+              phase: step.phase,
+              whyFirst: step.whyFirst,
+              whyAfterPrevious: step.whyAfterPrevious,
+              timeBreakdown: step.timeBreakdown ? (step.timeBreakdown as unknown as Prisma.InputJsonValue) : undefined,
+              commonMistakes: step.commonMistakes || [],
+              selfTest: step.selfTest ? (step.selfTest as unknown as Prisma.InputJsonValue) : undefined,
+              abilities: step.abilities || [],
+              previewAbilities: step.previewAbilities || [],
+              milestone: step.milestone,
+              risk: step.risk ? (step.risk as unknown as Prisma.InputJsonValue) : undefined,
+              // First step is CURRENT, rest are LOCKED
+              status: index === 0 ? RoadmapStepStatus.CURRENT : RoadmapStepStatus.LOCKED,
+              startedAt: index === 0 ? new Date() : null,
+              // NOTE: microTasks creation removed - table may not exist yet
+              // Run add_enhanced_roadmap_fields.sql migration to enable microTasks
+            })),
+          },
         },
-      },
-      include: {
-        steps: {
-          orderBy: { order: 'asc' },
-          // NOTE: microTasks include removed - table may not exist yet
+        include: {
+          steps: {
+            orderBy: { order: 'asc' },
+            // NOTE: microTasks include removed - table may not exist yet
+          },
         },
-      },
-    })
+      })
 
       return roadmap as RoadmapWithSteps
     })

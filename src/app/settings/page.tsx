@@ -319,6 +319,10 @@ export default function SettingsPage() {
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           avatarUrl = uploadData.url
+        } else {
+          // Avatar upload failed - show error and stop
+          toast.error('Failed to upload avatar. Please try again.')
+          return
         }
       }
 
@@ -331,12 +335,13 @@ export default function SettingsPage() {
 
       if (res.ok) {
         toast.success('Profile updated')
-        refreshUser()
+        await refreshUser()  // Wait for refresh to complete
         setActiveSection(null)
         setAvatarFile(null)
         setAvatarPreview(null)
       } else {
-        throw new Error('Failed to update profile')
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update profile')
       }
     } catch (error) {
       console.error('Error updating profile:', error)
@@ -427,13 +432,14 @@ export default function SettingsPage() {
 
       if (res.ok) {
         toast.success('Account deleted')
-        signOut()
+        await signOut()  // Wait for sign out to complete
       } else {
-        throw new Error('Failed to delete account')
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to delete account')
       }
     } catch (error) {
       console.error('Error deleting account:', error)
-      toast.error('Failed to delete account')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete account')
     } finally {
       setDeleting(false)
     }
@@ -563,13 +569,31 @@ export default function SettingsPage() {
     )
   }
 
-  if (!user || !profile) {
-    // Still loading user/profile - show loading spinner instead of blank page
+  // Handle case where user is logged in but profile failed to load
+  // Show basic settings instead of infinite spinner
+  if (!user) {
+    // No user at all after loading - redirect to auth
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <div className="text-center">
+          <p className="text-neutral-600 dark:text-neutral-400 mb-4">Please sign in to access settings</p>
+          <button
+            onClick={() => router.push('/auth')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
       </div>
     )
+  }
+
+  // Create a fallback profile if profile is null (network error, etc.)
+  const displayProfile = profile || {
+    name: user.email?.split('@')[0] || 'User',
+    email: user.email || '',
+    avatarUrl: null,
+    isAdmin: false,
   }
 
   return (
@@ -612,10 +636,10 @@ export default function SettingsPage() {
                 className="w-full flex items-center gap-4 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
               >
                 <div className="relative">
-                  {profile.avatarUrl ? (
+                  {displayProfile.avatarUrl ? (
                     <img
-                      src={profile.avatarUrl}
-                      alt={profile.name}
+                      src={displayProfile.avatarUrl}
+                      alt={displayProfile.name}
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   ) : (
@@ -625,7 +649,7 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-medium text-neutral-900 dark:text-white">{profile.name}</p>
+                  <p className="font-medium text-neutral-900 dark:text-white">{displayProfile.name}</p>
                   <p className="text-sm text-neutral-500">{user.email}</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-neutral-400" />
@@ -724,7 +748,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Admin Section - Only show for admin users */}
-            {profile.isAdmin && (
+            {displayProfile.isAdmin && (
               <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden">
                 <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
                   <h2 className="text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">Admin</h2>
@@ -812,10 +836,10 @@ export default function SettingsPage() {
             {/* Avatar */}
             <div className="flex flex-col items-center">
               <div className="relative">
-                {avatarPreview || profile.avatarUrl ? (
+                {avatarPreview || displayProfile.avatarUrl ? (
                   <img
-                    src={avatarPreview || profile.avatarUrl || ''}
-                    alt={profile.name}
+                    src={avatarPreview || displayProfile.avatarUrl || ''}
+                    alt={displayProfile.name}
                     className="w-24 h-24 rounded-full object-cover"
                   />
                 ) : (

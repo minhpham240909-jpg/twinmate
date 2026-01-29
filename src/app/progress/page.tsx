@@ -46,12 +46,13 @@ interface ProgressData {
 }
 
 export default function ProgressPage() {
-  const { user, profile, loading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const { stats } = useDashboardStats()
   const { milestoneData } = useMilestones()
   const [progressData, setProgressData] = useState<ProgressData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Check if user is a guest (not logged in)
   const isGuest = !loading && !user
@@ -109,8 +110,9 @@ export default function ProgressPage() {
           conceptsLearned: helpSessions,
           weeklyActivity,
         })
-      } catch (error) {
-        console.error('Error loading progress:', error)
+      } catch (err) {
+        console.error('Error loading progress:', err)
+        setError('Failed to load progress data. Please try again.')
       } finally {
         setIsLoading(false)
       }
@@ -126,6 +128,33 @@ export default function ProgressPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 pb-20">
+        <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg border-b border-neutral-200 dark:border-neutral-800">
+          <div className="max-w-lg mx-auto px-4 py-4">
+            <h1 className="text-xl font-bold text-neutral-900 dark:text-white">Your Progress</h1>
+          </div>
+        </header>
+        <div className="max-w-lg mx-auto px-4 py-12 text-center">
+          <p className="text-neutral-600 dark:text-neutral-400 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null)
+              setIsLoading(true)
+              window.location.reload()
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+        <BottomNav />
       </div>
     )
   }
@@ -155,14 +184,8 @@ export default function ProgressPage() {
     )
   }
 
-  if (!user || !profile) {
-    // Still loading user/profile - show loading spinner instead of blank page
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-      </div>
-    )
-  }
+  // Note: We don't block on profile here - the page can render with just user
+  // Profile may fail to load due to network issues, but we still show the page
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900 pb-20">

@@ -22,6 +22,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useEffect, useState, useCallback, memo, useRef } from 'react'
+import toast from 'react-hot-toast'
 import { useUserSync } from '@/hooks/useUserSync'
 import { useDashboardStats } from '@/hooks/useUserStats'
 import { useGuestTrial } from '@/hooks/useGuestTrial'
@@ -2421,6 +2422,10 @@ export default function DashboardPage() {
           // Note: The useEffect will update currentMission when activeRoadmap changes
           // from the refreshRoadmap() call above
           return // Exit early - celebration modal will handle the transition
+        } else {
+          // Step completion failed - show error to user
+          toast.error('Failed to save your progress. Please try again.')
+          return
         }
       } else if (result.passed && !stepIdToComplete) {
         // Mission passed but no roadmap step to complete (standalone mission or no active roadmap)
@@ -2707,28 +2712,36 @@ export default function DashboardPage() {
                 }
               }}
               onStepComplete={async (stepId) => {
-                const success = await completeStep(stepId)
-                if (success) {
-                  await refreshRoadmap()
+                try {
+                  const success = await completeStep(stepId)
+                  if (success) {
+                    await refreshRoadmap()
 
-                  // Get step info for celebration
-                  const step = activeRoadmap?.steps.find(s => s.id === stepId)
-                  const minutesSpent = step?.duration || 10
-                  triggerStepComplete(minutesSpent)
+                    // Get step info for celebration
+                    const step = activeRoadmap?.steps.find(s => s.id === stepId)
+                    const minutesSpent = step?.duration || 10
+                    triggerStepComplete(minutesSpent)
 
-                  // Show celebration
-                  const isLastStep = activeRoadmap
-                    ? activeRoadmap.completedSteps + 1 >= activeRoadmap.totalSteps
-                    : false
+                    // Show celebration
+                    const isLastStep = activeRoadmap
+                      ? activeRoadmap.completedSteps + 1 >= activeRoadmap.totalSteps
+                      : false
 
-                  setCelebrationData({
-                    xpEarned: 25,
-                    stepCompleted: step?.title || 'Gate',
-                    isRoadmapComplete: isLastStep,
-                  })
-                  setShowCelebration(true)
+                    setCelebrationData({
+                      xpEarned: 25,
+                      stepCompleted: step?.title || 'Gate',
+                      isRoadmapComplete: isLastStep,
+                    })
+                    setShowCelebration(true)
 
-                  // Celebration modal onClose will navigate to mission view
+                    // Celebration modal onClose will navigate to mission view
+                  } else {
+                    // Step completion failed - show error to user
+                    toast.error('Failed to mark step as complete. Please try again.')
+                  }
+                } catch (error) {
+                  console.error('Error completing step:', error)
+                  toast.error('Something went wrong. Please try again.')
                 }
               }}
             />
