@@ -29,12 +29,22 @@ export async function POST() {
     }
 
     // Check if user has push subscriptions
-    const subscriptionCount = await prisma.pushSubscription.count({
-      where: {
-        userId: user.id,
-        isActive: true,
-      },
-    })
+    // Use try-catch in case table doesn't exist
+    let subscriptionCount = 0
+    try {
+      subscriptionCount = await prisma.pushSubscription.count({
+        where: {
+          userId: user.id,
+          isActive: true,
+        },
+      })
+    } catch {
+      // Table may not exist - treat as no subscriptions
+      return NextResponse.json({
+        success: false,
+        reason: 'push_table_not_available'
+      })
+    }
 
     if (subscriptionCount === 0) {
       return NextResponse.json({
@@ -74,16 +84,21 @@ export async function POST() {
     }
 
     // Check if we've sent a notification recently (within last 4 hours)
-    // This prevents notification spam
-    const recentNotification = await prisma.notification.findFirst({
-      where: {
-        userId: user.id,
-        type: 'MISSION_REMINDER',
-        createdAt: {
-          gte: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+    // This prevents notification spam - use try-catch in case table doesn't exist
+    let recentNotification = null
+    try {
+      recentNotification = await prisma.notification.findFirst({
+        where: {
+          userId: user.id,
+          type: 'MISSION_REMINDER',
+          createdAt: {
+            gte: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+          },
         },
-      },
-    })
+      })
+    } catch {
+      // Table may not exist - skip rate limiting check
+    }
 
     if (recentNotification) {
       return NextResponse.json({
@@ -115,19 +130,25 @@ export async function POST() {
     }
 
     // Record that we sent a notification (for rate limiting)
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        type: 'MISSION_REMINDER',
-        title: 'Mission Reminder',
-        message: `Reminder for: ${topic}`,
-        metadata: {
-          roadmapId: activeRoadmap.id,
-          stepId: currentStep.id,
-          progressPercent,
+    // Use try-catch in case table doesn't exist
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          type: 'MISSION_REMINDER',
+          title: 'Mission Reminder',
+          message: `Reminder for: ${topic}`,
+          metadata: {
+            roadmapId: activeRoadmap.id,
+            stepId: currentStep.id,
+            progressPercent,
+          },
         },
-      },
-    })
+      })
+    } catch {
+      // Table may not exist - notification still sent via push, just not recorded
+      console.warn('[mission-reminder] Could not record notification in database')
+    }
 
     return NextResponse.json({
       success: true,

@@ -36,10 +36,15 @@ export async function POST(request: NextRequest) {
   const log = createRequestLogger(request)
   const correlationId = getCorrelationId(request)
 
+  // Track for error logging
+  let requestBody: CompleteStepRequest | null = null
+  let userId: string | null = null
+
   try {
     // Auth check
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
+    userId = user?.id || null
 
     if (!user) {
       return NextResponse.json(
@@ -59,6 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request
     const body: CompleteStepRequest = await request.json()
+    requestBody = body
 
     if (!body.roadmapId || !body.stepId) {
       return NextResponse.json(
@@ -175,6 +181,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to complete step'
+
+    // Log detailed error for debugging (always log to server)
+    console.error('[step/complete] Error:', {
+      errorMessage,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      roadmapId: requestBody?.roadmapId,
+      stepId: requestBody?.stepId,
+      userId,
+    })
+
     log.error('Failed to complete step', error instanceof Error ? error : { error })
 
     // Handle specific error cases
@@ -191,13 +208,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Return detailed error in development, generic in production
-    const detailedError = process.env.NODE_ENV === 'development'
-      ? errorMessage
-      : 'Failed to complete step'
-
+    // Always return detailed error in the response for debugging
+    // The client already shows generic message to user
     return NextResponse.json(
-      { error: detailedError, details: process.env.NODE_ENV === 'development' ? String(error) : undefined },
+      {
+        error: errorMessage,
+        details: String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
       { status: 500 }
     )
   }

@@ -377,6 +377,14 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
       const responseData = await response.json()
 
       if (!response.ok) {
+        // Log detailed error info for debugging
+        console.error('[useActiveRoadmap] Step completion failed:', {
+          status: response.status,
+          error: responseData.error,
+          details: responseData.details,
+          stack: responseData.stack,
+        })
+
         if (response.status === 401) {
           throw new Error('Session expired. Please refresh the page and try again.')
         }
@@ -388,7 +396,7 @@ export function useActiveRoadmap(): UseActiveRoadmapReturn {
 
       return true
     } catch (err) {
-      console.error('Error completing step:', err)
+      console.error('[useActiveRoadmap] Error completing step:', err)
       return false
     }
   }, [data?.activeRoadmap, queryClient])
