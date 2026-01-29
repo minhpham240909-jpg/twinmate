@@ -2511,6 +2511,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 pb-24">
+      {/* Bottom Navigation - Rendered first in DOM for proper stacking */}
+      <BottomNav />
+
       {/* Modals */}
       <TrialLimitModal
         isOpen={showTrialLimitModal}
@@ -2765,9 +2768,6 @@ export default function DashboardPage() {
         onDismiss={dismissFeedback}
         onAction={handleNudgeAction}
       />
-
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   )
 }
