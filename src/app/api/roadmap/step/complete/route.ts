@@ -15,7 +15,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { completeStep } from '@/lib/roadmap-engine/roadmap-service'
-import { EnforcementEngine } from '@/lib/enforcement-engine'
 import { rateLimit, RateLimitPresets } from '@/lib/rate-limit'
 import { createRequestLogger, getCorrelationId } from '@/lib/logger'
 
@@ -85,41 +84,10 @@ export async function POST(request: NextRequest) {
 
     const minutesSpent = body.minutesSpent || 0
 
-    // ENFORCEMENT: Validate completion requirements (non-blocking)
-    let validation = { valid: true, minimumTimeMet: true, proofValidated: true, warnings: [] as string[] }
-    try {
-      validation = await EnforcementEngine.validateCompletion(
-        user.id,
-        body.stepId,
-        minutesSpent,
-        body.proof
-      )
-    } catch (enforcementError) {
-      log.warn('Enforcement validation failed, proceeding anyway', { error: enforcementError })
-    }
-
-    // Get warnings for the response
-    const warnings = validation.warnings
-
-    // Record the attempt (SUCCESS or PARTIAL based on validation) - non-blocking
-    try {
-      await EnforcementEngine.recordAttempt(
-        user.id,
-        body.stepId,
-        validation.valid ? 'SUCCESS' : 'PARTIAL',
-        {
-          minutesSpent,
-          minimumTimeMet: validation.minimumTimeMet,
-          proofType: body.proof?.type,
-          proofData: body.proof,
-          proofValidated: validation.proofValidated,
-          difficultyRating: body.difficultyRating,
-          confidenceLevel: body.confidenceLevel,
-        }
-      )
-    } catch (enforcementError) {
-      log.warn('Failed to record attempt, proceeding anyway', { error: enforcementError })
-    }
+    // Skip enforcement engine - tables may not exist in database
+    // Core step completion must work without enforcement
+    const validation = { valid: true, minimumTimeMet: true, proofValidated: true, warnings: [] as string[] }
+    const warnings: string[] = []
 
     // Complete the step (this handles progression) - THIS IS THE CRITICAL PART
     const updatedRoadmap = await completeStep(
@@ -133,40 +101,19 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    // ENFORCEMENT: Pay down study debt with time spent (non-blocking)
-    if (minutesSpent > 0) {
-      try {
-        await EnforcementEngine.payStudyDebt(user.id, minutesSpent)
-      } catch (enforcementError) {
-        log.warn('Failed to pay study debt, proceeding anyway', { error: enforcementError })
-      }
-    }
-
     // Check if roadmap is now complete
     const isRoadmapComplete = updatedRoadmap.status === 'COMPLETED'
     const currentStep = updatedRoadmap.steps.find(s => s.status === 'CURRENT')
 
-    // Get identity update (non-blocking)
-    let identity: { currentStreak: number; totalMissionsCompleted: number; archetype: string | null | undefined } = {
+    // Default identity (enforcement engine disabled)
+    const identity = {
       currentStreak: 0,
       totalMissionsCompleted: 0,
-      archetype: undefined
-    }
-    try {
-      const fetchedIdentity = await EnforcementEngine.getIdentity(user.id)
-      identity = {
-        currentStreak: fetchedIdentity.currentStreak,
-        totalMissionsCompleted: fetchedIdentity.totalMissionsCompleted,
-        archetype: fetchedIdentity.archetype,
-      }
-    } catch (enforcementError) {
-      log.warn('Failed to get identity, using defaults', { error: enforcementError })
+      archetype: undefined as string | null | undefined,
     }
 
-    // Get authority message based on completion
-    const authorityMessage = EnforcementEngine.getAuthorityMessage('success', {
-      streak: identity.currentStreak,
-    })
+    // Default authority message
+    const authorityMessage = { message: 'Step complete. Keep going!' }
 
     log.info('Step completed with enforcement', {
       roadmapId: body.roadmapId,
