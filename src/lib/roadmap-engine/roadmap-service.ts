@@ -467,8 +467,7 @@ export async function completeStep(
       })
     }
 
-    // Return updated roadmap (without microTasks to avoid errors if table doesn't exist)
-    // microTasks are optional and may not be migrated yet
+    // Return updated roadmap
     const updated = await tx.learningRoadmap.findUnique({
       where: { id: roadmapId },
       include: {
@@ -482,23 +481,14 @@ export async function completeStep(
       throw new Error('Roadmap verification failed after completion')
     }
 
-    // Try to fetch microTasks separately (graceful fallback if table doesn't exist)
-    const stepsWithMicroTasks = await Promise.all(
-      updated.steps.map(async (step) => {
-        try {
-          const microTasks = await tx.microTask.findMany({
-            where: { stepId: step.id },
-            orderBy: { order: 'asc' },
-          })
-          return { ...step, microTasks }
-        } catch {
-          // microTasks table may not exist yet - return step without them
-          return { ...step, microTasks: [] }
-        }
-      })
-    )
+    // Return steps without microTasks - they're optional and table may not exist
+    // If microTasks are needed, fetch them separately outside this transaction
+    const stepsWithEmptyMicroTasks = updated.steps.map((step) => ({
+      ...step,
+      microTasks: [],
+    }))
 
-    return { ...updated, steps: stepsWithMicroTasks } as RoadmapWithSteps
+    return { ...updated, steps: stepsWithEmptyMicroTasks } as RoadmapWithSteps
   })
 }
 

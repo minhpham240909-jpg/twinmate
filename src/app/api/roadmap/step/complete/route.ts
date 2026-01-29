@@ -244,8 +244,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Return detailed error in development, generic in production
+    const detailedError = process.env.NODE_ENV === 'development'
+      ? errorMessage
+      : 'Failed to complete step'
+
     return NextResponse.json(
-      { error: 'Failed to complete step' },
+      { error: detailedError, details: process.env.NODE_ENV === 'development' ? String(error) : undefined },
       { status: 500 }
     )
   }

@@ -64,6 +64,44 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Defensive check: ensure steps array exists
+    if (!activeRoadmap.steps || !Array.isArray(activeRoadmap.steps)) {
+      log.error('Roadmap found but steps missing!', {
+        roadmapId: activeRoadmap.id,
+        hasSteps: !!activeRoadmap.steps,
+        stepsType: typeof activeRoadmap.steps,
+      })
+      // Return roadmap with empty steps rather than crashing
+      return NextResponse.json({
+        success: true,
+        hasActiveRoadmap: true,
+        activeRoadmap: {
+          id: activeRoadmap.id,
+          title: activeRoadmap.title,
+          goal: activeRoadmap.goal,
+          status: activeRoadmap.status,
+          currentStepIndex: 0,
+          totalSteps: 0,
+          completedSteps: 0,
+          estimatedMinutes: 0,
+          actualMinutesSpent: 0,
+          createdAt: activeRoadmap.createdAt,
+          lastActivityAt: activeRoadmap.lastActivityAt,
+          steps: [],
+        },
+        currentStep: null,
+        todaysMission: null,
+        stats: {
+          totalRoadmaps: stats.totalRoadmaps,
+          completedRoadmaps: stats.completedRoadmaps,
+          totalMinutesLearned: stats.totalMinutesLearned,
+          averageCompletionRate: stats.averageCompletionRate,
+        },
+      }, {
+        headers: { 'x-correlation-id': correlationId },
+      })
+    }
+
     // Get current step
     const currentStep = activeRoadmap.steps.find(s => s.status === 'CURRENT') || null
 
