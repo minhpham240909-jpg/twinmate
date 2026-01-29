@@ -56,7 +56,7 @@ function BottomNavComponent() {
   }, [pathname])
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-[9999] bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 safe-area-bottom">
       <div className="max-w-lg mx-auto px-4">
         <div className="flex items-center justify-around h-16">
           {navItems.map((item) => {
