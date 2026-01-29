@@ -75,6 +75,14 @@ export interface GateStep {
   failConditions?: FailureCondition[] | string[]
   repeatInstruction?: string
 
+  // ELITE: Enhanced Standards & Bars
+  standards?: {
+    passBar: string
+    failConditions: string[]
+    repeatRule: string
+    qualityCheck: string
+  }
+
   // Training loop
   trainingLoop?: TrainingLoop
   method?: string
@@ -82,8 +90,18 @@ export interface GateStep {
   // Common mistakes with consequences
   commonMistakes?: { trap: string; consequence: string }[] | string[]
 
+  // ELITE: Fake Progress Warnings
+  fakeProgressWarnings?: string[]
+
   // Self test
   selfTest?: { challenge: string; passCriteria: string; failCriteria?: string }
+
+  // ELITE: What Success Feels Like
+  successSignals?: {
+    feelsLike: string
+    behaviorChange: string
+    confidenceMarker: string
+  }
 
   // Abilities unlocked
   abilities?: string[]

@@ -188,32 +188,49 @@ export function CurrentGateDetail({
             </div>
           )}
 
+          {/* Fake Progress Warnings - ELITE CONTENT */}
+          {gate.fakeProgressWarnings && gate.fakeProgressWarnings.length > 0 && (
+            <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-amber-50 dark:bg-amber-950/30">
+              <div className="text-xs font-medium tracking-widest text-amber-600 dark:text-amber-400 uppercase mb-3">
+                This Feels Like Progress But Isn&apos;t
+              </div>
+              <div className="space-y-2">
+                {gate.fakeProgressWarnings.map((warning: string, i: number) => (
+                  <div key={i} className="text-sm text-amber-800 dark:text-amber-200">
+                    • {warning}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Standards Section */}
           <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
             <div className="text-xs font-medium tracking-widest text-neutral-400 uppercase mb-4">
               Standards
             </div>
 
-            {/* Pass Condition */}
-            {(gate.passCondition || gate.selfTest?.passCriteria) && (
+            {/* Pass Bar (from new standards or passCondition) */}
+            {(gate.standards?.passBar || gate.passCondition || gate.selfTest?.passCriteria) && (
               <div className="mb-4">
                 <div className="text-xs font-medium text-neutral-500 uppercase mb-2">
-                  Pass Condition
+                  Pass Bar
                 </div>
                 <div className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-                  {gate.passCondition || gate.selfTest?.passCriteria}
+                  {gate.standards?.passBar || gate.passCondition || gate.selfTest?.passCriteria}
                 </div>
               </div>
             )}
 
-            {/* Fail Conditions */}
-            {(gate.failConditions && gate.failConditions.length > 0) && (
+            {/* Fail Conditions (from new standards or failConditions) */}
+            {((gate.standards?.failConditions && gate.standards.failConditions.length > 0) ||
+              (gate.failConditions && gate.failConditions.length > 0)) && (
               <div className="mb-4">
                 <div className="text-xs font-medium text-neutral-500 uppercase mb-2">
                   You have NOT passed if
                 </div>
                 <ul className="space-y-1">
-                  {gate.failConditions.map((fail, i) => {
+                  {(gate.standards?.failConditions || gate.failConditions || []).map((fail: string | { condition: string }, i: number) => {
                     const condition = typeof fail === 'string' ? fail : fail.condition
                     return (
                       <li key={i} className="text-sm text-neutral-700 dark:text-neutral-300">
@@ -222,6 +239,18 @@ export function CurrentGateDetail({
                     )
                   })}
                 </ul>
+              </div>
+            )}
+
+            {/* Quality Check (new elite content) */}
+            {gate.standards?.qualityCheck && (
+              <div className="mb-4">
+                <div className="text-xs font-medium text-neutral-500 uppercase mb-2">
+                  Quality Check
+                </div>
+                <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                  {gate.standards.qualityCheck}
+                </div>
               </div>
             )}
 
@@ -237,14 +266,14 @@ export function CurrentGateDetail({
               </div>
             )}
 
-            {/* Repeat Instruction */}
-            {gate.repeatInstruction && (
+            {/* Repeat Rule (from new standards or repeatInstruction) */}
+            {(gate.standards?.repeatRule || gate.repeatInstruction) && (
               <div>
                 <div className="text-xs font-medium text-neutral-500 uppercase mb-2">
                   If you fail
                 </div>
                 <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                  {gate.repeatInstruction}
+                  {gate.standards?.repeatRule || gate.repeatInstruction}
                 </div>
               </div>
             )}
@@ -286,6 +315,47 @@ export function CurrentGateDetail({
             </div>
           )}
 
+          {/* Success Signals - ELITE CONTENT: What Success Feels Like */}
+          {gate.successSignals && (
+            <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-emerald-50 dark:bg-emerald-950/30">
+              <div className="text-xs font-medium tracking-widest text-emerald-600 dark:text-emerald-400 uppercase mb-4">
+                What Success Feels Like
+              </div>
+              <div className="space-y-4">
+                {gate.successSignals.feelsLike && (
+                  <div>
+                    <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300 uppercase mb-1">
+                      The Feeling
+                    </div>
+                    <div className="text-sm text-emerald-800 dark:text-emerald-200">
+                      {gate.successSignals.feelsLike}
+                    </div>
+                  </div>
+                )}
+                {gate.successSignals.behaviorChange && (
+                  <div>
+                    <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300 uppercase mb-1">
+                      How You&apos;ll Act Differently
+                    </div>
+                    <div className="text-sm text-emerald-800 dark:text-emerald-200">
+                      {gate.successSignals.behaviorChange}
+                    </div>
+                  </div>
+                )}
+                {gate.successSignals.confidenceMarker && (
+                  <div>
+                    <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300 uppercase mb-1">
+                      You&apos;ll Know You&apos;ve Made It When
+                    </div>
+                    <div className="text-sm text-emerald-800 dark:text-emerald-200">
+                      {gate.successSignals.confidenceMarker}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Abilities You Unlock */}
           {gate.abilities && gate.abilities.length > 0 && (
             <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
@@ -293,7 +363,7 @@ export function CurrentGateDetail({
                 Abilities You Unlock
               </div>
               <ul className="space-y-2">
-                {gate.abilities.map((ability, i) => (
+                {gate.abilities.map((ability: string, i: number) => (
                   <li key={i} className="text-sm text-neutral-700 dark:text-neutral-300">
                     • {ability}
                   </li>

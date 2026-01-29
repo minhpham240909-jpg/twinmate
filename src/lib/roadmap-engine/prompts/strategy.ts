@@ -23,14 +23,28 @@ export interface StrategyResult {
     afterState: string // Where they'll be after
     narrative: string // The story of their transformation
     identity: string // Who they'll become ("You'll be someone who...")
+    identityShift: { // ELITE: Clear identity transformation
+      oldIdentity: string // "You are no longer X..."
+      newIdentity: string // "You are now Y..."
+      behaviorChange: string // How they'll act differently
+    }
   }
 
   // Success Definition
   success: {
     looksLike: string // Vivid description of success
+    feelsLike: string // ELITE: Sensory/emotional signals of success
     metrics: string[] // Measurable outcomes (3-5)
     abilities: string[] // What they'll be able to DO (3-5)
     outOfScope: string[] // What NOT to focus on yet
+  }
+
+  // ELITE: Strong Prioritization
+  prioritization: {
+    focusNow: string // "This matters NOW. Ignore everything else."
+    ignoreFor: string[] // What to explicitly NOT do yet
+    justification: string // WHY this sequence, why alternatives fail
+    sequenceRationale: string // Why step 1 before step 2, etc.
   }
 
   // Milestones
@@ -55,6 +69,7 @@ export interface StrategyResult {
       consequence: string
       prevention: string
     }[]
+    fakeProgress: string[] // ELITE: What LOOKS like progress but isn't
     recoveryPath: string // What to do if they fall off track
   }
 
@@ -65,6 +80,13 @@ export interface StrategyResult {
     estimatedDays: number
     pacing: 'intensive' | 'moderate' | 'relaxed'
     focusAreas: string[] // Priority areas to emphasize
+  }
+
+  // ELITE: What Comes Next (builds anticipation)
+  whatComesNext: {
+    afterMastery: string // What becomes possible after this roadmap
+    nextLevel: string // Natural next step after completing this
+    buildsToward: string // The bigger picture this contributes to
   }
 }
 
@@ -242,38 +264,78 @@ Be realistic about timelines. Overpromising leads to disappointment.`
 // COMBINED STRATEGY PROMPT (for efficiency)
 // ============================================
 
-export const COMBINED_STRATEGY_PROMPT = `You are a master learning architect and coach. Given a diagnostic report about a learner, create a complete strategic framework for their learning journey.
+export const COMBINED_STRATEGY_PROMPT = `You are an elite private mentor designing a TRANSFORMATIONAL training program. This isn't a generic lesson plan - it's a personalized diagnosis and training regimen like what world-class coaches provide to top performers.
 
 === CONTEXT FROM DIAGNOSTIC ===
 {diagnosticContext}
 
+=== YOUR MISSION ===
+Create a strategy that feels like a private mentor's training plan, not a public course. Include:
+1. Clear identity shift ("You are no longer X, you are now Y")
+2. Strong prioritization ("This matters NOW. Ignore everything else.")
+3. Explicit fake progress warnings ("This LOOKS like learning but ISN'T")
+4. What success FEELS like (not just looks like)
+5. Why this sequence, why alternatives fail
+
 === PHASE 1: TRANSFORMATION DESIGN ===
 
-Create a compelling vision:
+Create a compelling vision with IDENTITY SHIFT:
 1. Vision: WHY this journey matters (emotional + practical)
 2. Before/After: Clear transformation picture
 3. Narrative: Story of their growth
 4. Identity: Who they'll become
-5. Success definition: What it looks like, metrics, abilities, out of scope
+5. IDENTITY SHIFT (CRITICAL):
+   - Old identity: "You are no longer someone who..."
+   - New identity: "You are now someone who..."
+   - Behavior change: How you'll act differently
 
-VISION RULES:
-- Connect to deeper motivation
-- Show what becomes POSSIBLE
-- Make it personal and specific
+IDENTITY SHIFT EXAMPLES:
+- NOT: "You'll learn JavaScript"
+- YES: "You are no longer a tutorial consumer who watches videos passively. You are now a builder who codes for 80% of your learning time. When you don't know something, you experiment first, search second."
 
-=== PHASE 2: RISK ASSESSMENT ===
+=== PHASE 2: SUCCESS DEFINITION ===
 
-Identify what could go wrong:
+Define success with SENSORY DETAIL:
+1. Looks like: What observable evidence of success
+2. FEELS LIKE (ELITE): The emotional/sensory experience of success
+   - "You'll feel calm confidence, not frantic cramming"
+   - "When someone asks about X, you'll feel a small smile form - you KNOW this"
+   - "The anxiety of 'am I doing it right?' will be replaced by quiet certainty"
+3. Metrics: Measurable outcomes
+4. Abilities: What you'll be able to DO
+5. Out of scope: What NOT to worry about yet
+
+=== PHASE 3: STRONG PRIORITIZATION ===
+
+This is what separates elite mentorship from generic advice:
+1. FOCUS NOW: "This matters NOW. Ignore everything else until this is solid."
+2. IGNORE FOR NOW: Explicitly list what NOT to do yet (even if it seems important)
+3. JUSTIFICATION: WHY this sequence matters, WHY alternatives fail
+4. SEQUENCE RATIONALE: Why step 1 before step 2 (the actual dependency)
+
+PRIORITIZATION EXAMPLES:
+- NOT: "Learn the basics first"
+- YES: "You will ONLY focus on variables and functions for the first week. Do NOT touch arrays, objects, or DOM manipulation yet. I know you want to build things - but every hour you spend on advanced topics now creates 3 hours of confusion later. The foundation isn't sexy, but it's the difference between someone who 'knows some code' and someone who can actually build."
+
+=== PHASE 4: RISK ASSESSMENT WITH FAKE PROGRESS ===
+
+Identify what could go wrong AND what LOOKS like progress but isn't:
 1. Critical risk: The ONE behavior that ruins everything
 2. Common mistakes: 3-5 specific mistakes with consequences
-3. Recovery path: How to get back on track
+3. FAKE PROGRESS (ELITE): What feels productive but isn't actually learning
+   - "Watching tutorials at 2x speed feels efficient but you retain 20%"
+   - "Highlighting notes feels like learning but is nearly useless for retention"
+   - "Reading documentation without coding is mental masturbation"
+4. Recovery path: How to get back on track
 
-RISK RULES:
-- Be specific, not generic
-- Include exact consequences
-- Provide prevention strategies
+=== PHASE 5: WHAT COMES NEXT ===
 
-=== PHASE 3: LEARNING STRATEGY ===
+Build anticipation without overload:
+1. After mastery: What becomes possible after completing this roadmap
+2. Next level: Natural next step
+3. Builds toward: The bigger picture this contributes to
+
+=== PHASE 6: LEARNING STRATEGY ===
 
 Design the optimal approach:
 1. Overall approach based on goal type
@@ -291,41 +353,58 @@ PACING GUIDE:
 {
   "transformation": {
     "vision": "2-3 sentence compelling vision",
-    "beforeState": "Where they are now",
-    "afterState": "Where they'll be",
+    "beforeState": "Where they are now - be specific and honest",
+    "afterState": "Where they'll be - specific and achievable",
     "narrative": "Story of their transformation",
-    "identity": "You'll be someone who..."
+    "identity": "You'll be someone who...",
+    "identityShift": {
+      "oldIdentity": "You are no longer someone who...",
+      "newIdentity": "You are now someone who...",
+      "behaviorChange": "Specific behavior that will be different"
+    }
   },
   "success": {
-    "looksLike": "Vivid success description",
+    "looksLike": "Observable evidence of success",
+    "feelsLike": "The emotional/sensory experience - what it FEELS like to succeed",
     "metrics": ["Measurable outcome 1", "Measurable outcome 2", "Measurable outcome 3"],
-    "abilities": ["Can do X", "Can do Y", "Can do Z"],
-    "outOfScope": ["Don't worry about X yet"]
+    "abilities": ["Can DO X under Y conditions", "Can DO Z without looking"],
+    "outOfScope": ["Don't worry about X yet", "Save Y for later"]
+  },
+  "prioritization": {
+    "focusNow": "This is the ONLY thing that matters right now. Everything else is noise.",
+    "ignoreFor": ["Don't do X yet", "Resist the urge to Y", "Save Z for after mastery"],
+    "justification": "Why this sequence matters and why shortcuts fail",
+    "sequenceRationale": "Why step 1 must come before step 2 - the actual dependency"
   },
   "milestones": [
     {
       "order": 1,
       "title": "Milestone title",
       "description": "Achievement description",
-      "marker": "How you know you reached it",
-      "unlocks": "What this enables"
+      "marker": "Specific proof you've reached it",
+      "unlocks": "What this enables next"
     }
   ],
   "risks": {
     "critical": {
-      "warning": "The ONE critical mistake",
-      "consequence": "What happens",
-      "prevention": "How to avoid",
+      "warning": "The ONE critical mistake that ruins everything",
+      "consequence": "Exactly what happens - be vivid",
+      "prevention": "How to avoid this",
       "severity": "CRITICAL"
     },
     "common": [
       {
         "mistake": "Common mistake 1",
-        "consequence": "Result",
+        "consequence": "What goes wrong",
         "prevention": "How to avoid"
       }
     ],
-    "recoveryPath": "What to do if you fall off"
+    "fakeProgress": [
+      "Activity that FEELS productive but ISN'T learning",
+      "Another fake progress trap",
+      "Third example of wasted effort that feels good"
+    ],
+    "recoveryPath": "What to do if you fall off track"
   },
   "strategy": {
     "approach": "Overall approach description",
@@ -333,13 +412,19 @@ PACING GUIDE:
     "estimatedDays": 14,
     "pacing": "moderate",
     "focusAreas": ["Priority 1", "Priority 2"]
+  },
+  "whatComesNext": {
+    "afterMastery": "What becomes possible after completing this",
+    "nextLevel": "Natural next step after this roadmap",
+    "buildsToward": "The bigger picture this contributes to"
   }
 }
 
 === IMPORTANT ===
-- Be inspiring but realistic
-- Make them WANT to start
-- Don't sugarcoat risks
+- Write like a private mentor who ACTUALLY cares about their success
+- Be specific and personal, not generic and safe
+- Tell hard truths - comfort doesn't create transformation
+- Make them feel like they have a coach who sees exactly what they need
 - Output valid JSON only`
 
 // ============================================
@@ -352,13 +437,25 @@ export const STRATEGY_RESPONSE_FORMAT = `{
     "beforeState": "string",
     "afterState": "string",
     "narrative": "string",
-    "identity": "string"
+    "identity": "string",
+    "identityShift": {
+      "oldIdentity": "string",
+      "newIdentity": "string",
+      "behaviorChange": "string"
+    }
   },
   "success": {
     "looksLike": "string",
+    "feelsLike": "string",
     "metrics": ["string"],
     "abilities": ["string"],
     "outOfScope": ["string"]
+  },
+  "prioritization": {
+    "focusNow": "string",
+    "ignoreFor": ["string"],
+    "justification": "string",
+    "sequenceRationale": "string"
   },
   "milestones": [
     {
@@ -383,6 +480,7 @@ export const STRATEGY_RESPONSE_FORMAT = `{
         "prevention": "string"
       }
     ],
+    "fakeProgress": ["string"],
     "recoveryPath": "string"
   },
   "strategy": {
@@ -391,6 +489,11 @@ export const STRATEGY_RESPONSE_FORMAT = `{
     "estimatedDays": "number",
     "pacing": "intensive | moderate | relaxed",
     "focusAreas": ["string"]
+  },
+  "whatComesNext": {
+    "afterMastery": "string",
+    "nextLevel": "string",
+    "buildsToward": "string"
   }
 }`
 
@@ -402,6 +505,14 @@ export const STRATEGY_RESPONSE_FORMAT = `{
  * Format diagnostic result for strategy prompt
  */
 export function formatDiagnosticForStrategy(diagnostic: DiagnosticResult): string {
+  const diagnosis = diagnostic.diagnosis || {
+    whyStuck: 'Not diagnosed',
+    falseBeliefs: [],
+    overFocusing: [],
+    neglecting: [],
+    rootCause: 'Not diagnosed',
+  }
+
   return `
 USER'S GOAL:
 - Original: "${diagnostic.goal.original}"
@@ -426,6 +537,13 @@ PREREQUISITES:
 - Required: ${diagnostic.prerequisites.required.join(', ') || 'None'}
 - Recommended: ${diagnostic.prerequisites.recommended.join(', ') || 'None'}
 - Missing: ${diagnostic.prerequisites.missing.join(', ') || 'None'}
+
+=== DIAGNOSIS (Why they're stuck) ===
+- WHY STUCK: ${diagnosis.whyStuck}
+- FALSE BELIEFS: ${diagnosis.falseBeliefs.join('; ') || 'None identified'}
+- OVER-FOCUSING ON: ${diagnosis.overFocusing.join('; ') || 'None identified'}
+- NEGLECTING: ${diagnosis.neglecting.join('; ') || 'None identified'}
+- ROOT CAUSE: ${diagnosis.rootCause}
 `.trim()
 }
 
@@ -462,6 +580,33 @@ export function parseStrategyResponse(response: string): StrategyResult | null {
     parsed.risks.common = parsed.risks.common || []
     parsed.strategy.focusAreas = parsed.strategy.focusAreas || []
 
+    // Ensure new elite fields exist with defaults
+    parsed.transformation.identityShift = parsed.transformation.identityShift || {
+      oldIdentity: 'Someone who learns passively',
+      newIdentity: 'Someone who practices actively and learns from failure',
+      behaviorChange: 'You will test yourself immediately after learning',
+    }
+
+    parsed.success.feelsLike = parsed.success.feelsLike || 'Calm confidence when facing challenges in this area'
+
+    parsed.prioritization = parsed.prioritization || {
+      focusNow: 'Master the fundamentals before anything else',
+      ignoreFor: ['Advanced topics', 'Edge cases'],
+      justification: 'Fundamentals unlock everything else',
+      sequenceRationale: 'Each step builds on the previous',
+    }
+
+    parsed.risks.fakeProgress = parsed.risks.fakeProgress || [
+      'Watching tutorials without practicing',
+      'Re-reading notes instead of testing yourself',
+    ]
+
+    parsed.whatComesNext = parsed.whatComesNext || {
+      afterMastery: 'Ready for more advanced challenges',
+      nextLevel: 'Intermediate techniques and real-world application',
+      buildsToward: 'Complete mastery of the subject',
+    }
+
     return parsed as StrategyResult
   } catch (error) {
     console.error('[Strategy] Failed to parse response:', error)
@@ -480,9 +625,15 @@ export function createFallbackStrategy(diagnostic: DiagnosticResult): StrategyRe
       afterState: 'Confident and capable practitioner',
       narrative: 'You\'ll progress from fundamentals to practical application through focused practice.',
       identity: 'You\'ll be someone who can confidently tackle challenges in this area.',
+      identityShift: {
+        oldIdentity: 'Someone who consumes content and hopes to "get it"',
+        newIdentity: 'Someone who practices deliberately and learns from failure',
+        behaviorChange: 'You\'ll test yourself immediately after learning, not just re-read notes',
+      },
     },
     success: {
       looksLike: 'You can explain core concepts clearly and apply them independently.',
+      feelsLike: 'You feel calm confidence when facing challenges in this area. No anxiety, no imposter syndrome - just quiet competence.',
       metrics: [
         'Complete all learning steps',
         'Pass self-assessment with confidence',
@@ -494,6 +645,12 @@ export function createFallbackStrategy(diagnostic: DiagnosticResult): StrategyRe
         'Identify and solve common problems',
       ],
       outOfScope: ['Advanced optimization', 'Edge cases'],
+    },
+    prioritization: {
+      focusNow: 'Master the fundamentals. Everything else is a distraction until this is solid.',
+      ignoreFor: ['Advanced techniques', 'Edge cases', 'Optimization', 'Multiple approaches'],
+      justification: 'Fundamentals unlock everything else. Without them, advanced topics are noise.',
+      sequenceRationale: 'Each step builds on the previous. Skipping creates knowledge gaps that compound.',
     },
     milestones: [
       {
@@ -525,6 +682,11 @@ export function createFallbackStrategy(diagnostic: DiagnosticResult): StrategyRe
           prevention: 'Do the exercises, don\'t just read',
         },
       ],
+      fakeProgress: [
+        'Watching tutorials without pausing to practice',
+        'Re-reading notes instead of testing yourself',
+        'Feeling "familiar" with content but unable to apply it',
+      ],
       recoveryPath: 'If you fall behind, review the previous step before continuing.',
     },
     strategy: {
@@ -533,6 +695,11 @@ export function createFallbackStrategy(diagnostic: DiagnosticResult): StrategyRe
       estimatedDays: 14,
       pacing: 'moderate',
       focusAreas: diagnostic.gaps.critical.slice(0, 3),
+    },
+    whatComesNext: {
+      afterMastery: 'You\'ll be ready to tackle more complex challenges and learn advanced topics with confidence.',
+      nextLevel: 'Intermediate techniques and real-world application',
+      buildsToward: 'Complete mastery and the ability to teach others',
     },
   }
 }

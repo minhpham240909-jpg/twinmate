@@ -472,6 +472,39 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+
+      // ============================================
+      // ROADMAP-SPECIFIC RATE LIMITING
+      // Roadmaps are expensive (3 API calls each), so we need stricter limits
+      // This is IN ADDITION to the general AI rate limit above
+      // ============================================
+      if (!isGuest && user) {
+        // Check hourly limit (10 roadmaps/hour)
+        const roadmapRateLimit = await rateLimit(request, RateLimitPresets.roadmap)
+        if (!roadmapRateLimit.success) {
+          log.warn('Roadmap hourly rate limit exceeded', { userId: user.id })
+          return NextResponse.json(
+            {
+              error: 'You\'ve generated too many roadmaps this hour. Please wait before creating more.',
+              retryAfter: roadmapRateLimit.headers['Retry-After'],
+            },
+            { status: 429, headers: roadmapRateLimit.headers }
+          )
+        }
+
+        // Check burst limit (3 roadmaps/5 minutes)
+        const burstRateLimit = await rateLimit(request, RateLimitPresets.roadmapBurst)
+        if (!burstRateLimit.success) {
+          log.warn('Roadmap burst rate limit exceeded', { userId: user.id })
+          return NextResponse.json(
+            {
+              error: 'Please slow down. Wait a few minutes before generating another roadmap.',
+              retryAfter: burstRateLimit.headers['Retry-After'],
+            },
+            { status: 429, headers: burstRateLimit.headers }
+          )
+        }
+      }
     }
 
     // Check cache for common queries (speeds up repeated questions)

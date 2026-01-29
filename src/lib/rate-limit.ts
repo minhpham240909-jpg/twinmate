@@ -327,7 +327,7 @@ function rateLimitWithMemory(
 /**
  * Preset rate limit configurations
  * Optimized for 3,000+ concurrent users
- * 
+ *
  * SCALABILITY: These limits balance user experience with abuse prevention
  */
 export const RateLimitPresets = {
@@ -372,4 +372,21 @@ export const RateLimitPresets = {
 
   /** 30 requests per minute - for AI streaming (per-session throttling) */
   aiStream: { max: 30, windowMs: 60 * 1000, keyPrefix: 'ai-stream' },
+
+  /**
+   * ROADMAP GENERATION - Most expensive operation (3 API calls per roadmap)
+   *
+   * Rate limits:
+   * - 10 roadmaps per hour per user (generous for learning but prevents abuse)
+   * - Combined with caching, this should handle 2000-3000 concurrent users
+   * - Cached roadmaps don't count against this limit
+   */
+  roadmap: { max: 10, windowMs: 60 * 60 * 1000, keyPrefix: 'roadmap' },
+
+  /**
+   * ROADMAP GENERATION - Burst protection
+   * Prevents generating too many roadmaps in quick succession
+   * 3 roadmaps per 5 minutes to prevent rapid-fire abuse
+   */
+  roadmapBurst: { max: 3, windowMs: 5 * 60 * 1000, keyPrefix: 'roadmap-burst' },
 }

@@ -57,37 +57,21 @@ function BottomNavComponent() {
     return item.matchPaths.some(path => pathname === path || pathname?.startsWith(path + '/'))
   }, [pathname])
 
-  // Use native navigation to bypass any React/Next.js issues
+  // Use native navigation to bypass React/Next.js Link issues
   const handleNavigation = useCallback((e: MouseEvent<HTMLAnchorElement>, href: string) => {
-    // Debug logging to diagnose click issues
-    console.log('[BottomNav] Click detected on:', href)
-    console.log('[BottomNav] Event target:', e.target)
-    console.log('[BottomNav] Current target:', e.currentTarget)
-
     e.preventDefault()
     e.stopPropagation()
-
-    // Force navigation using window.location for reliability
-    console.log('[BottomNav] Navigating to:', href)
     window.location.href = href
-  }, [])
-
-  // Debug: Log when any interaction reaches the nav
-  const handleNavInteraction = useCallback((eventType: string) => {
-    console.log(`[BottomNav] ${eventType} event on nav element`)
   }, [])
 
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 pb-safe"
       style={{
-        zIndex: 2147483647, // Maximum z-index value
-        isolation: 'isolate', // Create new stacking context
-        pointerEvents: 'auto', // Explicitly enable pointer events
+        zIndex: 2147483647,
+        isolation: 'isolate',
+        pointerEvents: 'auto',
       }}
-      onMouseDown={() => handleNavInteraction('mousedown')}
-      onTouchStart={() => handleNavInteraction('touchstart')}
-      onClick={() => handleNavInteraction('click')}
     >
       <div className="max-w-lg mx-auto px-4" style={{ pointerEvents: 'auto' }}>
         <div className="flex items-center justify-around h-16" style={{ pointerEvents: 'auto' }}>

@@ -45,6 +45,15 @@ export interface DiagnosticResult {
     recommended: string[] // Helpful but not blocking
     missing: string[] // What user likely needs to build
   }
+
+  // ELITE CONTENT: Clear Diagnosis (Why you're stuck)
+  diagnosis: {
+    whyStuck: string // The real reason they haven't achieved this yet
+    falseBeliefs: string[] // What they think is true but isn't
+    overFocusing: string[] // What they're spending too much energy on
+    neglecting: string[] // What they're ignoring but shouldn't
+    rootCause: string // The ONE core issue holding them back
+  }
 }
 
 // ============================================
@@ -163,7 +172,14 @@ Be precise. Identify the EXACT gaps, not generic categories.`
 // COMBINED DIAGNOSTIC PROMPT (for efficiency)
 // ============================================
 
-export const COMBINED_DIAGNOSTIC_PROMPT = `You are an expert learning analyst and curriculum designer. Analyze the user's learning goal to create a comprehensive diagnostic report.
+export const COMBINED_DIAGNOSTIC_PROMPT = `You are an elite private mentor who diagnoses exactly why students are stuck. You don't give motivational fluff - you give honest, specific diagnosis like a doctor diagnosing a patient.
+
+=== YOUR ROLE ===
+You are NOT a generic tutor. You are a private mentor who:
+- Tells the HARD TRUTH about why they haven't achieved this yet
+- Identifies their FALSE BELIEFS that are sabotaging them
+- Points out what they're OVER-FOCUSING on vs. NEGLECTING
+- Finds the ONE ROOT CAUSE holding them back
 
 === PHASE 1: GOAL DECOMPOSITION ===
 
@@ -203,6 +219,30 @@ Identify exact gaps to close:
 4. Priority order for tackling gaps
 5. Prerequisites (required, recommended, missing)
 
+=== PHASE 4: CLEAR DIAGNOSIS (CRITICAL - This is what makes content elite) ===
+
+Diagnose EXACTLY why they're stuck. Be honest, specific, not motivational:
+
+1. WHY STUCK: The REAL reason they haven't achieved this yet
+   - NOT: "You need to study more"
+   - YES: "You're reading about programming instead of writing code. You've consumed 20 tutorials but built zero projects."
+
+2. FALSE BELIEFS: What they think is true that ISN'T
+   - NOT: "You need to believe in yourself"
+   - YES: "You believe you need to understand 100% before practicing. This is wrong - 70% understanding + practice beats 100% understanding without practice."
+
+3. OVER-FOCUSING ON: What they're spending too much energy on
+   - NOT: "Don't overthink it"
+   - YES: "You're spending 80% of time choosing the 'perfect' learning resource instead of actually learning. This is procrastination disguised as preparation."
+
+4. NEGLECTING: What they're ignoring that they shouldn't
+   - NOT: "You should practice more"
+   - YES: "You're ignoring active recall. You re-read notes (feels productive) instead of testing yourself (feels hard). The hard path is the effective path."
+
+5. ROOT CAUSE: The ONE core issue holding them back
+   - NOT: "You need more discipline"
+   - YES: "You're afraid of feeling stupid when you fail, so you stay in 'learning mode' forever where you can't fail. This protects your ego but destroys your progress."
+
 === OUTPUT FORMAT ===
 Return a JSON object with this structure:
 {
@@ -229,13 +269,21 @@ Return a JSON object with this structure:
     "required": ["Must have before starting"],
     "recommended": ["Helpful to have"],
     "missing": ["Likely needs to build"]
+  },
+  "diagnosis": {
+    "whyStuck": "The REAL specific reason they haven't achieved this - be brutally honest",
+    "falseBeliefs": ["False belief 1 they likely hold", "False belief 2"],
+    "overFocusing": ["What they waste energy on 1", "What they waste energy on 2"],
+    "neglecting": ["Critical thing they ignore 1", "Critical thing they ignore 2"],
+    "rootCause": "The ONE core psychological or behavioral pattern holding them back"
   }
 }
 
 === IMPORTANT ===
-- Be specific and actionable, not generic
+- Be HONEST, not nice. Comfort doesn't help - truth does.
+- Be SPECIFIC, not generic. "Study more" is useless. "You're re-reading instead of testing" is actionable.
+- Write diagnosis like a mentor who ACTUALLY cares about their success, not their feelings.
 - Read between the lines - what are they NOT saying?
-- Consider their emotional state (frustrated? excited? anxious?)
 - Output valid JSON only`
 
 // ============================================
@@ -266,6 +314,13 @@ export const DIAGNOSTIC_RESPONSE_FORMAT = `{
     "required": ["string"],
     "recommended": ["string"],
     "missing": ["string"]
+  },
+  "diagnosis": {
+    "whyStuck": "string",
+    "falseBeliefs": ["string"],
+    "overFocusing": ["string"],
+    "neglecting": ["string"],
+    "rootCause": "string"
   }
 }`
 
@@ -309,6 +364,14 @@ export function parseDiagnosticResponse(response: string): DiagnosticResult | nu
     parsed.prerequisites.recommended = parsed.prerequisites.recommended || []
     parsed.prerequisites.missing = parsed.prerequisites.missing || []
 
+    // Ensure diagnosis exists with defaults
+    parsed.diagnosis = parsed.diagnosis || {}
+    parsed.diagnosis.whyStuck = parsed.diagnosis.whyStuck || 'Not yet diagnosed'
+    parsed.diagnosis.falseBeliefs = parsed.diagnosis.falseBeliefs || []
+    parsed.diagnosis.overFocusing = parsed.diagnosis.overFocusing || []
+    parsed.diagnosis.neglecting = parsed.diagnosis.neglecting || []
+    parsed.diagnosis.rootCause = parsed.diagnosis.rootCause || 'Not yet diagnosed'
+
     return parsed as DiagnosticResult
   } catch (error) {
     console.error('[Diagnostic] Failed to parse response:', error)
@@ -344,6 +407,22 @@ export function createFallbackDiagnostic(goal: string): DiagnosticResult {
       required: [],
       recommended: [],
       missing: [],
+    },
+    diagnosis: {
+      whyStuck: 'You likely haven\'t structured your learning approach yet - jumping between resources without a clear progression path.',
+      falseBeliefs: [
+        'More resources = faster learning (wrong: depth beats breadth)',
+        'Understanding = mastery (wrong: you must practice under pressure)',
+      ],
+      overFocusing: [
+        'Finding the "perfect" tutorial or course',
+        'Reading about the topic instead of doing',
+      ],
+      neglecting: [
+        'Active practice with immediate feedback',
+        'Testing yourself under time pressure',
+      ],
+      rootCause: 'Passive consumption feels like progress but isn\'t. Real learning happens when you struggle, fail, and correct.',
     },
   }
 }
