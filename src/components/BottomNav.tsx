@@ -7,14 +7,10 @@
  * - Home (main dashboard with 3 tools)
  * - Progress (weekly summary, streaks, weak areas)
  * - Settings (minimal settings)
- *
- * Design: Clean, always visible, familiar mobile pattern
- *
- * FIX: Using button + router.push instead of Link to work around
- * potential click-blocking from dashboard components
  */
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Home, BarChart3, Settings } from 'lucide-react'
 import { memo, useCallback } from 'react'
 
@@ -52,20 +48,18 @@ const navItems: NavItem[] = [
 
 function BottomNavComponent() {
   const pathname = usePathname()
-  const router = useRouter()
 
   const isActive = useCallback((item: NavItem): boolean => {
     return item.matchPaths.some(path => pathname === path || pathname?.startsWith(path + '/'))
   }, [pathname])
 
-  const handleNavClick = useCallback((href: string) => {
-    router.push(href)
-  }, [router])
-
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[9999] bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 safe-area-bottom"
-      style={{ pointerEvents: 'auto' }}
+      className="fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 pb-safe"
+      style={{
+        zIndex: 2147483647, // Maximum z-index value
+        isolation: 'isolate', // Create new stacking context
+      }}
     >
       <div className="max-w-lg mx-auto px-4">
         <div className="flex items-center justify-around h-16">
@@ -74,24 +68,22 @@ function BottomNavComponent() {
             const Icon = item.icon
 
             return (
-              <button
+              <Link
                 key={item.id}
-                type="button"
-                onClick={() => handleNavClick(item.href)}
-                className={`flex flex-col items-center justify-center w-20 h-full transition-colors cursor-pointer select-none active:scale-95 ${
+                href={item.href}
+                className={`flex flex-col items-center justify-center w-20 h-full transition-colors ${
                   active
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
                 }`}
                 aria-label={item.label}
                 aria-current={active ? 'page' : undefined}
-                style={{ pointerEvents: 'auto' }}
               >
                 <Icon className={`w-6 h-6 ${active ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} />
                 <span className={`text-xs mt-1 ${active ? 'font-semibold' : 'font-medium'}`}>
                   {item.label}
                 </span>
-              </button>
+              </Link>
             )
           })}
         </div>
