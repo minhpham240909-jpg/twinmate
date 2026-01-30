@@ -17,7 +17,7 @@ import {
   Upload,
 } from 'lucide-react'
 import type { InputMaterial } from './types'
-import { getInputTypeLabel, QUICK_SUGGESTIONS } from './utils'
+import { getInputTypeLabel } from './utils'
 
 interface OnboardingPromptProps {
   onSubmitGoal: (goal: string, inputUrl?: string, inputImage?: string) => void
@@ -45,13 +45,6 @@ export const OnboardingPrompt = memo(function OnboardingPrompt({
       // Enhancement happens silently on the backend - no user choice
       onSubmitGoal(goal.trim(), inputUrl, inputImage)
     }
-  }
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setGoal(suggestion)
-    setShowCustomInput(true)
-    // Focus the input after state updates
-    setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   const handleStartSuggested = () => {
@@ -129,28 +122,6 @@ export const OnboardingPrompt = memo(function OnboardingPrompt({
             >
               Different goal
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Suggestions */}
-      {!showCustomInput && !suggestedGoal && (
-        <div>
-          <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-3">
-            Quick start
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {QUICK_SUGGESTIONS.map((suggestion, i) => (
-              <button
-                key={i}
-                onClick={() => handleSuggestionClick(suggestion.goal)}
-                className="p-3 text-left bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-700 transition-colors"
-              >
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  {suggestion.label}
-                </span>
-              </button>
-            ))}
           </div>
         </div>
       )}

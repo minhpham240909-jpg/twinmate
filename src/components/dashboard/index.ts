@@ -22,7 +22,6 @@ export {
   getDaysRemaining,
   calculateLevel,
   getInputTypeLabel,
-  QUICK_SUGGESTIONS,
 } from './utils'
 
 // Components
