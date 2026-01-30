@@ -73,7 +73,7 @@ const INPUT_SIZE = {
 } as const
 
 // Types
-type MicroActionType = 'explanation' | 'flashcards' | 'roadmap' | 'auto'
+type MicroActionType = 'explanation' | 'flashcards' | 'roadmap' | 'conversation' | 'auto'
 type StruggleType = 'dont_understand' | 'test_coming' | 'homework_help' | 'general'
 
 interface ExplanationAction {
@@ -113,6 +113,13 @@ interface FlashcardAction {
   }[]
   acknowledgment?: string // Natural recognition of their effort (only when earned)
   nextSuggestion?: string // Automatic "what's next" in tutor voice
+}
+
+// Conversational response for casual messages (greetings, small talk)
+interface ConversationAction {
+  type: 'conversation'
+  message: string // Natural, friendly response
+  suggestion?: string // Optional: what they could ask/do next
 }
 
 // Resource suggestion for a step
@@ -192,7 +199,7 @@ interface RoadmapAction {
   outOfScope?: string[] // What NOT to focus on yet
 }
 
-type MicroAction = ExplanationAction | FlashcardAction | RoadmapAction
+type MicroAction = ExplanationAction | FlashcardAction | RoadmapAction | ConversationAction
 
 // Secondary action suggestion - shown as optional next step
 interface SecondaryActionSuggestion {
@@ -737,7 +744,43 @@ function analyzeForSecondaryAction(
  * Determine the best action type based on the question and struggle type
  */
 function determineActionType(question: string, struggleType: StruggleType): MicroActionType {
-  const q = question.toLowerCase()
+  const q = question.toLowerCase().trim()
+
+  // FIRST: Check for casual conversation / greetings (respond naturally, not with learning content)
+  // This must come FIRST to avoid treating "hi" as a learning query
+  const conversationPatterns = [
+    // Greetings
+    /^(hi|hey|hello|yo|sup|hiya|howdy|greetings?)[\s!.,?]*$/i,
+    /^(good\s*(morning|afternoon|evening|night))[\s!.,?]*$/i,
+    /^(what'?s?\s*up|wassup|whats\s*good)[\s!.,?]*$/i,
+    // How are you variations
+    /^how\s*(are|r)\s*(you|u|ya)[\s!.,?]*$/i,
+    /^how'?s?\s*it\s*going[\s!.,?]*$/i,
+    /^how\s*are\s*things[\s!.,?]*$/i,
+    // Thanks / appreciation
+    /^(thanks?|thank\s*you|thx|ty|appreciate\s*it)[\s!.,?]*$/i,
+    // Simple acknowledgments
+    /^(ok|okay|k|cool|nice|great|awesome|got\s*it|understood|i\s*see)[\s!.,?]*$/i,
+    // Farewells
+    /^(bye|goodbye|see\s*ya|later|cya|take\s*care)[\s!.,?]*$/i,
+    // Very short non-learning messages (under 15 chars, no learning keywords)
+  ]
+
+  // Check if it matches a conversation pattern
+  if (conversationPatterns.some(pattern => pattern.test(q))) {
+    return 'conversation'
+  }
+
+  // Also check for very short messages that aren't learning-related
+  // Under 20 chars and doesn't contain learning keywords = likely casual
+  const learningIndicators = ['learn', 'study', 'help', 'explain', 'what', 'how', 'why', 'teach', 'understand', 'problem', 'solve', 'question']
+  if (q.length < 20 && !learningIndicators.some(kw => q.includes(kw))) {
+    // Check if it's mostly punctuation or very simple
+    const alphaRatio = (q.match(/[a-z]/gi) || []).length / q.length
+    if (alphaRatio < 0.5 || q.split(/\s+/).length <= 2) {
+      return 'conversation'
+    }
+  }
 
   // Keywords that suggest specific action types
   const explanationKeywords = ['what is', 'what are', 'explain', 'understand', 'why', 'how does', 'meaning', 'define', 'concept']
@@ -834,6 +877,13 @@ async function generateMicroAction(
   memoryContext: string = '',
   analyzedInput?: AnalyzedInput
 ): Promise<MicroAction> {
+  // ============================================
+  // CONVERSATION: Natural responses for casual messages
+  // ============================================
+  if (actionType === 'conversation') {
+    return generateConversationalResponse(question, memoryContext)
+  }
+
   // ============================================
   // ROADMAP: Use multi-phase pipeline
   // ============================================
@@ -1292,6 +1342,130 @@ Test thinking, not memory.`
 }
 
 /**
+ * Generate natural conversational response for casual messages
+ *
+ * This handles greetings, small talk, thanks, etc. without forcing
+ * learning content when it's not appropriate.
+ *
+ * The AI responds naturally like a friendly mentor, but can gently
+ * guide toward learning when appropriate.
+ */
+async function generateConversationalResponse(
+  message: string,
+  memoryContext: string
+): Promise<ConversationAction> {
+  const q = message.toLowerCase().trim()
+
+  // Fast path: Handle common greetings without AI call (saves tokens & latency)
+  const greetingResponses: Record<string, { message: string; suggestion?: string }> = {
+    'hi': { message: "Hey! How's your learning going today?", suggestion: "What would you like to work on?" },
+    'hey': { message: "Hey there! Ready to learn something new?", suggestion: "Tell me what's on your mind." },
+    'hello': { message: "Hello! Good to see you.", suggestion: "What can I help you with today?" },
+    'yo': { message: "Yo! What's up?", suggestion: "Anything I can help with?" },
+    'sup': { message: "Not much, just here to help! What about you?", suggestion: "Got something you want to learn or work on?" },
+    'good morning': { message: "Good morning! Hope you're ready for a productive day.", suggestion: "What would you like to tackle today?" },
+    'good afternoon': { message: "Good afternoon! How's your day going?", suggestion: "What can I help you learn?" },
+    'good evening': { message: "Good evening! Winding down or just getting started?", suggestion: "Let me know if you need help with anything." },
+    'good night': { message: "Good night! Rest up and come back when you're ready to learn more.", suggestion: undefined },
+    'thanks': { message: "You're welcome! Happy to help.", suggestion: "Anything else you need?" },
+    'thank you': { message: "Anytime! That's what I'm here for.", suggestion: "Let me know if there's anything else." },
+    'thx': { message: "No problem!", suggestion: "Need anything else?" },
+    'ty': { message: "You got it!", suggestion: "Anything else?" },
+    'ok': { message: "Got it!", suggestion: "Ready when you are." },
+    'okay': { message: "Sounds good!", suggestion: "What's next?" },
+    'cool': { message: "Glad that works!", suggestion: "Anything else on your mind?" },
+    'nice': { message: "Awesome!", suggestion: "What else can I help with?" },
+    'great': { message: "Happy to hear that!", suggestion: "Ready for more?" },
+    'awesome': { message: "Right back at you!", suggestion: "What's next?" },
+    'got it': { message: "Perfect!", suggestion: "Ready to move forward?" },
+    'understood': { message: "Great, we're on the same page!", suggestion: "What would you like to do next?" },
+    'i see': { message: "Good!", suggestion: "Any questions about it?" },
+    'bye': { message: "See you later! Good luck with your studies.", suggestion: undefined },
+    'goodbye': { message: "Goodbye! Come back anytime you need help.", suggestion: undefined },
+    'see ya': { message: "Later! Keep learning!", suggestion: undefined },
+    'later': { message: "Catch you later!", suggestion: undefined },
+  }
+
+  // Check for exact match first (most common case)
+  const cleanMessage = q.replace(/[!.,?]+$/, '') // Remove trailing punctuation
+  if (greetingResponses[cleanMessage]) {
+    return {
+      type: 'conversation',
+      ...greetingResponses[cleanMessage],
+    }
+  }
+
+  // Check for "how are you" variations
+  if (/^how\s*(are|r)\s*(you|u|ya)/.test(q) || /^how'?s?\s*it\s*going/.test(q)) {
+    return {
+      type: 'conversation',
+      message: "I'm doing great, thanks for asking! Ready to help you learn.",
+      suggestion: "What would you like to work on today?",
+    }
+  }
+
+  // Check for "what's up" variations
+  if (/^what'?s?\s*up/.test(q) || /^wassup/.test(q) || /^whats\s*good/.test(q)) {
+    return {
+      type: 'conversation',
+      message: "Just here and ready to help! What's on your mind?",
+      suggestion: "Got any learning goals or questions?",
+    }
+  }
+
+  // For anything else that was classified as conversation but doesn't match patterns,
+  // use a light AI call to generate a natural response
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a friendly, natural AI study partner named Clerva. You're having a casual conversation.
+
+RULES:
+1. Be warm, friendly, and natural - like a supportive friend
+2. Keep responses SHORT (1-2 sentences max)
+3. You can gently guide toward learning, but don't be pushy
+4. Match the user's energy - if they're casual, be casual
+5. Don't be overly enthusiastic or use excessive punctuation
+6. If they seem to want to chat, chat back naturally
+7. Subtly remind them you're here to help with learning if appropriate
+
+${memoryContext ? `\nContext about this user:\n${memoryContext}` : ''}
+
+Respond in JSON format:
+{
+  "message": "Your natural, friendly response",
+  "suggestion": "Optional: what they could do next (or null if not appropriate)"
+}`,
+        },
+        { role: 'user', content: message },
+      ],
+      temperature: 0.8,
+      max_tokens: 150,
+      response_format: { type: 'json_object' },
+    })
+
+    const responseText = completion.choices[0]?.message?.content || ''
+    const parsed = JSON.parse(responseText)
+
+    return {
+      type: 'conversation',
+      message: parsed.message || "Hey! What can I help you with?",
+      suggestion: parsed.suggestion && parsed.suggestion !== 'null' ? parsed.suggestion : undefined,
+    }
+  } catch {
+    // Fallback if AI call fails
+    return {
+      type: 'conversation',
+      message: "Hey! I'm here to help with your learning. What's on your mind?",
+      suggestion: "Tell me what you'd like to learn or work on.",
+    }
+  }
+}
+
+/**
  * Generate roadmap using multi-phase AI pipeline
  *
  * Uses 3 API calls with specialized prompts:
@@ -1518,7 +1692,7 @@ async function awardXPAndUpdateStreak(userId: string): Promise<{ xpEarned: numbe
  * Get encouragement message based on action type
  */
 function getEncouragement(actionType: MicroAction['type']): string {
-  const messages = {
+  const messages: Record<MicroAction['type'], string[]> = {
     explanation: [
       'Explanation generated.',
       'Concept breakdown ready.',
@@ -1534,9 +1708,12 @@ function getEncouragement(actionType: MicroAction['type']): string {
       'Study plan ready.',
       'Step-by-step plan created.',
     ],
+    conversation: [
+      '', // No encouragement needed for conversation
+    ],
   }
 
-  const typeMessages = messages[actionType]
+  const typeMessages = messages[actionType] || messages.explanation
   return typeMessages[Math.floor(Math.random() * typeMessages.length)]
 }
 
