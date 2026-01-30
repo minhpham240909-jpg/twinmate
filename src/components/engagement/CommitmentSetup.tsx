@@ -67,15 +67,19 @@ const COMMITMENT_OPTIONS: CommitmentOption[] = [
 interface CommitmentSetupProps {
   currentMinutes?: number
   onConfirm: (minutes: number) => Promise<boolean>
+  onSkip?: () => void // Optional: Allow users to skip and set up later
   isModal?: boolean
   onClose?: () => void
+  showSkip?: boolean // Show "Skip for now" option (default: true for first-time setup)
 }
 
 export const CommitmentSetup = memo(function CommitmentSetup({
   currentMinutes,
   onConfirm,
+  onSkip,
   isModal = false,
   onClose,
+  showSkip = !currentMinutes, // Show skip by default for first-time setup
 }: CommitmentSetupProps) {
   // Default to recommended (15 min) or current selection
   const [selectedMinutes, setSelectedMinutes] = useState(
@@ -203,7 +207,18 @@ export const CommitmentSetup = memo(function CommitmentSetup({
         )}
       </button>
 
-      {isModal && onClose && (
+      {/* Skip for now option - only for first-time setup */}
+      {showSkip && onSkip && (
+        <button
+          type="button"
+          onClick={onSkip}
+          className="w-full py-2.5 text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 text-sm font-medium transition-colors"
+        >
+          Skip for now — I&apos;ll set this up later
+        </button>
+      )}
+
+      {isModal && onClose && !showSkip && (
         <button
           type="button"
           onClick={onClose}

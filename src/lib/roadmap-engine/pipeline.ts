@@ -415,6 +415,7 @@ export interface PipelineInput {
   subject?: string
   userContext?: string
   memoryContext?: string
+  dailyCommitmentMinutes?: number // User's daily learning time (5, 15, 30, 45, 60 min)
 }
 
 export interface PipelineOutput {
@@ -687,7 +688,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
 
     const strategy = await executeWithRetry(
       'strategy',
-      () => runStrategyPhase(diagnostic),
+      () => runStrategyPhase(diagnostic, sanitizedInput.dailyCommitmentMinutes),
       () => createFallbackStrategy(diagnostic)
     )
     timings.strategy = Date.now() - strategyStart
@@ -701,7 +702,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
 
     const execution = await executeWithRetry(
       'execution',
-      () => runExecutionPhase(diagnostic, strategy),
+      () => runExecutionPhase(diagnostic, strategy, sanitizedInput.dailyCommitmentMinutes),
       () => createFallbackExecution(diagnostic, strategy)
     )
     timings.execution = Date.now() - executionStart
@@ -790,7 +791,12 @@ Use this domain knowledge to provide deeper, more specific analysis.
     systemPrompt = systemPrompt + domainInjection
   }
 
-  const userPrompt = `User's learning goal: "${input.goal}"${input.subject ? `\nSubject area: ${input.subject}` : ''}${input.userContext ? `\nUser context: ${input.userContext}` : ''}
+  // Build time commitment context for personalization
+  const timeCommitmentContext = input.dailyCommitmentMinutes
+    ? `\nUser's daily learning time: ${input.dailyCommitmentMinutes} minutes/day (${input.dailyCommitmentMinutes <= 15 ? 'short sessions - prefer bite-sized steps' : input.dailyCommitmentMinutes >= 45 ? 'deep work sessions - can handle longer, complex steps' : 'moderate sessions - balanced step lengths'})`
+    : ''
+
+  const userPrompt = `User's learning goal: "${input.goal}"${input.subject ? `\nSubject area: ${input.subject}` : ''}${input.userContext ? `\nUser context: ${input.userContext}` : ''}${timeCommitmentContext}
 
 Analyze this goal and provide the diagnostic report in JSON format.
 
@@ -830,11 +836,25 @@ ${DIAGNOSTIC_RESPONSE_FORMAT}`
 /**
  * Phase 2: Strategy - Design the transformation and assess risks
  */
-async function runStrategyPhase(diagnostic: DiagnosticResult): Promise<StrategyResult> {
+async function runStrategyPhase(
+  diagnostic: DiagnosticResult,
+  dailyCommitmentMinutes?: number
+): Promise<StrategyResult> {
   const openai = getOpenAI()
 
   const diagnosticContext = formatDiagnosticForStrategy(diagnostic)
-  const systemPrompt = COMBINED_STRATEGY_PROMPT.replace('{diagnosticContext}', diagnosticContext)
+  let systemPrompt = COMBINED_STRATEGY_PROMPT.replace('{diagnosticContext}', diagnosticContext)
+
+  // Inject time commitment personalization
+  if (dailyCommitmentMinutes) {
+    const timeGuidance = dailyCommitmentMinutes <= 15
+      ? 'User has LIMITED TIME (≤15 min/day). Design phases with SHORT, focused steps (5-10 min each). Prioritize quick wins and momentum.'
+      : dailyCommitmentMinutes >= 45
+      ? 'User has DEDICATED TIME (45+ min/day). Can handle LONGER, deeper steps (20-30 min). Include comprehensive practice sessions.'
+      : 'User has MODERATE TIME (15-45 min/day). Balance between quick steps and deeper exploration (10-20 min steps).'
+
+    systemPrompt = systemPrompt + `\n\n## TIME PERSONALIZATION\n${timeGuidance}\nDaily commitment: ${dailyCommitmentMinutes} minutes`
+  }
 
   const userPrompt = `Based on the diagnostic above, create the strategic framework.
 
@@ -874,7 +894,8 @@ ${STRATEGY_RESPONSE_FORMAT}`
  */
 async function runExecutionPhase(
   diagnostic: DiagnosticResult,
-  strategy: StrategyResult
+  strategy: StrategyResult,
+  dailyCommitmentMinutes?: number
 ): Promise<ExecutionResult> {
   const openai = getOpenAI()
 
@@ -912,6 +933,15 @@ ${domainInfo.sequenceRules.map(r => `- ${r.prerequisite} must come before ${r.re
 
 ### Failure Modes to Address in commonMistakes
 ${domainInfo.failureModes.slice(0, 6).map(f => `- ${f.trap} → ${f.consequence}`).join('\n')}
+
+${dailyCommitmentMinutes ? `## STEP DURATION PERSONALIZATION
+User's daily time: ${dailyCommitmentMinutes} minutes/day
+${dailyCommitmentMinutes <= 15
+  ? '→ Create SHORT steps (5-10 min each). User needs quick wins. Break complex topics into micro-steps.'
+  : dailyCommitmentMinutes >= 45
+  ? '→ Create COMPREHENSIVE steps (15-30 min each). User can handle depth. Include practice and application.'
+  : '→ Create BALANCED steps (10-20 min each). Mix of quick and deeper content.'}
+IMPORTANT: Set each step\'s "duration" field to match the user\'s available time.` : ''}
 `
 
   const userPrompt = `Create the execution plan with ${stepCount} total steps.

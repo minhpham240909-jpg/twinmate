@@ -70,10 +70,10 @@ export function getInputTypeLabel(url: string): string {
   return 'Web Link'
 }
 
-// Quick suggestions for new users
+// Quick suggestions for new users - no pre-fill, just category selection
 export const QUICK_SUGGESTIONS = [
-  { label: 'Learn a new skill', goal: 'Learn ' },
-  { label: 'Pass an exam', goal: 'Pass my ' },
-  { label: 'Master a topic', goal: 'Master ' },
-  { label: 'Build something', goal: 'Build a ' },
+  { label: 'Learn a new skill', goal: '' },
+  { label: 'Pass an exam', goal: '' },
+  { label: 'Master a topic', goal: '' },
+  { label: 'Build something', goal: '' },
 ]

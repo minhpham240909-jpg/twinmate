@@ -392,12 +392,13 @@ export async function POST(request: NextRequest) {
     // Get user context (only for authenticated users)
     let userContext = ''
     let memoryContext = ''
+    let dailyCommitmentMinutes: number | undefined
 
     // Only fetch user context for authenticated users
     if (!isGuest && user) {
       try {
-        // Fetch profile AND AI memory in parallel for speed
-        const [profile, aiMemoryContext, aiUserMemory] = await Promise.all([
+        // Fetch profile, AI memory, AND daily commitment in parallel for speed
+        const [profile, aiMemoryContext, aiUserMemory, dailyCommitment] = await Promise.all([
           prisma.profile.findUnique({
             where: { userId: user.id },
             select: {
@@ -411,7 +412,14 @@ export async function POST(request: NextRequest) {
           }),
           buildMemoryContext(user.id, subject), // Get AI memory about this user
           getOrCreateUserMemory(user.id), // Get user's learning history
+          prisma.dailyCommitment.findUnique({
+            where: { userId: user.id },
+            select: { dailyMinutes: true },
+          }),
         ])
+
+        // Store daily commitment for roadmap personalization
+        dailyCommitmentMinutes = dailyCommitment?.dailyMinutes
 
         memoryContext = aiMemoryContext
 
@@ -527,7 +535,7 @@ export async function POST(request: NextRequest) {
         fromCache = true
         log.debug('Cache hit', { cacheKey: cacheKey.slice(0, 50) })
       } else {
-        // Generate the micro-action with full memory context
+        // Generate the micro-action with full memory context and time commitment
         action = await generateMicroAction(
           question,
           subject,
@@ -535,7 +543,8 @@ export async function POST(request: NextRequest) {
           determinedActionType,
           userContext,
           memoryContext,
-          analyzedInput
+          analyzedInput,
+          dailyCommitmentMinutes
         )
         // Cache the response for future use
         cacheResponse(cacheKey, action)
@@ -549,7 +558,8 @@ export async function POST(request: NextRequest) {
         determinedActionType,
         userContext,
         memoryContext,
-        analyzedInput
+        analyzedInput,
+        dailyCommitmentMinutes
       )
     }
 
@@ -875,7 +885,8 @@ async function generateMicroAction(
   actionType: MicroActionType,
   userContext: string,
   memoryContext: string = '',
-  analyzedInput?: AnalyzedInput
+  analyzedInput?: AnalyzedInput,
+  dailyCommitmentMinutes?: number
 ): Promise<MicroAction> {
   // ============================================
   // CONVERSATION: Natural responses for casual messages
@@ -888,7 +899,7 @@ async function generateMicroAction(
   // ROADMAP: Use multi-phase pipeline
   // ============================================
   if (actionType === 'roadmap') {
-    return generateRoadmapWithPipeline(question, subject, userContext, memoryContext)
+    return generateRoadmapWithPipeline(question, subject, userContext, memoryContext, dailyCommitmentMinutes)
   }
 
   // ============================================
@@ -1479,17 +1490,22 @@ async function generateRoadmapWithPipeline(
   question: string,
   subject: string | undefined,
   userContext: string,
-  memoryContext: string
+  memoryContext: string,
+  dailyCommitmentMinutes?: number
 ): Promise<RoadmapAction> {
   try {
-    logger.info('[Guide Me] Using multi-phase pipeline for roadmap', { goal: question.slice(0, 50) })
+    logger.info('[Guide Me] Using multi-phase pipeline for roadmap', {
+      goal: question.slice(0, 50),
+      dailyCommitment: dailyCommitmentMinutes,
+    })
 
-    // Run the multi-phase pipeline
+    // Run the multi-phase pipeline with user's time commitment
     const pipelineOutput = await runPipeline({
       goal: question,
       subject,
       userContext,
       memoryContext,
+      dailyCommitmentMinutes,
     })
 
     // Transform pipeline output to RoadmapAction format
