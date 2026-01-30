@@ -33,51 +33,53 @@ export interface StepResource {
   priority: number
 }
 
+export interface TodaysFocus {
+  action: string // Single clear action
+  where: string // Specific URL or platform
+  duration: string // "~X min"
+  output: string // What they'll have when done
+}
+
+export interface CommonTrap {
+  temptation: string // What they'll be tempted to do
+  whyItFeelsRight: string // Why this feels productive
+  whyItFails: string // What actually happens
+  betterApproach: string // What to do instead
+}
+
+export interface SuccessSignals {
+  feelsLike: string // Warm description of what success feels like
+  youllKnow: string // "You'll know you're ready when..."
+}
+
 export interface CurrentStep {
   order: number
   phase: 'NOW'
   title: string
   description: string
 
-  // Deep detail
-  whyFirst: string // Why this must come first
-  method: string // Exact method with daily breakdown
+  // NEW: Today's Focus (most prominent)
+  todaysFocus: TodaysFocus
+
+  // NEW: Personalized why
+  whyThisMattersForYou: string
+
+  // NEW: Exit conditions (checkboxes)
+  exitConditions: string[]
+
+  // NEW: Common trap (warm mentor voice)
+  commonTrap: CommonTrap
+
+  // Method
+  method: string // Day-by-day breakdown
   timeBreakdown: {
     daily: string
     total: string
     flexible: string
   }
 
-  // Risk & Prevention
-  risk: {
-    warning: string
-    consequence: string
-    severity: 'RISK' | 'WARNING'
-  }
-  commonMistakes: string[] // 3-5 specific mistakes
-  fakeProgressWarnings: string[] // ELITE: What looks like progress but isn't
-
-  // ELITE: Standards & Bars
-  standards: {
-    passBar: string // Minimum acceptable level
-    failConditions: string[] // What means you need to repeat
-    repeatRule: string // When to go back and redo
-    qualityCheck: string // How to verify you actually learned
-  }
-
-  // Completion
-  doneWhen: string // Verifiable criterion
-  selfTest: {
-    challenge: string
-    passCriteria: string
-  }
-
-  // ELITE: What Success Feels Like
-  successSignals: {
-    feelsLike: string // Emotional/sensory experience of success
-    behaviorChange: string // How you'll act differently after mastery
-    confidenceMarker: string // Specific situation where you'll feel confident
-  }
+  // Success signals (warm)
+  successSignals: SuccessSignals
 
   // Outcomes
   abilities: string[] // What you unlock - capability based
@@ -90,8 +92,30 @@ export interface CurrentStep {
   // Resources
   resources: StepResource[]
 
-  // Micro-tasks
-  microTasks: MicroTask[]
+  // Encouragement
+  encouragement?: string
+
+  // Legacy fields (for backwards compatibility)
+  whyFirst?: string
+  risk?: {
+    warning: string
+    consequence: string
+    severity: 'RISK' | 'WARNING'
+  }
+  commonMistakes?: string[]
+  fakeProgressWarnings?: string[]
+  standards?: {
+    passBar: string
+    failConditions: string[]
+    repeatRule: string
+    qualityCheck: string
+  }
+  doneWhen?: string
+  selfTest?: {
+    challenge: string
+    passCriteria: string
+  }
+  microTasks?: MicroTask[]
 }
 
 export interface LockedStep {
@@ -100,6 +124,7 @@ export interface LockedStep {
   title: string
   whyAfterPrevious: string
   previewAbilities: string[]
+  teaser?: string // One sentence that makes them look forward to this
   milestone?: string
   estimatedDuration?: number
   resources: StepResource[]
@@ -113,6 +138,9 @@ export interface ExecutionResult {
   dailyCommitment: string
   totalMinutes: number
 
+  // NEW: Personalized intro
+  personalizedIntro?: string
+
   // Steps
   currentStep: CurrentStep
   lockedSteps: LockedStep[]
@@ -121,6 +149,7 @@ export interface ExecutionResult {
   criticalWarning: {
     warning: string
     consequence: string
+    prevention?: string
     severity: 'CRITICAL'
   }
 }
@@ -330,7 +359,7 @@ Output valid JSON only.`
 // COMBINED EXECUTION PROMPT (for efficiency)
 // ============================================
 
-export const COMBINED_EXECUTION_PROMPT = `You are an elite private mentor creating a training program that transforms students. This isn't a generic lesson plan - it's exactly what a world-class coach would give their private client.
+export const COMBINED_EXECUTION_PROMPT = `You are a warm, experienced mentor who genuinely cares about your student's success. You're not a robot giving instructions - you're a real person who has helped hundreds of people like them.
 
 === CONTEXT FROM DIAGNOSTIC ===
 {diagnosticContext}
@@ -338,81 +367,142 @@ export const COMBINED_EXECUTION_PROMPT = `You are an elite private mentor creati
 === CONTEXT FROM STRATEGY ===
 {strategyContext}
 
+=== USER PROFILE ===
+{userProfile}
+
 === ROADMAP REQUIREMENTS ===
 Total steps: {totalSteps} (determined by scope and complexity)
 Estimated days: {estimatedDays}
 Daily commitment: {dailyCommitment}
 
-=== ELITE CONTENT REQUIREMENTS ===
-Your content MUST include these elements that separate elite mentorship from generic courses:
+=== YOUR VOICE & TONE ===
+Write like a supportive mentor, not a textbook. Be warm but honest.
+- Use "you" and speak directly to them
+- Acknowledge their specific situation from their profile
+- Be encouraging but never fake or generic
+- Tell hard truths with kindness, not harshness
 
-1. CAPABILITY-BASED GOALS: "After this step, you can DO X under Y conditions"
-   - NOT: "You'll understand variables"
-   - YES: "You'll be able to declare, assign, and use variables in 3 different contexts without looking at documentation"
+GOOD TONE EXAMPLES:
+- "I know you only have {dailyCommitment} per day - that's totally enough. Here's what matters most..."
+- "This might feel slow at first, and that's completely normal. Trust the process."
+- "Most people skip this and regret it later. Don't be most people."
+- "You've got this. But only if you actually do it, not just read about it."
 
-2. EXPLICIT STANDARDS & BARS: Clear pass/fail conditions
-   - Pass bar: Minimum acceptable level
-   - Fail conditions: What means you need to repeat
-   - Repeat rule: When to go back and redo
+BAD TONE EXAMPLES:
+- "You MUST complete this or you will FAIL" (too harsh)
+- "Great job! You're amazing!" (fake cheerleading)
+- "Step 1: Learn X. Step 2: Learn Y." (robotic)
 
-3. FAKE PROGRESS WARNINGS: What LOOKS like learning but ISN'T
-   - "Watching the video without pausing to code is fake progress"
-   - "Feeling 'familiar' with code you haven't written yourself is a trap"
+=== CONTENT STRUCTURE (CRITICAL) ===
 
-4. WHAT SUCCESS FEELS LIKE: Sensory/emotional/behavioral signals
-   - NOT: "You'll know more"
-   - YES: "When you see a variable declaration in any code, you'll feel a small flash of recognition - not confusion, not 'I think I know this', but certainty. You'll read code the way you read sentences."
+Each gate MUST have these sections in this order:
+
+1. TODAY'S FOCUS (The ONE thing to do right now)
+   - Single, clear action they can start in the next 60 seconds
+   - Include WHERE to go (specific URL or platform)
+   - Include WHAT exactly to do
+   - Include HOW LONG (~X min)
+   - Include WHAT TO PRODUCE (concrete output)
+
+2. WHY THIS MATTERS FOR YOU (Personalized to their profile)
+   - Reference their specific situation, time constraints, or goals
+   - Explain why THIS step, not something else
+   - "Because you're [their context], this is especially important..."
+
+3. EXIT CONDITIONS (Checkboxes - when you're ready to move on)
+   - 2-4 specific, provable criteria
+   - NOT "understand X" but "can DO X without looking"
+   - Each one should be testable in under 5 minutes
+
+4. COMMON TRAP (What most people get wrong - with warmth)
+   - One specific mistake people make at this step
+   - Why it feels productive but isn't
+   - What to do instead
+   - Warm, mentor voice: "You'll be tempted to... I get it. But..."
+
+5. RESOURCES (Direct links to start learning)
+   - 1-3 specific resources with search queries
+   - Prioritized: start with #1, others are optional
+
+=== QUALITY REQUIREMENTS ===
+
+ACTIONABILITY: Every instruction must pass this test:
+- Can they start in the next 60 seconds?
+- Do they know exactly where to go?
+- Do they know exactly what to do?
+- Do they know what "done" looks like?
+
+PERSONALIZATION: Content should feel tailored:
+- Reference their time constraints
+- Reference their goal type
+- Reference their level
+- "Because you're a beginner..." or "Since you have limited time..."
+
+WARMTH: Content should feel human:
+- Acknowledge that learning is hard
+- Normalize struggle and confusion
+- Celebrate small wins
+- Be honest but kind about challenges
+
+EXIT CONDITIONS: Must be specific and provable:
+- NOT: "Understand variables"
+- YES: "Can declare 5 different variables from memory in under 2 minutes"
+- NOT: "Feel comfortable with loops"
+- YES: "Can write a for loop that prints 1-10 without looking at examples"
 
 === CURRENT STEP (FULL DETAIL) ===
 
-Create Step 1 with COMPLETE elite mentor-level detail:
+Create Step 1 with warm, personalized mentor guidance:
 
-1. WHY FIRST: Deep explanation of dependency (not "it's foundational")
-   - What BREAKS if they skip this? What becomes 10x harder?
+1. TODAY'S FOCUS (MOST IMPORTANT - This is what they see first)
+   - Single clear action they can start RIGHT NOW
+   - Format: "[Action] at [specific place] (~X min) → [what they'll have when done]"
+   - Example: "Watch this 10-min intro video on YouTube, then write down 3 things you learned"
+   - This should feel like a friend texting them what to do, not a curriculum
 
-2. METHOD: Exact daily breakdown with ZERO AMBIGUITY
-   - Every instruction must answer: WHAT, WHERE, HOW LONG, HOW TO VERIFY
-   - Include specific platform names, URLs, or search terms
-   - "Day 1 (15 min): Go to youtube.com, search 'X beginner tutorial'. Watch first 10 min, pause and write 3 key concepts."
-   - "Day 2 (10 min): Open replit.com, create new project. Type (don't paste) 5 examples. Run to verify."
+2. WHY THIS MATTERS FOR YOU (Personalized)
+   - Reference their specific profile: time, goals, level
+   - "Because you have {dailyCommitment}, we're keeping this focused..."
+   - "Since you're working toward {goal}, this step is crucial because..."
+   - Make them feel SEEN, not like they got a generic template
 
-3. TIME BREAKDOWN: {daily, total, flexible}
+3. EXIT CONDITIONS (2-4 checkboxes)
+   - Specific, provable criteria they can check off
+   - Each one testable in under 5 minutes
+   - NOT: "Understand X" → YES: "Can write X without looking"
+   - NOT: "Feel comfortable" → YES: "Can explain X to a friend"
 
-4. RISK: One specific risk with consequence
+4. COMMON TRAP (One thing to avoid - warm tone)
+   - "You'll be tempted to [specific behavior]. I get it - it feels productive."
+   - "But here's what actually happens: [consequence]"
+   - "Instead, try this: [better approach]"
+   - Sound like a mentor who has seen this mistake 100 times, not a warning label
 
-5. COMMON MISTAKES: 3-5 specific mistakes with consequences
+5. METHOD (Day-by-day breakdown)
+   - Keep it simple and achievable
+   - Each day should feel doable, not overwhelming
+   - Include encouragement: "If you finish early, great! Take a break."
 
-6. FAKE PROGRESS WARNINGS: 2-3 things that FEEL productive but AREN'T
-   - "Watching tutorials at 2x speed without pausing feels efficient but you retain 20%"
-   - "Re-reading your notes instead of testing yourself is comfort, not learning"
+6. RESOURCES (1-3, prioritized)
+   - Start with the ONE best resource
+   - Include search query for finding it
+   - Optional extras for those who want more
 
-7. STANDARDS & BARS (CRITICAL - This is what elite mentors provide):
-   - Pass bar: "You pass when you can X without Y"
-   - Fail conditions: "You need to repeat if: A, B, or C"
-   - Repeat rule: "If you can't pass the self-test in under X minutes, go back to Day 1"
-   - Quality check: "Verify by doing X without looking at notes/examples"
+7. SUCCESS SIGNALS (What it feels like when you've got it)
+   - Warm, encouraging description
+   - "You'll know you're ready when [specific feeling/behavior]"
+   - Help them recognize success
 
-8. DONE WHEN: Verifiable, PROVABLE criterion (not "understand X" but "can do Y without looking")
+8. ABILITIES (What you unlock)
+   - 2-3 specific things they can DO after this step
+   - Capability-based, not knowledge-based
+   - "You'll be able to..." not "You'll know..."
 
-9. SELF-TEST: Challenge with MEASURABLE pass criteria
-
-10. SUCCESS SIGNALS (ELITE - What success FEELS like):
-    - Feels like: "You'll feel calm certainty, not anxious doubt"
-    - Behavior change: "You'll start noticing X in everyday situations"
-    - Confidence marker: "When someone asks about X, you'll feel a small smile - you KNOW this"
-
-11. ABILITIES: Specific capabilities gained (2-4) as "Can DO X under Y conditions" not "Knows X"
-
-12. MICRO-TASKS: 3-5 small IMMEDIATELY ACTIONABLE tasks
-    - Each task must include WHERE (platform/site), WHAT (exact action), HOW TO VERIFY (concrete output)
-    - GOOD: "Go to codecademy.com/learn/javascript. Complete lessons 1-3 (20 min). Screenshot completion badge."
-    - BAD: "Learn JavaScript basics" (WHERE? HOW MUCH? HOW DO I KNOW I'M DONE?)
-
-13. RESOURCES: 1-3 learning resources with SPECIFIC search queries for finding them
-
-THE GOLDEN RULE: If a student reads an instruction and asks "but what exactly do I DO?", you've failed.
-- Every instruction must be doable in the NEXT 60 SECONDS without more info
-- "Study X" is NEVER acceptable - WHERE? WHAT SPECIFICALLY? FOR HOW LONG?
+THE GOLDEN RULES:
+- Every instruction is actionable in the next 60 seconds
+- Content feels personalized to THEIR situation
+- Tone is warm, supportive mentor - not clinical instructor
+- If they ask "but what exactly do I do?" you've failed
 
 === LOCKED STEPS (PREVIEWS ONLY) ===
 
@@ -428,92 +518,98 @@ NO full method or daily breakdown for locked steps.
 
 === OUTPUT FORMAT ===
 {
-  "title": "Roadmap title",
+  "title": "Roadmap title - make it feel personal and achievable",
   "totalSteps": {totalSteps},
   "estimatedDays": {estimatedDays},
   "dailyCommitment": "{dailyCommitment}",
   "totalMinutes": 180,
+  "personalizedIntro": "A warm 2-3 sentence intro that references their specific situation and goals. Make them feel seen.",
   "currentStep": {
     "order": 1,
     "phase": "NOW",
-    "title": "Action-oriented title",
-    "description": "One sentence command",
-    "whyFirst": "Deep explanation of dependency - what BREAKS if skipped",
-    "method": "Day 1: ...\\nDay 2: ...",
+    "title": "Action-oriented title that feels achievable",
+    "description": "One encouraging sentence about what this step accomplishes",
+
+    "todaysFocus": {
+      "action": "Single clear action they can do RIGHT NOW",
+      "where": "Specific URL or platform name",
+      "duration": "~X min",
+      "output": "What they'll have when done (notes, code, completed exercise)"
+    },
+
+    "whyThisMattersForYou": "Personalized explanation referencing their profile, time, and goals. Start with 'Because you...' or 'Since you're...'",
+
+    "exitConditions": [
+      "Specific provable criterion 1 - can DO something without looking",
+      "Specific provable criterion 2 - can explain/demonstrate something",
+      "Specific provable criterion 3 (optional)"
+    ],
+
+    "commonTrap": {
+      "temptation": "What they'll be tempted to do",
+      "whyItFeelsRight": "Why this feels productive",
+      "whyItFails": "What actually happens",
+      "betterApproach": "What to do instead"
+    },
+
+    "method": "Day 1: ...\\nDay 2: ... (Keep it simple, achievable, encouraging)",
     "timeBreakdown": {
       "daily": "15 min",
       "total": "45 min",
-      "flexible": "Can do 30 min for 2 days"
+      "flexible": "Can do 30 min for 2 days instead - whatever works for you"
     },
-    "risk": {
-      "warning": "Specific risk",
-      "consequence": "What happens",
-      "severity": "RISK"
-    },
-    "commonMistakes": ["Mistake 1 - consequence", "Mistake 2 - consequence"],
-    "fakeProgressWarnings": [
-      "Watching without coding feels productive but teaches nothing",
-      "Re-reading notes instead of testing yourself is fake learning"
-    ],
-    "standards": {
-      "passBar": "You pass when you can X without looking at notes, in under Y minutes",
-      "failConditions": ["Can't complete without looking at examples", "Takes more than X minutes", "Makes basic errors"],
-      "repeatRule": "If you fail 2+ conditions, go back to Day 1 of this step",
-      "qualityCheck": "Close all references. Set a timer. Can you do X?"
-    },
-    "doneWhen": "Verifiable criterion - specific action you can prove",
-    "selfTest": {
-      "challenge": "Specific test",
-      "passCriteria": "Exact pass criteria with measurable bar"
-    },
+
     "successSignals": {
-      "feelsLike": "What success FEELS like emotionally/sensorially",
-      "behaviorChange": "How you'll act differently after mastering this",
-      "confidenceMarker": "Specific situation where you'll feel confident"
+      "feelsLike": "Warm description of what success feels like",
+      "youllKnow": "You'll know you're ready when..."
     },
-    "abilities": ["Can DO X under Y conditions", "Can DO Z without looking"],
-    "milestone": "Achievement (optional)",
+
+    "abilities": ["You'll be able to DO X", "You'll be able to DO Y"],
+    "milestone": "Achievement name (optional)",
     "duration": 45,
     "timeframe": "Days 1-3",
+
     "resources": [
-      {"type": "video", "title": "Name", "searchQuery": "query", "priority": 1}
+      {"type": "video", "title": "Name", "description": "Why this resource", "searchQuery": "query", "priority": 1}
     ],
-    "microTasks": [
-      {
-        "order": 1,
-        "title": "Task title",
-        "description": "Task description with WHERE, WHAT, HOW TO VERIFY",
-        "taskType": "LEARN",
-        "duration": 10,
-        "verificationMethod": "Concrete output that proves completion",
-        "proofRequired": false
-      }
-    ]
+
+    "encouragement": "A warm, genuine sentence of encouragement specific to this step"
   },
   "lockedSteps": [
     {
       "order": 2,
       "phase": "NEXT",
-      "title": "Step 2 title",
-      "whyAfterPrevious": "Why this MUST come after step 1 - the actual dependency",
-      "previewAbilities": ["Capability 1", "Capability 2"],
+      "title": "Step 2 title - make it sound exciting",
+      "whyAfterPrevious": "Warm explanation of why this builds on step 1",
+      "previewAbilities": ["What you'll be able to do 1", "What you'll be able to do 2"],
+      "teaser": "One sentence that makes them look forward to this step",
       "milestone": "Achievement",
       "estimatedDuration": 30,
       "resources": [{"type": "exercise", "title": "Name", "searchQuery": "query", "priority": 1}]
     }
   ],
   "criticalWarning": {
-    "warning": "From strategy risk",
-    "consequence": "From strategy",
+    "warning": "Important thing to avoid - stated with care, not fear",
+    "consequence": "What happens if ignored",
+    "prevention": "How to avoid this",
     "severity": "CRITICAL"
   }
 }
 
+=== VOICE CHECK ===
+Before outputting, verify your content:
+1. Does it feel like a supportive friend/mentor wrote it? (not a robot)
+2. Does it reference their specific situation? (not generic)
+3. Is every instruction actionable in 60 seconds? (not vague)
+4. Would they feel encouraged, not overwhelmed? (not scary)
+5. Are exit conditions specific and provable? (not "understand")
+
 === IMPORTANT ===
-- Write like a private mentor who genuinely cares about their transformation
-- Be specific and personal - generic advice helps no one
-- Include the hard truths - comfort doesn't create competence
-- Every element should make them feel "this person SEES me and knows exactly what I need"
+- Write like a mentor who genuinely cares - warm but honest
+- Make them feel SEEN - reference their profile, time, goals
+- Keep it achievable - don't overwhelm with too much detail
+- Every element should make them think "this was made for ME"
+- Balance encouragement with honesty - no fake cheerleading
 - Output valid JSON only`
 
 // ============================================
@@ -616,12 +712,57 @@ export function calculateStepCount(diagnostic: DiagnosticResult): number {
 }
 
 /**
+ * Format user profile for personalization
+ */
+export function formatUserProfile(
+  diagnostic: DiagnosticResult,
+  dailyCommitment?: string
+): string {
+  const user = diagnostic.user
+  const goal = diagnostic.goal
+
+  return `
+=== WHO YOU'RE WRITING FOR ===
+Level: ${user.inferredLevel}
+Goal: ${goal.clarified}
+Goal type: ${goal.type}
+Urgency: ${goal.urgency}
+Time available: ${dailyCommitment || '15-20 min/day'}
+Context: ${user.context}
+Constraints: ${user.constraints.join(', ') || 'None specified'}
+Prior knowledge: ${user.priorKnowledge.join(', ') || 'Starting fresh'}
+
+=== PERSONALIZATION REQUIREMENTS (CRITICAL) ===
+You MUST reference the user's specific situation. Generic content is unacceptable.
+
+REQUIRED PERSONALIZATION PHRASES (use at least 2-3):
+- "Since you have ${dailyCommitment || '15-20 min/day'}..."
+- "Because you're a ${user.inferredLevel}..."
+- "Given that you want to ${goal.clarified}..."
+- "With your ${goal.urgency === 'immediate' ? 'tight timeline' : 'flexible schedule'}..."
+${user.constraints.length > 0 ? `- "Working around ${user.constraints[0]}..."` : ''}
+${user.priorKnowledge.length > 0 ? `- "Building on your knowledge of ${user.priorKnowledge[0]}..."` : ''}
+
+LEVEL-SPECIFIC TONE:
+${user.inferredLevel === 'beginner' ? '- Be extra encouraging, explain jargon, celebrate small wins' : ''}
+${user.inferredLevel === 'intermediate' ? '- Skip basics, focus on practical application, challenge them a bit' : ''}
+${user.inferredLevel === 'advanced' ? '- Be direct, assume competence, focus on nuance and edge cases' : ''}
+
+TIME-SPECIFIC PACING:
+${dailyCommitment?.includes('5') || dailyCommitment?.includes('10') ? '- Ultra-short sessions: one concept per day, no overwhelm' : ''}
+${dailyCommitment?.includes('15') || dailyCommitment?.includes('20') ? '- Short sessions: focused learning, clear stopping points' : ''}
+${dailyCommitment?.includes('30') || dailyCommitment?.includes('45') || dailyCommitment?.includes('60') ? '- Longer sessions: deeper dives possible, include practice time' : ''}
+`.trim()
+}
+
+/**
  * Format context for execution prompts
  */
 export function formatExecutionContext(
   diagnostic: DiagnosticResult,
-  strategy: StrategyResult
-): { diagnosticContext: string; strategyContext: string } {
+  strategy: StrategyResult,
+  dailyCommitment?: string
+): { diagnosticContext: string; strategyContext: string; userProfile: string } {
   // Get diagnosis info with safe defaults
   const diagnosis = diagnostic.diagnosis || {
     whyStuck: 'Not diagnosed',
@@ -644,6 +785,8 @@ FALSE BELIEFS: ${diagnosis.falseBeliefs.join('; ') || 'None identified'}
 OVER-FOCUSING ON: ${diagnosis.overFocusing.join('; ') || 'None identified'}
 NEGLECTING: ${diagnosis.neglecting.join('; ') || 'None identified'}
 `.trim()
+
+  const userProfile = formatUserProfile(diagnostic, dailyCommitment)
 
   // Get new strategy fields with safe defaults
   const identityShift = strategy.transformation.identityShift || {
@@ -688,7 +831,7 @@ PACING: ${strategy.strategy.pacing}
 MILESTONES: ${strategy.milestones.map(m => m.title).join(' → ')}
 `.trim()
 
-  return { diagnosticContext, strategyContext }
+  return { diagnosticContext, strategyContext, userProfile }
 }
 
 /**
@@ -706,41 +849,62 @@ export function parseExecutionResponse(response: string): ExecutionResult | null
 
     // Validate currentStep fields
     const cs = parsed.currentStep
-    if (!cs.title || !cs.whyFirst || !cs.doneWhen) {
-      console.error('[Execution] Missing required currentStep fields')
+    if (!cs.title) {
+      console.error('[Execution] Missing required currentStep title')
       return null
     }
 
     // Ensure arrays exist
-    cs.commonMistakes = cs.commonMistakes || []
     cs.abilities = cs.abilities || []
     cs.resources = cs.resources || []
+    cs.exitConditions = cs.exitConditions || []
+
+    // NEW: Ensure todaysFocus exists with defaults
+    cs.todaysFocus = cs.todaysFocus || {
+      action: cs.description || 'Start learning the fundamentals',
+      where: 'YouTube or your preferred learning platform',
+      duration: '~15 min',
+      output: 'Notes on key concepts',
+    }
+
+    // NEW: Ensure whyThisMattersForYou exists
+    cs.whyThisMattersForYou = cs.whyThisMattersForYou || cs.whyFirst || 'This step builds the foundation for everything that follows.'
+
+    // NEW: Ensure exitConditions exist (convert from legacy if needed)
+    if (cs.exitConditions.length === 0) {
+      if (cs.doneWhen) {
+        cs.exitConditions = [cs.doneWhen]
+      } else if (cs.selfTest?.passCriteria) {
+        cs.exitConditions = [cs.selfTest.passCriteria]
+      } else {
+        cs.exitConditions = ['Can explain the core concept in your own words']
+      }
+    }
+
+    // NEW: Ensure commonTrap exists (convert from legacy if needed)
+    cs.commonTrap = cs.commonTrap || {
+      temptation: cs.commonMistakes?.[0] || 'Moving too fast without practicing',
+      whyItFeelsRight: 'It feels like you\'re making progress',
+      whyItFails: 'You\'ll forget most of it without active practice',
+      betterApproach: 'Pause and practice after each new concept',
+    }
+
+    // NEW: Ensure successSignals in new format
+    cs.successSignals = cs.successSignals || {}
+    cs.successSignals.feelsLike = cs.successSignals.feelsLike || 'Calm confidence when the topic comes up'
+    cs.successSignals.youllKnow = cs.successSignals.youllKnow || cs.successSignals.confidenceMarker || 'You can explain it without hesitation'
+
+    // Legacy field defaults for backwards compatibility
+    cs.commonMistakes = cs.commonMistakes || []
     cs.microTasks = cs.microTasks || []
-
-    // Ensure new elite fields exist with defaults
-    cs.fakeProgressWarnings = cs.fakeProgressWarnings || [
-      'Watching without actively practicing',
-      'Re-reading notes instead of testing yourself',
-    ]
-
-    cs.standards = cs.standards || {
-      passBar: 'Complete all tasks and pass the self-test',
-      failConditions: ['Cannot complete without looking at notes'],
-      repeatRule: 'If you fail, review and try again',
-      qualityCheck: 'Can you do this without any help?',
-    }
-
-    cs.successSignals = cs.successSignals || {
-      feelsLike: 'Calm confidence when facing this topic',
-      behaviorChange: 'You\'ll approach similar challenges differently',
-      confidenceMarker: 'You can explain this to others without hesitation',
-    }
+    cs.fakeProgressWarnings = cs.fakeProgressWarnings || []
 
     // Validate locked steps
     parsed.lockedSteps = parsed.lockedSteps.map((ls: LockedStep) => ({
       ...ls,
       previewAbilities: ls.previewAbilities || [],
       resources: ls.resources || [],
+      teaser: ls.teaser || '',
     }))
 
     return parsed as ExecutionResult
@@ -752,132 +916,170 @@ export function parseExecutionResponse(response: string): ExecutionResult | null
 
 /**
  * Create fallback execution if AI fails
+ * Uses personalized content based on user profile
  */
 export function createFallbackExecution(
   diagnostic: DiagnosticResult,
   strategy: StrategyResult
 ): ExecutionResult {
   const stepCount = calculateStepCount(diagnostic)
+  const goal = diagnostic.goal.clarified
+  const level = diagnostic.user.inferredLevel
+  const dailyTime = strategy.strategy.dailyCommitment
+  const urgency = diagnostic.goal.urgency
+
+  // Personalization helpers
+  const isBeginnerLevel = level === 'beginner' || level === 'absolute_beginner'
+  const hasLimitedTime = dailyTime.includes('5') || dailyTime.includes('10') || dailyTime.includes('15')
+  const needsExtraEncouragement = urgency === 'immediate' || isBeginnerLevel
+
+  // Build personalized intro
+  const introPrefix = isBeginnerLevel
+    ? `Hey! I know starting something new can feel overwhelming, but I've got you.`
+    : `Let's get you moving on ${goal}.`
+
+  const introTimeAck = hasLimitedTime
+    ? `Since you have ${dailyTime}, I've designed each step to fit your schedule perfectly.`
+    : `With ${dailyTime} to work with, you can make solid progress.`
 
   return {
-    title: `Master ${diagnostic.goal.clarified}`,
+    title: `Your Path to ${goal}`,
     totalSteps: stepCount,
     estimatedDays: strategy.strategy.estimatedDays,
-    dailyCommitment: strategy.strategy.dailyCommitment,
-    totalMinutes: strategy.strategy.estimatedDays * 20, // ~20 min/day
+    dailyCommitment: dailyTime,
+    totalMinutes: strategy.strategy.estimatedDays * 20,
+
+    personalizedIntro: `${introPrefix} ${introTimeAck} Let's start with the fundamentals - they're more important than you might think.`,
 
     currentStep: {
       order: 1,
       phase: 'NOW',
       title: 'Build Your Foundation',
-      description: `Start with the core fundamentals of ${diagnostic.goal.clarified}`,
-      whyFirst: 'Every skill builds on fundamentals. Without this foundation, advanced topics won\'t make sense. Skipping this is why most people give up - they hit a wall of confusion that didn\'t need to exist.',
-      method: `Day 1 (15 min): Go to youtube.com and search "${diagnostic.goal.clarified} beginner tutorial 2024". Watch the first video under 15 minutes. Pause every 3 minutes and write down one key concept.
+      description: `Let's start with the core fundamentals of ${goal}`,
 
-Day 2 (15 min): Open a notes app or grab paper. Write down: 1) What is ${diagnostic.goal.clarified}? 2) What are the 3 most important things to know? 3) One example of how it's used.
+      todaysFocus: {
+        action: `Watch a beginner-friendly video about ${goal} and write down 3 key takeaways`,
+        where: 'YouTube',
+        duration: hasLimitedTime ? `~${dailyTime.replace('/day', '')}` : '~15 min',
+        output: '3 bullet points of key concepts in your own words',
+      },
 
-Day 3 (15 min): Close your notes. Set a 10-minute timer. Write everything you remember about ${diagnostic.goal.clarified}. Then check your notes - what did you miss?`,
+      whyThisMattersForYou: isBeginnerLevel
+        ? `Because you're ${level === 'beginner' ? 'just starting out' : 'new to this'}, getting the fundamentals right now saves you hours of confusion later. I know it's tempting to jump ahead - but trust me, this foundation makes everything else click.`
+        : `Since you have some background knowledge, this step is about filling any gaps and making sure your foundation is solid. Even experienced learners benefit from revisiting the basics with fresh eyes.`,
+
+      exitConditions: [
+        `Can explain what ${goal} is in simple terms (without notes)`,
+        'Can list 3 key concepts from memory',
+        'Can give one real-world example of how it\'s used',
+      ],
+
+      commonTrap: {
+        temptation: isBeginnerLevel
+          ? 'Watching videos at 2x speed or jumping between different tutorials'
+          : 'Skipping the basics because you think you already know them',
+        whyItFeelsRight: isBeginnerLevel
+          ? 'Feels like you\'re covering more ground faster'
+          : 'You want to get to the "real" content',
+        whyItFails: isBeginnerLevel
+          ? 'You\'ll forget 90% of it and have to relearn anyway'
+          : 'Small gaps in fundamentals cause big problems later',
+        betterApproach: isBeginnerLevel
+          ? 'Watch at normal speed, pause to take notes, and actually practice what you learn'
+          : 'Go through basics quickly but actively - take notes on anything that surprises you',
+      },
+
+      method: hasLimitedTime
+        ? `Session 1 (${dailyTime.replace('/day', '')}): Find a beginner tutorial for "${goal}" on YouTube. Watch the first 10-15 minutes. Write down one key concept.
+
+Session 2 (${dailyTime.replace('/day', '')}): Without looking at your notes, write what you remember. Check your notes - what did you miss?
+
+Session 3 (${dailyTime.replace('/day', '')}): Try explaining ${goal} out loud. If you get stuck, that's your gap. Review that part.`
+        : `Session 1: Search for "${goal} beginner tutorial" on YouTube. Watch a well-rated video (under 20 min). Pause every few minutes to jot down key points.
+
+Session 2: Close your notes. Write everything you remember. Compare with original notes - what did you miss? That's what to focus on.
+
+Session 3: Explain ${goal} out loud as if teaching a friend. Stumbles = gaps to review.`,
+
       timeBreakdown: {
-        daily: '15 min',
-        total: '45 min over 3 days',
-        flexible: 'Can do 30 min for 2 days instead',
+        daily: dailyTime.replace('/day', ''),
+        total: `About ${parseInt(dailyTime) * 3} min over 3 sessions`,
+        flexible: 'Complete when ready - no rush, no time pressure',
       },
-      risk: {
-        warning: 'Watching/reading passively without taking notes',
-        consequence: 'You\'ll forget 90% within 48 hours and feel like you wasted time',
-        severity: 'RISK',
-      },
-      commonMistakes: [
-        'Watching videos at 2x speed without pausing - you feel productive but retain nothing',
-        'Not writing notes BY HAND - typing is 40% less effective for memory',
-        'Thinking "I get it" without testing yourself - the illusion of understanding',
-      ],
-      fakeProgressWarnings: [
-        'Watching tutorials without pausing to take notes feels productive but you\'ll retain almost nothing',
-        'Re-reading your notes instead of testing yourself from memory - comfort disguised as learning',
-        'Feeling "familiar" with the content but unable to explain it without looking - this is the illusion of competence',
-      ],
-      standards: {
-        passBar: 'You can explain the 3 core concepts out loud for 2 minutes without any notes or prompts',
-        failConditions: [
-          'You pause for more than 5 seconds trying to remember',
-          'You need to look at notes more than once',
-          'You can\'t give a concrete example for each concept',
-        ],
-        repeatRule: 'If you fail 2 or more conditions, go back to Day 2 and redo the note-taking exercise with more focus',
-        qualityCheck: 'Record yourself explaining the concepts. Play it back. Would someone with zero knowledge understand?',
-      },
-      doneWhen: 'You can explain the 3 core concepts of ${diagnostic.goal.clarified} out loud for 2 minutes without looking at notes',
-      selfTest: {
-        challenge: 'Set a 2-minute timer. Explain ${diagnostic.goal.clarified} out loud as if teaching a friend. Record yourself.',
-        passCriteria: 'You spoke for the full 2 minutes without major pauses or looking at notes, and covered all 3 core concepts',
-      },
+
       successSignals: {
-        feelsLike: 'You\'ll feel a quiet confidence when the topic comes up - not "I think I know this" but genuine certainty. The anxiety of "am I doing this right?" will be replaced by calm clarity.',
-        behaviorChange: 'You\'ll start noticing ${diagnostic.goal.clarified} concepts in everyday situations. Your brain will automatically make connections you couldn\'t see before.',
-        confidenceMarker: 'When someone asks "what is ${diagnostic.goal.clarified}?" you\'ll feel a small smile form - you KNOW this, deeply, not just surface-level familiarity.',
+        feelsLike: 'You\'ll feel a quiet confidence when the topic comes up. Not "I think I know this" but genuine clarity.',
+        youllKnow: 'You can explain the basics without hesitating or checking notes.',
       },
+
       abilities: [
-        'Can define ${diagnostic.goal.clarified} in your own words without hesitation',
-        'Can list 3 key concepts from memory under time pressure',
-        'Can explain one real-world example to a complete beginner',
+        `Explain ${goal} in your own words`,
+        'Identify the core concepts and give examples',
+        'Know what to learn next (and what to ignore for now)',
       ],
+
       milestone: 'Foundation Complete',
-      duration: 45,
-      timeframe: 'Days 1-3',
+      duration: parseInt(dailyTime) * 3 || 45,
+      timeframe: '3 sessions',
+
       resources: [
         {
           type: 'video',
-          title: `${diagnostic.goal.clarified} Beginner Tutorial`,
-          searchQuery: `${diagnostic.goal.clarified} beginner tutorial 2024`,
+          title: `${goal} for ${isBeginnerLevel ? 'Beginners' : 'Intermediate Learners'}`,
+          description: `Start here - a focused ${isBeginnerLevel ? 'intro' : 'overview'} to build your foundation`,
+          searchQuery: `${goal} ${isBeginnerLevel ? 'beginner tutorial' : 'crash course'} 2024`,
           priority: 1,
         },
-      ],
-      microTasks: [
         {
-          order: 1,
-          title: 'Watch a beginner video',
-          description: `Go to youtube.com, search "${diagnostic.goal.clarified} beginner tutorial 2024". Pick the first video under 15 min with good reviews. Watch it, pausing every 3 min to write one key concept.`,
-          taskType: 'LEARN',
-          duration: 15,
-          verificationMethod: 'You have written at least 4 key concepts from the video',
-          proofRequired: false,
-        },
-        {
-          order: 2,
-          title: 'Create structured notes',
-          description: 'Open a notes app or grab paper. Write answers to: 1) What is this topic? 2) Three most important things to know. 3) One real example.',
-          taskType: 'ACTION',
-          duration: 15,
-          verificationMethod: 'You have a notes document with all 3 sections filled out',
-          proofRequired: false,
-        },
-        {
-          order: 3,
-          title: 'Active recall test',
-          description: 'Close all notes. Set a 10-min timer. Write everything you remember. Then compare to notes and highlight gaps.',
-          taskType: 'TEST',
-          duration: 15,
-          verificationMethod: 'You identified at least 2 things you forgot and added them to a "review" list',
-          proofRequired: false,
+          type: 'article',
+          title: `Understanding ${goal} - Quick Guide`,
+          description: 'For when you prefer reading or want to review concepts',
+          searchQuery: `${goal} guide explained simply`,
+          priority: 2,
         },
       ],
+
+      encouragement: needsExtraEncouragement
+        ? `You've got this! Everyone starts somewhere, and taking this first step puts you ahead of most people who just think about learning. Take your time - there's no rush.`
+        : `You're already ahead by taking a structured approach. Most people skip the fundamentals and struggle later. Not you.`,
+
+      // Legacy fields for compatibility
+      whyFirst: 'Fundamentals make everything else click. Skip this and you\'ll hit walls of confusion later.',
+      commonMistakes: ['Watching without taking notes', 'Moving on before really understanding'],
+      microTasks: [],
     },
 
-    lockedSteps: Array.from({ length: stepCount - 1 }, (_, i) => ({
-      order: i + 2,
-      phase: i === 0 ? 'NEXT' as const : 'LATER' as const,
-      title: `Step ${i + 2}: ${i === stepCount - 2 ? 'Final Mastery' : 'Build Skills'}`,
-      whyAfterPrevious: 'Builds on knowledge from previous step',
-      previewAbilities: ['Apply concepts', 'Solve problems independently'],
-      milestone: i === stepCount - 2 ? 'Goal Complete' : undefined,
-      estimatedDuration: 30,
-      resources: [],
-    })),
+    lockedSteps: Array.from({ length: stepCount - 1 }, (_, i) => {
+      const isLastStep = i === stepCount - 2
+      const stepNumber = i + 2
+
+      return {
+        order: stepNumber,
+        phase: i === 0 ? 'NEXT' as const : 'LATER' as const,
+        title: isLastStep
+          ? `Put It All Together`
+          : stepNumber === 2
+            ? 'Apply What You Learned'
+            : `Deepen Your Skills`,
+        whyAfterPrevious: i === 0
+          ? 'Once you have the foundation, you\'re ready to start applying it'
+          : 'Each step builds naturally on the previous one',
+        previewAbilities: isLastStep
+          ? [`Use ${goal} confidently in real situations`, 'Solve problems independently']
+          : ['Apply concepts to practical scenarios', 'Start building real skills'],
+        teaser: isLastStep
+          ? 'This is where everything clicks and you see the full picture!'
+          : 'You\'ll start seeing real results and building confidence',
+        milestone: isLastStep ? 'Goal Complete' : undefined,
+        estimatedDuration: parseInt(dailyTime) * 3 || 30,
+        resources: [],
+      }
+    }),
 
     criticalWarning: {
       warning: strategy.risks.critical.warning,
       consequence: strategy.risks.critical.consequence,
+      prevention: strategy.risks.critical.prevention,
       severity: 'CRITICAL',
     },
   }

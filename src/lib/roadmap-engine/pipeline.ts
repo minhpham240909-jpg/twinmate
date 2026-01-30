@@ -464,6 +464,9 @@ export interface PipelineOutput {
     rootCause: string
   }
 
+  // Personalized intro
+  personalizedIntro?: string
+
   // Steps (GPS-style)
   currentStep: {
     id: string
@@ -471,19 +474,43 @@ export interface PipelineOutput {
     phase: 'NOW'
     title: string
     description: string
-    whyFirst: string
-    method: string
-    timeBreakdown: {
+
+    // NEW: Today's Focus (primary action)
+    todaysFocus?: {
+      action: string
+      where: string
+      duration: string
+      output: string
+    }
+
+    // NEW: Personalized why
+    whyThisMattersForYou?: string
+
+    // NEW: Exit conditions (checkboxes)
+    exitConditions?: string[]
+
+    // NEW: Common trap (warm mentor voice)
+    commonTrap?: {
+      temptation: string
+      whyItFeelsRight: string
+      whyItFails: string
+      betterApproach: string
+    }
+
+    // Legacy fields
+    whyFirst?: string
+    method?: string
+    timeBreakdown?: {
       daily: string
       total: string
       flexible: string
     }
-    risk: {
+    risk?: {
       warning: string
       consequence: string
       severity: string
     }
-    commonMistakes: string[]
+    commonMistakes?: string[]
     fakeProgressWarnings?: string[]
     standards?: {
       passBar: string
@@ -493,11 +520,12 @@ export interface PipelineOutput {
     }
     successSignals?: {
       feelsLike: string
-      behaviorChange: string
-      confidenceMarker: string
+      youllKnow?: string
+      behaviorChange?: string
+      confidenceMarker?: string
     }
-    doneWhen: string
-    selfTest: {
+    doneWhen?: string
+    selfTest?: {
       challenge: string
       passCriteria: string
     }
@@ -515,7 +543,8 @@ export interface PipelineOutput {
       directUrl?: string
       priority?: number
     }[]
-    microTasks: MicroTask[]
+    microTasks?: MicroTask[]
+    encouragement?: string
     isLocked: false
   }
 
@@ -526,6 +555,7 @@ export interface PipelineOutput {
     title: string
     whyAfterPrevious: string
     previewAbilities: string[]
+    teaser?: string
     milestone?: string
     estimatedDuration?: number
     resources: {
@@ -900,7 +930,8 @@ async function runExecutionPhase(
   const openai = getOpenAI()
 
   const stepCount = calculateStepCount(diagnostic)
-  const { diagnosticContext, strategyContext } = formatExecutionContext(diagnostic, strategy)
+  const dailyCommitment = dailyCommitmentMinutes ? `${dailyCommitmentMinutes} min/day` : strategy.strategy.dailyCommitment
+  const { diagnosticContext, strategyContext, userProfile } = formatExecutionContext(diagnostic, strategy, dailyCommitment)
 
   // Get context builder for Clerva Doctrine injection
   const contextBuilder = getContextBuilder()
@@ -913,9 +944,10 @@ async function runExecutionPhase(
   let systemPrompt = COMBINED_EXECUTION_PROMPT
     .replace('{diagnosticContext}', diagnosticContext)
     .replace('{strategyContext}', strategyContext)
+    .replace('{userProfile}', userProfile)
     .replace(/{totalSteps}/g, String(stepCount))
     .replace(/{estimatedDays}/g, String(strategy.strategy.estimatedDays))
-    .replace(/{dailyCommitment}/g, strategy.strategy.dailyCommitment)
+    .replace(/{dailyCommitment}/g, dailyCommitment)
 
   // Inject Clerva Doctrine and Domain Intelligence
   systemPrompt = `${clervaContext}
@@ -1206,13 +1238,30 @@ function assembleOutput(
     whatComesNext: strategy.whatComesNext,
     diagnosis: diagnostic.diagnosis,
 
-    // Current step (fully detailed)
+    // Personalized intro
+    personalizedIntro: execution.personalizedIntro,
+
+    // Current step (fully detailed with new structure)
     currentStep: {
       id: uuidv4(),
       order: execution.currentStep.order,
       phase: 'NOW',
       title: execution.currentStep.title,
       description: execution.currentStep.description,
+
+      // NEW: Today's Focus
+      todaysFocus: execution.currentStep.todaysFocus,
+
+      // NEW: Personalized why
+      whyThisMattersForYou: execution.currentStep.whyThisMattersForYou,
+
+      // NEW: Exit conditions
+      exitConditions: execution.currentStep.exitConditions,
+
+      // NEW: Common trap
+      commonTrap: execution.currentStep.commonTrap,
+
+      // Legacy fields
       whyFirst: execution.currentStep.whyFirst,
       method: execution.currentStep.method,
       timeBreakdown: execution.currentStep.timeBreakdown,
@@ -1229,6 +1278,7 @@ function assembleOutput(
       timeframe: execution.currentStep.timeframe,
       resources: enhanceResources(execution.currentStep.resources),
       microTasks: execution.currentStep.microTasks,
+      encouragement: execution.currentStep.encouragement,
       isLocked: false as const,
     },
 
@@ -1240,6 +1290,7 @@ function assembleOutput(
       title: ls.title,
       whyAfterPrevious: ls.whyAfterPrevious,
       previewAbilities: ls.previewAbilities,
+      teaser: ls.teaser,
       milestone: ls.milestone,
       estimatedDuration: ls.estimatedDuration,
       resources: enhanceResources(ls.resources),

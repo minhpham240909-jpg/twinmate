@@ -61,8 +61,15 @@ export function LockedGatePreview({
               {gate.title}
             </h4>
 
-            {/* What it eliminates */}
-            {gate.failureToEliminate && (
+            {/* Teaser - friendly preview of what's coming */}
+            {gate.teaser && (
+              <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2 italic">
+                {gate.teaser}
+              </div>
+            )}
+
+            {/* What it eliminates - only show if no teaser */}
+            {!gate.teaser && gate.failureToEliminate && (
               <div className="text-xs text-neutral-400 mb-2">
                 <span className="font-medium">Eliminates:</span> {gate.failureToEliminate}
               </div>

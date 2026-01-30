@@ -64,6 +64,31 @@ export interface GateStep {
   isCurrent?: boolean
   phase?: string
 
+  // NEW: Today's Focus (primary action)
+  todaysFocus?: {
+    action: string
+    where: string
+    duration: string
+    output: string
+  }
+
+  // NEW: Personalized why
+  whyThisMattersForYou?: string
+
+  // NEW: Exit conditions (checkboxes)
+  exitConditions?: string[]
+
+  // NEW: Common trap (warm mentor voice)
+  commonTrap?: {
+    temptation: string
+    whyItFeelsRight: string
+    whyItFails: string
+    betterApproach: string
+  }
+
+  // NEW: Encouragement
+  encouragement?: string
+
   // Gate-specific fields
   failureToEliminate?: string // What failure mode this gate removes
   capability?: string // What you CAN DO after passing
@@ -99,8 +124,9 @@ export interface GateStep {
   // ELITE: What Success Feels Like
   successSignals?: {
     feelsLike: string
-    behaviorChange: string
-    confidenceMarker: string
+    youllKnow?: string
+    behaviorChange?: string
+    confidenceMarker?: string
   }
 
   // Abilities unlocked
@@ -120,6 +146,9 @@ export interface GateStep {
   // Duration (secondary, not prominent)
   duration?: number
   timeframe?: string
+
+  // Teaser for locked gates
+  teaser?: string
 }
 
 interface GatedPhaseStackProps {

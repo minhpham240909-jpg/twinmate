@@ -65,6 +65,30 @@ interface EnhancedStep {
   whyAfterPrevious?: string
   previewAbilities?: string[]
   phase?: string
+
+  // NEW: Improved content structure
+  todaysFocus?: {
+    action: string
+    where: string
+    duration: string
+    output: string
+  }
+  whyThisMattersForYou?: string
+  exitConditions?: string[]
+  commonTrap?: {
+    temptation: string
+    whyItFeelsRight: string
+    whyItFails: string
+    betterApproach: string
+  }
+  successSignals?: {
+    feelsLike: string
+    youllKnow?: string
+    behaviorChange?: string
+    confidenceMarker?: string
+  }
+  encouragement?: string
+  teaser?: string
 }
 
 // Phase type matching RoadmapTimeline expectations
@@ -176,6 +200,15 @@ function convertToGateSteps(
       isCompleted,
       isCurrent,
       phase: step.phase,
+
+      // NEW: Today's Focus and improved structure
+      todaysFocus: step.todaysFocus,
+      whyThisMattersForYou: step.whyThisMattersForYou,
+      exitConditions: step.exitConditions,
+      commonTrap: step.commonTrap,
+      encouragement: step.encouragement,
+      successSignals: step.successSignals,
+      teaser: step.teaser,
 
       // Gate-specific fields
       failureToEliminate: step.avoid || step.risk?.warning,
