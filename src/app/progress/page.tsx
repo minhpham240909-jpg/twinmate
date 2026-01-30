@@ -11,7 +11,7 @@
 
 import { useAuth } from '@/lib/auth/context'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useDashboardStats } from '@/hooks/useUserStats'
 import { useMilestones } from '@/hooks/useMilestones'
 import BottomNav from '@/components/BottomNav'
@@ -64,55 +64,67 @@ export default function ProgressPage() {
     }
   }, [isGuest])
 
-  // Load progress data - only once when user is available
-  // Using useRef to ensure we only generate data once
-  const hasLoadedRef = useRef(false)
-
+  // Load progress data using REAL stats from API
   useEffect(() => {
     async function loadProgress() {
-      if (!user || hasLoadedRef.current) return
-      hasLoadedRef.current = true
+      if (!user) return
 
       try {
-        // Generate weekly activity data with deterministic values
-        // Use day of week as seed for consistent display
+        // Fetch month progress to get daily activity data
         const today = new Date()
+        const year = today.getFullYear()
+        const month = today.getMonth() + 1
+        const monthResponse = await fetch(`/api/engagement/progress?type=month&year=${year}&month=${month}`)
+        const monthData = monthResponse.ok ? await monthResponse.json() : null
+
+        // Build weekly activity from real data
         const weeklyActivity: DailyActivity[] = []
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-        // Deterministic session counts based on day index
-        // This creates a realistic-looking pattern without randomness
-        const sessionPattern = [1, 3, 0, 3, 2, 5, 0] // Fixed pattern for the week
 
         for (let i = 6; i >= 0; i--) {
           const date = new Date(today)
           date.setDate(date.getDate() - i)
           const dayIndex = date.getDay()
+          const dateStr = date.toISOString().split('T')[0]
+
+          // Get real session count from month data
+          let sessions = 0
+          if (monthData?.monthProgress) {
+            const dayData = monthData.monthProgress.find((d: { date: string }) => d.date === dateStr)
+            sessions = dayData?.stepsCompleted || 0
+          }
+
           weeklyActivity.push({
             day: dayNames[dayIndex],
-            // Use deterministic pattern instead of random
-            sessions: sessionPattern[dayIndex],
+            sessions,
             date,
           })
         }
 
-        // Calculate stats-based values
-        const points = stats?.points || 0
-        const helpSessions = points ? Math.floor(points / 10) : 0
+        // Use REAL stats from the dashboard stats hook
+        const helpSessions = stats?.weekSessions || stats?.todaySessions || 0
+        const minutesSaved = stats?.weekMinutes || stats?.todayMinutes || 0
+        const conceptsLearned = stats?.allTimeSessions || helpSessions
 
-        // For now, use mock data - will connect to real API later
-        // This structure allows easy backend integration
         setProgressData({
           helpSessions,
-          minutesSaved: helpSessions * 4,
-          strongTopics: ['Basic Algebra', 'Biology Cells'],
-          weakTopics: ['Free-body diagrams', 'Calculus derivatives'],
-          conceptsLearned: helpSessions,
+          minutesSaved,
+          strongTopics: [], // Topic tracking requires additional implementation
+          weakTopics: [], // Topic tracking requires additional implementation
+          conceptsLearned,
           weeklyActivity,
         })
       } catch (err) {
         console.error('Error loading progress:', err)
-        setError('Failed to load progress data. Please try again.')
+        // Fallback to stats-based data on error
+        setProgressData({
+          helpSessions: stats?.weekSessions || 0,
+          minutesSaved: stats?.weekMinutes || 0,
+          strongTopics: [],
+          weakTopics: [],
+          conceptsLearned: stats?.allTimeSessions || 0,
+          weeklyActivity: [],
+        })
       } finally {
         setIsLoading(false)
       }
@@ -121,7 +133,7 @@ export default function ProgressPage() {
     if (!loading && user) {
       loadProgress()
     }
-  }, [user, loading]) // Removed stats from dependency - only load once
+  }, [user, loading, stats])
 
   // Loading state
   if (loading || isLoading) {
