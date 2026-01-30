@@ -16,21 +16,11 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink, CheckCircle2, Circle, Sparkles, AlertCircle } from 'lucide-react'
-import type { GateStep } from './GatedPhaseStack'
+import type { GateStep, StepResource } from './GatedPhaseStack'
 
 // ============================================
 // TYPES
 // ============================================
-
-interface StepResource {
-  type: string
-  title: string
-  description?: string
-  searchQuery?: string
-  platformId?: string
-  platformName?: string
-  directUrl?: string
-}
 
 interface CurrentGateDetailProps {
   gate: GateStep
@@ -151,7 +141,7 @@ export function CurrentGateDetail({
               <div className="text-xs font-medium tracking-widest text-neutral-400 uppercase mb-3">
                 Start Here
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {gate.resources.slice(0, 3).map((resource, i) => (
                   <a
                     key={i}
@@ -159,19 +149,70 @@ export function CurrentGateDetail({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => onResourceClick?.(resource)}
-                    className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors group"
+                    className="flex items-start gap-3 p-3 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors group"
                   >
-                    <div>
-                      <div className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-                        {resource.title}
+                    {/* Thumbnail or Platform Logo */}
+                    <div className="flex-shrink-0 w-16 h-12 rounded overflow-hidden bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
+                      {resource.thumbnailUrl ? (
+                        <img
+                          src={resource.thumbnailUrl}
+                          alt={resource.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback to platform logo or icon on error
+                            const target = e.target as HTMLImageElement
+                            if (resource.platformLogoUrl) {
+                              target.src = resource.platformLogoUrl
+                              target.className = 'w-8 h-8 object-contain'
+                            } else {
+                              target.style.display = 'none'
+                            }
+                          }}
+                        />
+                      ) : resource.platformLogoUrl ? (
+                        <img
+                          src={resource.platformLogoUrl}
+                          alt={resource.platformName || 'Platform'}
+                          className="w-8 h-8 object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <span className="text-lg">
+                          {resource.type === 'video' ? '📺' :
+                           resource.type === 'article' ? '📄' :
+                           resource.type === 'exercise' ? '💪' :
+                           resource.type === 'tool' ? '🛠️' :
+                           resource.type === 'course' ? '🎓' : '📚'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">
+                          {resource.title}
+                        </span>
+                        {resource.platformName && (
+                          <span className="text-xs px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300 rounded flex-shrink-0">
+                            {resource.platformName}
+                          </span>
+                        )}
                       </div>
                       {resource.description && (
-                        <div className="text-xs text-neutral-500 mt-0.5">
+                        <div className="text-xs text-neutral-500 mt-0.5 line-clamp-2">
                           {resource.description}
                         </div>
                       )}
+                      <div className="text-xs text-neutral-400 mt-1 capitalize">
+                        {resource.type}
+                      </div>
                     </div>
-                    <ExternalLink className="w-4 h-4 text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300" />
+
+                    {/* External link icon */}
+                    <ExternalLink className="w-4 h-4 text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 flex-shrink-0 mt-1" />
                   </a>
                 ))}
               </div>

@@ -73,6 +73,8 @@ import {
   type Platform,
 } from '@/lib/platforms/platform-database'
 
+import { generateResourceUrl } from './smart-resources'
+
 // ============================================
 // CONFIGURATION
 // ============================================
@@ -541,6 +543,9 @@ export interface PipelineOutput {
       platformId?: string
       platformName?: string
       directUrl?: string
+      thumbnailUrl?: string
+      embedUrl?: string
+      platformLogoUrl?: string
       priority?: number
     }[]
     microTasks?: MicroTask[]
@@ -565,6 +570,9 @@ export interface PipelineOutput {
       platformId?: string
       platformName?: string
       directUrl?: string
+      thumbnailUrl?: string
+      embedUrl?: string
+      platformLogoUrl?: string
     }[]
     isLocked: true
   }[]
@@ -1179,24 +1187,25 @@ function assembleOutput(
     searchUrl: p.searchUrl ? getPlatformSearchUrl(p, input.goal.slice(0, 50)) : undefined,
   }))
 
-  // Enhance resources with platform info
-  const enhanceResources = (resources: { type: string; title: string; searchQuery?: string; priority?: number }[]) => {
+  // Enhance resources with platform info, thumbnails, and embed URLs
+  const enhanceResources = (resources: { type: string; title: string; searchQuery?: string; priority?: number; description?: string }[]) => {
     return resources.map(r => {
-      // Find best platform for resource type based on features
-      const platform = platforms.find(p => {
-        if (r.type === 'video' && p.features.some(f => f.toLowerCase().includes('video'))) return true
-        if (r.type === 'exercise' && p.features.some(f => f.toLowerCase().includes('practice') || f.toLowerCase().includes('interactive'))) return true
-        if (r.type === 'article' && p.features.some(f => f.toLowerCase().includes('article') || f.toLowerCase().includes('documentation'))) return true
-        return false
-      }) || platforms[0]
+      const searchQuery = r.searchQuery || r.title
+
+      // Use smart-resources to generate URLs with thumbnails and embeds
+      const resourceData = generateResourceUrl(r.type, searchQuery, detectedSubject)
 
       return {
         type: r.type,
         title: r.title,
-        searchQuery: r.searchQuery,
-        platformId: platform?.id,
-        platformName: platform?.name,
-        directUrl: platform?.searchUrl ? getPlatformSearchUrl(platform, r.searchQuery || r.title) : undefined,
+        description: r.description,
+        searchQuery,
+        platformId: resourceData.platformId,
+        platformName: resourceData.platformName,
+        directUrl: resourceData.url,
+        thumbnailUrl: resourceData.thumbnailUrl,
+        embedUrl: resourceData.embedUrl,
+        platformLogoUrl: resourceData.platformLogoUrl,
         priority: r.priority,
       }
     })

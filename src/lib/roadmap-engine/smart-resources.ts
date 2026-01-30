@@ -26,6 +26,10 @@ export interface SmartResource {
   platformIcon: string
   platformColor: string
   directUrl: string
+  // NEW: Visual content fields
+  thumbnailUrl?: string      // Preview image for the resource
+  embedUrl?: string          // Embeddable URL (e.g., YouTube embed)
+  platformLogoUrl?: string   // Platform's logo image URL
 }
 
 export interface ResourceInput {
@@ -69,14 +73,97 @@ const FALLBACK_SEARCH_URLS: Record<string, string> = {
 }
 
 // Platform metadata for fallbacks
-const FALLBACK_PLATFORMS: Record<string, { name: string; icon: string; color: string }> = {
-  youtube: { name: 'YouTube', icon: '📺', color: '#FF0000' },
-  google: { name: 'Google', icon: '🔍', color: '#4285F4' },
-  coursera: { name: 'Coursera', icon: '🎓', color: '#0056D2' },
-  udemy: { name: 'Udemy', icon: '📖', color: '#A435F0' },
-  edx: { name: 'edX', icon: '🏫', color: '#02262B' },
-  stackoverflow: { name: 'Stack Overflow', icon: '💬', color: '#F48024' },
-  github: { name: 'GitHub', icon: '🐙', color: '#24292E' },
+const FALLBACK_PLATFORMS: Record<string, { name: string; icon: string; color: string; logoUrl?: string }> = {
+  youtube: { name: 'YouTube', icon: '📺', color: '#FF0000', logoUrl: 'https://www.youtube.com/s/desktop/c6f5b811/img/favicon_144x144.png' },
+  google: { name: 'Google', icon: '🔍', color: '#4285F4', logoUrl: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' },
+  coursera: { name: 'Coursera', icon: '🎓', color: '#0056D2', logoUrl: 'https://d3njjcbhbojbot.cloudfront.net/web/images/favicons/android-chrome-144x144.png' },
+  udemy: { name: 'Udemy', icon: '📖', color: '#A435F0', logoUrl: 'https://www.udemy.com/staticx/udemy/images/v7/logo-udemy.svg' },
+  edx: { name: 'edX', icon: '🏫', color: '#02262B', logoUrl: 'https://www.edx.org/images/logos/edx-logo-elm.svg' },
+  stackoverflow: { name: 'Stack Overflow', icon: '💬', color: '#F48024', logoUrl: 'https://cdn.sstatic.net/Sites/stackoverflow/Img/apple-touch-icon.png' },
+  github: { name: 'GitHub', icon: '🐙', color: '#24292E', logoUrl: 'https://github.githubassets.com/favicons/favicon.svg' },
+  khan_academy: { name: 'Khan Academy', icon: '📚', color: '#14BF96', logoUrl: 'https://cdn.kastatic.org/images/apple-touch-icon-144x144-precomposed.png' },
+  freecodecamp: { name: 'freeCodeCamp', icon: '🏕️', color: '#0A0A23', logoUrl: 'https://www.freecodecamp.org/icons/icon-144x144.png' },
+  leetcode: { name: 'LeetCode', icon: '💻', color: '#FFA116', logoUrl: 'https://leetcode.com/static/images/LeetCode_logo_oj.png' },
+  mdn: { name: 'MDN Web Docs', icon: '📖', color: '#83D0F2', logoUrl: 'https://developer.mozilla.org/apple-touch-icon.png' },
+  w3schools: { name: 'W3Schools', icon: '🌐', color: '#04AA6D', logoUrl: 'https://www.w3schools.com/favicon.ico' },
+}
+
+// ============================================
+// THUMBNAIL AND EMBED URL GENERATION
+// ============================================
+
+/**
+ * Generate a YouTube search thumbnail placeholder
+ * Since we're generating search URLs (not specific video IDs), we use a placeholder
+ * that represents the platform. For actual video IDs, we'd use:
+ * https://img.youtube.com/vi/{VIDEO_ID}/mqdefault.jpg
+ */
+function generateYouTubeThumbnail(searchQuery: string): string {
+  // For search results, we can't get a specific thumbnail, so we use a
+  // placeholder image based on the search query
+  // Using a gradient placeholder with the search query encoded
+  const encodedQuery = encodeURIComponent(searchQuery.slice(0, 50))
+  return `https://via.placeholder.com/320x180/FF0000/FFFFFF?text=${encodedQuery}`
+}
+
+/**
+ * Generate YouTube embed URL from a search URL
+ * Note: For search URLs, we generate a search results embed
+ * For actual video URLs, this would extract the video ID
+ */
+function generateYouTubeEmbedUrl(searchQuery: string): string {
+  // YouTube doesn't support embedding search results, but we can create
+  // a link that opens in YouTube's embedded player context
+  const encoded = encodeURIComponent(searchQuery + ' tutorial')
+  return `https://www.youtube.com/embed?listType=search&list=${encoded}`
+}
+
+/**
+ * Generate platform-specific thumbnail based on resource type
+ */
+function generatePlatformThumbnail(platformId: string, resourceType: string, searchQuery: string): string | undefined {
+  switch (platformId) {
+    case 'youtube':
+      return generateYouTubeThumbnail(searchQuery)
+    case 'khan_academy':
+      return 'https://cdn.kastatic.org/images/khan-logo-dark-background.new.png'
+    case 'coursera':
+      return 'https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera_assets.s3.amazonaws.com/images/open_graph_images/default_open_graph_image.png'
+    case 'udemy':
+      return 'https://www.udemy.com/staticx/udemy/images/v7/logo-udemy-inverted.svg'
+    case 'freecodecamp':
+      return 'https://cdn.freecodecamp.org/platform/universal/fcc_meta_1920X1080-indigo.png'
+    case 'leetcode':
+      return 'https://leetcode.com/static/images/LeetCode_Sharing.png'
+    case 'mdn':
+      return 'https://developer.mozilla.org/mdn-social-share.png'
+    default:
+      // Return a placeholder based on resource type
+      const typeColors: Record<string, string> = {
+        video: 'FF0000',
+        article: '4285F4',
+        exercise: '14BF96',
+        tool: 'A435F0',
+        course: '0056D2',
+        book: 'F48024',
+      }
+      const color = typeColors[resourceType] || '333333'
+      const encodedType = encodeURIComponent(resourceType.toUpperCase())
+      return `https://via.placeholder.com/320x180/${color}/FFFFFF?text=${encodedType}`
+  }
+}
+
+/**
+ * Generate embed URL if platform supports embedding
+ */
+function generateEmbedUrl(platformId: string, searchQuery: string): string | undefined {
+  switch (platformId) {
+    case 'youtube':
+      return generateYouTubeEmbedUrl(searchQuery)
+    // Other platforms don't support search result embedding
+    default:
+      return undefined
+  }
 }
 
 // ============================================
@@ -125,22 +212,45 @@ function getBestPlatform(
 }
 
 /**
- * Generate a direct URL for a resource
+ * Resource URL result with visual content fields
+ */
+export interface ResourceUrlResult {
+  url: string
+  platformId: string
+  platformName: string
+  platformIcon: string
+  platformColor: string
+  thumbnailUrl?: string
+  embedUrl?: string
+  platformLogoUrl?: string
+}
+
+/**
+ * Generate a direct URL for a resource with thumbnails and embeds
  */
 export function generateResourceUrl(
   resourceType: string,
   searchQuery: string,
   subject: string
-): { url: string; platformId: string; platformName: string; platformIcon: string; platformColor: string } {
+): ResourceUrlResult {
   const { platform, fallbackId } = getBestPlatform(resourceType, subject, searchQuery)
 
   if (platform) {
+    const platformId = platform.id
+    const thumbnailUrl = generatePlatformThumbnail(platformId, resourceType, searchQuery)
+    const embedUrl = generateEmbedUrl(platformId, searchQuery)
+    // Get logo from fallback platforms if available
+    const fallbackMeta = FALLBACK_PLATFORMS[platformId]
+
     return {
       url: getPlatformSearchUrl(platform, searchQuery),
       platformId: platform.id,
       platformName: platform.name,
       platformIcon: platform.icon,
       platformColor: platform.color,
+      thumbnailUrl,
+      embedUrl,
+      platformLogoUrl: fallbackMeta?.logoUrl,
     }
   }
 
@@ -148,6 +258,8 @@ export function generateResourceUrl(
   const id = fallbackId || 'google'
   const urlPattern = FALLBACK_SEARCH_URLS[id] || FALLBACK_SEARCH_URLS['google']
   const meta = FALLBACK_PLATFORMS[id] || FALLBACK_PLATFORMS['google']
+  const thumbnailUrl = generatePlatformThumbnail(id, resourceType, searchQuery)
+  const embedUrl = generateEmbedUrl(id, searchQuery)
 
   return {
     url: urlPattern.replace('{query}', encodeURIComponent(searchQuery)),
@@ -155,6 +267,9 @@ export function generateResourceUrl(
     platformName: meta.name,
     platformIcon: meta.icon,
     platformColor: meta.color,
+    thumbnailUrl,
+    embedUrl,
+    platformLogoUrl: meta.logoUrl,
   }
 }
 
@@ -168,11 +283,16 @@ export function createSmartResource(
   const type = (input.type || 'article') as SmartResource['type']
   const searchQuery = input.searchQuery || input.title
 
-  const { url, platformId, platformName, platformIcon, platformColor } = generateResourceUrl(
-    type,
-    searchQuery,
-    subject
-  )
+  const {
+    url,
+    platformId,
+    platformName,
+    platformIcon,
+    platformColor,
+    thumbnailUrl,
+    embedUrl,
+    platformLogoUrl,
+  } = generateResourceUrl(type, searchQuery, subject)
 
   return {
     type,
@@ -184,6 +304,9 @@ export function createSmartResource(
     platformIcon,
     platformColor,
     directUrl: url,
+    thumbnailUrl,
+    embedUrl,
+    platformLogoUrl,
   }
 }
 

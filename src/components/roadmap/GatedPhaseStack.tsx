@@ -32,7 +32,7 @@ import { LockedGatePreview } from './LockedGatePreview'
 // TYPES
 // ============================================
 
-interface StepResource {
+export interface StepResource {
   type: string
   title: string
   description?: string
@@ -40,6 +40,9 @@ interface StepResource {
   platformId?: string
   platformName?: string
   directUrl?: string
+  thumbnailUrl?: string
+  embedUrl?: string
+  platformLogoUrl?: string
 }
 
 interface FailureCondition {
