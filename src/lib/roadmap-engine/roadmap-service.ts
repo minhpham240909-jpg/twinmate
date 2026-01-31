@@ -429,20 +429,33 @@ export async function completeStep(
     const isLastStep = stepIndex === roadmap.steps.length - 1
 
     if (isLastStep) {
-      // Roadmap complete!
-      await tx.learningRoadmap.update({
-        where: { id: roadmapId },
-        data: {
-          status: RoadmapStatus.COMPLETED,
-          completedSteps: newCompletedSteps,
-          currentStepIndex: stepIndex,
-          completedAt: new Date(),
-          lastActivityAt: new Date(),
-          actualMinutesSpent: {
-            increment: options.minutesSpent || step.duration,
-          },
-        },
+      // Roadmap complete! Delete it immediately instead of keeping it around
+      // First delete all steps (cascade should handle this, but be explicit)
+      await tx.roadmapStep.deleteMany({
+        where: { roadmapId },
       })
+
+      // Then delete the roadmap itself
+      await tx.learningRoadmap.delete({
+        where: { id: roadmapId },
+      })
+
+      // Return a "completed" roadmap object for the API response
+      // Even though it's deleted, we need to return something
+      return {
+        ...roadmap,
+        status: RoadmapStatus.COMPLETED,
+        completedSteps: newCompletedSteps,
+        currentStepIndex: stepIndex,
+        completedAt: new Date(),
+        lastActivityAt: new Date(),
+        actualMinutesSpent: (roadmap.actualMinutesSpent || 0) + (options.minutesSpent || step.duration),
+        steps: roadmap.steps.map((s, i) => ({
+          ...s,
+          status: i <= stepIndex ? RoadmapStepStatus.COMPLETED : s.status,
+          microTasks: [],
+        })),
+      } as RoadmapWithSteps
     } else {
       // Unlock next step
       const nextStep = roadmap.steps[stepIndex + 1]
@@ -465,30 +478,29 @@ export async function completeStep(
           },
         },
       })
-    }
 
-    // Return updated roadmap
-    const updated = await tx.learningRoadmap.findUnique({
-      where: { id: roadmapId },
-      include: {
-        steps: {
-          orderBy: { order: 'asc' },
+      // Return updated roadmap (only for non-last steps)
+      const updated = await tx.learningRoadmap.findUnique({
+        where: { id: roadmapId },
+        include: {
+          steps: {
+            orderBy: { order: 'asc' },
+          },
         },
-      },
-    })
+      })
 
-    if (!updated) {
-      throw new Error('Roadmap verification failed after completion')
+      if (!updated) {
+        throw new Error('Roadmap verification failed after completion')
+      }
+
+      // Return steps without microTasks - they're optional and table may not exist
+      const stepsWithEmptyMicroTasks = updated.steps.map((step) => ({
+        ...step,
+        microTasks: [],
+      }))
+
+      return { ...updated, steps: stepsWithEmptyMicroTasks } as RoadmapWithSteps
     }
-
-    // Return steps without microTasks - they're optional and table may not exist
-    // If microTasks are needed, fetch them separately outside this transaction
-    const stepsWithEmptyMicroTasks = updated.steps.map((step) => ({
-      ...step,
-      microTasks: [],
-    }))
-
-    return { ...updated, steps: stepsWithEmptyMicroTasks } as RoadmapWithSteps
   })
 }
 

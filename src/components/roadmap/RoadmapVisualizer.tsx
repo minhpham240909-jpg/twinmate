@@ -315,7 +315,7 @@ function ViewToggle({
       <button
         onClick={() => onViewChange('gated')}
         className={`
-          flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all
+          flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
           ${currentView === 'gated'
             ? 'bg-white dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 shadow-sm'
             : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
@@ -323,12 +323,12 @@ function ViewToggle({
         `}
       >
         <Layers className="w-3.5 h-3.5" />
-        <span>Training</span>
+        <span>Right Now</span>
       </button>
       <button
         onClick={() => onViewChange('structure')}
         className={`
-          flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all
+          flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
           ${currentView === 'structure'
             ? 'bg-white dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 shadow-sm'
             : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
@@ -336,7 +336,7 @@ function ViewToggle({
         `}
       >
         <LayoutGrid className="w-3.5 h-3.5" />
-        <span>Structure</span>
+        <span>Flow Diagram</span>
       </button>
     </div>
   )

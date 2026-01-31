@@ -81,25 +81,25 @@ import { generateResourceUrl } from './smart-resources'
 
 const PIPELINE_CONFIG = {
   // API Configuration
-  // Using gpt-4o-mini for balance of speed, quality, and cost
-  // For premium users, can upgrade to gpt-4o for even better quality
-  model: 'gpt-4o-mini', // Fast, smart, cost-effective
-  timeout: 60000,       // Increased timeout for longer content generation
+  // Using gpt-4o for PROFESSIONAL quality content
+  // The extra cost is worth it for comprehensive, detailed roadmaps
+  model: 'gpt-4o',      // Premium model for professional-grade content
+  timeout: 90000,       // Increased timeout for comprehensive content generation
 
   // Token limits per phase
-  // SIGNIFICANTLY INCREASED for deeper, more comprehensive roadmaps
-  // Users need rich, detailed content - not just brief summaries
+  // SIGNIFICANTLY INCREASED for professional-grade, comprehensive roadmaps
+  // Users need rich, detailed, professional content - not brief summaries
   tokens: {
-    diagnostic: 1500,   // Need thorough gap analysis and diagnosis
-    strategy: 2000,     // Need rich transformation narrative with clear vision
-    execution: 4000,    // DOUBLED - need detailed steps, micro-tasks, resources
+    diagnostic: 2000,   // Need thorough gap analysis and professional diagnosis
+    strategy: 2500,     // Need rich transformation narrative with clear vision
+    execution: 6000,    // LARGE - need comprehensive steps, detailed work processes, professional resources
   },
 
   // Temperature per phase (lower = more consistent, higher = more creative)
   temperature: {
     diagnostic: 0.3, // Very consistent for analysis
-    strategy: 0.4,   // Some creativity for vision, but grounded
-    execution: 0.3,  // SPECIFIC, consistent steps - no vagueness
+    strategy: 0.5,   // More creativity for compelling vision
+    execution: 0.4,  // Balance between creativity and precision
   },
 
   // Retry configuration - enhanced for reliability at scale
