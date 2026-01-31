@@ -66,7 +66,40 @@ interface EnhancedStep {
   previewAbilities?: string[]
   phase?: string
 
-  // NEW: Improved content structure
+  // LESSON SECTION (Understanding - 40%)
+  lesson?: {
+    title: string
+    subtitle?: string
+    duration: number
+    slides: {
+      order: number
+      title: string
+      concept: string
+      explanation: string
+      whyItMatters: string
+      whatHappensWithout: string
+      realWorldExample: string
+      analogyOrMetaphor?: string
+      visualHint?: string
+      keyTakeaway: string
+    }[]
+    resources?: {
+      type: string
+      title: string
+      description?: string
+      searchQuery?: string
+      priority?: number
+    }[]
+    understandingCheck?: {
+      question: string
+      correctAnswer: string
+      hint?: string
+    }
+    bridgeToActions: string
+  }
+  lessonCompleted?: boolean
+
+  // ACTION SECTION (Doing - 60%)
   todaysFocus?: {
     action: string
     where: string
@@ -216,7 +249,11 @@ function convertToGateSteps(
       isCurrent,
       phase: step.phase,
 
-      // NEW: Today's Focus and improved structure
+      // LESSON SECTION (Understanding - 40%)
+      lesson: step.lesson,
+      lessonCompleted: step.lessonCompleted,
+
+      // ACTION SECTION (Doing - 60%)
       todaysFocus: step.todaysFocus,
       whyThisMattersForYou: step.whyThisMattersForYou,
       exitConditions: step.exitConditions,

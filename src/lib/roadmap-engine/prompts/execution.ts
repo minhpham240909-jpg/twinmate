@@ -25,6 +25,55 @@ export interface MicroTask {
   proofRequired: boolean
 }
 
+// ============================================
+// LESSON SLIDES (Understanding section - 40% of step)
+// Explains the WHY before users do the actions
+// ============================================
+
+export interface LessonSlide {
+  order: number
+  title: string                    // Catchy, clear title for this slide
+
+  // Core content - the explanation
+  concept: string                  // Main concept being explained (1 sentence)
+  explanation: string              // Clear explanation (2-4 sentences)
+
+  // WHY it matters - critical for understanding
+  whyItMatters: string             // Why this matters for their goal
+  whatHappensWithout: string       // What fails if they skip this understanding
+
+  // Real-world connection
+  realWorldExample: string         // Concrete, specific, relatable example
+  analogyOrMetaphor?: string       // Simple analogy to help it click
+
+  // Visual/Memory aid
+  visualHint?: string              // Emoji or simple visual cue
+  keyTakeaway: string              // One sentence to remember (quotable)
+}
+
+export interface StepLesson {
+  // Lesson metadata
+  title: string                    // "Understanding [Topic]" or "Why [Concept] Matters"
+  subtitle?: string                // Hook that makes them want to learn
+  duration: number                 // Total lesson time in minutes (5-15 min)
+
+  // The slides (2-4 per step)
+  slides: LessonSlide[]
+
+  // Resources that support the lesson
+  resources?: StepResource[]       // Videos, articles that explain concepts
+
+  // Quiz/check before moving to actions
+  understandingCheck?: {
+    question: string               // "Before moving on, can you explain..."
+    correctAnswer: string          // What a good answer looks like
+    hint?: string                  // Help if they're stuck
+  }
+
+  // Bridge to the doing section
+  bridgeToActions: string          // "Now that you understand X, let's put it into practice by..."
+}
+
 export interface StepResource {
   type: 'video' | 'article' | 'exercise' | 'tool' | 'book'
   title: string
@@ -58,7 +107,18 @@ export interface CurrentStep {
   title: string
   description: string
 
-  // NEW: Today's Focus (most prominent)
+  // ============================================
+  // LESSON SECTION (Understanding - 40%)
+  // User must complete lesson before actions unlock
+  // ============================================
+  lesson?: StepLesson
+
+  // ============================================
+  // ACTION SECTION (Doing - 60%)
+  // Specific, detailed tasks to do
+  // ============================================
+
+  // NEW: Today's Focus (most prominent action)
   todaysFocus: TodaysFocus
 
   // NEW: Personalized why
@@ -70,8 +130,8 @@ export interface CurrentStep {
   // NEW: Common trap (warm mentor voice)
   commonTrap: CommonTrap
 
-  // Method
-  method: string // Day-by-day breakdown
+  // Method - detailed day-by-day actions
+  method: string // Day-by-day breakdown with WHERE, WHAT, HOW LONG
   timeBreakdown: {
     daily: string
     total: string
@@ -89,14 +149,15 @@ export interface CurrentStep {
   duration: number // Total minutes for step
   timeframe: string // "Days 1-3"
 
-  // Resources
+  // Resources (platforms, tools, videos, articles)
   resources: StepResource[]
 
   // Encouragement
   encouragement?: string
 
-  // Legacy fields (for backwards compatibility)
-  whyFirst?: string
+  // ============================================
+  // RISK & QUALITY (Transparency)
+  // ============================================
   risk?: {
     warning: string
     consequence: string
@@ -110,6 +171,9 @@ export interface CurrentStep {
     repeatRule: string
     qualityCheck: string
   }
+
+  // Legacy fields (for backwards compatibility)
+  whyFirst?: string
   doneWhen?: string
   selfTest?: {
     challenge: string
@@ -441,6 +505,45 @@ DONE: Verifiable completion criteria
 
 === CONTENT STRUCTURE PER STEP ===
 
+CRITICAL: Each step has TWO main sections:
+1. LESSON (Understanding - 40% of time) - Explains WHY, builds mental model
+2. ACTIONS (Doing - 60% of time) - Specific tasks with WHERE, WHAT, HOW, WHEN
+
+User flow: Lesson slides → Understanding check → Actions unlock → Do tasks → Exit check
+
+=== LESSON SECTION (Understanding - 40%) ===
+
+The lesson explains WHY before they DO. This prevents:
+- Blindly following steps without understanding
+- Making mistakes from lack of context
+- Forgetting because there's no mental framework
+
+Create 2-4 SLIDES per step:
+
+SLIDE STRUCTURE:
+1. CONCEPT: One clear sentence stating the concept
+2. EXPLANATION: 2-4 sentences explaining it simply
+3. WHY IT MATTERS: Why this matters for THEIR goal specifically
+4. WHAT HAPPENS WITHOUT: What fails if they skip this understanding
+5. REAL-WORLD EXAMPLE: Concrete, specific, relatable example
+6. KEY TAKEAWAY: One memorable sentence they'll remember
+
+LESSON QUALITY RULES:
+- NO jargon without explanation
+- NO "this is important" without saying WHY
+- Each slide builds on the previous
+- End with clear bridge to ACTIONS: "Now that you understand X, you're ready to..."
+- Include 1-2 video/article resources that explain the concepts
+
+UNDERSTANDING CHECK (Before actions unlock):
+- A simple question to verify they got it
+- "Before moving on, can you explain [concept] in your own words?"
+- Include what a good answer looks like
+
+=== ACTION SECTION (Doing - 60%) ===
+
+After the lesson, these are the hands-on tasks:
+
 1. TODAY'S FOCUS (The ONE thing to do right now)
    - Single, clear action they can start in the next 60 seconds
    - Include WHERE to go (specific URL or platform)
@@ -464,7 +567,7 @@ DONE: Verifiable completion criteria
    - What to do instead
    - Warm, mentor voice: "You'll be tempted to... I get it. But..."
 
-5. RESOURCES (Direct links to start learning)
+5. RESOURCES (Direct links to start doing)
    - 2-4 specific resources with search queries
    - Include type: video (for visual learners), article (for readers), exercise (for practice)
    - Prioritized: start with #1, others are optional
@@ -588,6 +691,44 @@ NO full method or daily breakdown for locked steps.
     "phase": "NOW",
     "title": "Action-oriented title that feels achievable",
     "description": "One encouraging sentence about what this step accomplishes",
+
+    "lesson": {
+      "title": "Understanding [Topic]: Why This Matters",
+      "subtitle": "A hook that makes them want to learn this",
+      "duration": 10,
+      "slides": [
+        {
+          "order": 1,
+          "title": "Slide title - clear and catchy",
+          "concept": "One sentence stating the core concept",
+          "explanation": "2-4 sentences explaining it clearly. No jargon. Simple language.",
+          "whyItMatters": "Why this matters specifically for their goal",
+          "whatHappensWithout": "What fails or breaks if they skip this understanding",
+          "realWorldExample": "Concrete, specific, relatable real-world example",
+          "visualHint": "emoji or visual suggestion",
+          "keyTakeaway": "One memorable sentence they'll remember"
+        },
+        {
+          "order": 2,
+          "title": "Second concept building on the first",
+          "concept": "Next concept stated clearly",
+          "explanation": "Clear explanation building on slide 1",
+          "whyItMatters": "Why this specific concept matters for them",
+          "whatHappensWithout": "What goes wrong without this",
+          "realWorldExample": "Another concrete example",
+          "keyTakeaway": "Key point to remember"
+        }
+      ],
+      "resources": [
+        {"type": "video", "title": "Explanation video", "description": "Why to watch this", "searchQuery": "query", "priority": 1}
+      ],
+      "understandingCheck": {
+        "question": "Before moving to practice, can you explain [concept] in your own words?",
+        "correctAnswer": "A good answer would include: [key points]",
+        "hint": "Think about [hint to help them]"
+      },
+      "bridgeToActions": "Now that you understand [concept], you're ready to put it into practice by..."
+    },
 
     "todaysFocus": {
       "action": "Single clear action they can do RIGHT NOW",
@@ -958,6 +1099,26 @@ export function parseExecutionResponse(response: string): ExecutionResult | null
     cs.successSignals.feelsLike = cs.successSignals.feelsLike || 'Calm confidence when the topic comes up'
     cs.successSignals.youllKnow = cs.successSignals.youllKnow || cs.successSignals.confidenceMarker || 'You can explain it without hesitation'
 
+    // NEW: Validate lesson structure if present
+    if (cs.lesson) {
+      cs.lesson.slides = cs.lesson.slides || []
+      cs.lesson.resources = cs.lesson.resources || []
+      cs.lesson.duration = cs.lesson.duration || 10
+
+      // Ensure each slide has required fields
+      cs.lesson.slides = cs.lesson.slides.map((slide: LessonSlide, index: number) => ({
+        order: slide.order || index + 1,
+        title: slide.title || `Concept ${index + 1}`,
+        concept: slide.concept || '',
+        explanation: slide.explanation || '',
+        whyItMatters: slide.whyItMatters || '',
+        whatHappensWithout: slide.whatHappensWithout || '',
+        realWorldExample: slide.realWorldExample || '',
+        visualHint: slide.visualHint,
+        keyTakeaway: slide.keyTakeaway || '',
+      }))
+    }
+
     // Legacy field defaults for backwards compatibility
     cs.commonMistakes = cs.commonMistakes || []
     cs.microTasks = cs.microTasks || []
@@ -1021,6 +1182,53 @@ export function createFallbackExecution(
       title: 'Build Your Foundation',
       description: `Let's start with the core fundamentals of ${goal}`,
 
+      // LESSON SECTION (Understanding - 40%)
+      lesson: {
+        title: `Understanding ${goal}: Why It Matters`,
+        subtitle: `Before diving in, let's understand what ${goal} really is and why it's worth learning`,
+        duration: hasLimitedTime ? 5 : 10,
+        slides: [
+          {
+            order: 1,
+            title: `What is ${goal}?`,
+            concept: `${goal} is a skill that allows you to achieve specific outcomes in your field.`,
+            explanation: `Think of ${goal} as a tool in your toolbox. Just like a hammer is designed for nails, ${goal} is designed for specific problems. Once you understand what problems it solves, you'll know exactly when and how to use it.`,
+            whyItMatters: `For your goal of mastering ${goal}, understanding the "what" prevents you from misusing it or using it for the wrong problems.`,
+            whatHappensWithout: `Without this understanding, people often try to apply ${goal} everywhere, wasting time on problems it wasn't designed to solve.`,
+            realWorldExample: `Imagine someone learning to cook - they need to understand what a knife is FOR (cutting, not stirring) before they can use it effectively.`,
+            visualHint: '🎯',
+            keyTakeaway: `${goal} is a specific tool for specific problems - understanding its purpose is step one.`,
+          },
+          {
+            order: 2,
+            title: 'Why Learn This Now?',
+            concept: 'The foundational concepts you learn first determine how fast you progress later.',
+            explanation: `Learning ${goal} is like building a house. The foundation isn't glamorous, but everything else depends on it. People who rush past fundamentals always come back to fix gaps later - often taking 3x longer than if they'd learned it right the first time.`,
+            whyItMatters: `Because you're ${isBeginnerLevel ? 'just starting' : 'building on existing knowledge'}, getting these basics right now will accelerate everything that comes after.`,
+            whatHappensWithout: 'Skipping fundamentals leads to confusion later. You\'ll hit walls and won\'t know why things aren\'t working.',
+            realWorldExample: 'It\'s like learning to drive - you could skip learning what the pedals do, but you\'ll crash pretty quickly.',
+            visualHint: '🏗️',
+            keyTakeaway: 'Fundamentals aren\'t boring - they\'re the reason experts make hard things look easy.',
+          },
+        ],
+        resources: [
+          {
+            type: 'video',
+            title: `${goal} Explained Simply`,
+            description: 'A clear overview that builds the mental model',
+            searchQuery: `${goal} explained for beginners what is`,
+            priority: 1,
+          },
+        ],
+        understandingCheck: {
+          question: `Can you explain what ${goal} is in one sentence, without using jargon?`,
+          correctAnswer: `A good answer describes what ${goal} DOES and what problems it SOLVES, not a textbook definition.`,
+          hint: 'Think about how you would explain it to a friend who has never heard of it.',
+        },
+        bridgeToActions: `Now that you understand what ${goal} is and why fundamentals matter, let's put it into practice...`,
+      },
+
+      // ACTION SECTION (Doing - 60%)
       todaysFocus: {
         action: `Watch a beginner-friendly video about ${goal} and write down 3 key takeaways`,
         where: 'YouTube',

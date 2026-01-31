@@ -43,6 +43,36 @@ export interface StepResource {
   thumbnailUrl?: string
   embedUrl?: string
   platformLogoUrl?: string
+  priority?: number
+}
+
+// Lesson slide for understanding section
+export interface LessonSlide {
+  order: number
+  title: string
+  concept: string
+  explanation: string
+  whyItMatters: string
+  whatHappensWithout: string
+  realWorldExample: string
+  analogyOrMetaphor?: string
+  visualHint?: string
+  keyTakeaway: string
+}
+
+// Lesson structure for understanding before doing
+export interface StepLesson {
+  title: string
+  subtitle?: string
+  duration: number
+  slides: LessonSlide[]
+  resources?: StepResource[]
+  understandingCheck?: {
+    question: string
+    correctAnswer: string
+    hint?: string
+  }
+  bridgeToActions: string
 }
 
 interface FailureCondition {
@@ -67,7 +97,14 @@ export interface GateStep {
   isCurrent?: boolean
   phase?: string
 
-  // NEW: Today's Focus (primary action)
+  // LESSON SECTION (Understanding - 40%)
+  // User completes lesson before actions unlock
+  lesson?: StepLesson
+  lessonCompleted?: boolean
+
+  // ACTION SECTION (Doing - 60%)
+
+  // Today's Focus (primary action)
   todaysFocus?: {
     action: string
     where: string
@@ -75,13 +112,13 @@ export interface GateStep {
     output: string
   }
 
-  // NEW: Personalized why
+  // Personalized why
   whyThisMattersForYou?: string
 
-  // NEW: Exit conditions (checkboxes)
+  // Exit conditions (checkboxes)
   exitConditions?: string[]
 
-  // NEW: Common trap (warm mentor voice)
+  // Common trap (warm mentor voice)
   commonTrap?: {
     temptation: string
     whyItFeelsRight: string
@@ -89,7 +126,7 @@ export interface GateStep {
     betterApproach: string
   }
 
-  // NEW: Encouragement
+  // Encouragement
   encouragement?: string
 
   // Gate-specific fields
@@ -167,6 +204,7 @@ interface GatedPhaseStackProps {
   // Handlers
   onGateClick?: (gateId: string) => void
   onComplete?: (gateId: string) => void
+  onLessonComplete?: (gateId: string) => void
   onResourceClick?: (resource: StepResource, gateId: string) => void
 }
 
@@ -184,6 +222,7 @@ export function GatedPhaseStack({
   criticalWarning,
   onGateClick,
   onComplete,
+  onLessonComplete,
   onResourceClick,
 }: GatedPhaseStackProps) {
   const [expandedGateId, setExpandedGateId] = useState<string | null>(
@@ -283,6 +322,7 @@ export function GatedPhaseStack({
             isExpanded={expandedGateId === currentGate.id}
             onToggle={() => handleGateClick(currentGate.id)}
             onComplete={() => onComplete?.(currentGate.id)}
+            onLessonComplete={() => onLessonComplete?.(currentGate.id)}
             onResourceClick={(resource) => onResourceClick?.(resource, currentGate.id)}
           />
         </div>

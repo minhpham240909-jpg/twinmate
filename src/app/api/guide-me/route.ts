@@ -1548,6 +1548,15 @@ function transformPipelineToRoadmapAction(output: PipelineOutput, question: stri
       milestone: output.currentStep.milestone,
       // Micro-tasks for task-based progression
       microTasks: output.currentStep.microTasks,
+      // LESSON SECTION (Understanding - 40%)
+      lesson: output.currentStep.lesson,
+      // ACTION SECTION improvements
+      todaysFocus: output.currentStep.todaysFocus,
+      whyThisMattersForYou: output.currentStep.whyThisMattersForYou,
+      exitConditions: output.currentStep.exitConditions,
+      commonTrap: output.currentStep.commonTrap,
+      successSignals: output.currentStep.successSignals,
+      encouragement: output.currentStep.encouragement,
     },
     // Locked steps (previews only)
     ...output.lockedSteps.map(ls => ({

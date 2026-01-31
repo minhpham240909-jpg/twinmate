@@ -491,7 +491,40 @@ export interface PipelineOutput {
     title: string
     description: string
 
-    // NEW: Today's Focus (primary action)
+    // LESSON SECTION (Understanding - 40%)
+    lesson?: {
+      title: string
+      subtitle?: string
+      duration: number
+      slides: {
+        order: number
+        title: string
+        concept: string
+        explanation: string
+        whyItMatters: string
+        whatHappensWithout: string
+        realWorldExample: string
+        analogyOrMetaphor?: string
+        visualHint?: string
+        keyTakeaway: string
+      }[]
+      resources?: {
+        type: string
+        title: string
+        description?: string
+        searchQuery?: string
+        priority?: number
+      }[]
+      understandingCheck?: {
+        question: string
+        correctAnswer: string
+        hint?: string
+      }
+      bridgeToActions: string
+    }
+
+    // ACTION SECTION (Doing - 60%)
+    // Today's Focus (primary action)
     todaysFocus?: {
       action: string
       where: string
@@ -499,13 +532,13 @@ export interface PipelineOutput {
       output: string
     }
 
-    // NEW: Personalized why
+    // Personalized why
     whyThisMattersForYou?: string
 
-    // NEW: Exit conditions (checkboxes)
+    // Exit conditions (checkboxes)
     exitConditions?: string[]
 
-    // NEW: Common trap (warm mentor voice)
+    // Common trap (warm mentor voice)
     commonTrap?: {
       temptation: string
       whyItFeelsRight: string
@@ -1283,16 +1316,20 @@ function assembleOutput(
       title: execution.currentStep.title,
       description: execution.currentStep.description,
 
-      // NEW: Today's Focus
+      // LESSON SECTION (Understanding - 40%)
+      lesson: execution.currentStep.lesson,
+
+      // ACTION SECTION (Doing - 60%)
+      // Today's Focus
       todaysFocus: execution.currentStep.todaysFocus,
 
-      // NEW: Personalized why
+      // Personalized why
       whyThisMattersForYou: execution.currentStep.whyThisMattersForYou,
 
-      // NEW: Exit conditions
+      // Exit conditions
       exitConditions: execution.currentStep.exitConditions,
 
-      // NEW: Common trap
+      // Common trap
       commonTrap: execution.currentStep.commonTrap,
 
       // Legacy fields
