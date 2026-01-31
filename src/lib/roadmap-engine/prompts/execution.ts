@@ -130,6 +130,26 @@ export interface LockedStep {
   resources: StepResource[]
 }
 
+export interface RoadmapVision {
+  // The big picture - where they're going
+  destination: string          // "By the end, you'll be able to..."
+  transformation: string       // Who they become (identity shift)
+  timeframe: string           // "In X weeks/days"
+
+  // The journey overview
+  phases: {
+    name: string              // "Foundation", "Building", "Mastery"
+    description: string       // What this phase accomplishes
+    stepsIncluded: number[]   // Which step numbers [1, 2, 3]
+  }[]
+
+  // What's NOT in this roadmap (clarity)
+  outOfScope: string[]        // "This roadmap doesn't cover..."
+
+  // Success preview
+  successPreview: string      // "Imagine being able to..."
+}
+
 export interface ExecutionResult {
   // Roadmap metadata
   title: string
@@ -137,6 +157,9 @@ export interface ExecutionResult {
   estimatedDays: number
   dailyCommitment: string
   totalMinutes: number
+
+  // NEW: Clear vision section at the top
+  vision?: RoadmapVision
 
   // NEW: Personalized intro
   personalizedIntro?: string
@@ -371,9 +394,12 @@ export const COMBINED_EXECUTION_PROMPT = `You are a warm, experienced mentor who
 {userProfile}
 
 === ROADMAP REQUIREMENTS ===
-Total steps: {totalSteps} (determined by scope and complexity)
+Total steps: {totalSteps} (this is a comprehensive journey, not a brief overview)
 Estimated days: {estimatedDays}
 Daily commitment: {dailyCommitment}
+
+IMPORTANT: Create ALL {totalSteps} steps. Each step should be meaningful and actionable.
+The roadmap must feel complete and comprehensive - not rushed or abbreviated.
 
 === YOUR VOICE & TONE ===
 Write like a supportive mentor, not a textbook. Be warm but honest.
@@ -382,20 +408,38 @@ Write like a supportive mentor, not a textbook. Be warm but honest.
 - Be encouraging but never fake or generic
 - Tell hard truths with kindness, not harshness
 
-GOOD TONE EXAMPLES:
-- "I know you only have {dailyCommitment} per day - that's totally enough. Here's what matters most..."
-- "This might feel slow at first, and that's completely normal. Trust the process."
-- "Most people skip this and regret it later. Don't be most people."
-- "You've got this. But only if you actually do it, not just read about it."
+=== VISION SECTION (CRITICAL - This goes at the TOP) ===
 
-BAD TONE EXAMPLES:
-- "You MUST complete this or you will FAIL" (too harsh)
-- "Great job! You're amazing!" (fake cheerleading)
-- "Step 1: Learn X. Step 2: Learn Y." (robotic)
+Before the steps, create a CLEAR VISION that answers:
+1. DESTINATION: "By the end of this roadmap, you'll be able to..." (specific, concrete outcome)
+2. TRANSFORMATION: Who they become (not just what they know, but their new identity)
+3. TIMEFRAME: Realistic timeline based on their daily commitment
+4. PHASES: Group steps into 2-3 phases with clear names:
+   - Phase 1: "Foundation" (Steps 1-3) - Building blocks
+   - Phase 2: "Building" (Steps 4-6) - Putting it together
+   - Phase 3: "Mastery" (Steps 7+) - Real application
+5. OUT OF SCOPE: What this roadmap does NOT cover (manage expectations)
+6. SUCCESS PREVIEW: "Imagine being able to..." (motivating vision)
 
-=== CONTENT STRUCTURE (CRITICAL) ===
+=== STEP STRUCTURE (Each step MUST follow this format) ===
 
-Each gate MUST have these sections in this order:
+WHAT: Clear, specific action (not vague "learn X")
+- Title is an action verb: "Build", "Create", "Practice", not "Understanding" or "Learning"
+- Description explains exactly what they'll do
+
+HOW: Detailed method with zero ambiguity
+- Day-by-day breakdown with specific times
+- WHERE to go (exact platform/URL)
+- WHAT to do (exact action)
+- HOW LONG (exact minutes)
+- Example: "Day 1 (15 min): Go to youtube.com, search 'X tutorial 2024'. Watch first 10 min. Write 3 key points."
+
+DONE: Verifiable completion criteria
+- NOT: "Understand X"
+- YES: "Can do X without looking at notes in under 2 minutes"
+- Each exit condition is testable
+
+=== CONTENT STRUCTURE PER STEP ===
 
 1. TODAY'S FOCUS (The ONE thing to do right now)
    - Single, clear action they can start in the next 60 seconds
@@ -410,7 +454,7 @@ Each gate MUST have these sections in this order:
    - "Because you're [their context], this is especially important..."
 
 3. EXIT CONDITIONS (Checkboxes - when you're ready to move on)
-   - 2-4 specific, provable criteria
+   - 3-5 specific, provable criteria
    - NOT "understand X" but "can DO X without looking"
    - Each one should be testable in under 5 minutes
 
@@ -421,7 +465,8 @@ Each gate MUST have these sections in this order:
    - Warm, mentor voice: "You'll be tempted to... I get it. But..."
 
 5. RESOURCES (Direct links to start learning)
-   - 1-3 specific resources with search queries
+   - 2-4 specific resources with search queries
+   - Include type: video (for visual learners), article (for readers), exercise (for practice)
    - Prioritized: start with #1, others are optional
 
 === QUALITY REQUIREMENTS ===
@@ -523,6 +568,20 @@ NO full method or daily breakdown for locked steps.
   "estimatedDays": {estimatedDays},
   "dailyCommitment": "{dailyCommitment}",
   "totalMinutes": 180,
+
+  "vision": {
+    "destination": "By the end of this roadmap, you'll be able to [specific concrete outcome]",
+    "transformation": "You'll go from [current state] to [new identity]",
+    "timeframe": "In approximately X weeks with {dailyCommitment} daily",
+    "phases": [
+      {"name": "Foundation", "description": "Building the essential blocks", "stepsIncluded": [1, 2, 3]},
+      {"name": "Building", "description": "Putting concepts into practice", "stepsIncluded": [4, 5, 6]},
+      {"name": "Mastery", "description": "Real-world application", "stepsIncluded": [7, 8]}
+    ],
+    "outOfScope": ["What this roadmap doesn't cover 1", "What it doesn't cover 2"],
+    "successPreview": "Imagine being able to [vivid description of success]..."
+  },
+
   "personalizedIntro": "A warm 2-3 sentence intro that references their specific situation and goals. Make them feel seen.",
   "currentStep": {
     "order": 1,
@@ -699,14 +758,19 @@ export const EXECUTION_RESPONSE_FORMAT = `{
 export function calculateStepCount(diagnostic: DiagnosticResult): number {
   const { scope, urgency } = diagnostic.goal
 
-  // Base count by scope
-  let count = 3
-  if (scope === 'moderate') count = 4
-  if (scope === 'broad') count = 5
+  // IMPROVED: More steps for deeper, more comprehensive roadmaps
+  // Users need enough content to actually learn, not just a brief overview
 
-  // Adjust by urgency (immediate = fewer, more focused steps)
-  if (urgency === 'immediate') count = Math.max(2, count - 1)
-  if (urgency === 'long_term') count = Math.min(6, count + 1)
+  // Base count by scope - INCREASED for better depth
+  let count = 6  // Minimum 6 steps for meaningful learning
+  if (scope === 'moderate') count = 8
+  if (scope === 'broad') count = 10
+
+  // Adjust by urgency
+  // immediate = focused but still comprehensive (min 5 steps)
+  // long_term = full detailed journey (up to 12 steps)
+  if (urgency === 'immediate') count = Math.max(5, count - 1)
+  if (urgency === 'long_term') count = Math.min(12, count + 2)
 
   return count
 }

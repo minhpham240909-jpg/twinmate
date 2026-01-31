@@ -84,27 +84,26 @@ const PIPELINE_CONFIG = {
   // Using gpt-4o-mini for balance of speed, quality, and cost
   // For premium users, can upgrade to gpt-4o for even better quality
   model: 'gpt-4o-mini', // Fast, smart, cost-effective
-  timeout: 45000,
+  timeout: 60000,       // Increased timeout for longer content generation
 
   // Token limits per phase
-  // INCREASED for better quality - the execution phase especially needs more tokens
-  // for detailed, actionable micro-tasks
+  // SIGNIFICANTLY INCREASED for deeper, more comprehensive roadmaps
+  // Users need rich, detailed content - not just brief summaries
   tokens: {
-    diagnostic: 1000,   // Increased from 800 - need thorough gap analysis
-    strategy: 1200,     // Increased from 1000 - need rich transformation narrative
-    execution: 2500,    // SIGNIFICANTLY increased from 1500 - this is where actionability lives
+    diagnostic: 1500,   // Need thorough gap analysis and diagnosis
+    strategy: 2000,     // Need rich transformation narrative with clear vision
+    execution: 4000,    // DOUBLED - need detailed steps, micro-tasks, resources
   },
 
   // Temperature per phase (lower = more consistent, higher = more creative)
-  // Execution phase lowered to ensure consistent, specific actionable output
   temperature: {
     diagnostic: 0.3, // Very consistent for analysis
-    strategy: 0.5,   // Some creativity for vision
-    execution: 0.3,  // LOWERED from 0.4 - we want SPECIFIC, consistent steps
+    strategy: 0.4,   // Some creativity for vision, but grounded
+    execution: 0.3,  // SPECIFIC, consistent steps - no vagueness
   },
 
   // Retry configuration - enhanced for reliability at scale
-  maxRetries: 3,        // Increased from 2 for better resilience
+  maxRetries: 3,
   retryDelay: 500,
   retryBackoffMultiplier: 2, // Exponential backoff
   maxRetryDelay: 5000,  // Cap retry delay at 5 seconds
@@ -420,11 +419,26 @@ export interface PipelineInput {
   dailyCommitmentMinutes?: number // User's daily learning time (5, 15, 30, 45, 60 min)
 }
 
+// Vision structure for roadmap overview
+export interface RoadmapVisionOutput {
+  destination: string          // "By the end, you'll be able to..."
+  transformation: string       // Who they become (identity shift)
+  timeframe: string           // "In X weeks/days"
+  phases: {
+    name: string              // "Foundation", "Building", "Mastery"
+    description: string       // What this phase accomplishes
+    stepsIncluded: number[]   // Which step numbers [1, 2, 3]
+  }[]
+  outOfScope: string[]        // "This roadmap doesn't cover..."
+  successPreview: string      // "Imagine being able to..."
+}
+
 export interface PipelineOutput {
   // Roadmap metadata
   title: string
   overview: string
-  vision: string
+  vision: string              // Legacy: simple vision string
+  visionDetails?: RoadmapVisionOutput  // NEW: Detailed vision structure
   targetUser: string
 
   // Progress tracking
@@ -1217,11 +1231,22 @@ function assembleOutput(
     ...strategy.risks.common.map(c => `${c.mistake} → ${c.consequence}`),
   ]
 
+  // Build vision details from execution if available
+  const visionDetails = execution.vision ? {
+    destination: execution.vision.destination,
+    transformation: execution.vision.transformation,
+    timeframe: execution.vision.timeframe,
+    phases: execution.vision.phases,
+    outOfScope: execution.vision.outOfScope,
+    successPreview: execution.vision.successPreview,
+  } : undefined
+
   return {
     // Metadata
     title: execution.title,
     overview: strategy.transformation.narrative,
     vision: strategy.transformation.vision,
+    visionDetails,  // NEW: Detailed vision structure
     targetUser: strategy.transformation.identity,
 
     // Progress tracking
@@ -1233,7 +1258,7 @@ function assembleOutput(
     // Success criteria
     successLooksLike: strategy.success.looksLike,
     successMetrics: strategy.success.metrics,
-    outOfScope: strategy.success.outOfScope,
+    outOfScope: visionDetails?.outOfScope || strategy.success.outOfScope,
 
     // ELITE: Enhanced content from diagnostic and strategy
     successFeelsLike: strategy.success.feelsLike,

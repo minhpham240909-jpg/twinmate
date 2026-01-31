@@ -108,6 +108,20 @@ interface CriticalWarning {
   severity: 'CRITICAL'
 }
 
+// Vision details structure
+interface VisionDetails {
+  destination?: string
+  transformation?: string
+  timeframe?: string
+  phases?: {
+    name: string
+    description: string
+    stepsIncluded: number[]
+  }[]
+  outOfScope?: string[]
+  successPreview?: string
+}
+
 interface RoadmapVisualizerProps {
   roadmapId: string
   steps: EnhancedStep[]
@@ -121,6 +135,7 @@ interface RoadmapVisualizerProps {
   successLooksLike?: string
   // Vision & Strategy fields
   vision?: string
+  visionDetails?: VisionDetails  // NEW: Detailed vision
   targetUser?: string
   successMetrics?: string[]
   outOfScope?: string[]
@@ -307,6 +322,7 @@ export function RoadmapVisualizer({
   successLooksLike,
   // Vision & Strategy fields
   vision,
+  visionDetails,
   targetUser,
   successMetrics,
   outOfScope,
@@ -382,14 +398,16 @@ export function RoadmapVisualizer({
   return (
     <div className="relative space-y-4">
       {/* Vision Banner - Shows transformation narrative */}
-      {showVisionBanner && (vision || targetUser || successMetrics?.length) && (
+      {showVisionBanner && (vision || visionDetails || targetUser || successMetrics?.length) && (
         <VisionBanner
           vision={vision}
+          visionDetails={visionDetails}
           targetUser={targetUser}
           successMetrics={successMetrics}
           outOfScope={outOfScope}
           estimatedDays={estimatedDays}
           dailyCommitment={dailyCommitment}
+          totalSteps={steps.length}
           defaultExpanded={false}
         />
       )}
