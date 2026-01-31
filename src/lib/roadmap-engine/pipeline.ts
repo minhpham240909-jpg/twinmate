@@ -67,6 +67,14 @@ import {
 } from './prompts/execution'
 
 import {
+  RESOURCE_RESEARCH_PROMPT,
+  parseResourceResearchResponse,
+  createFallbackResources,
+  formatResourcesForExecution,
+  type ResourceResearchResult,
+} from './prompts/resources'
+
+import {
   getPlatformsForSubject,
   getPlatformSearchUrl,
   detectCategory,
@@ -780,17 +788,33 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
     logger.info('[Pipeline] Strategy complete', { duration: timings.strategy })
 
     // ============================================
+    // PHASE 2.5: RESOURCE RESEARCH (with retry)
+    // NEW: Research real, specific resources for this topic BEFORE execution
+    // ============================================
+    logger.info('[Pipeline] Starting resource research phase')
+    const resourceStart = Date.now()
+
+    const resources = await executeWithRetry(
+      'execution', // Use execution for retry tracking since it's part of that phase
+      () => runResourceResearchPhase(diagnostic.goal.clarified),
+      () => createFallbackResources(diagnostic.goal.clarified)
+    )
+    const resourceDuration = Date.now() - resourceStart
+    logger.info('[Pipeline] Resource research complete', { duration: resourceDuration })
+
+    // ============================================
     // PHASE 3: EXECUTION (with retry)
+    // Now includes researched resources for specific, real content
     // ============================================
     logger.info('[Pipeline] Starting execution phase')
     const executionStart = Date.now()
 
     const execution = await executeWithRetry(
       'execution',
-      () => runExecutionPhase(diagnostic, strategy, sanitizedInput.dailyCommitmentMinutes),
+      () => runExecutionPhase(diagnostic, strategy, sanitizedInput.dailyCommitmentMinutes, resources),
       () => createFallbackExecution(diagnostic, strategy)
     )
-    timings.execution = Date.now() - executionStart
+    timings.execution = Date.now() - executionStart + resourceDuration // Include resource research time
     logger.info('[Pipeline] Execution complete', { duration: timings.execution })
 
     // ============================================
@@ -919,6 +943,53 @@ ${DIAGNOSTIC_RESPONSE_FORMAT}`
 }
 
 /**
+ * Phase 2.5: Resource Research - Find real, specific resources for the topic
+ * This runs BEFORE execution to provide real resource names
+ */
+async function runResourceResearchPhase(topic: string): Promise<ResourceResearchResult> {
+  const openai = getOpenAI()
+
+  const userPrompt = `Research real, specific learning resources for this topic: "${topic}"
+
+Return ONLY real resources that actually exist. Include specific names, platforms, and why each is credible.
+
+Output valid JSON only.`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: PIPELINE_CONFIG.model,
+      messages: [
+        { role: 'system', content: RESOURCE_RESEARCH_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.3, // Low temperature for factual accuracy
+      max_tokens: 2000,
+      response_format: { type: 'json_object' },
+    })
+
+    const responseText = completion.choices[0]?.message?.content || ''
+    const parsed = parseResourceResearchResponse(responseText)
+
+    if (!parsed) {
+      logger.warn('[Pipeline] Resource research parse failed, using fallback')
+      return createFallbackResources(topic)
+    }
+
+    logger.info('[Pipeline] Resource research successful', {
+      topic: parsed.topic,
+      category: parsed.category,
+      videoCount: parsed.videos.length,
+      articleCount: parsed.articles.length,
+    })
+
+    return parsed
+  } catch (error) {
+    logger.error('[Pipeline] Resource research API error', error instanceof Error ? error : { error })
+    return createFallbackResources(topic)
+  }
+}
+
+/**
  * Phase 2: Strategy - Design the transformation and assess risks
  */
 async function runStrategyPhase(
@@ -975,12 +1046,16 @@ ${STRATEGY_RESPONSE_FORMAT}`
 
 /**
  * Phase 3: Execution - Create detailed steps
- * Now enhanced with Layer 1 Clerva Doctrine and Layer 2 Domain Intelligence
+ * Now enhanced with:
+ * - Layer 1 Clerva Doctrine
+ * - Layer 2 Domain Intelligence
+ * - Researched real resources from Phase 2.5
  */
 async function runExecutionPhase(
   diagnostic: DiagnosticResult,
   strategy: StrategyResult,
-  dailyCommitmentMinutes?: number
+  dailyCommitmentMinutes?: number,
+  resources?: ResourceResearchResult
 ): Promise<ExecutionResult> {
   const openai = getOpenAI()
 
@@ -1029,6 +1104,15 @@ ${dailyCommitmentMinutes <= 15
   ? '→ Create COMPREHENSIVE steps (15-30 min each). User can handle depth. Include practice and application.'
   : '→ Create BALANCED steps (10-20 min each). Mix of quick and deeper content.'}
 IMPORTANT: Set each step\'s "duration" field to match the user\'s available time.` : ''}
+
+${resources ? `## RESEARCHED RESOURCES (USE THESE - THEY ARE REAL AND VERIFIED)
+${formatResourcesForExecution(resources)}
+
+CRITICAL: Use the resources above in your roadmap. These are REAL, VERIFIED resources that exist.
+- Use the exact titles and platform names provided
+- Include the URLs if provided
+- Reference the credibility markers in descriptions
+- Match resources to appropriate steps based on "bestFor" descriptions` : ''}
 `
 
   const userPrompt = `Create the execution plan with ${stepCount} total steps.

@@ -685,6 +685,20 @@ After the lesson, SUBSTANTIAL hands-on work:
 
 === QUALITY REQUIREMENTS (CRITICAL - Read This Carefully) ===
 
+SPECIFIC RESOURCES REQUIREMENT:
+You will receive RESEARCHED RESOURCES in the prompt - these are REAL, VERIFIED resources.
+USE THEM in your roadmap. Do not invent generic placeholders.
+
+If researched resources are provided:
+- Use the exact titles and platforms from the researched resources
+- Include URLs if provided
+- Match resources to steps based on their "bestFor" descriptions
+
+If no researched resources are provided, use your knowledge to generate REAL resource names:
+- Use actual platform names (YouTube channel names, course instructor names)
+- Reference real documentation sites (docs.python.org, MDN, react.dev)
+- Include credibility markers (subscriber counts, official docs)
+
 PROFESSIONAL QUALITY STANDARD:
 This roadmap will be used by college students, professionals, and serious learners.
 Content must meet PROFESSIONAL education standards:
@@ -921,7 +935,7 @@ NO full method or daily breakdown for locked steps.
         }
       ],
       "resources": [
-        {"type": "article", "title": "Official Documentation - Getting Started", "description": "The authoritative source", "searchQuery": "[topic] official documentation getting started", "priority": 1}
+        {"type": "article", "title": "[Use researched resource title]", "description": "[Use researched resource description and credibility]", "searchQuery": "[Use researched resource searchQuery]", "priority": 1}
       ],
       "understandingCheck": {
         "question": "How would you explain [concept] in a job interview?",
@@ -932,10 +946,10 @@ NO full method or daily breakdown for locked steps.
     },
 
     "todaysFocus": {
-      "action": "Read the official getting-started guide and complete the interactive tutorial",
-      "where": "Official documentation site (e.g., docs.python.org, developer.mozilla.org)",
-      "duration": "60-90 min",
-      "output": "Working development environment + notes on key concepts"
+      "action": "[Use researched 'startWith' resource - specific action based on the resource]",
+      "where": "[Use researched resource platform and URL]",
+      "duration": "60-120 min (realistic based on content)",
+      "output": "[Specific deliverable: notes, working code, completed exercises]"
     },
 
     "whyThisMattersForYou": "Given your goal of [specific goal], mastering these fundamentals now prevents frustration later. This is exactly what hiring managers look for.",
@@ -972,9 +986,9 @@ NO full method or daily breakdown for locked steps.
     "timeframe": "3-5 sessions over 1-2 weeks",
 
     "resources": [
-      {"type": "article", "title": "Official Documentation", "description": "The authoritative source - professionals use this daily", "searchQuery": "[topic] official documentation", "priority": 1},
-      {"type": "video", "title": "Comprehensive Video Course", "description": "Visual explanation of core concepts", "searchQuery": "[topic] complete course [current year]", "priority": 2},
-      {"type": "exercise", "title": "Interactive Practice Platform", "description": "Hands-on coding exercises", "searchQuery": "[topic] practice exercises online", "priority": 3}
+      {"type": "article", "title": "[From researched officialDocs or articles]", "description": "[Include credibility from research]", "searchQuery": "[From research]", "priority": 1},
+      {"type": "video", "title": "[From researched videos - use exact title]", "description": "[Include credibility: subscriber count, reputation]", "searchQuery": "[From research]", "priority": 2},
+      {"type": "exercise", "title": "[From researched exercises]", "description": "[Include why this platform is good]", "searchQuery": "[From research]", "priority": 3}
     ],
 
     "encouragement": "This is substantial work - that's intentional. You're building real professional skills, not just checking boxes."
@@ -989,7 +1003,7 @@ NO full method or daily breakdown for locked steps.
       "teaser": "This is where theory becomes practical skill you can show employers",
       "milestone": "First Project Complete",
       "estimatedDuration": 300,
-      "resources": [{"type": "exercise", "title": "Project-Based Tutorial", "searchQuery": "[topic] build project tutorial", "priority": 1}]
+      "resources": [{"type": "exercise", "title": "[From researched resources for this step]", "searchQuery": "[From research]", "priority": 1}]
     }
   ],
   "criticalWarning": {
