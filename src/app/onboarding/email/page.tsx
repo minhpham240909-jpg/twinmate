@@ -15,50 +15,15 @@ export default function OnboardingStep3() {
   useEffect(() => {
     async function getOrCreateAddress() {
       try {
-        // Wait for the auth session to be ready
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session?.user) {
-          setError('Not signed in. Please sign in and try again.')
-          setLoading(false)
-          return
-        }
+        const res = await fetch('/api/email/setup', { method: 'POST' })
+        const data = await res.json()
 
-        const userId = session.user.id
-
-        // Check if address already exists (use maybeSingle to avoid 406 on no rows)
-        const { data: existing } = await supabase
-          .from('email_addresses')
-          .select('inbound_address')
-          .eq('user_id', userId)
-          .maybeSingle()
-
-        if (existing) {
-          setInboundAddress(existing.inbound_address)
-          setLoading(false)
-          return
-        }
-
-        // Generate a new address
-        const hash = userId.replace(/-/g, '').substring(0, 10)
-        const address = `leads-${hash}@inbound.clerva.app`
-
-        const { error: insertError } = await supabase.from('email_addresses').insert({
-          user_id: userId,
-          inbound_address: address,
-        })
-
-        if (!insertError) {
-          setInboundAddress(address)
-        } else if (insertError.code === '23505') {
-          // Unique constraint — another request already created it, re-fetch
-          const { data: refetched } = await supabase
-            .from('email_addresses')
-            .select('inbound_address')
-            .eq('user_id', userId)
-            .maybeSingle()
-          if (refetched) setInboundAddress(refetched.inbound_address)
+        if (!res.ok) {
+          console.error('Email setup error:', data.error)
+          setError('Could not generate your email address. You can skip this step and set it up later in Settings.')
+        } else if (data.address) {
+          setInboundAddress(data.address)
         } else {
-          console.error('Failed to create email address:', insertError)
           setError('Could not generate your email address. You can skip this step and set it up later in Settings.')
         }
       } catch (err) {
@@ -69,7 +34,7 @@ export default function OnboardingStep3() {
     }
 
     getOrCreateAddress()
-  }, [supabase])
+  }, [])
 
   async function handleFinish() {
     setLoading(true)
