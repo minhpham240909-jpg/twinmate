@@ -8,46 +8,62 @@ export default function OnboardingStep3() {
   const [inboundAddress, setInboundAddress] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     async function getOrCreateAddress() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        // Wait for the auth session to be ready
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) {
+          setError('Not signed in. Please sign in and try again.')
+          setLoading(false)
+          return
+        }
 
-      // Check if address already exists
-      const { data: existing } = await supabase
-        .from('email_addresses')
-        .select('inbound_address')
-        .eq('user_id', user.id)
-        .single()
+        const userId = session.user.id
 
-      if (existing) {
-        setInboundAddress(existing.inbound_address)
-        setLoading(false)
-        return
-      }
-
-      // Generate a new address
-      const hash = user.id.replace(/-/g, '').substring(0, 10)
-      const address = `leads-${hash}@inbound.clerva.app`
-
-      const { error } = await supabase.from('email_addresses').insert({
-        user_id: user.id,
-        inbound_address: address,
-      })
-
-      if (!error) {
-        setInboundAddress(address)
-      } else if (error.code === '23505') {
-        // Unique constraint — another request already created it, re-fetch
-        const { data: refetched } = await supabase
+        // Check if address already exists (use maybeSingle to avoid 406 on no rows)
+        const { data: existing } = await supabase
           .from('email_addresses')
           .select('inbound_address')
-          .eq('user_id', user.id)
-          .single()
-        if (refetched) setInboundAddress(refetched.inbound_address)
+          .eq('user_id', userId)
+          .maybeSingle()
+
+        if (existing) {
+          setInboundAddress(existing.inbound_address)
+          setLoading(false)
+          return
+        }
+
+        // Generate a new address
+        const hash = userId.replace(/-/g, '').substring(0, 10)
+        const address = `leads-${hash}@inbound.clerva.app`
+
+        const { error: insertError } = await supabase.from('email_addresses').insert({
+          user_id: userId,
+          inbound_address: address,
+        })
+
+        if (!insertError) {
+          setInboundAddress(address)
+        } else if (insertError.code === '23505') {
+          // Unique constraint — another request already created it, re-fetch
+          const { data: refetched } = await supabase
+            .from('email_addresses')
+            .select('inbound_address')
+            .eq('user_id', userId)
+            .maybeSingle()
+          if (refetched) setInboundAddress(refetched.inbound_address)
+        } else {
+          console.error('Failed to create email address:', insertError)
+          setError('Could not generate your email address. You can skip this step and set it up later in Settings.')
+        }
+      } catch (err) {
+        console.error('Email setup error:', err)
+        setError('Something went wrong. You can skip this step and set it up later in Settings.')
       }
       setLoading(false)
     }
@@ -57,13 +73,13 @@ export default function OnboardingStep3() {
 
   async function handleFinish() {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
 
     await supabase
       .from('profiles')
       .update({ onboarding_completed: true })
-      .eq('id', user.id)
+      .eq('id', session.user.id)
 
     router.push('/dashboard')
   }
@@ -86,6 +102,18 @@ export default function OnboardingStep3() {
         Forward your inquiry emails to this address. Adecis will score them
         automatically.
       </p>
+
+      {loading && (
+        <div className="text-center py-4 text-gray-400 text-sm">
+          Setting up your email address...
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="bg-red-50 rounded-md p-4 mb-6">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
 
       {!loading && inboundAddress && (
         <>
@@ -121,12 +149,6 @@ export default function OnboardingStep3() {
             </ol>
           </div>
         </>
-      )}
-
-      {loading && (
-        <div className="text-center py-4 text-gray-400 text-sm">
-          Setting up your email address...
-        </div>
       )}
 
       <button
