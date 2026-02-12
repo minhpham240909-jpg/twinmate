@@ -29,6 +29,7 @@ export default function SettingsClient({
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [emailCopied, setEmailCopied] = useState(false)
+  const [showEmailTips, setShowEmailTips] = useState(false)
 
   async function handleSave() {
     setSaving(true)
@@ -214,15 +215,28 @@ export default function SettingsClient({
 
       {/* Email Section */}
       <div className="bg-white rounded-lg shadow-sm border p-5">
-        <h2 className="text-sm font-medium text-gray-900 mb-3">
-          Email Forwarding
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-gray-900">
+            Email Forwarding
+          </h2>
+          {initialEmailAddress && (
+            <button
+              onClick={() => setShowEmailTips((v) => !v)}
+              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {showEmailTips ? 'Hide tips' : 'Setup tips'}
+            </button>
+          )}
+        </div>
         {initialEmailAddress ? (
           <div>
             <p className="text-sm text-gray-500 mb-2">
               Forward inquiry emails to this address. Adecis will score them automatically.
             </p>
-            <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
+            <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between mb-4">
               <code className="text-sm text-gray-700 break-all">
                 {initialEmailAddress}
               </code>
@@ -233,6 +247,41 @@ export default function SettingsClient({
                 {emailCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
+
+            {showEmailTips && (
+              <div className="bg-blue-50 rounded-md p-4">
+                <h3 className="text-sm font-medium text-blue-900 mb-2">
+                  How to set up forwarding
+                </h3>
+
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-blue-800 mb-1">Gmail</p>
+                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                    <li>Go to Settings → Forwarding and POP/IMAP</li>
+                    <li>Click &quot;Add a forwarding address&quot;</li>
+                    <li>Paste your Adecis email address above</li>
+                    <li>Confirm via the verification email</li>
+                    <li>Create a filter to forward inquiry emails automatically</li>
+                  </ol>
+                </div>
+
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-blue-800 mb-1">Outlook</p>
+                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                    <li>Go to Settings → Mail → Forwarding</li>
+                    <li>Enable forwarding</li>
+                    <li>Paste your Adecis email address above</li>
+                    <li>Optionally keep a copy in your inbox</li>
+                  </ol>
+                </div>
+
+                <div className="bg-blue-100/50 rounded p-2.5 mt-2">
+                  <p className="text-xs text-blue-800">
+                    <strong>Tip:</strong> Only forward your inquiry/contact form emails — not your entire inbox. Use a filter so only leads get scored.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div>

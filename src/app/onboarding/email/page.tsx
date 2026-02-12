@@ -95,23 +95,36 @@ export default function OnboardingStep3() {
           </div>
 
           <div className="bg-blue-50 rounded-md p-4 mb-6">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">
+            <h3 className="text-sm font-medium text-blue-900 mb-3">
               How to set up forwarding
             </h3>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>
-                Go to your email settings (Gmail, Outlook, etc.)
-              </li>
-              <li>
-                Set up a forwarding rule for your inquiry/contact emails
-              </li>
-              <li>
-                Forward them to the address above
-              </li>
-              <li>
-                That&apos;s it — leads will appear in your dashboard and Slack
-              </li>
-            </ol>
+
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-blue-800 mb-1">Gmail</p>
+              <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                <li>Go to Settings → Forwarding and POP/IMAP</li>
+                <li>Click &quot;Add a forwarding address&quot;</li>
+                <li>Paste your Adecis email address above</li>
+                <li>Confirm via the verification email</li>
+                <li>Create a filter to forward inquiry emails automatically</li>
+              </ol>
+            </div>
+
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-blue-800 mb-1">Outlook</p>
+              <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                <li>Go to Settings → Mail → Forwarding</li>
+                <li>Enable forwarding</li>
+                <li>Paste your Adecis email address above</li>
+                <li>Optionally keep a copy in your inbox</li>
+              </ol>
+            </div>
+
+            <div className="bg-blue-100/50 rounded p-2.5 mt-2">
+              <p className="text-xs text-blue-800">
+                <strong>Tip:</strong> Only forward your inquiry/contact form emails — not your entire inbox. Use a filter so only leads get scored.
+              </p>
+            </div>
           </div>
         </>
       )}
