@@ -4,144 +4,167 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
-      <nav className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-        <span className="font-bold text-gray-900">Adecis</span>
-        <div className="flex items-center gap-4 text-sm">
-          <Link href="/login" className="text-gray-600 hover:text-gray-900">
-            Sign in
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-xl font-bold text-gray-900 tracking-tight">
+            Adecis
           </Link>
-          <Link
-            href="/signup"
-            className="bg-blue-600 text-white rounded-md px-4 py-2 hover:bg-blue-700 transition-colors"
-          >
-            Start Free Trial
-          </Link>
+          <div className="flex items-center gap-5 text-sm">
+            <Link
+              href="/login"
+              className="text-gray-500 hover:text-gray-900 transition-colors font-medium"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/signup"
+              className="bg-blue-600 text-white rounded-lg px-5 py-2.5 font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              Start Free Trial
+            </Link>
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <main className="max-w-4xl mx-auto px-4 pt-20 pb-16">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl font-bold text-gray-900 leading-tight">
-            Know which leads are worth your time.
-            <br />
-            <span className="text-blue-600">Before you read them.</span>
-          </h1>
-          <p className="mt-4 text-lg text-gray-600 leading-relaxed">
-            Adecis scores every inbound lead that arrives in your Slack or
-            email, tells you what matters, and drafts a reply you can actually
-            send. Built for freelancers and agencies who choose their clients.
-          </p>
-          <div className="mt-8 flex items-center gap-4">
-            <Link
-              href="/signup"
-              className="bg-blue-600 text-white rounded-md px-6 py-3 text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-              Start Free Trial
-            </Link>
-            <span className="text-sm text-gray-400">
-              7 days free. No credit card.
-            </span>
+      <main className="max-w-5xl mx-auto px-6">
+        <section className="pt-24 pb-20">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              AI-powered lead filtering for freelancers
+            </div>
+            <h1 className="text-5xl font-bold text-gray-900 leading-[1.15] tracking-tight">
+              Your AI deal filter for
+              <br />
+              <span className="text-blue-600">inbound leads.</span>
+            </h1>
+            <p className="mt-6 text-lg text-gray-500 leading-relaxed max-w-lg">
+              Every message that hits your Slack or email gets scored, summarized,
+              and answered in seconds. You only spend time on deals worth closing.
+            </p>
+            <div className="mt-10 flex items-center gap-5">
+              <Link
+                href="/signup"
+                className="bg-blue-600 text-white rounded-lg px-7 py-3.5 text-sm font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/25"
+              >
+                Start Free Trial
+              </Link>
+              <span className="text-sm text-gray-400">
+                7 days free &middot; No credit card
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Live example */}
-        <div className="mt-16 bg-gray-50 rounded-xl border p-6 max-w-xl">
-          <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-3">
-            What you see when a lead arrives
-          </p>
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="px-4 py-3">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                    HIGH
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">
-                    Sarah from Maple Bakery
+          {/* Live example card */}
+          <div className="mt-20 max-w-xl">
+            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-4">
+              What you see when a lead arrives
+            </p>
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-100">
+                      HIGH
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      Sarah from Maple Bakery
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
+                    Slack
                   </span>
                 </div>
-                <span className="text-xs text-gray-400">Slack</span>
-              </div>
-              <ul className="text-sm text-gray-600 space-y-0.5 mb-3">
-                <li>• Needs full website redesign, budget $3-5k</li>
-                <li>• Timeline: launch by March</li>
-                <li>• Current site is outdated (2019)</li>
-              </ul>
-              <div className="bg-gray-50 rounded-md p-2.5 text-sm text-gray-500 italic">
-                &quot;Hi Sarah, thanks for reaching out. A redesign sounds like a
-                great fit — I&apos;d love to learn more about your vision.
-                Want to grab 30 minutes this week?&quot;
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
-                  Send Reply
-                </span>
-                <span className="text-xs text-gray-400">
-                  Copy reply
-                </span>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-300 mt-0.5">&#8226;</span>
+                    Needs full website redesign, budget $3-5k
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-300 mt-0.5">&#8226;</span>
+                    Timeline: launch by March
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-300 mt-0.5">&#8226;</span>
+                    Current site is outdated (2019)
+                  </li>
+                </ul>
+                <div className="bg-gray-50 rounded-lg p-3.5 text-sm text-gray-500 italic border border-gray-100">
+                  &quot;Hi Sarah, thanks for reaching out. A redesign sounds like a
+                  great fit — I&apos;d love to learn more about your vision.
+                  Want to grab 30 minutes this week?&quot;
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  <button className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md font-medium hover:bg-blue-700 transition-colors">
+                    Send Reply
+                  </button>
+                  <button className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                    Copy reply
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* How it works */}
-        <div className="mt-24">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            How it works
-          </h2>
-          <p className="text-sm text-gray-500 mb-8">
-            Set up in 2 minutes. Get value from your first inbound message.
-          </p>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-lg border p-5">
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-sm font-bold text-blue-600 mb-3">
-                1
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">
-                Lead arrives
-              </h3>
-              <p className="text-sm text-gray-500">
-                Someone messages your Slack channel or emails your contact form.
-                Adecis picks it up instantly.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg border p-5">
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-sm font-bold text-blue-600 mb-3">
-                2
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">
-                AI scores it
-              </h3>
-              <p className="text-sm text-gray-500">
-                Intent score, clear summary, and a draft reply — all in under 5
-                seconds. Conservative scoring you can trust.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg border p-5">
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-sm font-bold text-blue-600 mb-3">
-                3
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">
-                You reply faster
-              </h3>
-              <p className="text-sm text-gray-500">
-                Send the AI-drafted reply directly, edit it, or copy it.
-                Never miss a good client again.
-              </p>
-            </div>
+        <section className="py-20 border-t border-gray-100">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
+              How it works
+            </h2>
+            <p className="mt-3 text-gray-500">
+              Set up in 2 minutes. Get value from your first inbound message.
+            </p>
           </div>
-        </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                step: '1',
+                title: 'Lead arrives',
+                desc: 'Someone messages your Slack or emails your contact form. Adecis picks it up in seconds — no manual forwarding needed.',
+              },
+              {
+                step: '2',
+                title: 'AI filters it',
+                desc: 'High, Medium, or Low — scored instantly with a clear summary and a draft reply ready to send. No guessing, no wasted reads.',
+              },
+              {
+                step: '3',
+                title: 'You close faster',
+                desc: 'Reply in one click, get nudged if a hot lead goes cold, and see your weekly stats every Monday. Never miss a deal again.',
+              },
+            ].map((item) => (
+              <div
+                key={item.step}
+                className="bg-gray-50/50 rounded-2xl border border-gray-100 p-6 hover:border-gray-200 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-sm font-bold text-white mb-4">
+                  {item.step}
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Who it's for */}
-        <div className="mt-24">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Built for decision-heavy freelancers
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            If you regularly evaluate inbound requests and decide which work to take, Adecis saves you hours.
-          </p>
-          <div className="grid md:grid-cols-2 gap-3">
+        <section className="py-20 border-t border-gray-100">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Built for freelancers who pick their clients
+            </h2>
+            <p className="mt-3 text-gray-500">
+              If you get more inbound leads than you can respond to, Adecis tells you which ones deserve your attention.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3 mt-10">
             {[
               'Web & app developers',
               'UI/UX & brand designers',
@@ -154,86 +177,91 @@ export default function Home() {
             ].map((role) => (
               <div
                 key={role}
-                className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-md px-3 py-2"
+                className="flex items-center gap-3 text-sm text-gray-700 bg-gray-50/80 rounded-xl px-4 py-3 border border-gray-100"
               >
-                <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4 text-blue-500 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                {role}
+                <span className="font-medium">{role}</span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* Pricing */}
-        <div className="mt-24">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Simple pricing
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            One plan. Everything included. No usage surprises.
-          </p>
-          <div className="bg-white rounded-lg border p-6 max-w-sm">
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-gray-900">$19</span>
-              <span className="text-lg text-gray-500">/mo</span>
+        <section className="py-20 border-t border-gray-100">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Simple pricing
+            </h2>
+            <p className="mt-3 text-gray-500">
+              One plan. Everything included. No usage surprises.
+            </p>
+          </div>
+          <div className="max-w-sm mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+            <div className="text-center">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-4xl font-bold text-gray-900">$19</span>
+                <span className="text-lg text-gray-400 font-medium">/mo</span>
+              </div>
+              <p className="text-sm text-gray-400 mt-1">Everything you need to filter and close leads</p>
             </div>
-            <ul className="mt-4 space-y-2.5 text-sm text-gray-600">
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                500 leads per month
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                Unlimited replies
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                Slack + email ingestion
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                AI scoring + draft replies
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                7-day free trial
-              </li>
-            </ul>
+            <div className="mt-8 space-y-3">
+              {[
+                '500 leads scored per month',
+                'Unlimited AI-drafted replies',
+                'Slack + email ingestion',
+                'AI scoring + summaries',
+                'Hot lead reminders',
+                'Weekly stats report',
+                '7-day free trial',
+              ].map((feature) => (
+                <div key={feature} className="flex items-center gap-3 text-sm text-gray-600">
+                  <svg
+                    className="w-4 h-4 text-green-500 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  {feature}
+                </div>
+              ))}
+            </div>
             <Link
               href="/signup"
-              className="mt-6 block text-center bg-blue-600 text-white rounded-md px-4 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="mt-8 block text-center bg-blue-600 text-white rounded-lg px-4 py-3 text-sm font-semibold hover:bg-blue-700 transition-all shadow-sm"
             >
               Start Free Trial
             </Link>
-            <p className="text-center text-xs text-gray-400 mt-2">
+            <p className="text-center text-xs text-gray-400 mt-3">
               No credit card required
             </p>
           </div>
-        </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="max-w-4xl mx-auto px-4 py-8 border-t">
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>Adecis — AI lead scoring for freelancers and agencies.</span>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="hover:text-gray-600">
-              Sign in
-            </Link>
-            <Link href="/signup" className="hover:text-gray-600">
-              Start Free Trial
-            </Link>
+      <footer className="border-t border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 py-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-400">
+            <span>Adecis — AI deal filter for freelancers and agencies.</span>
+            <div className="flex items-center gap-6">
+              <Link href="/login" className="hover:text-gray-600 transition-colors">
+                Sign in
+              </Link>
+              <Link href="/signup" className="hover:text-gray-600 transition-colors">
+                Start Free Trial
+              </Link>
+            </div>
           </div>
         </div>
       </footer>

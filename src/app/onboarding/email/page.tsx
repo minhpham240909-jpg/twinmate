@@ -31,7 +31,7 @@ export default function OnboardingStep3() {
 
       // Generate a new address
       const hash = user.id.replace(/-/g, '').substring(0, 10)
-      const address = `leads-${hash}@inbound.adecis.app`
+      const address = `leads-${hash}@inbound.clerva.app`
 
       const { error } = await supabase.from('email_addresses').insert({
         user_id: user.id,

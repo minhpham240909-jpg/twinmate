@@ -21,6 +21,7 @@ export interface Lead {
   feedback_at: string | null
   reply_sent: boolean
   reply_sent_at: string | null
+  reminder_sent: boolean
   slack_thread_ts: string | null
   slack_channel_id: string | null
   created_at: string
@@ -44,6 +45,7 @@ export interface Profile {
   subscription_id: string | null
   trial_ends_at: string
   leads_used_this_month: number
+  replies_sent_this_month: number
   plan_lead_limit: number
   created_at: string
   updated_at: string
