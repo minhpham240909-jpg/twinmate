@@ -65,6 +65,25 @@ export default function LeadsClient({
   // Realtime subscription — new leads and updates appear instantly
   useEffect(() => {
     const supabase = createClient()
+    let insertDebounceTimer: ReturnType<typeof setTimeout> | null = null
+    let deleteDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+    const debouncedRefetch = (timerRef: 'insert' | 'delete') => {
+      if (timerRef === 'insert') {
+        if (insertDebounceTimer) clearTimeout(insertDebounceTimer)
+        insertDebounceTimer = setTimeout(() => {
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+          insertDebounceTimer = null
+        }, 300)
+      } else {
+        if (deleteDebounceTimer) clearTimeout(deleteDebounceTimer)
+        deleteDebounceTimer = setTimeout(() => {
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+          deleteDebounceTimer = null
+        }, 300)
+      }
+    }
+
     const channel = supabase
       .channel('leads-realtime')
       .on(
@@ -76,8 +95,7 @@ export default function LeadsClient({
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          // Re-fetch the current page so new leads appear
-          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+          debouncedRefetch('insert')
         }
       )
       .on(
@@ -109,12 +127,18 @@ export default function LeadsClient({
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+          debouncedRefetch('delete')
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[realtime] Channel error — will auto-reconnect')
+        }
+      })
 
     return () => {
+      if (insertDebounceTimer) clearTimeout(insertDebounceTimer)
+      if (deleteDebounceTimer) clearTimeout(deleteDebounceTimer)
       supabase.removeChannel(channel)
     }
   }, [userId, fetchLeads])
@@ -271,9 +295,21 @@ export default function LeadsClient({
           MEDIUM
         </span>
       )
+    if (label === 'low')
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+          LOW
+        </span>
+      )
+    if (label === 'scoring_failed')
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-400">
+          Score failed
+        </span>
+      )
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-        LOW
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-500 animate-pulse">
+        Scoring...
       </span>
     )
   }
@@ -395,6 +431,9 @@ export default function LeadsClient({
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                       HIGH
                     </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">
+                      $2-10k
+                    </span>
                     <span className="text-sm font-medium text-gray-900">
                       Sarah from Maple Bakery
                     </span>
@@ -402,13 +441,19 @@ export default function LeadsClient({
                   <span className="text-xs text-gray-400">Slack</span>
                 </div>
                 <ul className="text-sm text-gray-600 space-y-0.5 mb-2">
-                  <li>• Needs full website redesign, budget $3-5k</li>
-                  <li>• Timeline: launch by March</li>
-                  <li>• Current site is outdated (2019)</li>
+                  <li className="flex items-start gap-1.5"><span className="text-blue-400">{'\u{1F4B0}'}</span> Budget confirmed: $3-5k</li>
+                  <li className="flex items-start gap-1.5"><span className="text-blue-400">{'\u{23F3}'}</span> Timeline: launch by March</li>
+                  <li className="flex items-start gap-1.5"><span className="text-blue-400">{'\u{1F50D}'}</span> Full website redesign needed</li>
                 </ul>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">Budget confirmed</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">Timeline defined</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">91% confidence</span>
+                </div>
                 <div className="bg-gray-50 rounded-md p-2 text-sm text-gray-500 italic">
-                  &quot;Hi Sarah, thanks for reaching out. A redesign sounds like a
-                  great fit — I&apos;d love to learn more about your vision...&quot;
+                  &quot;Hi Sarah — a redesign makes sense if your current site
+                  is from 2019. I&apos;ve done similar projects for local businesses
+                  and your budget works well for what you need...&quot;
                 </div>
               </div>
             </div>
@@ -452,12 +497,21 @@ export default function LeadsClient({
                       ? 'border-l-4 border-l-green-500'
                       : lead.intent_label === 'medium'
                         ? 'border-l-4 border-l-yellow-400'
-                        : 'border-l-4 border-l-gray-200'
+                        : lead.intent_label === 'low'
+                          ? 'border-l-4 border-l-gray-200'
+                          : lead.intent_label === 'scoring_failed'
+                            ? 'border-l-4 border-l-red-200'
+                            : 'border-l-4 border-l-blue-300 animate-pulse'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center gap-2">
                       {intentBadge(lead.intent_label)}
+                      {lead.deal_tier && lead.deal_tier !== 'unknown' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium uppercase">
+                          {lead.deal_tier === 'enterprise' ? '$50k+' : lead.deal_tier === 'mid-high' ? '$10-50k' : lead.deal_tier === 'mid' ? '$2-10k' : '<$2k'}
+                        </span>
+                      )}
                       <span className="text-sm font-medium text-gray-900">
                         {lead.sender_name || 'Unknown'}
                       </span>
@@ -549,27 +603,67 @@ export default function LeadsClient({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center flex-wrap gap-2 mb-3">
               {intentBadge(selectedLead.intent_label)}
-              <span className="text-sm text-gray-500">
-                Score: {selectedLead.intent_score
-                  ? Math.round(selectedLead.intent_score * 100)
-                  : 0}
-                /100
-              </span>
+              {selectedLead.intent_score != null ? (
+                <span className="text-sm text-gray-500">
+                  Score: {Math.round(selectedLead.intent_score * 100)}/100
+                </span>
+              ) : selectedLead.intent_label === 'scoring_failed' ? (
+                <span className="text-sm text-red-400">
+                  Scoring failed
+                </span>
+              ) : (
+                <span className="text-sm text-blue-400 animate-pulse">
+                  Analyzing...
+                </span>
+              )}
+              {selectedLead.confidence != null && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                  {selectedLead.confidence}% confidence
+                </span>
+              )}
+              {selectedLead.deal_tier && selectedLead.deal_tier !== 'unknown' && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">
+                  {selectedLead.deal_tier === 'enterprise' ? '$50k+' : selectedLead.deal_tier === 'mid-high' ? '$10-50k' : selectedLead.deal_tier === 'mid' ? '$2-10k' : '<$2k'}
+                </span>
+              )}
               <span className="text-xs text-gray-400">
                 via {selectedLead.source}
               </span>
             </div>
 
+            {selectedLead.scoring_reasons && selectedLead.scoring_reasons.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1.5">
+                  Why this score
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedLead.scoring_reasons.map((reason, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center text-xs px-2 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-100"
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {selectedLead.summary_bullets && (
               <div className="mb-4">
                 <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">
-                  Summary
+                  Signals Detected
                 </h3>
                 <ul className="text-sm text-gray-700 space-y-1">
                   {selectedLead.summary_bullets.map((b, i) => (
-                    <li key={i}>• {b}</li>
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-blue-400 mt-0.5">
+                        {b.toLowerCase().includes('budget') ? '\u{1F4B0}' : b.toLowerCase().includes('timeline') || b.toLowerCase().includes('deadline') ? '\u{23F3}' : b.toLowerCase().includes('decision') || b.toLowerCase().includes('ceo') || b.toLowerCase().includes('head') || b.toLowerCase().includes('cto') || b.toLowerCase().includes('founder') ? '\u{1F9D1}\u200D\u{1F4BC}' : b.toLowerCase().includes('competi') || b.toLowerCase().includes('agencies') || b.toLowerCase().includes('evaluating') ? '\u26A0\uFE0F' : b.toLowerCase().includes('call') || b.toLowerCase().includes('meeting') || b.toLowerCase().includes('urgency') || b.toLowerCase().includes('asap') ? '\u{1F4C5}' : '\u{1F50D}'}
+                      </span>
+                      <span>{b}</span>
+                    </li>
                   ))}
                 </ul>
               </div>

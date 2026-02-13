@@ -3,8 +3,11 @@ import { z } from 'zod'
 export const LeadScoreSchema = z.object({
   intent_score: z.number().min(0).max(1),
   intent_label: z.enum(['high', 'medium', 'low']),
-  summary_bullets: z.array(z.string()).min(1).max(3),
+  summary_bullets: z.array(z.string()).min(1).max(5),
   suggested_reply: z.string().min(10),
+  confidence: z.number().int().min(0).max(100),
+  deal_tier: z.enum(['enterprise', 'mid-high', 'mid', 'small', 'unknown']),
+  scoring_reasons: z.array(z.string()).min(1).max(5),
 })
 
 export type LeadScore = z.infer<typeof LeadScoreSchema>

@@ -10,13 +10,16 @@ export interface Lead {
   raw_message: string
   thread_context: string | null
   intent_score: number | null
-  intent_label: 'high' | 'medium' | 'low' | null
+  intent_label: 'high' | 'medium' | 'low' | 'scoring_failed' | null
   summary_bullets: string[] | null
   suggested_reply: string | null
   model_used: string | null
   prompt_tokens: number | null
   completion_tokens: number | null
   ai_latency_ms: number | null
+  confidence: number | null
+  deal_tier: string | null
+  scoring_reasons: string[] | null
   feedback: 'positive' | 'negative' | null
   feedback_at: string | null
   reply_sent: boolean

@@ -67,9 +67,9 @@ export async function POST(request: Request) {
     return new Response('OK', { status: 200 })
   }
 
-  // Get user profile — try with auto-reply columns first, fall back without them
-  // (migration 004 adds auto_reply_enabled and reply_from_name)
+  // Get user profile (single query — includes email for reply-to)
   interface ProfileData {
+    email: string | null
     niche: string | null
     tone: string | null
     booking_link: string | null
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
   const { data: fullProfile, error: profileError } = await supabase
     .from('profiles')
-    .select('niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name')
+    .select('email, niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name')
     .eq('id', userId)
     .single()
 
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     // If the error is about missing columns (migration 004 not run), retry without them
     const { data: basicProfile } = await supabase
       .from('profiles')
-      .select('niche, tone, booking_link, business_name, custom_instructions')
+      .select('email, niche, tone, booking_link, business_name, custom_instructions')
       .eq('id', userId)
       .single()
     if (basicProfile) {
@@ -111,7 +111,31 @@ export async function POST(request: Request) {
     ? `Subject: ${parsed.subject}\n\n${parsed.textBody}`
     : parsed.textBody
 
-  // Score the lead — wrapped so AI failures don't crash the handler
+  // Step 1: Insert lead IMMEDIATELY so it shows on the dashboard instantly
+  // AI scoring fields are null — the dashboard shows a "Scoring..." state
+  const { data: lead, error: insertError } = await supabase
+    .from('leads')
+    .insert({
+      user_id: userId,
+      source: 'email',
+      source_id: parsed.from,
+      source_channel: parsed.to,
+      sender_name: parsed.senderName,
+      sender_identifier: parsed.from,
+      raw_message: fullMessage,
+    })
+    .select('id')
+    .single()
+
+  if (insertError) {
+    console.error('Failed to insert email lead:', insertError)
+    return new Response('OK', { status: 200 })
+  }
+
+  // Increment usage counter
+  await supabase.rpc('increment_leads_used', { p_user_id: userId })
+
+  // Step 2: Score with AI — then UPDATE the lead (triggers Realtime UPDATE on dashboard)
   let result
   try {
     result = await scoreLead({
@@ -129,43 +153,38 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error('AI scoring failed for email lead:', err)
+    // Mark the lead as scoring_failed so the dashboard doesn't show "Scoring..." forever
+    await supabase
+      .from('leads')
+      .update({ intent_label: 'scoring_failed' })
+      .eq('id', lead.id)
     return new Response('OK', { status: 200 })
   }
 
-  // Store lead
-  const { data: lead, error: insertError } = await supabase
+  // Update lead with AI results — Realtime pushes this to the dashboard
+  const { error: updateError } = await supabase
     .from('leads')
-    .insert({
-      user_id: userId,
-      source: 'email',
-      source_id: parsed.from,
-      source_channel: parsed.to,
-      sender_name: parsed.senderName,
-      sender_identifier: parsed.from,
-      raw_message: fullMessage,
+    .update({
       intent_score: result.score.intent_score,
       intent_label: result.score.intent_label,
       summary_bullets: result.score.summary_bullets,
       suggested_reply: result.score.suggested_reply,
+      confidence: result.score.confidence,
+      deal_tier: result.score.deal_tier,
+      scoring_reasons: result.score.scoring_reasons,
       model_used: result.model,
       prompt_tokens: result.usage.promptTokens,
       completion_tokens: result.usage.completionTokens,
       ai_latency_ms: result.latencyMs,
     })
-    .select('id')
-    .single()
+    .eq('id', lead.id)
 
-  if (insertError) {
-    console.error('Failed to insert email lead:', insertError)
-    return new Response('OK', { status: 200 })
+  if (updateError) {
+    console.error('Failed to update email lead with AI results:', updateError)
   }
-
-  // Increment usage counter
-  await supabase.rpc('increment_leads_used', { p_user_id: userId })
 
   // Auto-reply via email if enabled (only for HIGH and MEDIUM intent)
   if (
-    lead &&
     profile.auto_reply_enabled &&
     result.score.suggested_reply &&
     result.score.intent_label !== 'low'
@@ -175,14 +194,7 @@ export async function POST(request: Request) {
       try {
         const replySubject = extractReplySubject(fullMessage)
         const fromName = profile.reply_from_name || profile.business_name || 'Adecis'
-
-        // Get user's real email for reply-to so responses go to their inbox
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', userId)
-          .single()
-        const replyToAddress = userProfile?.email || parsed.to
+        const replyToAddress = profile.email || parsed.to
 
         await sendEmailReply({
           to: parsed.from,
@@ -192,7 +204,6 @@ export async function POST(request: Request) {
           body: result.score.suggested_reply,
         })
 
-        // Mark reply as sent and increment counter
         await supabase
           .from('leads')
           .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
@@ -205,36 +216,33 @@ export async function POST(request: Request) {
   }
 
   // Deliver to Slack if connected
-  if (lead) {
-    const { data: installation } = await supabase
-      .from('slack_installations')
-      .select('bot_token, monitored_channels')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
+  const { data: installation } = await supabase
+    .from('slack_installations')
+    .select('bot_token, monitored_channels')
+    .eq('user_id', userId)
+    .limit(1)
+    .single()
 
-    if (installation) {
-      try {
-        const slack = createSlackClient(installation.bot_token)
-        const channel =
-          installation.monitored_channels?.[0]
+  if (installation) {
+    try {
+      const slack = createSlackClient(installation.bot_token)
+      const channel = installation.monitored_channels?.[0]
 
-        if (channel) {
-          const blocks = formatLeadResponse(
-            result.score,
-            parsed.senderName,
-            lead.id,
-            'email'
-          )
-          await slack.chat.postMessage({
-            channel,
-            text: `New email lead from ${parsed.senderName} — ${result.score.intent_label.toUpperCase()} intent`,
-            blocks,
-          })
-        }
-      } catch (err) {
-        console.error('Failed to notify Slack for email lead:', err)
+      if (channel) {
+        const blocks = formatLeadResponse(
+          result.score,
+          parsed.senderName,
+          lead.id,
+          'email'
+        )
+        await slack.chat.postMessage({
+          channel,
+          text: `New email lead from ${parsed.senderName} — ${result.score.intent_label.toUpperCase()} intent`,
+          blocks,
+        })
       }
+    } catch (err) {
+      console.error('Failed to notify Slack for email lead:', err)
     }
   }
 

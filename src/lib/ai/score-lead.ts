@@ -8,7 +8,7 @@ const anthropic = new Anthropic({
 
 const LEAD_SCORING_TOOL = {
   name: 'score_lead' as const,
-  description: 'Score and analyze an inbound lead message',
+  description: 'Score and analyze an inbound lead message with deal intelligence',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -23,19 +23,36 @@ const LEAD_SCORING_TOOL = {
         description:
           'high: 0.7+, clear buying intent. medium: 0.4-0.69, possible interest. low: below 0.4, unlikely lead.',
       },
+      confidence: {
+        type: 'number' as const,
+        description:
+          'How confident you are in this score, 0-100. High (80+) when clear signals. Lower when ambiguous.',
+      },
+      deal_tier: {
+        type: 'string' as const,
+        enum: ['enterprise', 'mid-high', 'mid', 'small', 'unknown'],
+        description:
+          'Estimated deal size. enterprise: $50k+. mid-high: $10-50k. mid: $2-10k. small: under $2k. unknown: no budget signals.',
+      },
+      scoring_reasons: {
+        type: 'array' as const,
+        items: { type: 'string' as const },
+        description:
+          'Why this score was given. Short signal phrases like "Budget confirmed: $15-25k", "Decision-maker: Head of Sales", "Timeline: 3 months", "Competitive: evaluating agencies", "No budget mentioned", "Spam/sales pitch". Max 5.',
+      },
       summary_bullets: {
         type: 'array' as const,
         items: { type: 'string' as const },
         description:
-          'Two to three short bullet points summarizing the lead. Each under 15 words. Focus on: what they want, their timeline, their budget signals.',
+          'Two to four structured signal bullets. Use signal format: "Budget confirmed: $15-25k", "Timeline: launch by March", "Decision-maker: Head of Sales", "Competitive: speaking to other agencies". Each under 15 words.',
       },
       suggested_reply: {
         type: 'string' as const,
         description:
-          'A warm, human reply the freelancer can send. Match the specified tone. Never be salesy. Keep under 100 words.',
+          'A human reply the freelancer can send. For high-budget leads ($5k+), write with confident authority — no filler words, structured, slightly premium tone. For smaller/casual leads, warmer and more casual. Keep under 100 words.',
       },
     },
-    required: ['intent_score', 'intent_label', 'summary_bullets', 'suggested_reply'],
+    required: ['intent_score', 'intent_label', 'confidence', 'deal_tier', 'scoring_reasons', 'summary_bullets', 'suggested_reply'],
   },
 }
 
