@@ -169,18 +169,6 @@ export default function SettingsClient({
               {customInstructions.length}/500
             </p>
           </div>
-          {saveError && (
-            <div className="bg-red-50 text-red-600 text-sm rounded-md p-2.5">
-              {saveError}
-            </div>
-          )}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
-          </button>
         </div>
       </div>
 
@@ -236,6 +224,20 @@ export default function SettingsClient({
           </div>
         </div>
       </div>
+
+      {/* Save Button — saves all settings above */}
+      {saveError && (
+        <div className="bg-red-50 text-red-600 text-sm rounded-md p-2.5 mb-4">
+          {saveError}
+        </div>
+      )}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full bg-blue-600 text-white rounded-md px-4 py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors mb-4"
+      >
+        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+      </button>
 
       {/* Slack Section */}
       <div className="bg-white rounded-lg shadow-sm border p-5 mb-4">
