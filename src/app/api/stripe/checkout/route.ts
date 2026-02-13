@@ -53,6 +53,12 @@ export async function POST() {
     }
   }
 
+  // Validate price ID is set
+  if (!PLANS.PRO.priceId) {
+    console.error('[Stripe Checkout] STRIPE_PRO_PRICE_ID is not set')
+    return NextResponse.json({ error: 'Payment configuration error' }, { status: 500 })
+  }
+
   // Create checkout session
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -63,6 +69,8 @@ export async function POST() {
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?canceled=true`,
     metadata: { user_id: user.id },
   })
+
+  console.log(`[Stripe Checkout] Session created for user ${user.id}: ${session.id}`)
 
   return NextResponse.json({ url: session.url })
 }

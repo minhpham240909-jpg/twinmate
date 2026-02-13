@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 interface BillingClientProps {
   profile: {
@@ -11,9 +12,13 @@ interface BillingClientProps {
   }
 }
 
-export default function BillingClient({ profile }: BillingClientProps) {
+export default function BillingClient({ profile: initialProfile }: BillingClientProps) {
+  const [profile, setProfile] = useState(initialProfile)
   const [error, setError] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   const isTrialing = profile.subscription_status === 'trialing'
   const isActive = profile.subscription_status === 'active'
@@ -31,6 +36,65 @@ export default function BillingClient({ profile }: BillingClientProps) {
     100,
     (profile.leads_used_this_month / profile.plan_lead_limit) * 100
   )
+
+  // Handle checkout success — poll for webhook completion
+  useEffect(() => {
+    if (searchParams.get('success') !== 'true') return
+    if (isActive) {
+      setSuccessMessage('Your Pro subscription is active!')
+      return
+    }
+
+    setSuccessMessage('Payment successful! Activating your subscription...')
+    let attempts = 0
+    const maxAttempts = 15
+
+    const interval = setInterval(async () => {
+      attempts++
+      try {
+        const res = await fetch('/api/stripe/status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.subscription_status === 'active') {
+            setProfile((prev) => ({
+              ...prev,
+              subscription_status: 'active',
+              plan_lead_limit: data.plan_lead_limit ?? prev.plan_lead_limit,
+            }))
+            setSuccessMessage('Your Pro subscription is now active!')
+            clearInterval(interval)
+          }
+        }
+      } catch {
+        // Retry silently
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(interval)
+        setSuccessMessage(
+          'Payment received! Your subscription should activate shortly. Refresh the page in a moment.'
+        )
+      }
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [searchParams, isActive])
+
+  // Handle canceled checkout
+  useEffect(() => {
+    if (searchParams.get('canceled') === 'true') {
+      setError('Checkout was canceled. No charges were made.')
+    }
+  }, [searchParams])
+
+  // Clear URL params after showing messages
+  useEffect(() => {
+    if (searchParams.get('success') || searchParams.get('canceled')) {
+      const timeout = setTimeout(() => {
+        router.replace('/dashboard/billing')
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [searchParams, router])
 
   async function handleUpgrade() {
     setCheckoutLoading(true)
@@ -72,6 +136,15 @@ export default function BillingClient({ profile }: BillingClientProps) {
         Manage your subscription and track usage.
       </p>
 
+      {successMessage && (
+        <div className="bg-green-50 text-green-700 text-sm rounded-md p-3 mb-4 flex items-center gap-2">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {successMessage}
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">
           {error}
@@ -86,7 +159,7 @@ export default function BillingClient({ profile }: BillingClientProps) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="font-medium text-gray-900">
-              {isActive ? 'Adecis Pro — $19/mo' : 'Free Trial'}
+              {isActive ? 'Adecis Pro \u2014 $19/mo' : 'Free Trial'}
             </div>
             {isTrialing && (
               <div className="text-sm text-gray-500">
@@ -191,7 +264,7 @@ export default function BillingClient({ profile }: BillingClientProps) {
             disabled={checkoutLoading}
             className="w-full bg-blue-600 text-white rounded-md px-4 py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {checkoutLoading ? 'Loading...' : 'Upgrade to Pro — $19/mo'}
+            {checkoutLoading ? 'Loading...' : 'Upgrade to Pro \u2014 $19/mo'}
           </button>
         )}
         {isActive && (

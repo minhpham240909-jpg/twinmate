@@ -255,6 +255,12 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-400">
             <span>Adecis — AI deal filter for freelancers and agencies.</span>
             <div className="flex items-center gap-6">
+              <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+                Privacy
+              </Link>
+              <Link href="/terms" className="hover:text-gray-600 transition-colors">
+                Terms
+              </Link>
               <Link href="/login" className="hover:text-gray-600 transition-colors">
                 Sign in
               </Link>
