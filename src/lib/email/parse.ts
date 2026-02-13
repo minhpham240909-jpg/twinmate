@@ -15,6 +15,8 @@ export function parseInboundEmail(formData: FormData): ParsedEmail {
   const textBody = (formData.get('text') as string) || ''
   const spamScore = parseFloat((formData.get('spam_score') as string) || '0')
 
+  console.log('[parse] Raw fields — to:', to, '| from:', from, '| envelope:', envelope)
+
   // Extract sender name from "Name <email>" format
   const nameMatch = from.match(/^(.+?)\s*</)
   const senderName = nameMatch ? nameMatch[1].trim().replace(/"/g, '') : from.split('@')[0]

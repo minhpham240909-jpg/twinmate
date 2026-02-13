@@ -64,17 +64,8 @@ async function processSlackLead(
 ) {
   const supabase = createAdminClient()
 
-  // Look up the installation for this team
-  const { data: installation } = await supabase
-    .from('slack_installations')
-    .select('*, profiles!inner(id, niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name)')
-    .eq('team_id', teamId)
-    .single()
-
-  if (!installation) return
-
-  const userId = installation.user_id
-  const profile = (installation as Record<string, unknown>).profiles as {
+  // Look up the installation for this team — try with auto-reply columns first
+  interface SlackProfile {
     id: string
     niche: string
     tone: string
@@ -83,15 +74,48 @@ async function processSlackLead(
     custom_instructions: string | null
     auto_reply_enabled: boolean
     reply_from_name: string | null
-  } | null
+  }
+  interface InstallData {
+    user_id: string
+    bot_token: string
+    monitored_channels: string[] | null
+  }
 
-  if (!profile) return
+  let install: InstallData | null = null
+  let profile: SlackProfile | null = null
+
+  const { data: fullInstall } = await supabase
+    .from('slack_installations')
+    .select('*, profiles!inner(id, niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name)')
+    .eq('team_id', teamId)
+    .single()
+
+  if (fullInstall) {
+    install = fullInstall as unknown as InstallData
+    profile = (fullInstall as Record<string, unknown>).profiles as SlackProfile
+  } else {
+    // Fallback if migration 004 hasn't been run (missing auto-reply columns)
+    const { data: basicInstall } = await supabase
+      .from('slack_installations')
+      .select('*, profiles!inner(id, niche, tone, booking_link, business_name, custom_instructions)')
+      .eq('team_id', teamId)
+      .single()
+    if (basicInstall) {
+      install = basicInstall as unknown as InstallData
+      const bp = (basicInstall as Record<string, unknown>).profiles as Omit<SlackProfile, 'auto_reply_enabled' | 'reply_from_name'>
+      profile = { ...bp, auto_reply_enabled: false, reply_from_name: null }
+    }
+  }
+
+  if (!install || !profile) return
+
+  const userId = install.user_id
 
   // Single Slack client — reused for all API calls
-  const slack = createSlackClient(installation.bot_token)
+  const slack = createSlackClient(install.bot_token)
 
   // Check if channel is monitored (empty array = monitor all)
-  const monitoredChannels = installation.monitored_channels || []
+  const monitoredChannels = install.monitored_channels || []
   if (monitoredChannels.length > 0 && !monitoredChannels.includes(event.channel)) {
     return
   }

@@ -12,29 +12,42 @@ export async function POST(request: Request) {
   const formData = await request.formData()
   const parsed = parseInboundEmail(formData)
 
+  console.log('[inbound] Received email:', {
+    from: parsed.from,
+    to: parsed.to,
+    subject: parsed.subject,
+    spamScore: parsed.spamScore,
+    bodyLength: parsed.textBody?.length || 0,
+  })
+
   // Discard spam
   if (parsed.spamScore > 5.0) {
+    console.log('[inbound] Discarded: spam score', parsed.spamScore)
     return new Response('OK', { status: 200 })
   }
 
   // Discard empty sender (malformed emails)
   if (!parsed.from || !parsed.from.includes('@')) {
+    console.log('[inbound] Discarded: empty/invalid sender', parsed.from)
     return new Response('OK', { status: 200 })
   }
 
   // Prevent email loops — ignore emails from any Adecis inbound address
   if (parsed.from.includes('@inbound.clerva.app')) {
+    console.log('[inbound] Discarded: loop prevention', parsed.from)
     return new Response('OK', { status: 200 })
   }
 
   const supabase = createAdminClient()
 
   // Look up user by inbound email address
-  const { data: emailRecord } = await supabase
+  const { data: emailRecord, error: lookupError } = await supabase
     .from('email_addresses')
     .select('user_id, is_active')
     .eq('inbound_address', parsed.to)
     .single()
+
+  console.log('[inbound] User lookup for', parsed.to, ':', emailRecord ? `found user ${emailRecord.user_id}` : 'NOT FOUND', lookupError?.message || '')
 
   if (!emailRecord || !emailRecord.is_active) {
     return new Response('OK', { status: 200 })
@@ -54,14 +67,42 @@ export async function POST(request: Request) {
     return new Response('OK', { status: 200 })
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
+  // Get user profile — try with auto-reply columns first, fall back without them
+  // (migration 004 adds auto_reply_enabled and reply_from_name)
+  interface ProfileData {
+    niche: string | null
+    tone: string | null
+    booking_link: string | null
+    business_name: string | null
+    custom_instructions: string | null
+    auto_reply_enabled: boolean
+    reply_from_name: string | null
+  }
+  let profile: ProfileData | null = null
+
+  const { data: fullProfile, error: profileError } = await supabase
     .from('profiles')
     .select('niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name')
     .eq('id', userId)
     .single()
 
+  if (fullProfile) {
+    profile = fullProfile as unknown as ProfileData
+  } else if (profileError) {
+    // If the error is about missing columns (migration 004 not run), retry without them
+    const { data: basicProfile } = await supabase
+      .from('profiles')
+      .select('niche, tone, booking_link, business_name, custom_instructions')
+      .eq('id', userId)
+      .single()
+    if (basicProfile) {
+      const bp = basicProfile as unknown as Omit<ProfileData, 'auto_reply_enabled' | 'reply_from_name'>
+      profile = { ...bp, auto_reply_enabled: false, reply_from_name: null }
+    }
+  }
+
   if (!profile) {
+    console.error('[inbound] No profile found for user:', userId)
     return new Response('OK', { status: 200 })
   }
 
