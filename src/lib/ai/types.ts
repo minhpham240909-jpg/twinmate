@@ -8,6 +8,8 @@ export const LeadScoreSchema = z.object({
   confidence: z.number().int().min(0).max(100),
   deal_tier: z.enum(['enterprise', 'mid-high', 'mid', 'small', 'unknown']),
   scoring_reasons: z.array(z.string()).min(1).max(5),
+  response_priority: z.enum(['urgent', 'same_day', 'this_week', 'no_rush']),
+  priority_reason: z.string().min(5),
 })
 
 export type LeadScore = z.infer<typeof LeadScoreSchema>

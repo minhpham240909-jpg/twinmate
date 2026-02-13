@@ -20,6 +20,8 @@ export interface Lead {
   confidence: number | null
   deal_tier: string | null
   scoring_reasons: string[] | null
+  response_priority: 'urgent' | 'same_day' | 'this_week' | 'no_rush' | null
+  priority_reason: string | null
   feedback: 'positive' | 'negative' | null
   feedback_at: string | null
   reply_sent: boolean

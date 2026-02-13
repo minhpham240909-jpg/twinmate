@@ -88,7 +88,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('leads')
-    .select('id, sender_name, source, intent_score, intent_label, confidence, deal_tier, scoring_reasons, summary_bullets, suggested_reply, raw_message, feedback, reply_sent, reply_sent_at, slack_thread_ts, slack_channel_id, created_at', { count: 'exact' })
+    .select('id, sender_name, source, intent_score, intent_label, confidence, deal_tier, scoring_reasons, response_priority, priority_reason, summary_bullets, suggested_reply, raw_message, feedback, reply_sent, reply_sent_at, slack_thread_ts, slack_channel_id, created_at', { count: 'exact' })
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)

@@ -440,6 +440,11 @@ export default function LeadsClient({
                   </div>
                   <span className="text-xs text-gray-400">Slack</span>
                 </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-orange-500 mb-1.5">
+                  <span>{'\u26A1'}</span>
+                  <span>Respond today</span>
+                  <span className="font-normal text-gray-400">— High close probability, budget and timeline confirmed</span>
+                </div>
                 <ul className="text-sm text-gray-600 space-y-0.5 mb-2">
                   <li className="flex items-start gap-1.5"><span className="text-blue-400">{'\u{1F4B0}'}</span> Budget confirmed: $3-5k</li>
                   <li className="flex items-start gap-1.5"><span className="text-blue-400">{'\u{23F3}'}</span> Timeline: launch by March</li>
@@ -525,6 +530,27 @@ export default function LeadsClient({
                       </span>
                     </div>
                   </div>
+                  {lead.response_priority && lead.response_priority !== 'no_rush' && (
+                    <div className={`flex items-center gap-1.5 mt-1 text-[11px] font-medium ${
+                      lead.response_priority === 'urgent'
+                        ? 'text-red-600'
+                        : lead.response_priority === 'same_day'
+                          ? 'text-orange-500'
+                          : 'text-blue-400'
+                    }`}>
+                      <span>{lead.response_priority === 'urgent' ? '\u{1F525}' : lead.response_priority === 'same_day' ? '\u26A1' : '\u{1F4C5}'}</span>
+                      <span>
+                        {lead.response_priority === 'urgent'
+                          ? 'Respond within 2 hours'
+                          : lead.response_priority === 'same_day'
+                            ? 'Respond today'
+                            : 'Respond this week'}
+                      </span>
+                      {lead.priority_reason && (
+                        <span className="font-normal text-gray-400">— {lead.priority_reason}</span>
+                      )}
+                    </div>
+                  )}
                   {lead.summary_bullets && lead.summary_bullets.length > 0 && (
                     <ul className="text-xs text-gray-500 space-y-0.5 mt-1">
                       {lead.summary_bullets.map((b, i) => (
@@ -632,6 +658,52 @@ export default function LeadsClient({
                 via {selectedLead.source}
               </span>
             </div>
+
+            {selectedLead.response_priority && (
+              <div className={`mb-4 rounded-md px-3 py-2.5 ${
+                selectedLead.response_priority === 'urgent'
+                  ? 'bg-red-50 border border-red-100'
+                  : selectedLead.response_priority === 'same_day'
+                    ? 'bg-orange-50 border border-orange-100'
+                    : selectedLead.response_priority === 'this_week'
+                      ? 'bg-blue-50 border border-blue-100'
+                      : 'bg-gray-50 border border-gray-100'
+              }`}>
+                <div className={`flex items-center gap-2 text-sm font-medium ${
+                  selectedLead.response_priority === 'urgent'
+                    ? 'text-red-700'
+                    : selectedLead.response_priority === 'same_day'
+                      ? 'text-orange-600'
+                      : selectedLead.response_priority === 'this_week'
+                        ? 'text-blue-600'
+                        : 'text-gray-500'
+                }`}>
+                  <span>{selectedLead.response_priority === 'urgent' ? '\u{1F525}' : selectedLead.response_priority === 'same_day' ? '\u26A1' : selectedLead.response_priority === 'this_week' ? '\u{1F4C5}' : '\u{1F44D}'}</span>
+                  <span>
+                    {selectedLead.response_priority === 'urgent'
+                      ? 'Respond within 2 hours'
+                      : selectedLead.response_priority === 'same_day'
+                        ? 'Respond within 12 hours'
+                        : selectedLead.response_priority === 'this_week'
+                          ? 'Respond this week'
+                          : 'No rush'}
+                  </span>
+                </div>
+                {selectedLead.priority_reason && (
+                  <p className={`text-xs mt-1 ${
+                    selectedLead.response_priority === 'urgent'
+                      ? 'text-red-500'
+                      : selectedLead.response_priority === 'same_day'
+                        ? 'text-orange-400'
+                        : selectedLead.response_priority === 'this_week'
+                          ? 'text-blue-400'
+                          : 'text-gray-400'
+                  }`}>
+                    {selectedLead.priority_reason}
+                  </p>
+                )}
+              </div>
+            )}
 
             {selectedLead.scoring_reasons && selectedLead.scoring_reasons.length > 0 && (
               <div className="mb-4">

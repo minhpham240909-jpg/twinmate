@@ -235,6 +235,8 @@ async function processSlackLead(
       confidence: result.score.confidence,
       deal_tier: result.score.deal_tier,
       scoring_reasons: result.score.scoring_reasons,
+      response_priority: result.score.response_priority,
+      priority_reason: result.score.priority_reason,
       model_used: result.model,
       prompt_tokens: result.usage.promptTokens,
       completion_tokens: result.usage.completionTokens,

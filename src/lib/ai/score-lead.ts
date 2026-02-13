@@ -51,8 +51,19 @@ const LEAD_SCORING_TOOL = {
         description:
           'A human reply the freelancer can send. For high-budget leads ($5k+), write with confident authority — no filler words, structured, slightly premium tone. For smaller/casual leads, warmer and more casual. Keep under 100 words.',
       },
+      response_priority: {
+        type: 'string' as const,
+        enum: ['urgent', 'same_day', 'this_week', 'no_rush'],
+        description:
+          'How quickly the freelancer should respond. urgent: respond within 2 hours (competitive situation, explicit deadline, or high-value lead with time pressure). same_day: respond within 12 hours (high intent, active buyer). this_week: respond within a few days (medium intent, no urgency). no_rush: low priority (low intent, spam, or networking).',
+      },
+      priority_reason: {
+        type: 'string' as const,
+        description:
+          'One short sentence explaining WHY this response priority was chosen. Actionable and specific. Examples: "Competitive situation — they\'re evaluating other agencies", "High close probability — budget and timeline confirmed", "Decision-maker with urgent deadline", "Exploratory inquiry — no time pressure", "Low intent — reply when convenient".',
+      },
     },
-    required: ['intent_score', 'intent_label', 'confidence', 'deal_tier', 'scoring_reasons', 'summary_bullets', 'suggested_reply'],
+    required: ['intent_score', 'intent_label', 'confidence', 'deal_tier', 'scoring_reasons', 'summary_bullets', 'suggested_reply', 'response_priority', 'priority_reason'],
   },
 }
 
