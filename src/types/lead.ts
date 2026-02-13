@@ -38,6 +38,8 @@ export interface Profile {
   tone: string
   booking_link: string | null
   custom_instructions: string | null
+  auto_reply_enabled: boolean
+  reply_from_name: string | null
   onboarding_completed: boolean
   onboarding_step: number
   stripe_customer_id: string | null

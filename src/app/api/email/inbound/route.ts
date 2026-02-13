@@ -1,10 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseInboundEmail } from '@/lib/email/parse'
 import { scoreLead } from '@/lib/ai/score-lead'
-import { canProcessLead } from '@/lib/stripe/helpers'
+import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
 import { emailRateLimit, safeRateLimit } from '@/lib/rate-limit'
 import { createSlackClient } from '@/lib/slack/client'
 import { formatLeadResponse } from '@/lib/slack/format'
+import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 
 export async function POST(request: Request) {
   // SendGrid sends multipart form data
@@ -13,6 +14,16 @@ export async function POST(request: Request) {
 
   // Discard spam
   if (parsed.spamScore > 5.0) {
+    return new Response('OK', { status: 200 })
+  }
+
+  // Discard empty sender (malformed emails)
+  if (!parsed.from || !parsed.from.includes('@')) {
+    return new Response('OK', { status: 200 })
+  }
+
+  // Prevent email loops — ignore emails from any Adecis inbound address
+  if (parsed.from.includes('@inbound.clerva.app')) {
     return new Response('OK', { status: 200 })
   }
 
@@ -46,7 +57,7 @@ export async function POST(request: Request) {
   // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('niche, tone, booking_link, business_name, custom_instructions')
+    .select('niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name')
     .eq('id', userId)
     .single()
 
@@ -72,6 +83,7 @@ export async function POST(request: Request) {
         bookingLink: profile.booking_link || undefined,
         businessName: profile.business_name || undefined,
         customInstructions: profile.custom_instructions || undefined,
+        replyFromName: profile.reply_from_name || undefined,
       },
     })
   } catch (err) {
@@ -109,6 +121,39 @@ export async function POST(request: Request) {
 
   // Increment usage counter
   await supabase.rpc('increment_leads_used', { p_user_id: userId })
+
+  // Auto-reply via email if enabled (only for HIGH and MEDIUM intent)
+  if (
+    lead &&
+    profile.auto_reply_enabled &&
+    result.score.suggested_reply &&
+    result.score.intent_label !== 'low'
+  ) {
+    const { allowed: replyAllowed } = await canSendReply(userId)
+    if (replyAllowed) {
+      try {
+        const replySubject = extractReplySubject(fullMessage)
+        const fromName = profile.reply_from_name || profile.business_name || 'Adecis'
+
+        await sendEmailReply({
+          to: parsed.from,
+          fromAddress: parsed.to,
+          fromName,
+          subject: replySubject,
+          body: result.score.suggested_reply,
+        })
+
+        // Mark reply as sent and increment counter
+        await supabase
+          .from('leads')
+          .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
+          .eq('id', lead.id)
+        await supabase.rpc('increment_replies_sent', { p_user_id: userId })
+      } catch (err) {
+        console.error('Auto-reply email failed:', err)
+      }
+    }
+  }
 
   // Deliver to Slack if connected
   if (lead) {

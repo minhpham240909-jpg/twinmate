@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createSlackClient, getValidBotToken } from '@/lib/slack/client'
 import { canSendReply } from '@/lib/stripe/helpers'
+import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -37,7 +38,7 @@ export async function POST(
     .eq('id', id)
     .eq('user_id', user.id)
     .eq('reply_sent', false)
-    .select('id, source, suggested_reply, slack_thread_ts, slack_channel_id, reply_sent_at')
+    .select('id, source, suggested_reply, slack_thread_ts, slack_channel_id, sender_identifier, source_channel, raw_message, reply_sent_at')
     .single()
 
   if (claimError || !claimedLead) {
@@ -67,48 +68,94 @@ export async function POST(
     )
   }
 
-  // v1: Only Slack replies
-  if (claimedLead.source !== 'slack') {
-    await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
-    return NextResponse.json(
-      { error: 'Send reply is currently only supported for Slack leads' },
-      { status: 400 }
-    )
-  }
+  if (claimedLead.source === 'slack') {
+    // --- Slack reply ---
+    if (!claimedLead.slack_thread_ts || !claimedLead.slack_channel_id) {
+      await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
+      return NextResponse.json(
+        { error: 'Missing Slack thread information for this lead' },
+        { status: 400 }
+      )
+    }
 
-  if (!claimedLead.slack_thread_ts || !claimedLead.slack_channel_id) {
-    await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
-    return NextResponse.json(
-      { error: 'Missing Slack thread information for this lead' },
-      { status: 400 }
-    )
-  }
+    // Get bot token — single query to slack_installations with auto-refresh
+    const botToken = await getValidBotToken(user.id)
+    if (!botToken) {
+      await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
+      return NextResponse.json(
+        { error: 'Slack not connected. Please reconnect in Settings.' },
+        { status: 400 }
+      )
+    }
 
-  // Get bot token — single query to slack_installations with auto-refresh
-  const botToken = await getValidBotToken(user.id)
-  if (!botToken) {
-    await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
-    return NextResponse.json(
-      { error: 'Slack not connected. Please reconnect in Settings.' },
-      { status: 400 }
-    )
-  }
+    // Post reply to Slack thread
+    const slack = createSlackClient(botToken)
+    try {
+      await slack.chat.postMessage({
+        channel: claimedLead.slack_channel_id,
+        thread_ts: claimedLead.slack_thread_ts,
+        text: claimedLead.suggested_reply,
+      })
+    } catch (err) {
+      // Undo the claim since Slack send failed
+      await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
+      console.error('Failed to send Slack reply:', err)
+      return NextResponse.json(
+        { error: 'Failed to send reply to Slack. The bot may not have access to this channel.' },
+        { status: 502 }
+      )
+    }
+  } else if (claimedLead.source === 'email') {
+    // --- Email reply ---
+    if (!claimedLead.sender_identifier) {
+      await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
+      return NextResponse.json(
+        { error: 'Missing sender email address for this lead' },
+        { status: 400 }
+      )
+    }
 
-  // Post reply to Slack thread
-  const slack = createSlackClient(botToken)
-  try {
-    await slack.chat.postMessage({
-      channel: claimedLead.slack_channel_id,
-      thread_ts: claimedLead.slack_thread_ts,
-      text: claimedLead.suggested_reply,
-    })
-  } catch (err) {
-    // Undo the claim since Slack send failed
+    // Get user profile for reply_from_name
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('reply_from_name, business_name')
+      .eq('id', user.id)
+      .single()
+
+    const fromName = profile?.reply_from_name || profile?.business_name || 'Adecis'
+    const fromAddress = claimedLead.source_channel || ''
+    const replySubject = extractReplySubject(claimedLead.raw_message || '')
+
+    if (!fromAddress) {
+      await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
+      return NextResponse.json(
+        { error: 'Missing sender address configuration' },
+        { status: 400 }
+      )
+    }
+
+    try {
+      await sendEmailReply({
+        to: claimedLead.sender_identifier,
+        fromAddress,
+        fromName,
+        subject: replySubject,
+        body: claimedLead.suggested_reply,
+      })
+    } catch (err) {
+      // Undo the claim since email send failed
+      await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
+      console.error('Failed to send email reply:', err)
+      return NextResponse.json(
+        { error: 'Failed to send email reply. Please try again.' },
+        { status: 502 }
+      )
+    }
+  } else {
     await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
-    console.error('Failed to send Slack reply:', err)
     return NextResponse.json(
-      { error: 'Failed to send reply to Slack. The bot may not have access to this channel.' },
-      { status: 502 }
+      { error: 'Unsupported lead source' },
+      { status: 400 }
     )
   }
 

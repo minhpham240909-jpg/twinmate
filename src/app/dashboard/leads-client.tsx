@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { createClient } from '@/lib/supabase/browser'
 import type { Lead } from '@/types/lead'
 
 interface LeadsClientProps {
+  userId: string
   initialLeads: Lead[]
   initialTotal: number
   initialTotalPages: number
@@ -11,6 +13,7 @@ interface LeadsClientProps {
 }
 
 export default function LeadsClient({
+  userId,
   initialLeads,
   initialTotal,
   initialTotalPages,
@@ -29,6 +32,14 @@ export default function LeadsClient({
   const [replyUsage, setReplyUsage] = useState<{ used: number; limit: number } | null>(null)
   const [connections] = useState(initialConnections)
   const [replyCopied, setReplyCopied] = useState(false)
+  const pageRef = useRef(page)
+  const sourceFilterRef = useRef(sourceFilter)
+  const labelFilterRef = useRef(labelFilter)
+
+  // Keep refs in sync so the realtime callback reads current values
+  useEffect(() => { pageRef.current = page }, [page])
+  useEffect(() => { sourceFilterRef.current = sourceFilter }, [sourceFilter])
+  useEffect(() => { labelFilterRef.current = labelFilter }, [labelFilter])
 
   const fetchLeads = useCallback(async (p: number, source: string, label: string) => {
     try {
@@ -46,6 +57,51 @@ export default function LeadsClient({
       // Keep current state on failure
     }
   }, [])
+
+  // Realtime subscription — new leads and updates appear instantly
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('leads-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'leads',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          // Re-fetch the current page so new leads appear
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'leads',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Lead
+          // Update the lead in the list without a full re-fetch
+          setLeads((prev) =>
+            prev.map((l) => (l.id === updated.id ? updated : l))
+          )
+          // Also update the selected lead if it's open
+          setSelectedLead((prev) =>
+            prev && prev.id === updated.id ? updated : prev
+          )
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId, fetchLeads])
 
   function handleSourceFilter(value: string) {
     setSourceFilter(value)
@@ -386,20 +442,20 @@ export default function LeadsClient({
                   <p className="text-xs text-red-500 mt-1">{sendReplyError}</p>
                 )}
                 <div className="flex items-center gap-2 mt-2">
-                  {selectedLead.source === 'slack' &&
-                    selectedLead.slack_thread_ts &&
-                    !selectedLead.reply_sent && (
+                  {!selectedLead.reply_sent &&
+                    ((selectedLead.source === 'slack' && selectedLead.slack_thread_ts) ||
+                      selectedLead.source === 'email') && (
                       <button
                         onClick={() => sendReply(selectedLead.id)}
                         disabled={sendingReply}
                         className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {sendingReply ? 'Sending...' : 'Send Reply'}
+                        {sendingReply ? 'Sending...' : `Send Reply via ${selectedLead.source === 'slack' ? 'Slack' : 'Email'}`}
                       </button>
                     )}
                   {selectedLead.reply_sent && (
                     <span className="text-xs text-green-600">
-                      Reply sent
+                      Reply sent via {selectedLead.source === 'slack' ? 'Slack' : 'email'}
                       {selectedLead.reply_sent_at && (
                         <span className="text-gray-400 ml-1">
                           {new Date(selectedLead.reply_sent_at).toLocaleString()}

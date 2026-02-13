@@ -10,6 +10,8 @@ interface SettingsClientProps {
     tone: string
     bookingLink: string
     customInstructions: string
+    autoReplyEnabled: boolean
+    replyFromName: string
   }
   initialEmailAddress: string
   initialSlackTeam: string
@@ -25,6 +27,8 @@ export default function SettingsClient({
   const [tone, setTone] = useState(initialProfile.tone)
   const [bookingLink, setBookingLink] = useState(initialProfile.bookingLink)
   const [customInstructions, setCustomInstructions] = useState(initialProfile.customInstructions)
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(initialProfile.autoReplyEnabled)
+  const [replyFromName, setReplyFromName] = useState(initialProfile.replyFromName)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -44,6 +48,8 @@ export default function SettingsClient({
           tone,
           booking_link: bookingLink || null,
           custom_instructions: customInstructions || null,
+          auto_reply_enabled: autoReplyEnabled,
+          reply_from_name: replyFromName || null,
         }),
       })
       if (!res.ok) {
@@ -175,6 +181,59 @@ export default function SettingsClient({
           >
             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
           </button>
+        </div>
+      </div>
+
+      {/* Auto Reply Section */}
+      <div className="bg-white rounded-lg shadow-sm border p-5 mb-4">
+        <h2 className="text-sm font-medium text-gray-900 mb-3">
+          Auto Reply
+        </h2>
+        <p className="text-xs text-gray-400 mb-4">
+          When enabled, Adecis automatically sends the AI-drafted reply to HIGH and MEDIUM intent leads — via email and Slack. LOW intent leads are never auto-replied to.
+        </p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm text-gray-700">
+                Enable auto reply
+              </label>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Replies are sent instantly when a lead is scored.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoReplyEnabled}
+              onClick={() => setAutoReplyEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                autoReplyEnabled ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  autoReplyEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700 mb-1">
+              Reply name
+            </label>
+            <p className="text-xs text-gray-400 mb-1.5">
+              The name shown in the &quot;From&quot; field of email replies and used to sign off messages. E.g. &quot;Sarah from Acme Studio&quot;.
+            </p>
+            <input
+              type="text"
+              value={replyFromName}
+              onChange={(e) => setReplyFromName(e.target.value)}
+              maxLength={100}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              placeholder="Your name or business name"
+            />
+          </div>
         </div>
       </div>
 

@@ -3,7 +3,7 @@ import { createSlackClient } from '@/lib/slack/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scoreLead } from '@/lib/ai/score-lead'
 import { formatLeadResponse } from '@/lib/slack/format'
-import { canProcessLead } from '@/lib/stripe/helpers'
+import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
 import { isDuplicate, slackEventRateLimit, safeRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -67,7 +67,7 @@ async function processSlackLead(
   // Look up the installation for this team
   const { data: installation } = await supabase
     .from('slack_installations')
-    .select('*, profiles!inner(id, niche, tone, booking_link, business_name, custom_instructions)')
+    .select('*, profiles!inner(id, niche, tone, booking_link, business_name, custom_instructions, auto_reply_enabled, reply_from_name)')
     .eq('team_id', teamId)
     .single()
 
@@ -81,6 +81,8 @@ async function processSlackLead(
     booking_link: string | null
     business_name: string | null
     custom_instructions: string | null
+    auto_reply_enabled: boolean
+    reply_from_name: string | null
   } | null
 
   if (!profile) return
@@ -152,6 +154,7 @@ async function processSlackLead(
         bookingLink: profile.booking_link || undefined,
         businessName: profile.business_name || undefined,
         customInstructions: profile.custom_instructions || undefined,
+        replyFromName: profile.reply_from_name || undefined,
       },
     })
   } catch (err) {
@@ -215,6 +218,33 @@ async function processSlackLead(
       })
     } catch (err) {
       console.error('Failed to post lead result to Slack:', err)
+    }
+
+    // Auto-reply in Slack thread if enabled (only for HIGH and MEDIUM intent)
+    if (
+      profile.auto_reply_enabled &&
+      result.score.suggested_reply &&
+      result.score.intent_label !== 'low'
+    ) {
+      const { allowed: replyAllowed } = await canSendReply(userId)
+      if (replyAllowed) {
+        try {
+          await slack.chat.postMessage({
+            channel: event.channel,
+            thread_ts: event.ts,
+            text: result.score.suggested_reply,
+          })
+
+          // Mark reply as sent and increment counter
+          await supabase
+            .from('leads')
+            .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
+            .eq('id', lead.id)
+          await supabase.rpc('increment_replies_sent', { p_user_id: userId })
+        } catch (err) {
+          console.error('Slack auto-reply failed:', err)
+        }
+      }
     }
   }
 }

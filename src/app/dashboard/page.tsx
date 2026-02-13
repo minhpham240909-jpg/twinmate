@@ -41,6 +41,7 @@ export default async function DashboardPage() {
 
   return (
     <LeadsClient
+      userId={user.id}
       initialLeads={leads}
       initialTotal={total}
       initialTotalPages={totalPages}

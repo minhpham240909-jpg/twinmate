@@ -4,6 +4,7 @@ interface ProfileContext {
   bookingLink?: string
   businessName?: string
   customInstructions?: string
+  replyFromName?: string
 }
 
 export function buildSystemPrompt(profile: ProfileContext): string {
@@ -58,6 +59,7 @@ When in doubt between two labels, choose the LOWER one.
 - Keep replies under 100 words
 - Never use exclamation marks more than once
 - Never use phrases like "I'd love to", "Let's hop on a call", "circle back", "touch base"
+${profile.replyFromName ? `- Sign off the reply with the name: ${profile.replyFromName}` : '- End the reply with a sign-off like "Best," followed by "[Your name]"'}
 
 ${profile.customInstructions ? `## Additional Context from the Freelancer\n${profile.customInstructions}\n` : ''}
 ${nicheExamples}`

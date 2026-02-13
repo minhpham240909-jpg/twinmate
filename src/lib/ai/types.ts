@@ -18,6 +18,7 @@ export interface ScoreLeadInput {
     bookingLink?: string
     businessName?: string
     customInstructions?: string
+    replyFromName?: string
   }
   source: 'slack' | 'email'
   senderName?: string
