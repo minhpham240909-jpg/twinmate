@@ -123,10 +123,12 @@ export async function POST(
       .single()
 
     const fromName = profile?.reply_from_name || profile?.business_name || 'Adecis'
-    const fromAddress = claimedLead.source_channel || ''
     const replySubject = extractReplySubject(claimedLead.raw_message || '')
 
-    if (!fromAddress) {
+    // Use the user's real email as reply-to so responses go to their inbox
+    const replyToAddress = user.email || claimedLead.source_channel || ''
+
+    if (!replyToAddress) {
       await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
       return NextResponse.json(
         { error: 'Missing sender address configuration' },
@@ -137,17 +139,20 @@ export async function POST(
     try {
       await sendEmailReply({
         to: claimedLead.sender_identifier,
-        fromAddress,
+        fromAddress: replyToAddress,
         fromName,
         subject: replySubject,
         body: claimedLead.suggested_reply,
       })
-    } catch (err) {
+    } catch (err: unknown) {
       // Undo the claim since email send failed
       await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
-      console.error('Failed to send email reply:', err)
+      // Extract SendGrid error details
+      const sgErr = err as { response?: { body?: { errors?: { message: string }[] } }; message?: string }
+      const detail = sgErr?.response?.body?.errors?.[0]?.message || sgErr?.message || 'Unknown error'
+      console.error('Failed to send email reply:', detail, err)
       return NextResponse.json(
-        { error: 'Failed to send email reply. Please try again.' },
+        { error: `Failed to send email reply: ${detail}` },
         { status: 502 }
       )
     }

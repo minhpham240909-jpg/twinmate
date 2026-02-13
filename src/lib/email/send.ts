@@ -14,10 +14,9 @@ interface SendEmailReplyParams {
 }
 
 // SendGrid requires the "from" address to be on a verified/authenticated domain.
-// The inbound subdomain (inbound.clerva.app) may not be authenticated for sending.
-// Use noreply@clerva.app as the sender and set reply-to as the user's inbound address
-// so customer replies still route back through the system.
-const VERIFIED_SEND_DOMAIN = process.env.SENDGRID_VERIFIED_DOMAIN || 'clerva.app'
+// Set SENDGRID_FROM_EMAIL to the exact verified sender address in your SendGrid account.
+// Defaults to noreply@clerva.app — but this MUST be verified in SendGrid for sending to work.
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@clerva.app'
 
 export async function sendEmailReply({
   to,
@@ -33,16 +32,32 @@ export async function sendEmailReply({
   // Sanitize fromName to prevent email header injection
   const safeName = fromName.replace(/[\r\n]/g, '').slice(0, 100)
 
-  // Use verified domain for "from", and the user's inbound address as reply-to
-  const sendFrom = `noreply@${VERIFIED_SEND_DOMAIN}`
-
-  await sgMail.send({
+  console.log('[email-send] Sending reply:', {
     to,
-    from: { email: sendFrom, name: safeName },
-    replyTo: { email: fromAddress, name: safeName },
+    from: SENDGRID_FROM_EMAIL,
+    replyTo: fromAddress,
     subject: subject.replace(/[\r\n]/g, ''),
-    text: body,
+    bodyLength: body.length,
   })
+
+  try {
+    await sgMail.send({
+      to,
+      from: { email: SENDGRID_FROM_EMAIL, name: safeName },
+      replyTo: { email: fromAddress, name: safeName },
+      subject: subject.replace(/[\r\n]/g, ''),
+      text: body,
+    })
+    console.log('[email-send] Success — reply sent to', to)
+  } catch (err: unknown) {
+    const sgErr = err as { response?: { body?: unknown; statusCode?: number }; message?: string }
+    console.error('[email-send] SendGrid error:', {
+      statusCode: sgErr?.response?.statusCode,
+      body: JSON.stringify(sgErr?.response?.body),
+      message: sgErr?.message,
+    })
+    throw err
+  }
 }
 
 /**

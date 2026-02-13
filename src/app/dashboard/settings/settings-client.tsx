@@ -2,6 +2,7 @@
 
 import { NICHES, TONES } from '@/lib/constants'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface SettingsClientProps {
   initialProfile: {
@@ -15,13 +16,20 @@ interface SettingsClientProps {
   }
   initialEmailAddress: string
   initialSlackTeam: string
+  account: {
+    email: string
+    plan: string
+    memberSince: string
+  }
 }
 
 export default function SettingsClient({
   initialProfile,
   initialEmailAddress,
   initialSlackTeam,
+  account,
 }: SettingsClientProps) {
+  const router = useRouter()
   const [businessName, setBusinessName] = useState(initialProfile.businessName)
   const [niche, setNiche] = useState(initialProfile.niche)
   const [tone, setTone] = useState(initialProfile.tone)
@@ -34,6 +42,10 @@ export default function SettingsClient({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [emailCopied, setEmailCopied] = useState(false)
   const [showEmailTips, setShowEmailTips] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function handleSave() {
     setSaving(true)
@@ -73,12 +85,62 @@ export default function SettingsClient({
     }
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch('/api/account', { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        setDeleteError(data.error || 'Failed to delete account')
+        return
+      }
+      router.push('/login')
+    } catch {
+      setDeleteError('Failed to delete account. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const planLabel: Record<string, string> = {
+    trialing: 'Free Trial',
+    active: 'Pro',
+    canceled: 'Canceled',
+    past_due: 'Past Due',
+  }
+
   return (
     <div className="max-w-lg">
       <h1 className="text-lg font-semibold text-gray-900 mb-1">Settings</h1>
       <p className="text-sm text-gray-500 mb-6">
         Configure how Adecis scores your leads and drafts replies.
       </p>
+
+      {/* Account Section */}
+      <div className="bg-white rounded-lg shadow-sm border p-5 mb-4">
+        <h2 className="text-sm font-medium text-gray-900 mb-4">Account</h2>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Email</span>
+            <span className="text-sm text-gray-900">{account.email}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Plan</span>
+            <span className="text-sm text-gray-900">
+              {planLabel[account.plan] || account.plan}
+            </span>
+          </div>
+          {account.memberSince && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Member since</span>
+              <span className="text-sm text-gray-900">
+                {account.memberSince.slice(0, 10)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Profile Section */}
       <div className="bg-white rounded-lg shadow-sm border p-5 mb-4">
@@ -358,6 +420,69 @@ export default function SettingsClient({
           </div>
         )}
       </div>
+
+      {/* Delete Account Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-red-200 p-5 mt-4">
+        <h2 className="text-sm font-medium text-red-600 mb-2">
+          Danger Zone
+        </h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Permanently delete your account and all associated data — leads, settings, integrations. This action cannot be undone.
+        </p>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="text-sm text-red-600 border border-red-300 rounded-md px-4 py-2 hover:bg-red-50 transition-colors"
+        >
+          Delete Account
+        </button>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Delete your account?
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              This will permanently delete your account, all leads, settings, and integrations. This cannot be undone.
+            </p>
+            <p className="text-sm text-gray-700 mb-2">
+              Type <strong>delete my account</strong> to confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4"
+              placeholder="delete my account"
+              autoFocus
+            />
+            {deleteError && (
+              <p className="text-xs text-red-500 mb-3">{deleteError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setDeleteConfirmText('')
+                  setDeleteError(null)
+                }}
+                className="flex-1 text-sm border border-gray-300 rounded-md px-4 py-2 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'delete my account' || deleting}
+                className="flex-1 text-sm bg-red-600 text-white rounded-md px-4 py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+              >
+                {deleting ? 'Deleting...' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

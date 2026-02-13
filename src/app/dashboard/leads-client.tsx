@@ -467,7 +467,7 @@ export default function LeadsClient({
                         {lead.source === 'slack' ? 'Slack' : 'Email'}
                       </span>
                       <span className="text-xs text-gray-300">
-                        {new Date(lead.created_at).toLocaleDateString()}
+                        {lead.created_at.slice(0, 10)}
                       </span>
                     </div>
                   </div>
@@ -603,7 +603,7 @@ export default function LeadsClient({
                       Reply sent via {selectedLead.source === 'slack' ? 'Slack' : 'email'}
                       {selectedLead.reply_sent_at && (
                         <span className="text-gray-400 ml-1">
-                          {new Date(selectedLead.reply_sent_at).toLocaleString()}
+                          {selectedLead.reply_sent_at.slice(0, 16).replace('T', ' ')}
                         </span>
                       )}
                     </span>

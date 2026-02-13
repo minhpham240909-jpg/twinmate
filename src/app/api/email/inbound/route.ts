@@ -176,9 +176,17 @@ export async function POST(request: Request) {
         const replySubject = extractReplySubject(fullMessage)
         const fromName = profile.reply_from_name || profile.business_name || 'Adecis'
 
+        // Get user's real email for reply-to so responses go to their inbox
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', userId)
+          .single()
+        const replyToAddress = userProfile?.email || parsed.to
+
         await sendEmailReply({
           to: parsed.from,
-          fromAddress: parsed.to,
+          fromAddress: replyToAddress,
           fromName,
           subject: replySubject,
           body: result.score.suggested_reply,

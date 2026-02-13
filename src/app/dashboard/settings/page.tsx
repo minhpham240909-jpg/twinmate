@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const [profileResult, emailResult, slackResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('business_name, niche, tone, booking_link, custom_instructions, auto_reply_enabled, reply_from_name')
+      .select('business_name, niche, tone, booking_link, custom_instructions, auto_reply_enabled, reply_from_name, subscription_status, created_at')
       .eq('id', user.id)
       .single(),
     supabase
@@ -44,11 +44,18 @@ export default async function SettingsPage() {
   const initialEmailAddress = emailResult.data?.inbound_address || ''
   const initialSlackTeam = slackResult.data?.team_name || ''
 
+  const account = {
+    email: user.email || '',
+    plan: profile?.subscription_status || 'trialing',
+    memberSince: profile?.created_at || '',
+  }
+
   return (
     <SettingsClient
       initialProfile={initialProfile}
       initialEmailAddress={initialEmailAddress}
       initialSlackTeam={initialSlackTeam}
+      account={account}
     />
   )
 }
