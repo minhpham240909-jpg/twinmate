@@ -32,6 +32,10 @@ export default function LeadsClient({
   const [replyUsage, setReplyUsage] = useState<{ used: number; limit: number } | null>(null)
   const [connections] = useState(initialConnections)
   const [replyCopied, setReplyCopied] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<'selected' | 'all' | null>(null)
   const pageRef = useRef(page)
   const sourceFilterRef = useRef(sourceFilter)
   const labelFilterRef = useRef(labelFilter)
@@ -96,6 +100,18 @@ export default function LeadsClient({
           )
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'leads',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+        }
+      )
       .subscribe()
 
     return () => {
@@ -106,17 +122,20 @@ export default function LeadsClient({
   function handleSourceFilter(value: string) {
     setSourceFilter(value)
     setPage(1)
+    setSelectedIds(new Set())
     fetchLeads(1, value, labelFilter)
   }
 
   function handleLabelFilter(value: string) {
     setLabelFilter(value)
     setPage(1)
+    setSelectedIds(new Set())
     fetchLeads(1, sourceFilter, value)
   }
 
   function handlePageChange(newPage: number) {
     setPage(newPage)
+    setSelectedIds(new Set())
     fetchLeads(newPage, sourceFilter, labelFilter)
   }
 
@@ -170,6 +189,75 @@ export default function LeadsClient({
     }
   }
 
+  function toggleSelectLead(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === leads.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(leads.map((l) => l.id)))
+    }
+  }
+
+  async function deleteLeads(ids: string[]) {
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      if (!res.ok) return
+      // Close modal if deleted lead was open
+      if (selectedLead && ids.includes(selectedLead.id)) {
+        setSelectedLead(null)
+      }
+      setSelectedIds(new Set())
+      const newPage = ids.length >= leads.length && page > 1 ? page - 1 : page
+      setPage(newPage)
+      fetchLeads(newPage, sourceFilter, labelFilter)
+    } catch {
+      // Keep current state on failure
+    } finally {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+      setDeleteTarget(null)
+    }
+  }
+
+  async function deleteAllLeads() {
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          all: true,
+          ...(sourceFilter && { source: sourceFilter }),
+          ...(labelFilter && { label: labelFilter }),
+        }),
+      })
+      if (!res.ok) return
+      setSelectedLead(null)
+      setSelectedIds(new Set())
+      setPage(1)
+      fetchLeads(1, sourceFilter, labelFilter)
+    } catch {
+      // Keep current state on failure
+    } finally {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+      setDeleteTarget(null)
+    }
+  }
+
   function intentBadge(label: string | null) {
     if (label === 'high')
       return (
@@ -193,11 +281,41 @@ export default function LeadsClient({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold text-gray-900">
-          Leads{' '}
-          <span className="text-gray-400 font-normal text-sm">({total})</span>
-        </h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          {leads.length > 0 && (
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={leads.length > 0 && selectedIds.size === leads.length}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </label>
+          )}
+          <h1 className="text-lg font-semibold text-gray-900">
+            Leads{' '}
+            <span className="text-gray-400 font-normal text-sm">({total})</span>
+          </h1>
+        </div>
+        <div className="flex gap-2 items-center">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => { setDeleteTarget('selected'); setShowDeleteConfirm(true) }}
+              disabled={deleting}
+              className="text-sm px-3 py-1 bg-red-50 text-red-600 rounded-md hover:bg-red-100 disabled:opacity-50"
+            >
+              Delete {selectedIds.size} selected
+            </button>
+          )}
+          {total > 0 && (
+            <button
+              onClick={() => { setDeleteTarget('all'); setShowDeleteConfirm(true) }}
+              disabled={deleting}
+              className="text-sm px-3 py-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+            >
+              Clear all
+            </button>
+          )}
           <select
             value={sourceFilter}
             onChange={(e) => handleSourceFilter(e.target.value)}
@@ -315,46 +433,58 @@ export default function LeadsClient({
           </p>
           <div className="space-y-2">
             {leads.map((lead) => (
-              <button
-                key={lead.id}
-                onClick={() => setSelectedLead(lead)}
-                className={`w-full text-left bg-white rounded-lg shadow-sm border px-4 py-3 hover:bg-gray-50 transition-colors ${
-                  lead.intent_label === 'high'
-                    ? 'border-l-4 border-l-green-500'
-                    : lead.intent_label === 'medium'
-                      ? 'border-l-4 border-l-yellow-400'
-                      : 'border-l-4 border-l-gray-200'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    {intentBadge(lead.intent_label)}
-                    <span className="text-sm font-medium text-gray-900">
-                      {lead.sender_name || 'Unknown'}
-                    </span>
+              <div key={lead.id} className="flex items-start gap-2">
+                <label
+                  className="flex items-center pt-3.5 pl-1 cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(lead.id)}
+                    onChange={() => toggleSelectLead(lead.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+                <button
+                  onClick={() => setSelectedLead(lead)}
+                  className={`flex-1 text-left bg-white rounded-lg shadow-sm border px-4 py-3 hover:bg-gray-50 transition-colors ${
+                    lead.intent_label === 'high'
+                      ? 'border-l-4 border-l-green-500'
+                      : lead.intent_label === 'medium'
+                        ? 'border-l-4 border-l-yellow-400'
+                        : 'border-l-4 border-l-gray-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      {intentBadge(lead.intent_label)}
+                      <span className="text-sm font-medium text-gray-900">
+                        {lead.sender_name || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-gray-400">
+                        {lead.source === 'slack' ? 'Slack' : 'Email'}
+                      </span>
+                      <span className="text-xs text-gray-300">
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-gray-400">
-                      {lead.source === 'slack' ? 'Slack' : 'Email'}
-                    </span>
-                    <span className="text-xs text-gray-300">
-                      {new Date(lead.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                {lead.summary_bullets && lead.summary_bullets.length > 0 && (
-                  <ul className="text-xs text-gray-500 space-y-0.5 mt-1">
-                    {lead.summary_bullets.map((b, i) => (
-                      <li key={i}>• {b}</li>
-                    ))}
-                  </ul>
-                )}
-                {!lead.summary_bullets?.length && lead.raw_message && (
-                  <p className="text-xs text-gray-500 mt-1 truncate">
-                    {lead.raw_message.substring(0, 100)}
-                  </p>
-                )}
-              </button>
+                  {lead.summary_bullets && lead.summary_bullets.length > 0 && (
+                    <ul className="text-xs text-gray-500 space-y-0.5 mt-1">
+                      {lead.summary_bullets.map((b, i) => (
+                        <li key={i}>• {b}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {!lead.summary_bullets?.length && lead.raw_message && (
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {lead.raw_message.substring(0, 100)}
+                    </p>
+                  )}
+                </button>
+              </div>
             ))}
           </div>
 
@@ -396,12 +526,27 @@ export default function LeadsClient({
               <h2 className="font-semibold text-gray-900">
                 Lead from {selectedLead.sender_name || 'Unknown'}
               </h2>
-              <button
-                onClick={() => setSelectedLead(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedIds(new Set([selectedLead.id]))
+                    setDeleteTarget('selected')
+                    setShowDeleteConfirm(true)
+                  }}
+                  className="text-gray-300 hover:text-red-500 transition-colors"
+                  title="Delete this lead"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setSelectedLead(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 mb-3">
@@ -509,6 +654,49 @@ export default function LeadsClient({
                 Feedback: {selectedLead.feedback === 'positive' ? 'Helpful' : 'Not helpful'}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4"
+          onClick={() => { setShowDeleteConfirm(false); setDeleteTarget(null) }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-semibold text-gray-900 text-lg mb-2">
+              {deleteTarget === 'all'
+                ? 'Delete all leads?'
+                : `Delete ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''}?`}
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              This cannot be undone.{' '}
+              {deleteTarget === 'all'
+                ? `All ${total} lead${total !== 1 ? 's' : ''}${sourceFilter || labelFilter ? ' matching your current filters' : ''} will be permanently removed.`
+                : `${selectedIds.size} selected lead${selectedIds.size !== 1 ? 's' : ''} will be permanently removed.`}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteTarget(null) }}
+                className="text-sm px-4 py-2 border rounded-md text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteTarget === 'all') deleteAllLeads()
+                  else deleteLeads(Array.from(selectedIds))
+                }}
+                disabled={deleting}
+                className="text-sm px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

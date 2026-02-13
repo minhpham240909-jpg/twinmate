@@ -1,6 +1,58 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const body = await request.json()
+
+  // "Delete all" mode — wipe leads matching optional filters
+  if (body.all === true) {
+    let query = supabase
+      .from('leads')
+      .delete({ count: 'exact' })
+      .eq('user_id', user.id)
+
+    if (body.source) query = query.eq('source', body.source)
+    if (body.label) query = query.eq('intent_label', body.label)
+
+    const { error, count } = await query
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ deleted: count })
+  }
+
+  // "Delete selected" mode — delete specific IDs
+  const { ids } = body
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100) {
+    return NextResponse.json({ error: 'Provide 1-100 lead IDs' }, { status: 400 })
+  }
+  if (!ids.every((id: string) => UUID_RE.test(id))) {
+    return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
+  }
+
+  const { error, count } = await supabase
+    .from('leads')
+    .delete({ count: 'exact' })
+    .in('id', ids)
+    .eq('user_id', user.id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ deleted: count })
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
