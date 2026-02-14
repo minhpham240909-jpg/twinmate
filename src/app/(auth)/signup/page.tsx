@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [confirmationSent, setConfirmationSent] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -18,7 +19,7 @@ export default function SignupPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -32,6 +33,14 @@ export default function SignupPage() {
       return
     }
 
+    // Email confirmation required — no session returned yet
+    if (data.user && !data.session) {
+      setConfirmationSent(true)
+      setLoading(false)
+      return
+    }
+
+    // No confirmation needed — go straight to onboarding
     router.push('/onboarding')
     router.refresh()
   }
@@ -47,6 +56,42 @@ export default function SignupPage() {
     if (error) {
       setError(error.message)
     }
+  }
+
+  if (confirmationSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Check your email</h1>
+            <p className="text-gray-500 mt-2">
+              We sent a confirmation link to
+            </p>
+            <p className="text-sm font-medium text-gray-900 mt-1">{email}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Click the link in your email to confirm your account. Once confirmed, you&apos;ll be automatically signed in.
+            </p>
+            <p className="text-xs text-gray-400 mt-4">
+              Didn&apos;t receive it? Check your spam folder.
+            </p>
+          </div>
+
+          <p className="text-center text-sm text-gray-500 mt-4">
+            <Link href="/login" className="text-blue-600 hover:underline">
+              Back to sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

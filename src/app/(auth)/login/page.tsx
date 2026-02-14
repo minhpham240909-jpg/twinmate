@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [resent, setResent] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -24,13 +25,39 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError(error.message)
+      if (error.message === 'Email not confirmed') {
+        setError('Your email is not confirmed yet. Please check your inbox and click the confirmation link before signing in.')
+      } else {
+        setError(error.message)
+      }
       setLoading(false)
       return
     }
 
     router.push('/dashboard')
     router.refresh()
+  }
+
+  async function handleResendConfirmation() {
+    if (!email) {
+      setError('Please enter your email address first.')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    })
+    setLoading(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      setError(null)
+      setResent(true)
+    }
   }
 
   async function handleGoogleLogin() {
@@ -130,7 +157,22 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-sm text-red-600">{error}</p>
+              <div className="space-y-2">
+                <p className="text-sm text-red-600">{error}</p>
+                {error.includes('not confirmed') && (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={loading || resent}
+                    className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resent ? 'Confirmation email sent!' : 'Resend confirmation email'}
+                  </button>
+                )}
+              </div>
+            )}
+            {resent && !error && (
+              <p className="text-sm text-green-600">Confirmation email sent! Check your inbox.</p>
             )}
 
             <button
