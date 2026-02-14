@@ -393,8 +393,11 @@ export default function SettingsClient({
                     <li>Go to Settings → Forwarding and POP/IMAP</li>
                     <li>Click &quot;Add a forwarding address&quot;</li>
                     <li>Paste your Adecis email address above</li>
-                    <li>Confirm via the verification email</li>
-                    <li>Create a filter to forward inquiry emails automatically</li>
+                    <li>Gmail will send a confirmation email to your Adecis address — it will appear as a lead on your dashboard</li>
+                    <li>Open that lead, find the long confirmation link in the message, and open it in a new browser tab</li>
+                    <li>Click &quot;Confirm&quot; on the Google page to activate forwarding</li>
+                    <li>Back in Gmail, select &quot;Forward a copy&quot; and save</li>
+                    <li>Create a filter to forward only inquiry emails automatically</li>
                   </ol>
                 </div>
 

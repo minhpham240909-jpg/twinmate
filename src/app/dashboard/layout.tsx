@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/browser'
+import { usePathname } from 'next/navigation'
 
 export default function DashboardLayout({
   children,
@@ -10,19 +9,12 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const router = useRouter()
 
   const navItems = [
     { href: '/dashboard', label: 'Leads' },
     { href: '/dashboard/settings', label: 'Settings' },
     { href: '/dashboard/billing', label: 'Billing' },
   ]
-
-  async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,12 +43,6 @@ export default function DashboardLayout({
                 </Link>
               )
             })}
-            <button
-              onClick={handleSignOut}
-              className="text-gray-400 hover:text-gray-600 ml-2"
-            >
-              Sign out
-            </button>
           </div>
         </div>
       </nav>

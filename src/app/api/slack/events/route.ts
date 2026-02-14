@@ -7,6 +7,7 @@ import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
 import { isDuplicate, slackEventRateLimit, safeRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
@@ -164,33 +165,7 @@ async function processSlackLead(
     }
   }
 
-  // Step 1: Insert lead IMMEDIATELY so it appears on the dashboard right away
-  const { data: lead, error: insertError } = await supabase
-    .from('leads')
-    .insert({
-      user_id: userId,
-      source: 'slack',
-      source_id: event.ts,
-      source_channel: event.channel,
-      sender_name: senderName,
-      sender_identifier: event.user,
-      raw_message: event.text,
-      thread_context: threadContext || null,
-      slack_thread_ts: event.ts,
-      slack_channel_id: event.channel,
-    })
-    .select('id')
-    .single()
-
-  if (insertError) {
-    console.error('Failed to insert lead:', insertError)
-    return
-  }
-
-  // Increment usage counter
-  await supabase.rpc('increment_leads_used', { p_user_id: userId })
-
-  // Step 2: Score with AI — then UPDATE the lead (triggers Realtime UPDATE on dashboard)
+  // Score with AI first — lead only appears on dashboard when fully scored
   let result
   try {
     result = await scoreLead({
@@ -209,11 +184,6 @@ async function processSlackLead(
     })
   } catch (err) {
     console.error('AI scoring failed for Slack lead:', err)
-    // Mark the lead as scoring_failed so the dashboard doesn't show "Scoring..." forever
-    await supabase
-      .from('leads')
-      .update({ intent_label: 'scoring_failed' })
-      .eq('id', lead.id)
     try {
       await slack.chat.postMessage({
         channel: event.channel,
@@ -224,10 +194,20 @@ async function processSlackLead(
     return
   }
 
-  // Update lead with AI results — Realtime pushes this to the dashboard
-  const { error: updateError } = await supabase
+  // Insert lead with all AI results — appears on dashboard fully scored
+  const { data: lead, error: insertError } = await supabase
     .from('leads')
-    .update({
+    .insert({
+      user_id: userId,
+      source: 'slack',
+      source_id: event.ts,
+      source_channel: event.channel,
+      sender_name: senderName,
+      sender_identifier: event.user,
+      raw_message: event.text,
+      thread_context: threadContext || null,
+      slack_thread_ts: event.ts,
+      slack_channel_id: event.channel,
       intent_score: result.score.intent_score,
       intent_label: result.score.intent_label,
       summary_bullets: result.score.summary_bullets,
@@ -242,11 +222,16 @@ async function processSlackLead(
       completion_tokens: result.usage.completionTokens,
       ai_latency_ms: result.latencyMs,
     })
-    .eq('id', lead.id)
+    .select('id')
+    .single()
 
-  if (updateError) {
-    console.error('Failed to update Slack lead with AI results:', updateError)
+  if (insertError) {
+    console.error('Failed to insert lead:', insertError)
+    return
   }
+
+  // Increment usage counter
+  await supabase.rpc('increment_leads_used', { p_user_id: userId })
 
   // Post AI result as threaded reply in Slack
   try {

@@ -7,6 +7,9 @@ import { createSlackClient } from '@/lib/slack/client'
 import { formatLeadResponse } from '@/lib/slack/format'
 import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 
+export const runtime = 'nodejs'
+export const maxDuration = 30
+
 export async function POST(request: Request) {
   // SendGrid sends multipart form data
   const formData = await request.formData()
@@ -111,31 +114,7 @@ export async function POST(request: Request) {
     ? `Subject: ${parsed.subject}\n\n${parsed.textBody}`
     : parsed.textBody
 
-  // Step 1: Insert lead IMMEDIATELY so it shows on the dashboard instantly
-  // AI scoring fields are null — the dashboard shows a "Scoring..." state
-  const { data: lead, error: insertError } = await supabase
-    .from('leads')
-    .insert({
-      user_id: userId,
-      source: 'email',
-      source_id: parsed.from,
-      source_channel: parsed.to,
-      sender_name: parsed.senderName,
-      sender_identifier: parsed.from,
-      raw_message: fullMessage,
-    })
-    .select('id')
-    .single()
-
-  if (insertError) {
-    console.error('Failed to insert email lead:', insertError)
-    return new Response('OK', { status: 200 })
-  }
-
-  // Increment usage counter
-  await supabase.rpc('increment_leads_used', { p_user_id: userId })
-
-  // Step 2: Score with AI — then UPDATE the lead (triggers Realtime UPDATE on dashboard)
+  // Score with AI first — lead only appears on dashboard when fully scored
   let result
   try {
     result = await scoreLead({
@@ -153,18 +132,20 @@ export async function POST(request: Request) {
     })
   } catch (err) {
     console.error('AI scoring failed for email lead:', err)
-    // Mark the lead as scoring_failed so the dashboard doesn't show "Scoring..." forever
-    await supabase
-      .from('leads')
-      .update({ intent_label: 'scoring_failed' })
-      .eq('id', lead.id)
     return new Response('OK', { status: 200 })
   }
 
-  // Update lead with AI results — Realtime pushes this to the dashboard
-  const { error: updateError } = await supabase
+  // Insert lead with all AI results — appears on dashboard fully scored
+  const { data: lead, error: insertError } = await supabase
     .from('leads')
-    .update({
+    .insert({
+      user_id: userId,
+      source: 'email',
+      source_id: parsed.from,
+      source_channel: parsed.to,
+      sender_name: parsed.senderName,
+      sender_identifier: parsed.from,
+      raw_message: fullMessage,
       intent_score: result.score.intent_score,
       intent_label: result.score.intent_label,
       summary_bullets: result.score.summary_bullets,
@@ -179,11 +160,16 @@ export async function POST(request: Request) {
       completion_tokens: result.usage.completionTokens,
       ai_latency_ms: result.latencyMs,
     })
-    .eq('id', lead.id)
+    .select('id')
+    .single()
 
-  if (updateError) {
-    console.error('Failed to update email lead with AI results:', updateError)
+  if (insertError) {
+    console.error('Failed to insert email lead:', insertError)
+    return new Response('OK', { status: 200 })
   }
+
+  // Increment usage counter
+  await supabase.rpc('increment_leads_used', { p_user_id: userId })
 
   // Auto-reply via email if enabled (only for HIGH and MEDIUM intent)
   if (

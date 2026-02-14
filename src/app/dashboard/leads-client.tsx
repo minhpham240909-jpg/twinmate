@@ -301,15 +301,9 @@ export default function LeadsClient({
           LOW
         </span>
       )
-    if (label === 'scoring_failed')
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-400">
-          Score failed
-        </span>
-      )
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-500 animate-pulse">
-        Scoring...
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-400">
+        —
       </span>
     )
   }
@@ -504,9 +498,7 @@ export default function LeadsClient({
                         ? 'border-l-4 border-l-yellow-400'
                         : lead.intent_label === 'low'
                           ? 'border-l-4 border-l-gray-200'
-                          : lead.intent_label === 'scoring_failed'
-                            ? 'border-l-4 border-l-red-200'
-                            : 'border-l-4 border-l-blue-300 animate-pulse'
+                          : ''
                   }`}
                 >
                   <div className="flex items-start justify-between mb-1">
@@ -631,17 +623,9 @@ export default function LeadsClient({
 
             <div className="flex items-center flex-wrap gap-2 mb-3">
               {intentBadge(selectedLead.intent_label)}
-              {selectedLead.intent_score != null ? (
+              {selectedLead.intent_score != null && (
                 <span className="text-sm text-gray-500">
                   Score: {Math.round(selectedLead.intent_score * 100)}/100
-                </span>
-              ) : selectedLead.intent_label === 'scoring_failed' ? (
-                <span className="text-sm text-red-400">
-                  Scoring failed
-                </span>
-              ) : (
-                <span className="text-sm text-blue-400 animate-pulse">
-                  Analyzing...
                 </span>
               )}
               {selectedLead.confidence != null && (
