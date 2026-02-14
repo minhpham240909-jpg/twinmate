@@ -1,5 +1,6 @@
 'use client'
 
+import { createClient } from '@/lib/supabase/browser'
 import { NICHES, TONES } from '@/lib/constants'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -46,6 +47,8 @@ export default function SettingsClient({
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   async function handleSave() {
     setSaving(true)
@@ -83,6 +86,13 @@ export default function SettingsClient({
       setEmailCopied(true)
       setTimeout(() => setEmailCopied(false), 2000)
     }
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
   }
 
   async function handleDeleteAccount() {
@@ -420,6 +430,49 @@ export default function SettingsClient({
           </div>
         )}
       </div>
+
+      {/* Sign Out Section */}
+      <div className="bg-white rounded-lg shadow-sm border p-5 mt-4">
+        <h2 className="text-sm font-medium text-gray-900 mb-2">Session</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Sign out of your account on this device.
+        </p>
+        <button
+          onClick={() => setShowSignOutConfirm(true)}
+          className="text-sm text-gray-700 border border-gray-300 rounded-md px-4 py-2 hover:bg-gray-50 transition-colors"
+        >
+          Sign Out
+        </button>
+      </div>
+
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Sign out?
+            </h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Are you sure you want to sign out of your account?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 text-sm border border-gray-300 rounded-md px-4 py-2 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="flex-1 text-sm bg-blue-600 text-white rounded-md px-4 py-2 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {signingOut ? 'Signing out...' : 'Sign Out'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Account Section */}
       <div className="bg-white rounded-lg shadow-sm border border-red-200 p-5 mt-4">
