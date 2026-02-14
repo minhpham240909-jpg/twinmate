@@ -165,7 +165,7 @@ async function processSlackLead(
     }
   }
 
-  // Score with AI first — lead only appears on dashboard when fully scored
+  // Try to score with AI — if it fails, we still insert the lead so it's never lost
   let result
   try {
     result = await scoreLead({
@@ -183,18 +183,10 @@ async function processSlackLead(
       },
     })
   } catch (err) {
-    console.error('AI scoring failed for Slack lead:', err)
-    try {
-      await slack.chat.postMessage({
-        channel: event.channel,
-        thread_ts: event.ts,
-        text: 'Sorry, I couldn\'t analyze this message right now. Please try again later.',
-      })
-    } catch { /* best effort */ }
-    return
+    console.error('AI scoring failed for Slack lead — inserting without score:', err)
   }
 
-  // Insert lead with all AI results — appears on dashboard fully scored
+  // Insert lead — fully scored if AI succeeded, raw message only if it failed
   const { data: lead, error: insertError } = await supabase
     .from('leads')
     .insert({
@@ -208,19 +200,21 @@ async function processSlackLead(
       thread_context: threadContext || null,
       slack_thread_ts: event.ts,
       slack_channel_id: event.channel,
-      intent_score: result.score.intent_score,
-      intent_label: result.score.intent_label,
-      summary_bullets: result.score.summary_bullets,
-      suggested_reply: result.score.suggested_reply,
-      confidence: result.score.confidence,
-      deal_tier: result.score.deal_tier,
-      scoring_reasons: result.score.scoring_reasons,
-      response_priority: result.score.response_priority,
-      priority_reason: result.score.priority_reason,
-      model_used: result.model,
-      prompt_tokens: result.usage.promptTokens,
-      completion_tokens: result.usage.completionTokens,
-      ai_latency_ms: result.latencyMs,
+      ...(result && {
+        intent_score: result.score.intent_score,
+        intent_label: result.score.intent_label,
+        summary_bullets: result.score.summary_bullets,
+        suggested_reply: result.score.suggested_reply,
+        confidence: result.score.confidence,
+        deal_tier: result.score.deal_tier,
+        scoring_reasons: result.score.scoring_reasons,
+        response_priority: result.score.response_priority,
+        priority_reason: result.score.priority_reason,
+        model_used: result.model,
+        prompt_tokens: result.usage.promptTokens,
+        completion_tokens: result.usage.completionTokens,
+        ai_latency_ms: result.latencyMs,
+      }),
     })
     .select('id')
     .single()
@@ -233,45 +227,57 @@ async function processSlackLead(
   // Increment usage counter
   await supabase.rpc('increment_leads_used', { p_user_id: userId })
 
-  // Post AI result as threaded reply in Slack
-  try {
-    const blocks = formatLeadResponse(result.score, senderName, lead.id)
+  // Slack reply, auto-reply only if AI scoring succeeded
+  if (result) {
+    // Post AI result as threaded reply in Slack
+    try {
+      const blocks = formatLeadResponse(result.score, senderName, lead.id)
 
-    await slack.chat.postMessage({
-      channel: event.channel,
-      thread_ts: event.ts,
-      text: `Lead from ${senderName} — ${result.score.intent_label.toUpperCase()} intent`,
-      blocks: warning
-        ? [...blocks, { type: 'context', elements: [{ type: 'mrkdwn', text: `_${warning}_` }] }]
-        : blocks,
-    })
-  } catch (err) {
-    console.error('Failed to post lead result to Slack:', err)
-  }
+      await slack.chat.postMessage({
+        channel: event.channel,
+        thread_ts: event.ts,
+        text: `Lead from ${senderName} — ${result.score.intent_label.toUpperCase()} intent`,
+        blocks: warning
+          ? [...blocks, { type: 'context', elements: [{ type: 'mrkdwn', text: `_${warning}_` }] }]
+          : blocks,
+      })
+    } catch (err) {
+      console.error('Failed to post lead result to Slack:', err)
+    }
 
-  // Auto-reply in Slack thread if enabled (only for HIGH and MEDIUM intent)
-  if (
-    profile.auto_reply_enabled &&
-    result.score.suggested_reply &&
-    result.score.intent_label !== 'low'
-  ) {
-    const { allowed: replyAllowed } = await canSendReply(userId)
-    if (replyAllowed) {
-      try {
-        await slack.chat.postMessage({
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: result.score.suggested_reply,
-        })
+    // Auto-reply in Slack thread if enabled (only for HIGH and MEDIUM intent)
+    if (
+      profile.auto_reply_enabled &&
+      result.score.suggested_reply &&
+      result.score.intent_label !== 'low'
+    ) {
+      const { allowed: replyAllowed } = await canSendReply(userId)
+      if (replyAllowed) {
+        try {
+          await slack.chat.postMessage({
+            channel: event.channel,
+            thread_ts: event.ts,
+            text: result.score.suggested_reply,
+          })
 
-        await supabase
-          .from('leads')
-          .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
-          .eq('id', lead.id)
-        await supabase.rpc('increment_replies_sent', { p_user_id: userId })
-      } catch (err) {
-        console.error('Slack auto-reply failed:', err)
+          await supabase
+            .from('leads')
+            .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
+            .eq('id', lead.id)
+          await supabase.rpc('increment_replies_sent', { p_user_id: userId })
+        } catch (err) {
+          console.error('Slack auto-reply failed:', err)
+        }
       }
     }
+  } else {
+    // AI failed — notify in Slack that scoring didn't work
+    try {
+      await slack.chat.postMessage({
+        channel: event.channel,
+        thread_ts: event.ts,
+        text: 'New lead received but scoring is temporarily unavailable. Check your dashboard.',
+      })
+    } catch { /* best effort */ }
   }
 }
