@@ -2,6 +2,9 @@ import { verifySlackSignature } from '@/lib/slack/verify'
 import { createSlackClient } from '@/lib/slack/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+export const runtime = 'nodejs'
+export const maxDuration = 15
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
 

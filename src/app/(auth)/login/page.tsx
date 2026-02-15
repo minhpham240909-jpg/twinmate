@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/browser'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -13,6 +13,14 @@ export default function LoginPage() {
   const [resent, setResent] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  // Show error from OAuth callback redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error') === 'auth') {
+      setError('Sign-in failed. Please try again.')
+    }
+  }, [])
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()

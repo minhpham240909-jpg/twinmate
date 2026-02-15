@@ -4,6 +4,9 @@ import { stripe } from '@/lib/stripe/client'
 import { PLANS } from '@/lib/stripe/plans'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+export const maxDuration = 20
+
 export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

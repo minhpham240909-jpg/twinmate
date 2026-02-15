@@ -18,7 +18,7 @@ export async function canProcessLead(userId: string): Promise<{
 
   // Check trial expiration
   if (profile.subscription_status === 'trialing') {
-    if (new Date(profile.trial_ends_at) < new Date()) {
+    if (profile.trial_ends_at && new Date(profile.trial_ends_at) < new Date()) {
       return { allowed: false, reason: 'Your free trial has ended. Upgrade to keep scoring leads.' }
     }
   }
@@ -30,6 +30,9 @@ export async function canProcessLead(userId: string): Promise<{
 
   const used = profile.leads_used_this_month
   const limit = profile.plan_lead_limit
+  if (!limit || limit <= 0) {
+    return { allowed: false, reason: 'Plan configuration error. Please contact support.' }
+  }
   const percentage = Math.round((used / limit) * 100)
   const usage = { used, limit, percentage }
 
@@ -68,7 +71,7 @@ export async function canSendReply(userId: string): Promise<{
 
   // Check trial expiration
   if (profile.subscription_status === 'trialing') {
-    if (new Date(profile.trial_ends_at) < new Date()) {
+    if (profile.trial_ends_at && new Date(profile.trial_ends_at) < new Date()) {
       return { allowed: false, reason: 'Your free trial has ended. Upgrade to send replies.' }
     }
   }

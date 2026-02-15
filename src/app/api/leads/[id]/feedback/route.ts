@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+export const maxDuration = 15
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

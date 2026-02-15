@@ -39,7 +39,11 @@ export default function OnboardingStep3() {
   async function handleFinish() {
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) return
+    if (!session?.user) {
+      setLoading(false)
+      setError('Session expired. Please log in again.')
+      return
+    }
 
     await supabase
       .from('profiles')

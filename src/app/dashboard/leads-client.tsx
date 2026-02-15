@@ -30,7 +30,7 @@ export default function LeadsClient({
   const [sendReplyError, setSendReplyError] = useState<string | null>(null)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [replyUsage, setReplyUsage] = useState<{ used: number; limit: number } | null>(null)
-  const [connections] = useState(initialConnections)
+  const [connections, setConnections] = useState(initialConnections)
   const [replyCopied, setReplyCopied] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -57,6 +57,7 @@ export default function LeadsClient({
       setLeads(data.leads ?? [])
       setTotal(data.total ?? 0)
       setTotalPages(data.totalPages ?? 1)
+      if (data.connections) setConnections(data.connections)
     } catch {
       // Keep current state on failure
     }
@@ -490,7 +491,7 @@ export default function LeadsClient({
                   />
                 </label>
                 <button
-                  onClick={() => setSelectedLead(lead)}
+                  onClick={() => { setSendReplyError(null); setReplyCopied(false); setSelectedLead(lead) }}
                   className={`flex-1 text-left bg-white rounded-lg shadow-sm border px-4 py-3 hover:bg-gray-50 transition-colors ${
                     lead.intent_label === 'high'
                       ? 'border-l-4 border-l-green-500'

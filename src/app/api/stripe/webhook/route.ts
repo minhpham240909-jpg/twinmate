@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { PLANS } from '@/lib/stripe/plans'
 import type Stripe from 'stripe'
 
+export const runtime = 'nodejs'
+export const maxDuration = 30
+
 export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')

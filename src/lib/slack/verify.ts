@@ -22,8 +22,8 @@ export function verifySlackSignature(
       .update(sigBasestring, 'utf8')
       .digest('hex')
 
-  return timingSafeEqual(
-    Buffer.from(mySignature, 'utf8'),
-    Buffer.from(signature, 'utf8')
-  )
+  const myBuf = Buffer.from(mySignature, 'utf8')
+  const sigBuf = Buffer.from(signature, 'utf8')
+  if (myBuf.length !== sigBuf.length) return false
+  return timingSafeEqual(myBuf, sigBuf)
 }

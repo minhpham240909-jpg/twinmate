@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+export const maxDuration = 15
+
 const VALID_TONES = ['professional', 'casual', 'friendly']
 
 export async function POST(request: Request) {

@@ -1,6 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createSlackClient } from '@/lib/slack/client'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 const CRON_SECRET = process.env.CRON_SECRET
 
 export async function GET(request: Request) {

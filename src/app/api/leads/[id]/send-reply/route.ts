@@ -5,6 +5,7 @@ import { canSendReply } from '@/lib/stripe/helpers'
 import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
 export const maxDuration = 15
 
 export async function POST(

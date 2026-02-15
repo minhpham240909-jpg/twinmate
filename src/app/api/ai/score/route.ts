@@ -3,6 +3,9 @@ import { scoreLead } from '@/lib/ai/score-lead'
 import { NextResponse } from 'next/server'
 import { aiRateLimit, safeRateLimit } from '@/lib/rate-limit'
 
+export const runtime = 'nodejs'
+export const maxDuration = 30
+
 // Internal-only AI scoring endpoint for testing
 export async function POST(request: Request) {
   const supabase = await createClient()
