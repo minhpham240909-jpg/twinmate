@@ -69,7 +69,7 @@ const LEAD_SCORING_TOOL = {
 
 export async function scoreLead(input: ScoreLeadInput): Promise<ScoreLeadResult> {
   const startTime = Date.now()
-  const model = 'claude-sonnet-4-20250514'
+  const model = 'claude-sonnet-4-5-20250929'
 
   let response
   try {
