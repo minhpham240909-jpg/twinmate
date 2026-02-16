@@ -63,17 +63,21 @@ export async function POST() {
   }
 
   // Create checkout session
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: 'subscription',
-    line_items: [{ price: PLANS.PRO.priceId, quantity: 1 }],
-    subscription_data: { trial_period_days: PLANS.PRO.trialDays },
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?canceled=true`,
-    metadata: { user_id: user.id },
-  })
+  try {
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: PLANS.PRO.priceId, quantity: 1 }],
+      subscription_data: { trial_period_days: PLANS.PRO.trialDays },
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?canceled=true`,
+      metadata: { user_id: user.id },
+    })
 
-  console.log(`[Stripe Checkout] Session created for user ${user.id}: ${session.id}`)
-
-  return NextResponse.json({ url: session.url })
+    console.log(`[Stripe Checkout] Session created for user ${user.id}: ${session.id}`)
+    return NextResponse.json({ url: session.url })
+  } catch (err) {
+    console.error('[Stripe Checkout] Failed to create session:', err)
+    return NextResponse.json({ error: 'Failed to start checkout. Please try again.' }, { status: 500 })
+  }
 }

@@ -106,7 +106,11 @@ export default function SettingsClient({
         setDeleteError(data.error || 'Failed to delete account')
         return
       }
+      // Clear local session before redirecting
+      const supabase = createClient()
+      await supabase.auth.signOut()
       router.push('/login')
+      router.refresh()
     } catch {
       setDeleteError('Failed to delete account. Please try again.')
     } finally {

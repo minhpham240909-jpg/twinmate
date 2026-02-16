@@ -147,7 +147,8 @@ export default function OnboardingStep3() {
       <div className="mt-3 text-center">
         <button
           onClick={handleFinish}
-          className="text-sm text-gray-400 hover:text-gray-600"
+          disabled={loading}
+          className="text-sm text-gray-400 hover:text-gray-600 disabled:opacity-50"
         >
           Skip — I&apos;ll set this up later
         </button>

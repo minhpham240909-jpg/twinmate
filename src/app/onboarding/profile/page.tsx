@@ -28,14 +28,16 @@ export default function OnboardingStep2() {
       return
     }
 
+    const safeBookingLink = bookingLink && /^https?:\/\//i.test(bookingLink) ? bookingLink.slice(0, 500) : null
+
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
-        business_name: businessName || null,
+        business_name: businessName.slice(0, 200) || null,
         niche: niche || null,
         tone,
-        booking_link: bookingLink || null,
-        custom_instructions: customInstructions || null,
+        booking_link: safeBookingLink,
+        custom_instructions: customInstructions.slice(0, 500) || null,
         onboarding_step: 3,
       })
       .eq('id', user.id)

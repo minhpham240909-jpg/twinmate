@@ -20,7 +20,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limited. Try again shortly.' }, { status: 429 })
   }
 
-  const body = await request.json()
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const { message, source = 'slack', senderName } = body
 
   if (!message) {
@@ -34,18 +39,22 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single()
 
-  const result = await scoreLead({
-    message,
-    source,
-    senderName,
-    profile: {
-      niche: profile?.niche || 'other',
-      tone: profile?.tone || 'professional',
-      bookingLink: profile?.booking_link || undefined,
-      businessName: profile?.business_name || undefined,
-      customInstructions: profile?.custom_instructions || undefined,
-    },
-  })
-
-  return NextResponse.json(result)
+  try {
+    const result = await scoreLead({
+      message,
+      source,
+      senderName,
+      profile: {
+        niche: profile?.niche || 'other',
+        tone: profile?.tone || 'professional',
+        bookingLink: profile?.booking_link || undefined,
+        businessName: profile?.business_name || undefined,
+        customInstructions: profile?.custom_instructions || undefined,
+      },
+    })
+    return NextResponse.json(result)
+  } catch (err) {
+    console.error('AI scoring failed:', err)
+    return NextResponse.json({ error: 'AI scoring failed. Please try again.' }, { status: 500 })
+  }
 }

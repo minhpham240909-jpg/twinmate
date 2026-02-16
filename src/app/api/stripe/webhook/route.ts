@@ -107,18 +107,21 @@ export async function POST(request: Request) {
     case 'invoice.payment_succeeded': {
       const succeededInvoice = event.data.object as unknown as Record<string, unknown>
       const succeededSubId = succeededInvoice.subscription as string | undefined
+      const billingReason = succeededInvoice.billing_reason as string | undefined
       if (succeededSubId) {
+        // Only reset usage counters on monthly renewal, not prorations or one-off charges
+        const updateData: Record<string, unknown> = { subscription_status: 'active' }
+        if (billingReason === 'subscription_cycle') {
+          updateData.leads_used_this_month = 0
+          updateData.replies_sent_this_month = 0
+        }
         const { error } = await supabase
           .from('profiles')
-          .update({
-            subscription_status: 'active',
-            leads_used_this_month: 0,
-            replies_sent_this_month: 0,
-          })
+          .update(updateData)
           .eq('subscription_id', succeededSubId)
 
         if (error) {
-          console.error('[Stripe Webhook] Failed to reset usage on payment:', error)
+          console.error('[Stripe Webhook] Failed to update on payment:', error)
         }
       }
       break

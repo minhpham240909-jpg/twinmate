@@ -32,7 +32,7 @@ export const emailRateLimit = new Ratelimit({
 export async function isDuplicate(eventId: string): Promise<boolean> {
   try {
     const key = `adecis:dedup:${eventId}`
-    const result = await redis.set(key, '1', { nx: true, ex: 300 }) // 5 min TTL
+    const result = await redis.set(key, '1', { nx: true, ex: 86400 }) // 24h TTL
     return result === null // null = key already existed
   } catch (err) {
     console.error('Redis dedup check failed, allowing event:', err)

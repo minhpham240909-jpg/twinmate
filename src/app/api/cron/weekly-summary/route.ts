@@ -22,9 +22,14 @@ export async function GET(request: Request) {
 
   // Get all users who have active Slack installations
   // This is who we send summaries to
-  const { data: installations } = await supabase
+  const { data: installations, error: installError } = await supabase
     .from('slack_installations')
     .select('user_id, bot_token, authed_user_id')
+
+  if (installError) {
+    console.error('Cron weekly-summary DB error:', installError)
+    return Response.json({ ok: false, error: installError.message }, { status: 500 })
+  }
 
   if (!installations || installations.length === 0) {
     return Response.json({ ok: true, summaries: 0 })

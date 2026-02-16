@@ -8,7 +8,7 @@ interface BillingClientProps {
     subscription_status: string
     leads_used_this_month: number
     plan_lead_limit: number
-    trial_ends_at: string
+    trial_ends_at: string | null
   }
 }
 
@@ -16,13 +16,14 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
   const [profile, setProfile] = useState(initialProfile)
   const [error, setError] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [manageLoading, setManageLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const router = useRouter()
 
   const isTrialing = profile.subscription_status === 'trialing'
   const isActive = profile.subscription_status === 'active'
-  const trialDaysLeft = isTrialing
+  const trialDaysLeft = isTrialing && profile.trial_ends_at
     ? Math.max(
         0,
         Math.ceil(
@@ -115,6 +116,7 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
   }
 
   async function handleManage() {
+    setManageLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/stripe/portal', { method: 'POST' })
@@ -123,9 +125,11 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
         window.location.href = data.url
       } else {
         setError(data.error || 'Failed to open billing portal')
+        setManageLoading(false)
       }
     } catch {
       setError('Failed to open billing portal')
+      setManageLoading(false)
     }
   }
 
@@ -270,9 +274,10 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
         {isActive && (
           <button
             onClick={handleManage}
-            className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            disabled={manageLoading}
+            className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
-            Manage Subscription
+            {manageLoading ? 'Loading...' : 'Manage Subscription'}
           </button>
         )}
       </div>

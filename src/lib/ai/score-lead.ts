@@ -71,19 +71,25 @@ export async function scoreLead(input: ScoreLeadInput): Promise<ScoreLeadResult>
   const startTime = Date.now()
   const model = 'claude-sonnet-4-20250514'
 
-  const response = await anthropic.messages.create({
-    model,
-    max_tokens: 1024,
-    system: buildSystemPrompt(input.profile),
-    messages: [
-      {
-        role: 'user',
-        content: buildUserPrompt(input),
-      },
-    ],
-    tools: [LEAD_SCORING_TOOL],
-    tool_choice: { type: 'tool', name: 'score_lead' },
-  })
+  let response
+  try {
+    response = await anthropic.messages.create({
+      model,
+      max_tokens: 1536,
+      system: buildSystemPrompt(input.profile),
+      messages: [
+        {
+          role: 'user',
+          content: buildUserPrompt(input),
+        },
+      ],
+      tools: [LEAD_SCORING_TOOL],
+      tool_choice: { type: 'tool', name: 'score_lead' },
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    throw new Error(`AI API call failed: ${msg}`)
+  }
 
   const latencyMs = Date.now() - startTime
 
@@ -96,7 +102,13 @@ export async function scoreLead(input: ScoreLeadInput): Promise<ScoreLeadResult>
   }
 
   // Validate with Zod
-  const score = LeadScoreSchema.parse(toolUseBlock.input)
+  let score
+  try {
+    score = LeadScoreSchema.parse(toolUseBlock.input)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    throw new Error(`AI returned invalid score structure: ${msg}`)
+  }
 
   // Post-processing: enforce label-score consistency
   if (score.intent_score >= 0.70 && score.intent_label !== 'high') {

@@ -21,13 +21,13 @@ export default async function SettingsPage() {
       .from('email_addresses')
       .select('inbound_address')
       .eq('user_id', user.id)
-      .single(),
+      .maybeSingle(),
     supabase
       .from('slack_installations')
       .select('team_name')
       .eq('user_id', user.id)
       .limit(1)
-      .single(),
+      .maybeSingle(),
   ])
 
   const profile = profileResult.data

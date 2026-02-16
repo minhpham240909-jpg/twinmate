@@ -32,7 +32,12 @@ export async function GET(request: Request) {
     .lt('created_at', twentyFourHoursAgo)
     .order('user_id')
 
-  if (error || !unrepliedLeads || unrepliedLeads.length === 0) {
+  if (error) {
+    console.error('Cron lead-reminders DB error:', error)
+    return Response.json({ ok: false, error: error.message }, { status: 500 })
+  }
+
+  if (!unrepliedLeads || unrepliedLeads.length === 0) {
     return Response.json({ ok: true, reminders: 0 })
   }
 

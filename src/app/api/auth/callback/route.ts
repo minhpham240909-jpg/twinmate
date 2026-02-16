@@ -12,25 +12,29 @@ export async function GET(request: Request) {
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
 
   if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    try {
+      const supabase = await createClient()
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (!error) {
-      // Check if user has completed onboarding
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_completed')
-          .eq('id', user.id)
-          .single()
+      if (!error) {
+        // Check if user has completed onboarding
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('onboarding_completed')
+            .eq('id', user.id)
+            .single()
 
-        if (profile && !profile.onboarding_completed) {
-          return NextResponse.redirect(`${origin}/onboarding`)
+          if (profile && !profile.onboarding_completed) {
+            return NextResponse.redirect(`${origin}/onboarding`)
+          }
         }
-      }
 
-      return NextResponse.redirect(`${origin}${next}`)
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+    } catch (err) {
+      console.error('Auth callback error:', err)
     }
   }
 

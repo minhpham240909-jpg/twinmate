@@ -9,6 +9,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

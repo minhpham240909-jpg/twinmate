@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import BillingClient from './billing-client'
@@ -20,5 +21,9 @@ export default async function BillingPage() {
     redirect('/login')
   }
 
-  return <BillingClient profile={profile} />
+  return (
+    <Suspense fallback={<div className="text-sm text-gray-400">Loading billing...</div>}>
+      <BillingClient profile={profile} />
+    </Suspense>
+  )
 }

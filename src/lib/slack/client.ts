@@ -12,7 +12,7 @@ export async function getValidBotToken(userId: string): Promise<string | null> {
 
   const { data: installation } = await supabase
     .from('slack_installations')
-    .select('*')
+    .select('id, bot_token, refresh_token, token_expires_at')
     .eq('user_id', userId)
     .limit(1)
     .single()

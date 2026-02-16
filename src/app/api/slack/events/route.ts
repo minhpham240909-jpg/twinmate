@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions'
 import { verifySlackSignature } from '@/lib/slack/verify'
 import { createSlackClient } from '@/lib/slack/client'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -41,13 +42,14 @@ export async function POST(request: Request) {
     }
 
     // Acknowledge immediately — process in background
-    const response = new Response('OK', { status: 200 })
+    // waitUntil keeps the serverless function alive until the promise resolves
+    waitUntil(
+      processSlackLead(event, teamId).catch((err) => {
+        console.error('Failed to process Slack lead:', err)
+      })
+    )
 
-    processSlackLead(event, teamId).catch((err) => {
-      console.error('Failed to process Slack lead:', err)
-    })
-
-    return response
+    return new Response('OK', { status: 200 })
   }
 
   return new Response('OK', { status: 200 })

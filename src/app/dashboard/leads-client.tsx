@@ -34,6 +34,7 @@ export default function LeadsClient({
   const [replyCopied, setReplyCopied] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<'selected' | 'all' | null>(null)
   const pageRef = useRef(page)
@@ -233,13 +234,17 @@ export default function LeadsClient({
 
   async function deleteLeads(ids: string[]) {
     setDeleting(true)
+    setDeleteError(null)
     try {
       const res = await fetch('/api/leads', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        setDeleteError('Failed to delete leads. Please try again.')
+        return
+      }
       // Close modal if deleted lead was open
       if (selectedLead && ids.includes(selectedLead.id)) {
         setSelectedLead(null)
@@ -249,7 +254,7 @@ export default function LeadsClient({
       setPage(newPage)
       fetchLeads(newPage, sourceFilter, labelFilter)
     } catch {
-      // Keep current state on failure
+      setDeleteError('Failed to delete leads. Please try again.')
     } finally {
       setDeleting(false)
       setShowDeleteConfirm(false)
@@ -259,6 +264,7 @@ export default function LeadsClient({
 
   async function deleteAllLeads() {
     setDeleting(true)
+    setDeleteError(null)
     try {
       const res = await fetch('/api/leads', {
         method: 'DELETE',
@@ -269,13 +275,16 @@ export default function LeadsClient({
           ...(labelFilter && { label: labelFilter }),
         }),
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        setDeleteError('Failed to delete leads. Please try again.')
+        return
+      }
       setSelectedLead(null)
       setSelectedIds(new Set())
       setPage(1)
       fetchLeads(1, sourceFilter, labelFilter)
     } catch {
-      // Keep current state on failure
+      setDeleteError('Failed to delete leads. Please try again.')
     } finally {
       setDeleting(false)
       setShowDeleteConfirm(false)
@@ -311,6 +320,11 @@ export default function LeadsClient({
 
   return (
     <div>
+      {deleteError && (
+        <div className="bg-red-50 text-red-600 text-sm rounded-md p-2.5 mb-3">
+          {deleteError}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           {leads.length > 0 && (
@@ -519,7 +533,7 @@ export default function LeadsClient({
                         {lead.source === 'slack' ? 'Slack' : 'Email'}
                       </span>
                       <span className="text-xs text-gray-300">
-                        {lead.created_at.slice(0, 10)}
+                        {lead.created_at?.slice(0, 10)}
                       </span>
                     </div>
                   </div>
