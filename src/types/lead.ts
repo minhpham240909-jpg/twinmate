@@ -33,6 +33,25 @@ export interface Lead {
   updated_at: string
 }
 
+export type ActivityAction =
+  | 'lead_received'
+  | 'reply_sent'
+  | 'reply_auto_sent'
+  | 'lead_skipped'
+
+export interface ActivityLog {
+  id: string
+  user_id: string
+  lead_id: string | null
+  action: ActivityAction
+  sender_name: string | null
+  source: 'slack' | 'email'
+  intent_label: 'high' | 'medium' | 'low' | null
+  deal_tier: string | null
+  reply_preview: string | null
+  created_at: string
+}
+
 export interface Profile {
   id: string
   email: string

@@ -2,7 +2,14 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/browser'
-import type { Lead } from '@/types/lead'
+import type { Lead, ActivityLog } from '@/types/lead'
+
+interface DayStats {
+  leadsToday: number
+  repliesSent: number
+  autoHandled: number
+  needsReview: number
+}
 
 interface LeadsClientProps {
   userId: string
@@ -10,6 +17,8 @@ interface LeadsClientProps {
   initialTotal: number
   initialTotalPages: number
   initialConnections: { slack: boolean; email: boolean }
+  initialActivities: ActivityLog[]
+  initialStats: DayStats
 }
 
 export default function LeadsClient({
@@ -18,6 +27,8 @@ export default function LeadsClient({
   initialTotal,
   initialTotalPages,
   initialConnections,
+  initialActivities,
+  initialStats,
 }: LeadsClientProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [total, setTotal] = useState(initialTotal)
@@ -37,20 +48,28 @@ export default function LeadsClient({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<'selected' | 'all' | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [editedReply, setEditedReply] = useState('')
+  const [activities] = useState<ActivityLog[]>(initialActivities)
+  const [stats] = useState<DayStats>(initialStats)
+  const [dashView, setDashView] = useState<'leads' | 'activity'>('leads')
   const pageRef = useRef(page)
   const sourceFilterRef = useRef(sourceFilter)
   const labelFilterRef = useRef(labelFilter)
+  const searchRef = useRef(searchQuery)
 
   // Keep refs in sync so the realtime callback reads current values
   useEffect(() => { pageRef.current = page }, [page])
   useEffect(() => { sourceFilterRef.current = sourceFilter }, [sourceFilter])
   useEffect(() => { labelFilterRef.current = labelFilter }, [labelFilter])
+  useEffect(() => { searchRef.current = searchQuery }, [searchQuery])
 
-  const fetchLeads = useCallback(async (p: number, source: string, label: string) => {
+  const fetchLeads = useCallback(async (p: number, source: string, label: string, search?: string) => {
     try {
       const params = new URLSearchParams({ page: p.toString() })
       if (source) params.set('source', source)
       if (label) params.set('label', label)
+      if (search) params.set('search', search)
 
       const res = await fetch(`/api/leads?${params}`)
       if (!res.ok) return
@@ -74,13 +93,13 @@ export default function LeadsClient({
       if (timerRef === 'insert') {
         if (insertDebounceTimer) clearTimeout(insertDebounceTimer)
         insertDebounceTimer = setTimeout(() => {
-          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current)
           insertDebounceTimer = null
         }, 300)
       } else {
         if (deleteDebounceTimer) clearTimeout(deleteDebounceTimer)
         deleteDebounceTimer = setTimeout(() => {
-          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current)
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current)
           deleteDebounceTimer = null
         }, 300)
       }
@@ -149,20 +168,27 @@ export default function LeadsClient({
     setSourceFilter(value)
     setPage(1)
     setSelectedIds(new Set())
-    fetchLeads(1, value, labelFilter)
+    fetchLeads(1, value, labelFilter, searchQuery)
   }
 
   function handleLabelFilter(value: string) {
     setLabelFilter(value)
     setPage(1)
     setSelectedIds(new Set())
-    fetchLeads(1, sourceFilter, value)
+    fetchLeads(1, sourceFilter, value, searchQuery)
   }
 
   function handlePageChange(newPage: number) {
     setPage(newPage)
     setSelectedIds(new Set())
-    fetchLeads(newPage, sourceFilter, labelFilter)
+    fetchLeads(newPage, sourceFilter, labelFilter, searchQuery)
+  }
+
+  function handleSearch(value: string) {
+    setSearchQuery(value)
+    setPage(1)
+    setSelectedIds(new Set())
+    fetchLeads(1, sourceFilter, labelFilter, value)
   }
 
   async function submitFeedback(leadId: string, feedback: 'positive' | 'negative') {
@@ -173,7 +199,7 @@ export default function LeadsClient({
         body: JSON.stringify({ feedback }),
       })
       if (!res.ok) return
-      fetchLeads(page, sourceFilter, labelFilter)
+      fetchLeads(page, sourceFilter, labelFilter, searchQuery)
       if (selectedLead?.id === leadId) {
         setSelectedLead((prev) =>
           prev ? { ...prev, feedback, feedback_at: new Date().toISOString() } : null
@@ -191,6 +217,7 @@ export default function LeadsClient({
       const res = await fetch(`/api/leads/${leadId}/send-reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customReply: editedReply.trim() }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -202,7 +229,7 @@ export default function LeadsClient({
         }
         return
       }
-      fetchLeads(page, sourceFilter, labelFilter)
+      fetchLeads(page, sourceFilter, labelFilter, searchQuery)
       if (selectedLead?.id === leadId) {
         setSelectedLead((prev) =>
           prev ? { ...prev, reply_sent: true, reply_sent_at: data.reply_sent_at } : null
@@ -252,7 +279,7 @@ export default function LeadsClient({
       setSelectedIds(new Set())
       const newPage = ids.length >= leads.length && page > 1 ? page - 1 : page
       setPage(newPage)
-      fetchLeads(newPage, sourceFilter, labelFilter)
+      fetchLeads(newPage, sourceFilter, labelFilter, searchQuery)
     } catch {
       setDeleteError('Failed to delete leads. Please try again.')
     } finally {
@@ -282,7 +309,7 @@ export default function LeadsClient({
       setSelectedLead(null)
       setSelectedIds(new Set())
       setPage(1)
-      fetchLeads(1, sourceFilter, labelFilter)
+      fetchLeads(1, sourceFilter, labelFilter, searchQuery)
     } catch {
       setDeleteError('Failed to delete leads. Please try again.')
     } finally {
@@ -312,14 +339,100 @@ export default function LeadsClient({
         </span>
       )
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-400">
-        —
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-400">
+        UNSCORED
       </span>
     )
   }
 
   return (
     <div>
+      {/* Stats bar */}
+      {(stats.leadsToday > 0 || stats.repliesSent > 0) && (
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="bg-white rounded-lg border px-4 py-3 text-center">
+            <div className="text-xl font-semibold text-gray-900">{stats.leadsToday}</div>
+            <div className="text-[11px] text-gray-400">Leads today</div>
+          </div>
+          <div className="bg-white rounded-lg border px-4 py-3 text-center">
+            <div className="text-xl font-semibold text-gray-900">{stats.repliesSent}</div>
+            <div className="text-[11px] text-gray-400">Replies sent</div>
+          </div>
+          <div className="bg-white rounded-lg border px-4 py-3 text-center">
+            <div className="text-xl font-semibold text-gray-900">{stats.autoHandled}</div>
+            <div className="text-[11px] text-gray-400">Auto-handled</div>
+          </div>
+          <div className="bg-white rounded-lg border px-4 py-3 text-center">
+            <div className={`text-xl font-semibold ${stats.needsReview > 0 ? 'text-orange-500' : 'text-gray-900'}`}>{stats.needsReview}</div>
+            <div className="text-[11px] text-gray-400">Needs review</div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab switcher */}
+      <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-0.5 w-fit">
+        <button
+          onClick={() => setDashView('leads')}
+          className={`text-sm px-3 py-1.5 rounded-md transition-colors ${dashView === 'leads' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Leads
+        </button>
+        <button
+          onClick={() => setDashView('activity')}
+          className={`text-sm px-3 py-1.5 rounded-md transition-colors ${dashView === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Activity
+        </button>
+      </div>
+
+      {/* Activity Feed view */}
+      {dashView === 'activity' && (
+        <div className="space-y-1">
+          {activities.length === 0 ? (
+            <p className="text-sm text-gray-400 py-8 text-center">No activity yet. Leads and replies will appear here.</p>
+          ) : (
+            activities.map((a) => (
+              <div key={a.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+                <div className="mt-0.5 shrink-0">
+                  {a.action === 'reply_auto_sent' && <span className="text-green-500 text-sm">&#10003;</span>}
+                  {a.action === 'reply_sent' && <span className="text-blue-500 text-sm">&#10003;</span>}
+                  {a.action === 'lead_received' && <span className="text-gray-400 text-sm">&#9679;</span>}
+                  {a.action === 'lead_skipped' && <span className="text-gray-300 text-sm">&#9675;</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700 font-medium truncate">
+                      {a.action === 'reply_auto_sent' && `Reply auto-sent to ${a.sender_name || 'Unknown'}`}
+                      {a.action === 'reply_sent' && `Reply sent to ${a.sender_name || 'lead'}`}
+                      {a.action === 'lead_received' && `New lead from ${a.sender_name || 'Unknown'}`}
+                      {a.action === 'lead_skipped' && `Skipped: ${a.sender_name || 'Unknown'}`}
+                    </span>
+                    {a.intent_label && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                        a.intent_label === 'high' ? 'bg-green-100 text-green-700' :
+                        a.intent_label === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-500'
+                      }`}>
+                        {a.intent_label.toUpperCase()}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-gray-300">{a.source === 'slack' ? 'Slack' : 'Email'}</span>
+                  </div>
+                  {a.reply_preview && (
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">&ldquo;{a.reply_preview.substring(0, 80)}...&rdquo;</p>
+                  )}
+                </div>
+                <span className="text-[11px] text-gray-300 shrink-0 mt-0.5">
+                  {a.created_at?.slice(11, 16)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Leads view */}
+      {dashView === 'leads' && <>
       {deleteError && (
         <div className="bg-red-50 text-red-600 text-sm rounded-md p-2.5 mb-3">
           {deleteError}
@@ -380,6 +493,13 @@ export default function LeadsClient({
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
+          <input
+            type="text"
+            placeholder="Search leads..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="text-sm border border-gray-300 rounded-md px-2 py-1 w-40"
+          />
         </div>
       </div>
 
@@ -505,7 +625,7 @@ export default function LeadsClient({
                   />
                 </label>
                 <button
-                  onClick={() => { setSendReplyError(null); setReplyCopied(false); setSelectedLead(lead) }}
+                  onClick={() => { setSendReplyError(null); setReplyCopied(false); setEditedReply(lead.suggested_reply || ''); setSelectedLead(lead) }}
                   className={`flex-1 text-left bg-white rounded-lg shadow-sm border px-4 py-3 hover:bg-gray-50 transition-colors ${
                     lead.intent_label === 'high'
                       ? 'border-l-4 border-l-green-500'
@@ -598,6 +718,7 @@ export default function LeadsClient({
           )}
         </>
       )}
+      </>}
 
       {/* Lead Detail Modal */}
       {selectedLead && (
@@ -742,12 +863,31 @@ export default function LeadsClient({
 
             {selectedLead.suggested_reply && (
               <div className="mb-4">
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">
-                  Suggested Reply
-                </h3>
-                <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-700">
-                  {selectedLead.suggested_reply}
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xs font-medium text-gray-500 uppercase">
+                    {selectedLead.reply_sent ? 'Suggested Reply' : 'Edit & Send Reply'}
+                  </h3>
+                  {!selectedLead.reply_sent && editedReply !== selectedLead.suggested_reply && (
+                    <button
+                      onClick={() => setEditedReply(selectedLead.suggested_reply || '')}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      Reset to original
+                    </button>
+                  )}
                 </div>
+                {selectedLead.reply_sent ? (
+                  <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-700">
+                    {selectedLead.suggested_reply}
+                  </div>
+                ) : (
+                  <textarea
+                    value={editedReply}
+                    onChange={(e) => setEditedReply(e.target.value)}
+                    rows={5}
+                    className="w-full bg-gray-50 rounded-md p-3 text-sm text-gray-700 border border-gray-200 focus:border-blue-300 focus:ring-1 focus:ring-blue-300 outline-none resize-y"
+                  />
+                )}
                 {sendReplyError && (
                   <p className="text-xs text-red-500 mt-1">{sendReplyError}</p>
                 )}
@@ -757,7 +897,7 @@ export default function LeadsClient({
                       selectedLead.source === 'email') && (
                       <button
                         onClick={() => sendReply(selectedLead.id)}
-                        disabled={sendingReply}
+                        disabled={sendingReply || !editedReply.trim()}
                         className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                       >
                         {sendingReply ? 'Sending...' : `Send Reply via ${selectedLead.source === 'slack' ? 'Slack' : 'Email'}`}
@@ -775,9 +915,7 @@ export default function LeadsClient({
                   )}
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(
-                        selectedLead.suggested_reply || ''
-                      )
+                      navigator.clipboard.writeText(editedReply || selectedLead.suggested_reply || '')
                       setReplyCopied(true)
                       setTimeout(() => setReplyCopied(false), 2000)
                     }}

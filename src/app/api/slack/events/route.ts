@@ -6,6 +6,8 @@ import { scoreLead } from '@/lib/ai/score-lead'
 import { formatLeadResponse } from '@/lib/slack/format'
 import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
 import { isDuplicate, slackEventRateLimit, safeRateLimit } from '@/lib/rate-limit'
+import { logActivity } from '@/lib/activity'
+import { sendPushToUser } from '@/lib/push'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -229,6 +231,24 @@ async function processSlackLead(
   // Increment usage counter
   await supabase.rpc('increment_leads_used', { p_user_id: userId })
 
+  const intentLabel = result?.score.intent_label || null
+  const dealTier = result?.score.deal_tier || null
+
+  // Log activity — "lead_skipped" for low intent, "lead_received" otherwise
+  if (result && intentLabel === 'low') {
+    void logActivity({
+      userId, leadId: lead.id, action: 'lead_skipped',
+      senderName, source: 'slack',
+      intentLabel, dealTier, replyPreview: null,
+    })
+  } else {
+    void logActivity({
+      userId, leadId: lead.id, action: 'lead_received',
+      senderName, source: 'slack',
+      intentLabel, dealTier, replyPreview: null,
+    })
+  }
+
   // Slack reply, auto-reply only if AI scoring succeeded
   if (result) {
     // Post AI result as threaded reply in Slack
@@ -267,10 +287,37 @@ async function processSlackLead(
             .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
             .eq('id', lead.id)
           await supabase.rpc('increment_replies_sent', { p_user_id: userId })
+
+          // Log auto-reply activity
+          void logActivity({
+            userId, leadId: lead.id, action: 'reply_auto_sent',
+            senderName, source: 'slack',
+            intentLabel, dealTier,
+            replyPreview: result.score.suggested_reply,
+          })
         } catch (err) {
           console.error('Slack auto-reply failed:', err)
         }
       }
+    }
+
+    // Push notification for HIGH intent leads
+    if (intentLabel === 'high') {
+      const summaryLine = result.score.summary_bullets?.slice(0, 2).join(' | ') || ''
+      const tierLabel = dealTier && dealTier !== 'unknown'
+        ? ` | ${dealTier === 'enterprise' ? '$50k+' : dealTier === 'mid-high' ? '$10-50k' : dealTier === 'mid' ? '$2-10k' : '<$2k'}`
+        : ''
+      void sendPushToUser(userId, {
+        title: `HIGH intent — ${senderName}`,
+        body: `${summaryLine}${tierLabel}${profile.auto_reply_enabled ? ' | Reply auto-sent' : ''}`,
+        tag: `lead-${lead.id}`,
+        url: `/dashboard?lead=${lead.id}`,
+        requireInteraction: true,
+        actions: [
+          { action: 'view', title: 'Review Lead' },
+        ],
+        data: { leadId: lead.id },
+      })
     }
   } else {
     // AI failed — notify in Slack that scoring didn't work

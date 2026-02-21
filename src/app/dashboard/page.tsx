@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import LeadsClient from './leads-client'
+import type { ActivityLog } from '@/types/lead'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -11,9 +12,11 @@ export default async function DashboardPage() {
   }
 
   const limit = 20
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
 
-  // Run all 3 queries in parallel — no N+1, no sequential waits
-  const [leadsResult, slackResult, emailResult] = await Promise.all([
+  // Run all 5 queries in parallel — no N+1, no sequential waits
+  const [leadsResult, slackResult, emailResult, activityResult, todayStatsResult] = await Promise.all([
     supabase
       .from('leads')
       .select('*', { count: 'exact' })
@@ -29,6 +32,17 @@ export default async function DashboardPage() {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_active', true),
+    supabase
+      .from('activity_log')
+      .select('id, action, sender_name, source, intent_label, deal_tier, reply_preview, lead_id, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase
+      .from('activity_log')
+      .select('action, intent_label')
+      .eq('user_id', user.id)
+      .gte('created_at', todayStart.toISOString()),
   ])
 
   const leads = leadsResult.data || []
@@ -39,6 +53,21 @@ export default async function DashboardPage() {
     email: (emailResult.count ?? 0) > 0,
   }
 
+  // Compute today's stats
+  const todayActivities = todayStatsResult.data || []
+  const stats = { leadsToday: 0, repliesSent: 0, autoHandled: 0, needsReview: 0 }
+  for (const a of todayActivities) {
+    if (a.action === 'lead_received') {
+      stats.leadsToday++
+      if (a.intent_label === 'high') stats.needsReview++
+    }
+    if (a.action === 'reply_sent') stats.repliesSent++
+    if (a.action === 'reply_auto_sent') {
+      stats.repliesSent++
+      stats.autoHandled++
+    }
+  }
+
   return (
     <LeadsClient
       userId={user.id}
@@ -46,6 +75,8 @@ export default async function DashboardPage() {
       initialTotal={total}
       initialTotalPages={totalPages}
       initialConnections={connections}
+      initialActivities={(activityResult.data || []) as ActivityLog[]}
+      initialStats={stats}
     />
   )
 }

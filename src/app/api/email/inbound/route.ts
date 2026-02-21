@@ -1,11 +1,14 @@
+import { waitUntil } from '@vercel/functions'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { parseInboundEmail } from '@/lib/email/parse'
+import { parseInboundEmail, type ParsedEmail } from '@/lib/email/parse'
 import { scoreLead } from '@/lib/ai/score-lead'
 import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
-import { emailRateLimit, safeRateLimit } from '@/lib/rate-limit'
+import { emailRateLimit, safeRateLimit, isDuplicateEmail } from '@/lib/rate-limit'
 import { createSlackClient } from '@/lib/slack/client'
 import { formatLeadResponse } from '@/lib/slack/format'
 import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
+import { logActivity } from '@/lib/activity'
+import { sendPushToUser } from '@/lib/push'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -41,6 +44,12 @@ export async function POST(request: Request) {
     return new Response('OK', { status: 200 })
   }
 
+  // Email deduplication — prevent duplicate leads on SendGrid retries
+  if (await isDuplicateEmail(parsed.from, parsed.subject || '', parsed.textBody || '')) {
+    console.log('[inbound] Discarded: duplicate email', parsed.from, parsed.subject)
+    return new Response('OK', { status: 200 })
+  }
+
   const supabase = createAdminClient()
 
   // Look up user by inbound email address
@@ -70,6 +79,19 @@ export async function POST(request: Request) {
     return new Response('OK', { status: 200 })
   }
 
+  // Acknowledge immediately — process in background so SendGrid doesn't retry
+  waitUntil(
+    processEmailLead(parsed, userId).catch((err) => {
+      console.error('Failed to process email lead:', err)
+    })
+  )
+
+  return new Response('OK', { status: 200 })
+}
+
+async function processEmailLead(parsed: ParsedEmail, userId: string) {
+  const supabase = createAdminClient()
+
   // Get user profile (single query — includes email for reply-to)
   interface ProfileData {
     email: string | null
@@ -92,7 +114,6 @@ export async function POST(request: Request) {
   if (fullProfile) {
     profile = fullProfile as unknown as ProfileData
   } else if (profileError) {
-    // If the error is about missing columns (migration 004 not run), retry without them
     const { data: basicProfile } = await supabase
       .from('profiles')
       .select('email, niche, tone, booking_link, business_name, custom_instructions')
@@ -106,7 +127,7 @@ export async function POST(request: Request) {
 
   if (!profile) {
     console.error('[inbound] No profile found for user:', userId)
-    return new Response('OK', { status: 200 })
+    return
   }
 
   // Combine subject + body for scoring
@@ -166,11 +187,29 @@ export async function POST(request: Request) {
 
   if (insertError) {
     console.error('Failed to insert email lead:', insertError)
-    return new Response('OK', { status: 200 })
+    return
   }
 
   // Increment usage counter
   await supabase.rpc('increment_leads_used', { p_user_id: userId })
+
+  const intentLabel = result?.score.intent_label || null
+  const dealTier = result?.score.deal_tier || null
+
+  // Log "lead_received" activity (or "lead_skipped" for low intent with no reply)
+  if (result && intentLabel === 'low') {
+    void logActivity({
+      userId, leadId: lead.id, action: 'lead_skipped',
+      senderName: parsed.senderName, source: 'email',
+      intentLabel, dealTier, replyPreview: null,
+    })
+  } else {
+    void logActivity({
+      userId, leadId: lead.id, action: 'lead_received',
+      senderName: parsed.senderName, source: 'email',
+      intentLabel, dealTier, replyPreview: null,
+    })
+  }
 
   // Auto-reply and Slack notification only if AI scoring succeeded
   if (result) {
@@ -200,10 +239,37 @@ export async function POST(request: Request) {
             .update({ reply_sent: true, reply_sent_at: new Date().toISOString() })
             .eq('id', lead.id)
           await supabase.rpc('increment_replies_sent', { p_user_id: userId })
+
+          // Log auto-reply activity
+          void logActivity({
+            userId, leadId: lead.id, action: 'reply_auto_sent',
+            senderName: parsed.senderName, source: 'email',
+            intentLabel, dealTier,
+            replyPreview: result.score.suggested_reply,
+          })
         } catch (err) {
           console.error('Auto-reply email failed:', err)
         }
       }
+    }
+
+    // Push notification for HIGH intent leads
+    if (intentLabel === 'high') {
+      const summaryLine = result.score.summary_bullets?.slice(0, 2).join(' | ') || ''
+      const tierLabel = dealTier && dealTier !== 'unknown'
+        ? ` | ${dealTier === 'enterprise' ? '$50k+' : dealTier === 'mid-high' ? '$10-50k' : dealTier === 'mid' ? '$2-10k' : '<$2k'}`
+        : ''
+      void sendPushToUser(userId, {
+        title: `HIGH intent — ${parsed.senderName}`,
+        body: `${summaryLine}${tierLabel}${profile.auto_reply_enabled ? ' | Reply auto-sent' : ''}`,
+        tag: `lead-${lead.id}`,
+        url: `/dashboard?lead=${lead.id}`,
+        requireInteraction: true,
+        actions: [
+          { action: 'view', title: 'Review Lead' },
+        ],
+        data: { leadId: lead.id },
+      })
     }
 
     // Deliver to Slack if connected
@@ -237,6 +303,4 @@ export async function POST(request: Request) {
       }
     }
   }
-
-  return new Response('OK', { status: 200 })
 }

@@ -2,8 +2,20 @@
 
 import { createClient } from '@/lib/supabase/browser'
 import { NICHES, TONES } from '@/lib/constants'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const buffer = new ArrayBuffer(rawData.length)
+  const view = new Uint8Array(buffer)
+  for (let i = 0; i < rawData.length; i++) {
+    view[i] = rawData.charCodeAt(i)
+  }
+  return buffer
+}
 
 interface SettingsClientProps {
   initialProfile: {
@@ -14,6 +26,9 @@ interface SettingsClientProps {
     customInstructions: string
     autoReplyEnabled: boolean
     replyFromName: string
+    digestEnabled: boolean
+    digestHour: number
+    pushEnabled: boolean
   }
   initialEmailAddress: string
   initialSlackTeam: string
@@ -38,6 +53,11 @@ export default function SettingsClient({
   const [customInstructions, setCustomInstructions] = useState(initialProfile.customInstructions)
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(initialProfile.autoReplyEnabled)
   const [replyFromName, setReplyFromName] = useState(initialProfile.replyFromName)
+  const [digestEnabled, setDigestEnabled] = useState(initialProfile.digestEnabled)
+  const [digestHour, setDigestHour] = useState(initialProfile.digestHour)
+  const [pushEnabled, setPushEnabled] = useState(initialProfile.pushEnabled)
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushSubscribing, setPushSubscribing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -49,6 +69,71 @@ export default function SettingsClient({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+
+  // Detect push notification support on mount
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setPushSupported(true)
+    }
+  }, [])
+
+  const handlePushToggle = useCallback(async () => {
+    if (pushSubscribing) return
+
+    if (pushEnabled) {
+      // Unsubscribe
+      setPushSubscribing(true)
+      try {
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          })
+          await sub.unsubscribe()
+        }
+        setPushEnabled(false)
+      } catch (err) {
+        console.error('Failed to unsubscribe from push:', err)
+      } finally {
+        setPushSubscribing(false)
+      }
+      return
+    }
+
+    // Subscribe
+    setPushSubscribing(true)
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setPushSubscribing(false)
+        return
+      }
+      const reg = await navigator.serviceWorker.ready
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!vapidKey) {
+        console.error('VAPID public key not configured')
+        setPushSubscribing(false)
+        return
+      }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      })
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub.toJSON()),
+      })
+      setPushEnabled(true)
+    } catch (err) {
+      console.error('Failed to subscribe to push:', err)
+    } finally {
+      setPushSubscribing(false)
+    }
+  }, [pushEnabled, pushSubscribing])
 
   async function handleSave() {
     setSaving(true)
@@ -65,6 +150,9 @@ export default function SettingsClient({
           custom_instructions: customInstructions || null,
           auto_reply_enabled: autoReplyEnabled,
           reply_from_name: replyFromName || null,
+          digest_enabled: digestEnabled,
+          digest_hour: digestHour,
+          push_enabled: pushEnabled,
         }),
       })
       if (!res.ok) {
@@ -299,6 +387,97 @@ export default function SettingsClient({
               placeholder="Your name or business name"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Notifications Section */}
+      <div className="bg-white rounded-lg shadow-sm border p-5 mb-4">
+        <h2 className="text-sm font-medium text-gray-900 mb-3">
+          Notifications
+        </h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Control how Adecis keeps you informed about new leads and activity.
+        </p>
+        <div className="space-y-5">
+          {/* Push Notifications */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm text-gray-700">
+                Push notifications
+              </label>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {pushSupported
+                  ? 'Get notified instantly when a HIGH intent lead arrives.'
+                  : 'Push notifications are not supported in this browser.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={pushEnabled}
+              disabled={!pushSupported || pushSubscribing}
+              onClick={handlePushToggle}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                pushEnabled ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  pushEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Daily Digest */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm text-gray-700">
+                Daily digest email
+              </label>
+              <p className="text-xs text-gray-400 mt-0.5">
+                A daily summary of leads received, replies sent, and items needing review.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={digestEnabled}
+              onClick={() => setDigestEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                digestEnabled ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  digestEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Digest Hour Selector — only visible when digest is enabled */}
+          {digestEnabled && (
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">
+                Digest delivery time (UTC)
+              </label>
+              <p className="text-xs text-gray-400 mb-1.5">
+                The hour of day (UTC) when your daily digest is sent.
+              </p>
+              <select
+                value={digestHour}
+                onChange={(e) => setDigestHour(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {h.toString().padStart(2, '0')}:00 UTC
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

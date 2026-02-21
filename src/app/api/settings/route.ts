@@ -30,6 +30,10 @@ export async function POST(request: Request) {
   const customInstructions = typeof body.custom_instructions === 'string' ? body.custom_instructions.slice(0, 500) : null
   const autoReplyEnabled = typeof body.auto_reply_enabled === 'boolean' ? body.auto_reply_enabled : false
   const replyFromName = typeof body.reply_from_name === 'string' ? body.reply_from_name.slice(0, 100) : null
+  const digestEnabled = typeof body.digest_enabled === 'boolean' ? body.digest_enabled : true
+  const rawDigestHour = typeof body.digest_hour === 'number' ? Math.floor(body.digest_hour) : 9
+  const digestHour = rawDigestHour >= 0 && rawDigestHour <= 23 ? rawDigestHour : 9
+  const pushEnabled = typeof body.push_enabled === 'boolean' ? body.push_enabled : false
 
   const { error } = await supabase
     .from('profiles')
@@ -41,6 +45,9 @@ export async function POST(request: Request) {
       custom_instructions: customInstructions,
       auto_reply_enabled: autoReplyEnabled,
       reply_from_name: replyFromName,
+      digest_enabled: digestEnabled,
+      digest_hour: digestHour,
+      push_enabled: pushEnabled,
     })
     .eq('id', user.id)
 

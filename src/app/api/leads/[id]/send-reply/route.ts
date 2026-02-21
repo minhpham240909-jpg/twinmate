@@ -4,6 +4,7 @@ import { createSlackClient, getValidBotToken } from '@/lib/slack/client'
 import { canSendReply } from '@/lib/stripe/helpers'
 import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 import { NextResponse } from 'next/server'
+import { logActivity } from '@/lib/activity'
 
 export const runtime = 'nodejs'
 export const maxDuration = 15
@@ -34,6 +35,20 @@ export async function POST(
       { error: reason, upgrade_required: true, usage },
       { status: 403 }
     )
+  }
+
+  // Parse optional custom reply text from body
+  let customReply: string | null = null
+  try {
+    const body = await request.json()
+    if (body.customReply && typeof body.customReply === 'string') {
+      const trimmed = body.customReply.trim()
+      if (trimmed.length > 0 && trimmed.length <= 5000) {
+        customReply = trimmed
+      }
+    }
+  } catch {
+    // No body or invalid JSON — that's fine, use stored reply
   }
 
   const admin = createAdminClient()
@@ -67,7 +82,10 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to process reply' }, { status: 500 })
   }
 
-  if (!claimedLead.suggested_reply) {
+  // Use custom reply if provided, otherwise fall back to the AI-generated one
+  const replyText = customReply || claimedLead.suggested_reply
+
+  if (!replyText) {
     // Undo the claim since there's nothing to send
     await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
     return NextResponse.json(
@@ -102,7 +120,7 @@ export async function POST(
       await slack.chat.postMessage({
         channel: claimedLead.slack_channel_id,
         thread_ts: claimedLead.slack_thread_ts,
-        text: claimedLead.suggested_reply,
+        text: replyText,
       })
     } catch (err) {
       // Undo the claim since Slack send failed
@@ -150,7 +168,7 @@ export async function POST(
         fromAddress: replyToAddress,
         fromName,
         subject: replySubject,
-        body: claimedLead.suggested_reply,
+        body: replyText,
       })
     } catch (err: unknown) {
       // Undo the claim since email send failed
@@ -174,6 +192,18 @@ export async function POST(
 
   // Increment reply counter (fire-and-forget is OK — atomic SQL)
   await admin.rpc('increment_replies_sent', { p_user_id: user.id })
+
+  // Log manual reply activity
+  void logActivity({
+    userId: user.id,
+    leadId: id,
+    action: 'reply_sent',
+    senderName: null,
+    source: claimedLead.source as 'slack' | 'email',
+    intentLabel: null,
+    dealTier: null,
+    replyPreview: replyText,
+  })
 
   return NextResponse.json({
     ok: true,

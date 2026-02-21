@@ -78,6 +78,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const source = searchParams.get('source')
   const label = searchParams.get('label')
+  const search = searchParams.get('search')?.trim().substring(0, 100) || ''
   const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
   const limit = 20
 
@@ -101,6 +102,11 @@ export async function GET(request: Request) {
   }
   if (label) {
     query = query.eq('intent_label', label)
+  }
+  if (search) {
+    // Escape PostgREST special characters to prevent filter injection
+    const safeSearch = search.replace(/[%_\\,().]/g, (c) => `\\${c}`)
+    query = query.or(`sender_name.ilike.%${safeSearch}%,raw_message.ilike.%${safeSearch}%`)
   }
 
   // Run leads query and connection status checks in parallel (no N+1)
