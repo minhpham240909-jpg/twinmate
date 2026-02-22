@@ -132,6 +132,7 @@ async function processSlackLead(
   // Subscription/usage check
   const { allowed, reason, warning } = await canProcessLead(userId)
   if (!allowed) {
+    console.log('[slack] Blocked by canProcessLead:', reason, '| user:', userId)
     await slack.chat.postMessage({
       channel: event.channel,
       thread_ts: event.ts,

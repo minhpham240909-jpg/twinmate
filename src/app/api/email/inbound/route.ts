@@ -74,8 +74,9 @@ export async function POST(request: Request) {
   }
 
   // Subscription check
-  const { allowed } = await canProcessLead(userId)
+  const { allowed, reason } = await canProcessLead(userId)
   if (!allowed) {
+    console.log('[inbound] Blocked by canProcessLead:', reason, '| user:', userId)
     return new Response('OK', { status: 200 })
   }
 
