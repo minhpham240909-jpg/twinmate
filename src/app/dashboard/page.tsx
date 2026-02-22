@@ -15,8 +15,8 @@ export default async function DashboardPage() {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
-  // Run all 5 queries in parallel — no N+1, no sequential waits
-  const [leadsResult, slackResult, emailResult, activityResult, todayStatsResult] = await Promise.all([
+  // Run core queries in parallel — leads, slack, email (these must succeed)
+  const [leadsResult, slackResult, emailResult] = await Promise.all([
     supabase
       .from('leads')
       .select('*', { count: 'exact' })
@@ -32,18 +32,30 @@ export default async function DashboardPage() {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_active', true),
-    supabase
-      .from('activity_log')
-      .select('id, action, sender_name, source, intent_label, deal_tier, reply_preview, lead_id, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20),
-    supabase
-      .from('activity_log')
-      .select('action, intent_label')
-      .eq('user_id', user.id)
-      .gte('created_at', todayStart.toISOString()),
   ])
+
+  // Activity queries are optional — if table doesn't exist yet, gracefully degrade
+  let activityResult: { data: ActivityLog[] | null } = { data: [] }
+  let todayStatsResult: { data: { action: string; intent_label: string | null }[] | null } = { data: [] }
+  try {
+    const [actRes, todayRes] = await Promise.all([
+      supabase
+        .from('activity_log')
+        .select('id, action, sender_name, source, intent_label, deal_tier, reply_preview, lead_id, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('activity_log')
+        .select('action, intent_label')
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString()),
+    ])
+    if (!actRes.error) activityResult = actRes as unknown as { data: ActivityLog[] | null }
+    if (!todayRes.error) todayStatsResult = todayRes
+  } catch {
+    // activity_log table may not exist yet — dashboard still works without it
+  }
 
   const leads = leadsResult.data || []
   const total = leadsResult.count || 0

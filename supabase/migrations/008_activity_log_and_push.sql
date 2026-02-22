@@ -43,6 +43,13 @@ CREATE POLICY "Users can manage own push subscriptions"
   ON push_subscriptions FOR ALL
   USING (auth.uid() = user_id);
 
+-- GRANTs so authenticated users can read activity and service_role can insert
+GRANT SELECT ON public.activity_log TO authenticated;
+GRANT ALL ON public.activity_log TO service_role;
+
+GRANT ALL ON public.push_subscriptions TO authenticated;
+GRANT ALL ON public.push_subscriptions TO service_role;
+
 -- Add digest preferences to profiles
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS digest_enabled BOOLEAN NOT NULL DEFAULT false,
