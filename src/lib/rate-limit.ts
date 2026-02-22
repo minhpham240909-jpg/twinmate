@@ -50,7 +50,7 @@ export async function isDuplicateEmail(from: string, subject: string, bodyPrefix
       hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0
     }
     const key = `adecis:email-dedup:${hash}`
-    const result = await redis.set(key, '1', { nx: true, ex: 3600 }) // 1h TTL
+    const result = await redis.set(key, '1', { nx: true, ex: 60 }) // 60s TTL — just enough to catch SendGrid retries
     return result === null // null = key already existed
   } catch (err) {
     console.error('Redis email dedup check failed, allowing email:', err)
