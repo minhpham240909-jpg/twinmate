@@ -16,11 +16,14 @@ export default async function DashboardPage() {
   todayStart.setHours(0, 0, 0, 0)
 
   // Run core queries in parallel — leads, slack, email (these must succeed)
+  // Default: hide dismissed leads and low-intent leads
   const [leadsResult, slackResult, emailResult] = await Promise.all([
     supabase
       .from('leads')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
+      .eq('dismissed', false)
+      .in('intent_label', ['high', 'medium'])
       .order('created_at', { ascending: false })
       .range(0, limit - 1),
     supabase
@@ -33,6 +36,29 @@ export default async function DashboardPage() {
       .eq('user_id', user.id)
       .eq('is_active', true),
   ])
+
+  // Graceful fallback if dismissed column doesn't exist yet
+  let finalLeadsResult = leadsResult
+  if (leadsResult.error) {
+    // Retry without dismissed filter
+    finalLeadsResult = await supabase
+      .from('leads')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
+      .in('intent_label', ['high', 'medium'])
+      .order('created_at', { ascending: false })
+      .range(0, limit - 1)
+
+    // If still failing, fall back to no filters at all
+    if (finalLeadsResult.error) {
+      finalLeadsResult = await supabase
+        .from('leads')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1)
+    }
+  }
 
   // Activity queries are optional — if table doesn't exist yet, gracefully degrade
   let activityResult: { data: ActivityLog[] | null } = { data: [] }
@@ -57,8 +83,8 @@ export default async function DashboardPage() {
     // activity_log table may not exist yet — dashboard still works without it
   }
 
-  const leads = leadsResult.data || []
-  const total = leadsResult.count || 0
+  const leads = finalLeadsResult.data || []
+  const total = finalLeadsResult.count || 0
   const totalPages = Math.ceil(total / limit)
   const connections = {
     slack: (slackResult.count ?? 0) > 0,

@@ -26,6 +26,7 @@ export interface Lead {
   feedback_at: string | null
   reply_sent: boolean
   reply_sent_at: string | null
+  dismissed: boolean
   reminder_sent: boolean
   slack_thread_ts: string | null
   slack_channel_id: string | null

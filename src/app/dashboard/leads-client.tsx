@@ -53,23 +53,39 @@ export default function LeadsClient({
   const [activities] = useState<ActivityLog[]>(initialActivities)
   const [stats] = useState<DayStats>(initialStats)
   const [dashView, setDashView] = useState<'leads' | 'activity'>('leads')
+  const [showLow, setShowLow] = useState(false)
+  const [showDismissed, setShowDismissed] = useState(false)
+  const [dismissing, setDismissing] = useState<string | null>(null)
   const pageRef = useRef(page)
   const sourceFilterRef = useRef(sourceFilter)
   const labelFilterRef = useRef(labelFilter)
   const searchRef = useRef(searchQuery)
+  const showLowRef = useRef(showLow)
+  const showDismissedRef = useRef(showDismissed)
 
   // Keep refs in sync so the realtime callback reads current values
   useEffect(() => { pageRef.current = page }, [page])
   useEffect(() => { sourceFilterRef.current = sourceFilter }, [sourceFilter])
   useEffect(() => { labelFilterRef.current = labelFilter }, [labelFilter])
   useEffect(() => { searchRef.current = searchQuery }, [searchQuery])
+  useEffect(() => { showLowRef.current = showLow }, [showLow])
+  useEffect(() => { showDismissedRef.current = showDismissed }, [showDismissed])
 
-  const fetchLeads = useCallback(async (p: number, source: string, label: string, search?: string) => {
+  const fetchLeads = useCallback(async (
+    p: number,
+    source: string,
+    label: string,
+    search?: string,
+    hideLow?: boolean,
+    hideDismissed?: boolean,
+  ) => {
     try {
       const params = new URLSearchParams({ page: p.toString() })
       if (source) params.set('source', source)
       if (label) params.set('label', label)
       if (search) params.set('search', search)
+      if (hideLow === false) params.set('hide_low', 'false')
+      if (hideDismissed === false) params.set('hide_dismissed', 'false')
 
       const res = await fetch(`/api/leads?${params}`)
       if (!res.ok) return
@@ -93,13 +109,13 @@ export default function LeadsClient({
       if (timerRef === 'insert') {
         if (insertDebounceTimer) clearTimeout(insertDebounceTimer)
         insertDebounceTimer = setTimeout(() => {
-          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current)
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current, !showLowRef.current, !showDismissedRef.current)
           insertDebounceTimer = null
         }, 300)
       } else {
         if (deleteDebounceTimer) clearTimeout(deleteDebounceTimer)
         deleteDebounceTimer = setTimeout(() => {
-          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current)
+          fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current, !showLowRef.current, !showDismissedRef.current)
           deleteDebounceTimer = null
         }, 300)
       }
@@ -129,11 +145,25 @@ export default function LeadsClient({
         },
         (payload) => {
           const updated = payload.new as Lead
-          // Update the lead in the list without a full re-fetch
+
+          // If lead was dismissed and we're hiding dismissed, remove it
+          if (updated.dismissed && !showDismissedRef.current) {
+            setLeads((prev) => prev.filter((l) => l.id !== updated.id))
+            setSelectedLead((prev) => prev && prev.id === updated.id ? null : prev)
+            return
+          }
+
+          // If lead is low intent and we're hiding low (with no explicit label filter), remove it
+          if (updated.intent_label === 'low' && !showLowRef.current && !labelFilterRef.current) {
+            setLeads((prev) => prev.filter((l) => l.id !== updated.id))
+            setSelectedLead((prev) => prev && prev.id === updated.id ? null : prev)
+            return
+          }
+
+          // Otherwise update in place
           setLeads((prev) =>
             prev.map((l) => (l.id === updated.id ? updated : l))
           )
-          // Also update the selected lead if it's open
           setSelectedLead((prev) =>
             prev && prev.id === updated.id ? updated : prev
           )
@@ -168,27 +198,43 @@ export default function LeadsClient({
     setSourceFilter(value)
     setPage(1)
     setSelectedIds(new Set())
-    fetchLeads(1, value, labelFilter, searchQuery)
+    fetchLeads(1, value, labelFilter, searchQuery, !showLow, !showDismissed)
   }
 
   function handleLabelFilter(value: string) {
     setLabelFilter(value)
     setPage(1)
     setSelectedIds(new Set())
-    fetchLeads(1, sourceFilter, value, searchQuery)
+    fetchLeads(1, sourceFilter, value, searchQuery, !showLow, !showDismissed)
   }
 
   function handlePageChange(newPage: number) {
     setPage(newPage)
     setSelectedIds(new Set())
-    fetchLeads(newPage, sourceFilter, labelFilter, searchQuery)
+    fetchLeads(newPage, sourceFilter, labelFilter, searchQuery, !showLow, !showDismissed)
   }
 
   function handleSearch(value: string) {
     setSearchQuery(value)
     setPage(1)
     setSelectedIds(new Set())
-    fetchLeads(1, sourceFilter, labelFilter, value)
+    fetchLeads(1, sourceFilter, labelFilter, value, !showLow, !showDismissed)
+  }
+
+  function handleToggleLow() {
+    const newValue = !showLow
+    setShowLow(newValue)
+    setPage(1)
+    setSelectedIds(new Set())
+    fetchLeads(1, sourceFilter, labelFilter, searchQuery, !newValue, !showDismissed)
+  }
+
+  function handleToggleDismissed() {
+    const newValue = !showDismissed
+    setShowDismissed(newValue)
+    setPage(1)
+    setSelectedIds(new Set())
+    fetchLeads(1, sourceFilter, labelFilter, searchQuery, !showLow, !newValue)
   }
 
   async function submitFeedback(leadId: string, feedback: 'positive' | 'negative') {
@@ -199,7 +245,7 @@ export default function LeadsClient({
         body: JSON.stringify({ feedback }),
       })
       if (!res.ok) return
-      fetchLeads(page, sourceFilter, labelFilter, searchQuery)
+      fetchLeads(page, sourceFilter, labelFilter, searchQuery, !showLow, !showDismissed)
       if (selectedLead?.id === leadId) {
         setSelectedLead((prev) =>
           prev ? { ...prev, feedback, feedback_at: new Date().toISOString() } : null
@@ -229,7 +275,7 @@ export default function LeadsClient({
         }
         return
       }
-      fetchLeads(page, sourceFilter, labelFilter, searchQuery)
+      fetchLeads(page, sourceFilter, labelFilter, searchQuery, !showLow, !showDismissed)
       if (selectedLead?.id === leadId) {
         setSelectedLead((prev) =>
           prev ? { ...prev, reply_sent: true, reply_sent_at: data.reply_sent_at } : null
@@ -279,7 +325,7 @@ export default function LeadsClient({
       setSelectedIds(new Set())
       const newPage = ids.length >= leads.length && page > 1 ? page - 1 : page
       setPage(newPage)
-      fetchLeads(newPage, sourceFilter, labelFilter, searchQuery)
+      fetchLeads(newPage, sourceFilter, labelFilter, searchQuery, !showLow, !showDismissed)
     } catch {
       setDeleteError('Failed to delete leads. Please try again.')
     } finally {
@@ -309,13 +355,44 @@ export default function LeadsClient({
       setSelectedLead(null)
       setSelectedIds(new Set())
       setPage(1)
-      fetchLeads(1, sourceFilter, labelFilter, searchQuery)
+      fetchLeads(1, sourceFilter, labelFilter, searchQuery, !showLow, !showDismissed)
     } catch {
       setDeleteError('Failed to delete leads. Please try again.')
     } finally {
       setDeleting(false)
       setShowDeleteConfirm(false)
       setDeleteTarget(null)
+    }
+  }
+
+  async function dismissLead(leadId: string, dismissed: boolean) {
+    setDismissing(leadId)
+    try {
+      const res = await fetch(`/api/leads/${leadId}/dismiss`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dismissed }),
+      })
+      if (!res.ok) return
+
+      // If we just dismissed and we're hiding dismissed, remove from list
+      if (dismissed && !showDismissed) {
+        setLeads((prev) => prev.filter((l) => l.id !== leadId))
+        setTotal((prev) => prev - 1)
+        if (selectedLead?.id === leadId) setSelectedLead(null)
+      } else {
+        // Update in place
+        setLeads((prev) =>
+          prev.map((l) => (l.id === leadId ? { ...l, dismissed } : l))
+        )
+        if (selectedLead?.id === leadId) {
+          setSelectedLead((prev) => prev ? { ...prev, dismissed } : null)
+        }
+      }
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setDismissing(null)
     }
   }
 
@@ -488,11 +565,31 @@ export default function LeadsClient({
             onChange={(e) => handleLabelFilter(e.target.value)}
             className="text-sm border border-gray-300 rounded-md px-2 py-1"
           >
-            <option value="">All scores</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="">High + Medium</option>
+            <option value="high">High only</option>
+            <option value="medium">Medium only</option>
+            <option value="low">Low only</option>
           </select>
+          <button
+            onClick={handleToggleLow}
+            className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+              showLow
+                ? 'bg-gray-100 border-gray-300 text-gray-700'
+                : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            {showLow ? 'Hide low' : 'Show low'}
+          </button>
+          <button
+            onClick={handleToggleDismissed}
+            className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+              showDismissed
+                ? 'bg-gray-100 border-gray-300 text-gray-700'
+                : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            {showDismissed ? 'Hide dismissed' : 'Show dismissed'}
+          </button>
           <input
             type="text"
             placeholder="Search leads..."
@@ -627,6 +724,8 @@ export default function LeadsClient({
                 <button
                   onClick={() => { setSendReplyError(null); setReplyCopied(false); setEditedReply(lead.suggested_reply || ''); setSelectedLead(lead) }}
                   className={`flex-1 text-left bg-white rounded-lg shadow-sm border px-4 py-3 hover:bg-gray-50 transition-colors ${
+                    lead.dismissed ? 'opacity-50' : ''
+                  } ${
                     lead.intent_label === 'high'
                       ? 'border-l-4 border-l-green-500'
                       : lead.intent_label === 'medium'
@@ -691,6 +790,22 @@ export default function LeadsClient({
                     </p>
                   )}
                 </button>
+                <button
+                  onClick={() => dismissLead(lead.id, !lead.dismissed)}
+                  disabled={dismissing === lead.id}
+                  className="shrink-0 mt-3 text-gray-300 hover:text-gray-500 transition-colors disabled:opacity-50"
+                  title={lead.dismissed ? 'Restore lead' : 'Dismiss lead'}
+                >
+                  {lead.dismissed ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
               </div>
             ))}
           </div>
@@ -735,6 +850,17 @@ export default function LeadsClient({
                 Lead from {selectedLead.sender_name || 'Unknown'}
               </h2>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => dismissLead(selectedLead.id, !selectedLead.dismissed)}
+                  disabled={dismissing === selectedLead.id}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                    selectedLead.dismissed
+                      ? 'text-blue-600 hover:bg-blue-50'
+                      : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'
+                  }`}
+                >
+                  {selectedLead.dismissed ? 'Restore' : 'Dismiss'}
+                </button>
                 <button
                   onClick={() => {
                     setSelectedIds(new Set([selectedLead.id]))
