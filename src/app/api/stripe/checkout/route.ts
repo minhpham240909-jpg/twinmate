@@ -76,7 +76,8 @@ export async function POST() {
     console.log(`[Stripe Checkout] Session created for user ${user.id}: ${session.id}`)
     return NextResponse.json({ url: session.url })
   } catch (err) {
-    console.error('[Stripe Checkout] Failed to create session:', err)
-    return NextResponse.json({ error: 'Failed to start checkout. Please try again.' }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    console.error('[Stripe Checkout] Failed to create session:', errMsg, err)
+    return NextResponse.json({ error: `Failed to start checkout: ${errMsg}` }, { status: 500 })
   }
 }
