@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const [profileResult, emailResult, slackResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('business_name, niche, tone, booking_link, custom_instructions, auto_reply_enabled, reply_from_name, digest_enabled, digest_hour, push_enabled, subscription_status, created_at')
+      .select('business_name, niche, tone, booking_link, custom_instructions, auto_reply_enabled, reply_from_name, digest_enabled, digest_hour, push_enabled, show_low, show_dismissed, subscription_status, created_at')
       .eq('id', user.id)
       .single(),
     supabase
@@ -42,6 +42,8 @@ export default async function SettingsPage() {
     digestEnabled: profile?.digest_enabled ?? true,
     digestHour: profile?.digest_hour ?? 9,
     pushEnabled: profile?.push_enabled ?? false,
+    showLow: profile?.show_low ?? false,
+    showDismissed: profile?.show_dismissed ?? false,
   }
 
   const initialEmailAddress = emailResult.data?.inbound_address || ''

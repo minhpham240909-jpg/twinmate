@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { LeadScoreSchema, type ScoreLeadInput, type ScoreLeadResult } from './types'
 import { buildSystemPrompt, buildUserPrompt } from './prompts'
+import { preFilterMessage } from './pre-filter'
+import { getCachedScore, setCachedScore } from './score-cache'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -128,4 +130,54 @@ export async function scoreLead(input: ScoreLeadInput): Promise<ScoreLeadResult>
     latencyMs,
     model,
   }
+}
+
+/**
+ * Smart scoring wrapper with two cost-saving stages:
+ *
+ * Stage 1: Pre-filter — skip obvious spam/junk with zero API calls.
+ *   Returns { filtered: true } so the route can handle it (skip insert or insert as low).
+ *
+ * Stage 2: Cache — check Redis for a previously scored similar message.
+ *   If found, return the cached score with the sender name personalized.
+ *   If not found, call Claude API and cache the result for future messages.
+ *
+ * Returns the same ScoreLeadResult as scoreLead(), plus metadata about cache/filter status.
+ */
+export type SmartScoreResult =
+  | { filtered: true; reason: string }
+  | { filtered: false; result: ScoreLeadResult; fromCache: boolean }
+
+export async function scoreLeadSmart(input: ScoreLeadInput): Promise<SmartScoreResult> {
+  // Stage 1: Pre-filter obvious spam/junk
+  const filterResult = preFilterMessage(input.message)
+  if (filterResult.filtered) {
+    console.log('[score-smart] Pre-filtered:', filterResult.reason)
+    return { filtered: true, reason: filterResult.reason || 'Pre-filtered' }
+  }
+
+  // Stage 2: Check cache for similar message
+  const niche = input.profile.niche || 'other'
+  const cached = await getCachedScore(input.message, niche, input.senderName)
+  if (cached) {
+    console.log('[score-smart] Cache hit for niche:', niche)
+    return {
+      filtered: false,
+      fromCache: true,
+      result: {
+        score: cached.score,
+        usage: { promptTokens: 0, completionTokens: 0 },
+        latencyMs: 0,
+        model: `${cached.model} (cached)`,
+      },
+    }
+  }
+
+  // Stage 3: Call Claude API (no cache hit)
+  const result = await scoreLead(input)
+
+  // Cache the result for future similar messages (fire-and-forget)
+  void setCachedScore(input.message, niche, result.score, result.model)
+
+  return { filtered: false, fromCache: false, result }
 }

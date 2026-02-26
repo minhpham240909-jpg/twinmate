@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmailReply } from '@/lib/email/send'
+import { withRetry } from '@/lib/retry'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -120,15 +121,19 @@ export async function GET(request: Request) {
     lines.push(`— Adecis`)
 
     try {
-      await sendEmailReply({
-        to: user.email,
-        fromAddress: 'noreply@clerva.app',
-        fromName: 'Adecis',
-        subject: `Daily summary — ${leadsReceived} lead${leadsReceived !== 1 ? 's' : ''}, ${totalReplies} repl${totalReplies !== 1 ? 'ies' : 'y'} sent`,
-        body: lines.join('\n'),
-      })
+      await withRetry(
+        () => sendEmailReply({
+          to: user.email,
+          fromAddress: 'noreply@clerva.app',
+          fromName: 'Adecis',
+          subject: `Daily summary — ${leadsReceived} lead${leadsReceived !== 1 ? 's' : ''}, ${totalReplies} repl${totalReplies !== 1 ? 'ies' : 'y'} sent`,
+          body: lines.join('\n'),
+        }),
+        { label: `digest-${user.email}`, maxAttempts: 2 }
+      )
       digestsSent++
     } catch (err) {
+      // Per-user error isolation — one failed digest never blocks others
       console.error(`Failed to send digest to ${user.email}:`, err)
     }
   }

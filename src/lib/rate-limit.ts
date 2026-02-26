@@ -27,6 +27,13 @@ export const emailRateLimit = new Ratelimit({
   prefix: 'adecis:email',
 })
 
+// Rate limit dashboard reads: 60 per minute per user (prevents refresh-spam and scraping)
+export const readRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(60, '60 s'),
+  prefix: 'adecis:read',
+})
+
 // Deduplication: prevent processing the same event twice
 // Falls back to allowing the event if Redis is down (better to process twice than drop leads)
 export async function isDuplicate(eventId: string): Promise<boolean> {

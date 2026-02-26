@@ -51,7 +51,7 @@ export default function Home() {
                 Start Free Trial
               </Link>
               <span className="text-sm text-gray-400">
-                7 days free &middot; No credit card
+                25 free leads &middot; No credit card
               </span>
             </div>
           </div>
@@ -61,25 +61,44 @@ export default function Home() {
             <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-4">
               What you see when a lead arrives
             </p>
-            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 border border-gray-100 overflow-hidden border-l-4 border-l-green-500">
               <div className="px-5 py-4">
+                {/* Header row */}
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-100">
                       HIGH
+                    </span>
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                      $2-10k
                     </span>
                     <span className="text-sm font-semibold text-gray-900">
                       Sarah from Maple Bakery
                     </span>
                   </div>
-                  <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
-                    Slack
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
+                      Slack
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Today
+                    </span>
+                  </div>
                 </div>
+
+                {/* Response priority */}
+                <div className="flex items-center gap-1.5 mb-3 text-xs">
+                  <span className="text-orange-500">&#9889;</span>
+                  <span className="text-orange-600 font-medium">Respond today</span>
+                  <span className="text-gray-400 mx-1">&mdash;</span>
+                  <span className="text-gray-400">Budget and timeline confirmed, high close probability</span>
+                </div>
+
+                {/* Signal bullets */}
                 <ul className="text-sm text-gray-600 space-y-1 mb-4">
                   <li className="flex items-start gap-2">
                     <span className="text-gray-300 mt-0.5">&#8226;</span>
-                    Needs full website redesign, budget $3-5k
+                    Budget confirmed: $3-5k for full redesign
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-300 mt-0.5">&#8226;</span>
@@ -87,16 +106,19 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-300 mt-0.5">&#8226;</span>
-                    Current site is outdated (2019)
+                    Decision-maker: business owner, direct contact
                   </li>
                 </ul>
+
+                {/* AI-drafted reply */}
                 <div className="bg-gray-50 rounded-lg p-3.5 text-sm text-gray-500 italic border border-gray-100">
-                  &quot;Hi Sarah, thanks for reaching out. A redesign sounds like a
-                  great fit — I&apos;d love to learn more about your vision.
-                  Want to grab 30 minutes this week?&quot;
+                  &quot;Hi Sarah, thanks for reaching out. A full redesign with
+                  your March timeline is very doable. I&apos;d love to see your
+                  current site and discuss your vision — are you free for
+                  a quick call this week?&quot;
                 </div>
                 <div className="flex items-center gap-3 mt-3">
-                  <button className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md font-medium hover:bg-blue-700 transition-colors">
+                  <button className="text-xs bg-blue-600 text-white px-3.5 py-1.5 rounded-md font-medium hover:bg-blue-700 transition-colors">
                     Send Reply
                   </button>
                   <button className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
@@ -207,7 +229,7 @@ export default function Home() {
           <div className="max-w-sm mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
             <div className="text-center">
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-bold text-gray-900">$19</span>
+                <span className="text-4xl font-bold text-gray-900">$29</span>
                 <span className="text-lg text-gray-400 font-medium">/mo</span>
               </div>
               <p className="text-sm text-gray-400 mt-1">Everything you need to filter and close leads</p>
@@ -216,11 +238,10 @@ export default function Home() {
               {[
                 '500 leads scored per month',
                 'Unlimited AI-drafted replies',
-                'Slack + email ingestion',
-                'AI scoring + summaries',
-                'Hot lead reminders',
-                'Weekly stats report',
-                '7-day free trial',
+                'Slack + email integration',
+                'Deal size & urgency signals',
+                'Smart response priorities',
+                'Push notifications for hot leads',
               ].map((feature) => (
                 <div key={feature} className="flex items-center gap-3 text-sm text-gray-600">
                   <svg
@@ -243,7 +264,7 @@ export default function Home() {
               Start Free Trial
             </Link>
             <p className="text-center text-xs text-gray-400 mt-3">
-              No credit card required
+              Try free with 25 leads &middot; No credit card
             </p>
           </div>
         </section>

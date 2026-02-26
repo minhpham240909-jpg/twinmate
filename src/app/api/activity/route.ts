@@ -4,6 +4,53 @@ import { NextResponse } from 'next/server'
 export const runtime = 'nodejs'
 export const maxDuration = 15
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const body = await request.json()
+
+  // "Clear all" mode — delete all activity for this user
+  if (body.all === true) {
+    const { error, count } = await supabase
+      .from('activity_log')
+      .delete({ count: 'exact' })
+      .eq('user_id', user.id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ deleted: count })
+  }
+
+  // "Delete selected" mode — delete specific IDs
+  const { ids } = body
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100) {
+    return NextResponse.json({ error: 'Provide 1-100 activity IDs' }, { status: 400 })
+  }
+  if (!ids.every((id: string) => UUID_RE.test(id))) {
+    return NextResponse.json({ error: 'Invalid activity ID' }, { status: 400 })
+  }
+
+  const { error, count } = await supabase
+    .from('activity_log')
+    .delete({ count: 'exact' })
+    .in('id', ids)
+    .eq('user_id', user.id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ deleted: count })
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -1,8 +1,30 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/browser'
 import type { Lead, ActivityLog } from '@/types/lead'
+
+/** Turn plain text into React nodes with clickable links */
+function linkify(text: string): ReactNode[] {
+  const urlRegex = /(https?:\/\/[^\s<>"')\]]+)/g
+  const parts = text.split(urlRegex)
+  return parts.map((part, i) =>
+    urlRegex.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-700 underline break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  )
+}
 
 interface DayStats {
   leadsToday: number
@@ -19,6 +41,8 @@ interface LeadsClientProps {
   initialConnections: { slack: boolean; email: boolean }
   initialActivities: ActivityLog[]
   initialStats: DayStats
+  initialShowLow: boolean
+  initialShowDismissed: boolean
 }
 
 export default function LeadsClient({
@@ -29,6 +53,8 @@ export default function LeadsClient({
   initialConnections,
   initialActivities,
   initialStats,
+  initialShowLow,
+  initialShowDismissed,
 }: LeadsClientProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [total, setTotal] = useState(initialTotal)
@@ -50,11 +76,18 @@ export default function LeadsClient({
   const [deleteTarget, setDeleteTarget] = useState<'selected' | 'all' | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [editedReply, setEditedReply] = useState('')
-  const [activities] = useState<ActivityLog[]>(initialActivities)
+  const [activities, setActivities] = useState<ActivityLog[]>(initialActivities)
   const [stats] = useState<DayStats>(initialStats)
-  const [dashView, setDashView] = useState<'leads' | 'activity'>('leads')
-  const [showLow, setShowLow] = useState(false)
-  const [showDismissed, setShowDismissed] = useState(false)
+  const [dashView, setDashView] = useState<'leads' | 'activity' | 'trash'>('leads')
+  const [deletingActivity, setDeletingActivity] = useState<string | null>(null)
+  const [trashLeads, setTrashLeads] = useState<Lead[]>([])
+  const [trashTotal, setTrashTotal] = useState(0)
+  const [trashPage, setTrashPage] = useState(1)
+  const [trashTotalPages, setTrashTotalPages] = useState(1)
+  const [trashLoading, setTrashLoading] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
+  const showLow = initialShowLow
+  const showDismissed = initialShowDismissed
   const [dismissing, setDismissing] = useState<string | null>(null)
   const pageRef = useRef(page)
   const sourceFilterRef = useRef(sourceFilter)
@@ -111,13 +144,13 @@ export default function LeadsClient({
         insertDebounceTimer = setTimeout(() => {
           fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current, !showLowRef.current, !showDismissedRef.current)
           insertDebounceTimer = null
-        }, 300)
+        }, 2000)
       } else {
         if (deleteDebounceTimer) clearTimeout(deleteDebounceTimer)
         deleteDebounceTimer = setTimeout(() => {
           fetchLeads(pageRef.current, sourceFilterRef.current, labelFilterRef.current, searchRef.current, !showLowRef.current, !showDismissedRef.current)
           deleteDebounceTimer = null
-        }, 300)
+        }, 2000)
       }
     }
 
@@ -219,22 +252,6 @@ export default function LeadsClient({
     setPage(1)
     setSelectedIds(new Set())
     fetchLeads(1, sourceFilter, labelFilter, value, !showLow, !showDismissed)
-  }
-
-  function handleToggleLow() {
-    const newValue = !showLow
-    setShowLow(newValue)
-    setPage(1)
-    setSelectedIds(new Set())
-    fetchLeads(1, sourceFilter, labelFilter, searchQuery, !newValue, !showDismissed)
-  }
-
-  function handleToggleDismissed() {
-    const newValue = !showDismissed
-    setShowDismissed(newValue)
-    setPage(1)
-    setSelectedIds(new Set())
-    fetchLeads(1, sourceFilter, labelFilter, searchQuery, !showLow, !newValue)
   }
 
   async function submitFeedback(leadId: string, feedback: 'positive' | 'negative') {
@@ -396,6 +413,74 @@ export default function LeadsClient({
     }
   }
 
+  async function deleteActivity(activityId: string) {
+    setDeletingActivity(activityId)
+    try {
+      const res = await fetch('/api/activity', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [activityId] }),
+      })
+      if (!res.ok) return
+      setActivities((prev) => prev.filter((a) => a.id !== activityId))
+    } catch {
+      // Silently fail
+    } finally {
+      setDeletingActivity(null)
+    }
+  }
+
+  async function clearAllActivity() {
+    setDeletingActivity('all')
+    try {
+      const res = await fetch('/api/activity', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      })
+      if (!res.ok) return
+      setActivities([])
+    } catch {
+      // Silently fail
+    } finally {
+      setDeletingActivity(null)
+    }
+  }
+
+  const fetchTrash = useCallback(async (p: number) => {
+    setTrashLoading(true)
+    try {
+      const res = await fetch(`/api/leads/trash?page=${p}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setTrashLeads(data.leads ?? [])
+      setTrashTotal(data.total ?? 0)
+      setTrashTotalPages(data.totalPages ?? 1)
+    } catch {
+      // Keep current state
+    } finally {
+      setTrashLoading(false)
+    }
+  }, [])
+
+  async function restoreLead(leadId: string) {
+    setRestoringId(leadId)
+    try {
+      const res = await fetch(`/api/leads/${leadId}/restore`, {
+        method: 'PATCH',
+      })
+      if (!res.ok) return
+      setTrashLeads((prev) => prev.filter((l) => l.id !== leadId))
+      setTrashTotal((prev) => prev - 1)
+      // Refresh main leads list to show restored lead
+      fetchLeads(page, sourceFilter, labelFilter, searchQuery, !showLow, !showDismissed)
+    } catch {
+      // Silently fail
+    } finally {
+      setRestoringId(null)
+    }
+  }
+
   function intentBadge(label: string | null) {
     if (label === 'high')
       return (
@@ -460,6 +545,12 @@ export default function LeadsClient({
         >
           Activity
         </button>
+        <button
+          onClick={() => { setDashView('trash'); fetchTrash(1); setTrashPage(1) }}
+          className={`text-sm px-3 py-1.5 rounded-md transition-colors ${dashView === 'trash' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Trash
+        </button>
       </div>
 
       {/* Activity Feed view */}
@@ -468,42 +559,138 @@ export default function LeadsClient({
           {activities.length === 0 ? (
             <p className="text-sm text-gray-400 py-8 text-center">No activity yet. Leads and replies will appear here.</p>
           ) : (
-            activities.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
-                <div className="mt-0.5 shrink-0">
-                  {a.action === 'reply_auto_sent' && <span className="text-green-500 text-sm">&#10003;</span>}
-                  {a.action === 'reply_sent' && <span className="text-blue-500 text-sm">&#10003;</span>}
-                  {a.action === 'lead_received' && <span className="text-gray-400 text-sm">&#9679;</span>}
-                  {a.action === 'lead_skipped' && <span className="text-gray-300 text-sm">&#9675;</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 font-medium truncate">
-                      {a.action === 'reply_auto_sent' && `Reply auto-sent to ${a.sender_name || 'Unknown'}`}
-                      {a.action === 'reply_sent' && `Reply sent to ${a.sender_name || 'lead'}`}
-                      {a.action === 'lead_received' && `New lead from ${a.sender_name || 'Unknown'}`}
-                      {a.action === 'lead_skipped' && `Skipped: ${a.sender_name || 'Unknown'}`}
-                    </span>
-                    {a.intent_label && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                        a.intent_label === 'high' ? 'bg-green-100 text-green-700' :
-                        a.intent_label === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-500'
-                      }`}>
-                        {a.intent_label.toUpperCase()}
-                      </span>
-                    )}
-                    <span className="text-[10px] text-gray-300">{a.source === 'slack' ? 'Slack' : 'Email'}</span>
-                  </div>
-                  {a.reply_preview && (
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">&ldquo;{a.reply_preview.substring(0, 80)}...&rdquo;</p>
-                  )}
-                </div>
-                <span className="text-[11px] text-gray-300 shrink-0 mt-0.5">
-                  {a.created_at?.slice(11, 16)}
-                </span>
+            <>
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={clearAllActivity}
+                  disabled={deletingActivity === 'all'}
+                  className="text-xs text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                >
+                  {deletingActivity === 'all' ? 'Clearing...' : 'Clear all'}
+                </button>
               </div>
-            ))
+              {activities.map((a) => (
+                <div key={a.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0 group">
+                  <div className="mt-0.5 shrink-0">
+                    {a.action === 'reply_auto_sent' && <span className="text-green-500 text-sm">&#10003;</span>}
+                    {a.action === 'reply_sent' && <span className="text-blue-500 text-sm">&#10003;</span>}
+                    {a.action === 'lead_received' && <span className="text-gray-400 text-sm">&#9679;</span>}
+                    {a.action === 'lead_skipped' && <span className="text-gray-300 text-sm">&#9675;</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700 font-medium truncate">
+                        {a.action === 'reply_auto_sent' && `Reply auto-sent to ${a.sender_name || 'Unknown'}`}
+                        {a.action === 'reply_sent' && `Reply sent to ${a.sender_name || 'lead'}`}
+                        {a.action === 'lead_received' && `New lead from ${a.sender_name || 'Unknown'}`}
+                        {a.action === 'lead_skipped' && `Skipped: ${a.sender_name || 'Unknown'}`}
+                      </span>
+                      {a.intent_label && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          a.intent_label === 'high' ? 'bg-green-100 text-green-700' :
+                          a.intent_label === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {a.intent_label.toUpperCase()}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-gray-300">{a.source === 'slack' ? 'Slack' : 'Email'}</span>
+                    </div>
+                    {a.reply_preview && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">&ldquo;{a.reply_preview.substring(0, 80)}...&rdquo;</p>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-gray-300 shrink-0 mt-0.5">
+                    {a.created_at?.slice(11, 16)}
+                  </span>
+                  <button
+                    onClick={() => deleteActivity(a.id)}
+                    disabled={deletingActivity === a.id}
+                    className="shrink-0 mt-0.5 text-gray-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                    title="Delete activity"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Trash view — soft-deleted leads restorable within 30 days */}
+      {dashView === 'trash' && (
+        <div>
+          <p className="text-xs text-gray-400 mb-3">
+            Deleted leads can be restored within 30 days.
+            {trashTotal > 0 && ` Showing ${trashLeads.length} of ${trashTotal}.`}
+          </p>
+          {trashLoading ? (
+            <p className="text-sm text-gray-400 py-8 text-center">Loading...</p>
+          ) : trashLeads.length === 0 ? (
+            <p className="text-sm text-gray-400 py-8 text-center">No deleted leads. Items you delete will appear here for 30 days.</p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {trashLeads.map((lead) => (
+                  <div key={lead.id} className="flex items-center gap-3 bg-white rounded-lg border px-4 py-3 opacity-60">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        {intentBadge(lead.intent_label)}
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {lead.sender_name || 'Unknown'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {lead.source === 'slack' ? 'Slack' : 'Email'}
+                        </span>
+                      </div>
+                      {lead.summary_bullets && lead.summary_bullets.length > 0 ? (
+                        <p className="text-xs text-gray-500 truncate">
+                          {lead.summary_bullets[0]}
+                        </p>
+                      ) : lead.raw_message ? (
+                        <p className="text-xs text-gray-500 truncate">
+                          {lead.raw_message.substring(0, 100)}
+                        </p>
+                      ) : null}
+                      <p className="text-[10px] text-gray-300 mt-0.5">
+                        Deleted {lead.deleted_at?.slice(0, 10)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => restoreLead(lead.id)}
+                      disabled={restoringId === lead.id}
+                      className="shrink-0 text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                    >
+                      {restoringId === lead.id ? 'Restoring...' : 'Restore'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {trashTotalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                  <button
+                    onClick={() => { const p = Math.max(1, trashPage - 1); setTrashPage(p); fetchTrash(p) }}
+                    disabled={trashPage === 1}
+                    className="text-sm px-3 py-1 border rounded-md disabled:opacity-30"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-500 px-2 py-1">
+                    {trashPage} / {trashTotalPages}
+                  </span>
+                  <button
+                    onClick={() => { const p = Math.min(trashTotalPages, trashPage + 1); setTrashPage(p); fetchTrash(p) }}
+                    disabled={trashPage === trashTotalPages}
+                    className="text-sm px-3 py-1 border rounded-md disabled:opacity-30"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -570,26 +757,6 @@ export default function LeadsClient({
             <option value="medium">Medium only</option>
             <option value="low">Low only</option>
           </select>
-          <button
-            onClick={handleToggleLow}
-            className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
-              showLow
-                ? 'bg-gray-100 border-gray-300 text-gray-700'
-                : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            {showLow ? 'Hide low' : 'Show low'}
-          </button>
-          <button
-            onClick={handleToggleDismissed}
-            className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
-              showDismissed
-                ? 'bg-gray-100 border-gray-300 text-gray-700'
-                : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            {showDismissed ? 'Hide dismissed' : 'Show dismissed'}
-          </button>
           <input
             type="text"
             placeholder="Search leads..."
@@ -1003,8 +1170,8 @@ export default function LeadsClient({
                   )}
                 </div>
                 {selectedLead.reply_sent ? (
-                  <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-700">
-                    {selectedLead.suggested_reply}
+                  <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-700 whitespace-pre-wrap">
+                    {linkify(selectedLead.suggested_reply)}
                   </div>
                 ) : (
                   <textarea
@@ -1058,7 +1225,7 @@ export default function LeadsClient({
                 Original Message
               </h3>
               <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-600 whitespace-pre-wrap">
-                {selectedLead.raw_message}
+                {linkify(selectedLead.raw_message || '')}
               </div>
             </div>
 
@@ -1103,10 +1270,10 @@ export default function LeadsClient({
                 : `Delete ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''}?`}
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              This cannot be undone.{' '}
               {deleteTarget === 'all'
-                ? `All ${total} lead${total !== 1 ? 's' : ''}${sourceFilter || labelFilter ? ' matching your current filters' : ''} will be permanently removed.`
-                : `${selectedIds.size} selected lead${selectedIds.size !== 1 ? 's' : ''} will be permanently removed.`}
+                ? `All ${total} lead${total !== 1 ? 's' : ''}${sourceFilter || labelFilter ? ' matching your current filters' : ''} will be moved to Trash.`
+                : `${selectedIds.size} selected lead${selectedIds.size !== 1 ? 's' : ''} will be moved to Trash.`}
+              {' '}You can restore them within 30 days.
             </p>
             <div className="flex gap-2 justify-center">
               <button
@@ -1154,7 +1321,7 @@ export default function LeadsClient({
                 href="/dashboard/billing"
                 className="block w-full bg-blue-600 text-white rounded-md px-4 py-2.5 text-sm font-medium hover:bg-blue-700"
               >
-                Upgrade to Pro — $19/mo
+                Upgrade to Pro — $29/mo
               </a>
               <button
                 onClick={() => setShowUpgradeModal(false)}

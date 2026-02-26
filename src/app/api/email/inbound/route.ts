@@ -1,7 +1,7 @@
 import { waitUntil } from '@vercel/functions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseInboundEmail, type ParsedEmail } from '@/lib/email/parse'
-import { scoreLead } from '@/lib/ai/score-lead'
+import { scoreLeadSmart, type SmartScoreResult } from '@/lib/ai/score-lead'
 import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
 import { emailRateLimit, safeRateLimit, isDuplicateEmail } from '@/lib/rate-limit'
 import { createSlackClient } from '@/lib/slack/client'
@@ -9,6 +9,7 @@ import { formatLeadResponse } from '@/lib/slack/format'
 import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 import { logActivity } from '@/lib/activity'
 import { sendPushToUser } from '@/lib/push'
+import { withRetry } from '@/lib/retry'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -136,24 +137,44 @@ async function processEmailLead(parsed: ParsedEmail, userId: string) {
     ? `Subject: ${parsed.subject}\n\n${parsed.textBody}`
     : parsed.textBody
 
-  // Try to score with AI — if it fails, we still insert the lead so it's never lost
-  let result
+  // Smart scoring: pre-filter spam → check cache → call Claude API
+  let smartResult: SmartScoreResult | null = null
   try {
-    result = await scoreLead({
-      message: fullMessage,
-      source: 'email',
-      senderName: parsed.senderName,
-      profile: {
-        niche: profile.niche || 'other',
-        tone: profile.tone || 'professional',
-        bookingLink: profile.booking_link || undefined,
-        businessName: profile.business_name || undefined,
-        customInstructions: profile.custom_instructions || undefined,
-        replyFromName: profile.reply_from_name || undefined,
-      },
-    })
+    smartResult = await withRetry(
+      () => scoreLeadSmart({
+        message: fullMessage,
+        source: 'email',
+        senderName: parsed.senderName,
+        profile: {
+          niche: profile.niche || 'other',
+          tone: profile.tone || 'professional',
+          bookingLink: profile.booking_link || undefined,
+          businessName: profile.business_name || undefined,
+          customInstructions: profile.custom_instructions || undefined,
+          replyFromName: profile.reply_from_name || undefined,
+        },
+      }),
+      { label: 'ai-score-email', maxAttempts: 2 }
+    )
   } catch (err) {
     console.error('AI scoring failed for email lead — inserting without score:', err)
+  }
+
+  // Pre-filtered messages (spam/junk) — skip entirely, no quota used, no lead inserted
+  if (smartResult?.filtered) {
+    console.log('[inbound] Pre-filtered, skipping:', smartResult.reason)
+    return
+  }
+
+  // Extract the score result (null if AI failed entirely)
+  const result = smartResult && !smartResult.filtered ? smartResult.result : null
+
+  // Atomic quota reservation — check AND increment in one locked transaction
+  // This prevents the race condition where two concurrent leads both pass the quota check
+  const { data: quotaOk } = await supabase.rpc('try_use_lead', { p_user_id: userId })
+  if (quotaOk === false) {
+    console.log('[inbound] Quota exceeded for user:', userId)
+    return
   }
 
   // Insert lead — fully scored if AI succeeded, raw message only if it failed
@@ -191,9 +212,6 @@ async function processEmailLead(parsed: ParsedEmail, userId: string) {
     return
   }
 
-  // Increment usage counter
-  await supabase.rpc('increment_leads_used', { p_user_id: userId })
-
   const intentLabel = result?.score.intent_label || null
   const dealTier = result?.score.deal_tier || null
 
@@ -227,13 +245,16 @@ async function processEmailLead(parsed: ParsedEmail, userId: string) {
           const fromName = profile.reply_from_name || profile.business_name || 'Adecis'
           const replyToAddress = profile.email || parsed.to
 
-          await sendEmailReply({
-            to: parsed.from,
-            fromAddress: replyToAddress,
-            fromName,
-            subject: replySubject,
-            body: result.score.suggested_reply,
-          })
+          await withRetry(
+            () => sendEmailReply({
+              to: parsed.from,
+              fromAddress: replyToAddress,
+              fromName,
+              subject: replySubject,
+              body: result.score.suggested_reply,
+            }),
+            { label: 'sendgrid-auto-reply', maxAttempts: 2 }
+          )
 
           await supabase
             .from('leads')

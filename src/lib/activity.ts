@@ -13,22 +13,36 @@ interface LogActivityParams {
 }
 
 /**
- * Logs an activity event. Fire-and-forget — failures are logged but never block the pipeline.
+ * Logs an activity event. Fire-and-forget with one retry — failures are logged but never block the pipeline.
  */
 export async function logActivity(params: LogActivityParams): Promise<void> {
-  try {
-    const supabase = createAdminClient()
-    await supabase.from('activity_log').insert({
-      user_id: params.userId,
-      lead_id: params.leadId,
-      action: params.action,
-      sender_name: params.senderName,
-      source: params.source,
-      intent_label: params.intentLabel,
-      deal_tier: params.dealTier,
-      reply_preview: params.replyPreview?.substring(0, 200) || null,
-    })
-  } catch (err) {
-    console.error('[activity] Failed to log activity:', err)
+  const row = {
+    user_id: params.userId,
+    lead_id: params.leadId,
+    action: params.action,
+    sender_name: params.senderName,
+    source: params.source,
+    intent_label: params.intentLabel,
+    deal_tier: params.dealTier,
+    reply_preview: params.replyPreview?.substring(0, 200) || null,
+  }
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const supabase = createAdminClient()
+      const { error } = await supabase.from('activity_log').insert(row)
+      if (!error) return
+      if (attempt === 2) {
+        console.error('[activity] Failed to log activity after retry:', error)
+        return
+      }
+    } catch (err) {
+      if (attempt === 2) {
+        console.error('[activity] Failed to log activity after retry:', err)
+        return
+      }
+    }
+    // Brief pause before retry
+    await new Promise((r) => setTimeout(r, 300))
   }
 }

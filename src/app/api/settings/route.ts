@@ -34,6 +34,8 @@ export async function POST(request: Request) {
   const rawDigestHour = typeof body.digest_hour === 'number' ? Math.floor(body.digest_hour) : 9
   const digestHour = rawDigestHour >= 0 && rawDigestHour <= 23 ? rawDigestHour : 9
   const pushEnabled = typeof body.push_enabled === 'boolean' ? body.push_enabled : false
+  const showLow = typeof body.show_low === 'boolean' ? body.show_low : false
+  const showDismissed = typeof body.show_dismissed === 'boolean' ? body.show_dismissed : false
 
   const { error } = await supabase
     .from('profiles')
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
       digest_enabled: digestEnabled,
       digest_hour: digestHour,
       push_enabled: pushEnabled,
+      show_low: showLow,
+      show_dismissed: showDismissed,
     })
     .eq('id', user.id)
 

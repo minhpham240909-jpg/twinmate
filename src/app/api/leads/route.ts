@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { readRateLimit, safeRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 15
@@ -15,8 +16,9 @@ export async function DELETE(request: Request) {
   }
 
   const body = await request.json()
+  const now = new Date().toISOString()
 
-  // "Delete all" mode — wipe leads matching optional filters
+  // "Delete all" mode — soft-delete leads matching optional filters
   if (body.all === true) {
     // Validate optional filters
     if (body.source && !VALID_SOURCES.includes(body.source)) {
@@ -28,21 +30,22 @@ export async function DELETE(request: Request) {
 
     let query = supabase
       .from('leads')
-      .delete({ count: 'exact' })
+      .update({ deleted_at: now })
       .eq('user_id', user.id)
+      .is('deleted_at', null)
 
     if (body.source) query = query.eq('source', body.source)
     if (body.label) query = query.eq('intent_label', body.label)
 
-    const { error, count } = await query
+    const { error } = await query
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-    return NextResponse.json({ deleted: count })
+    return NextResponse.json({ ok: true })
   }
 
-  // "Delete selected" mode — delete specific IDs
+  // "Delete selected" mode — soft-delete specific IDs
   const { ids } = body
   if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100) {
     return NextResponse.json({ error: 'Provide 1-100 lead IDs' }, { status: 400 })
@@ -51,9 +54,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
   }
 
-  const { error, count } = await supabase
+  const { error } = await supabase
     .from('leads')
-    .delete({ count: 'exact' })
+    .update({ deleted_at: now })
     .in('id', ids)
     .eq('user_id', user.id)
 
@@ -61,7 +64,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ deleted: count })
+  return NextResponse.json({ ok: true })
 }
 
 const VALID_SOURCES = ['slack', 'email']
@@ -75,11 +78,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Rate limit reads to prevent refresh-spam and scraping
+  const { success: rateLimitOk } = await safeRateLimit(readRateLimit, user.id)
+  if (!rateLimitOk) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const { searchParams } = new URL(request.url)
   const source = searchParams.get('source')
   const label = searchParams.get('label')
   const search = searchParams.get('search')?.trim().substring(0, 100) || ''
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+  const page = Math.min(Math.max(1, parseInt(searchParams.get('page') || '1') || 1), 500)
   const hideDismissed = searchParams.get('hide_dismissed') !== 'false'
   const hideLow = searchParams.get('hide_low') !== 'false'
   const limit = 20
@@ -92,13 +101,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid label filter' }, { status: 400 })
   }
 
-  const selectCols = 'id, sender_name, source, intent_score, intent_label, confidence, deal_tier, scoring_reasons, response_priority, priority_reason, summary_bullets, suggested_reply, raw_message, feedback, feedback_at, reply_sent, reply_sent_at, dismissed, slack_thread_ts, slack_channel_id, created_at'
+  const selectCols = 'id, sender_name, source, intent_score, intent_label, confidence, deal_tier, scoring_reasons, response_priority, priority_reason, summary_bullets, suggested_reply, raw_message, feedback, feedback_at, reply_sent, reply_sent_at, dismissed, deleted_at, slack_thread_ts, slack_channel_id, created_at'
 
   let query = supabase
     .from('leads')
     .select(selectCols, { count: 'exact' })
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
 
   if (source) {
@@ -146,6 +157,7 @@ export async function GET(request: Request) {
       .select('id, sender_name, source, intent_score, intent_label, confidence, deal_tier, scoring_reasons, response_priority, priority_reason, summary_bullets, suggested_reply, raw_message, feedback, feedback_at, reply_sent, reply_sent_at, slack_thread_ts, slack_channel_id, created_at', { count: 'exact' })
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
 
     if (source) retryQuery = retryQuery.eq('source', source)

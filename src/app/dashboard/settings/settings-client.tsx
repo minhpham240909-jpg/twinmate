@@ -29,6 +29,8 @@ interface SettingsClientProps {
     digestEnabled: boolean
     digestHour: number
     pushEnabled: boolean
+    showLow: boolean
+    showDismissed: boolean
   }
   initialEmailAddress: string
   initialSlackTeam: string
@@ -56,6 +58,8 @@ export default function SettingsClient({
   const [digestEnabled, setDigestEnabled] = useState(initialProfile.digestEnabled)
   const [digestHour, setDigestHour] = useState(initialProfile.digestHour)
   const [pushEnabled, setPushEnabled] = useState(initialProfile.pushEnabled)
+  const [showLow, setShowLow] = useState(initialProfile.showLow)
+  const [showDismissed, setShowDismissed] = useState(initialProfile.showDismissed)
   const [pushSupported, setPushSupported] = useState(false)
   const [pushSubscribing, setPushSubscribing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -153,6 +157,8 @@ export default function SettingsClient({
           digest_enabled: digestEnabled,
           digest_hour: digestHour,
           push_enabled: pushEnabled,
+          show_low: showLow,
+          show_dismissed: showDismissed,
         }),
       })
       if (!res.ok) {
@@ -478,6 +484,71 @@ export default function SettingsClient({
               </select>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Lead Display Section */}
+      <div className="bg-white rounded-lg shadow-sm border p-5 mb-4">
+        <h2 className="text-sm font-medium text-gray-900 mb-3">
+          Lead Display
+        </h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Control which leads are visible on your dashboard. Hidden leads are not deleted — just filtered out of the default view.
+        </p>
+        <div className="space-y-5">
+          {/* Show Low */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm text-gray-700">
+                Show low-intent leads
+              </label>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Include leads scored as LOW on the leads page.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showLow}
+              onClick={() => setShowLow((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                showLow ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  showLow ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Show Dismissed */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm text-gray-700">
+                Show dismissed leads
+              </label>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Include leads you&apos;ve dismissed on the leads page.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showDismissed}
+              onClick={() => setShowDismissed((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                showDismissed ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  showDismissed ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </div>
 

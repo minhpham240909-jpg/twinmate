@@ -5,6 +5,7 @@ import { canSendReply } from '@/lib/stripe/helpers'
 import { sendEmailReply, extractReplySubject } from '@/lib/email/send'
 import { NextResponse } from 'next/server'
 import { logActivity } from '@/lib/activity'
+import { withRetry } from '@/lib/retry'
 
 export const runtime = 'nodejs'
 export const maxDuration = 15
@@ -114,14 +115,17 @@ export async function POST(
       )
     }
 
-    // Post reply to Slack thread
+    // Post reply to Slack thread (with retry for transient failures)
     const slack = createSlackClient(botToken)
     try {
-      await slack.chat.postMessage({
-        channel: claimedLead.slack_channel_id,
-        thread_ts: claimedLead.slack_thread_ts,
-        text: replyText,
-      })
+      await withRetry(
+        () => slack.chat.postMessage({
+          channel: claimedLead.slack_channel_id,
+          thread_ts: claimedLead.slack_thread_ts,
+          text: replyText,
+        }),
+        { label: 'slack-reply', maxAttempts: 3 }
+      )
     } catch (err) {
       // Undo the claim since Slack send failed
       await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
@@ -163,15 +167,18 @@ export async function POST(
     }
 
     try {
-      await sendEmailReply({
-        to: claimedLead.sender_identifier,
-        fromAddress: replyToAddress,
-        fromName,
-        subject: replySubject,
-        body: replyText,
-      })
+      await withRetry(
+        () => sendEmailReply({
+          to: claimedLead.sender_identifier,
+          fromAddress: replyToAddress,
+          fromName,
+          subject: replySubject,
+          body: replyText,
+        }),
+        { label: 'sendgrid-reply', maxAttempts: 3 }
+      )
     } catch (err: unknown) {
-      // Undo the claim since email send failed
+      // Undo the claim since email send failed after all retries
       await admin.from('leads').update({ reply_sent: false, reply_sent_at: null }).eq('id', id)
       // Extract SendGrid error details
       const sgErr = err as { response?: { body?: { errors?: { message: string }[] } }; message?: string }

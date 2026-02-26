@@ -2,12 +2,13 @@ import { waitUntil } from '@vercel/functions'
 import { verifySlackSignature } from '@/lib/slack/verify'
 import { createSlackClient } from '@/lib/slack/client'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { scoreLead } from '@/lib/ai/score-lead'
+import { scoreLeadSmart, type SmartScoreResult } from '@/lib/ai/score-lead'
 import { formatLeadResponse } from '@/lib/slack/format'
 import { canProcessLead, canSendReply } from '@/lib/stripe/helpers'
 import { isDuplicate, slackEventRateLimit, safeRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity'
 import { sendPushToUser } from '@/lib/push'
+import { withRetry } from '@/lib/retry'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -170,25 +171,50 @@ async function processSlackLead(
     }
   }
 
-  // Try to score with AI — if it fails, we still insert the lead so it's never lost
-  let result
+  // Smart scoring: pre-filter spam → check cache → call Claude API
+  let smartResult: SmartScoreResult | null = null
   try {
-    result = await scoreLead({
-      message: event.text,
-      threadContext,
-      source: 'slack',
-      senderName,
-      profile: {
-        niche: profile.niche || 'other',
-        tone: profile.tone || 'professional',
-        bookingLink: profile.booking_link || undefined,
-        businessName: profile.business_name || undefined,
-        customInstructions: profile.custom_instructions || undefined,
-        replyFromName: profile.reply_from_name || undefined,
-      },
-    })
+    smartResult = await withRetry(
+      () => scoreLeadSmart({
+        message: event.text,
+        threadContext,
+        source: 'slack',
+        senderName,
+        profile: {
+          niche: profile.niche || 'other',
+          tone: profile.tone || 'professional',
+          bookingLink: profile.booking_link || undefined,
+          businessName: profile.business_name || undefined,
+          customInstructions: profile.custom_instructions || undefined,
+          replyFromName: profile.reply_from_name || undefined,
+        },
+      }),
+      { label: 'ai-score-slack', maxAttempts: 2 }
+    )
   } catch (err) {
     console.error('AI scoring failed for Slack lead — inserting without score:', err)
+  }
+
+  // Pre-filtered messages (spam/junk) — skip entirely, no quota used, no lead inserted
+  if (smartResult?.filtered) {
+    console.log('[slack] Pre-filtered, skipping:', smartResult.reason)
+    return
+  }
+
+  // Extract the score result (null if AI failed entirely)
+  const result = smartResult && !smartResult.filtered ? smartResult.result : null
+
+  // Atomic quota reservation — check AND increment in one locked transaction
+  // This prevents the race condition where two concurrent leads both pass the quota check
+  const { data: quotaOk } = await supabase.rpc('try_use_lead', { p_user_id: userId })
+  if (quotaOk === false) {
+    console.log('[slack] Quota exceeded for user:', userId)
+    await slack.chat.postMessage({
+      channel: event.channel,
+      thread_ts: event.ts,
+      text: 'Lead limit reached for this month. Upgrade your plan for more leads.',
+    })
+    return
   }
 
   // Insert lead — fully scored if AI succeeded, raw message only if it failed
@@ -228,9 +254,6 @@ async function processSlackLead(
     console.error('Failed to insert lead:', insertError)
     return
   }
-
-  // Increment usage counter
-  await supabase.rpc('increment_leads_used', { p_user_id: userId })
 
   const intentLabel = result?.score.intent_label || null
   const dealTier = result?.score.deal_tier || null
@@ -277,11 +300,14 @@ async function processSlackLead(
       const { allowed: replyAllowed } = await canSendReply(userId)
       if (replyAllowed) {
         try {
-          await slack.chat.postMessage({
-            channel: event.channel,
-            thread_ts: event.ts,
-            text: result.score.suggested_reply,
-          })
+          await withRetry(
+            () => slack.chat.postMessage({
+              channel: event.channel,
+              thread_ts: event.ts,
+              text: result.score.suggested_reply,
+            }),
+            { label: 'slack-auto-reply', maxAttempts: 2 }
+          )
 
           await supabase
             .from('leads')

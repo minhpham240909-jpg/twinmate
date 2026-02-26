@@ -163,7 +163,7 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="font-medium text-gray-900">
-              {isActive ? 'Adecis Pro \u2014 $19/mo' : 'Free Trial'}
+              {isActive ? 'Adecis Pro \u2014 $29/mo' : 'Free Trial'}
             </div>
             {isTrialing && (
               <div className="text-sm text-gray-500">
@@ -268,7 +268,7 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
             disabled={checkoutLoading}
             className="w-full bg-blue-600 text-white rounded-md px-4 py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {checkoutLoading ? 'Loading...' : 'Upgrade to Pro \u2014 $19/mo'}
+            {checkoutLoading ? 'Loading...' : 'Upgrade to Pro \u2014 $29/mo'}
           </button>
         )}
         {isActive && (

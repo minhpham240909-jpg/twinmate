@@ -15,17 +15,36 @@ export default async function DashboardPage() {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
+  // Fetch user's show_low / show_dismissed preferences
+  const profileResult = await supabase
+    .from('profiles')
+    .select('show_low, show_dismissed')
+    .eq('id', user.id)
+    .single()
+
+  const showLow = profileResult.data?.show_low ?? false
+  const showDismissed = profileResult.data?.show_dismissed ?? false
+
   // Run core queries in parallel — leads, slack, email (these must succeed)
-  // Default: hide dismissed leads and low-intent leads
+  // Filter based on user's saved preferences
+  let leadsQuery = supabase
+    .from('leads')
+    .select('*', { count: 'exact' })
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(0, limit - 1)
+
+  if (!showDismissed) {
+    leadsQuery = leadsQuery.eq('dismissed', false)
+  }
+  if (!showLow) {
+    leadsQuery = leadsQuery.in('intent_label', ['high', 'medium'])
+  }
+
   const [leadsResult, slackResult, emailResult] = await Promise.all([
-    supabase
-      .from('leads')
-      .select('*', { count: 'exact' })
-      .eq('user_id', user.id)
-      .eq('dismissed', false)
-      .in('intent_label', ['high', 'medium'])
-      .order('created_at', { ascending: false })
-      .range(0, limit - 1),
+    leadsQuery,
     supabase
       .from('slack_installations')
       .select('id', { count: 'exact', head: true })
@@ -40,22 +59,25 @@ export default async function DashboardPage() {
   // Graceful fallback if dismissed column doesn't exist yet
   let finalLeadsResult = leadsResult
   if (leadsResult.error) {
-    // Retry without dismissed filter
+    // Retry without dismissed filter (but still exclude soft-deleted)
     finalLeadsResult = await supabase
       .from('leads')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .in('intent_label', ['high', 'medium'])
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(0, limit - 1)
 
-    // If still failing, fall back to no filters at all
+    // If still failing, fall back to minimal filters
     if (finalLeadsResult.error) {
       finalLeadsResult = await supabase
         .from('leads')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(0, limit - 1)
     }
   }
@@ -115,6 +137,8 @@ export default async function DashboardPage() {
       initialConnections={connections}
       initialActivities={(activityResult.data || []) as ActivityLog[]}
       initialStats={stats}
+      initialShowLow={showLow}
+      initialShowDismissed={showDismissed}
     />
   )
 }

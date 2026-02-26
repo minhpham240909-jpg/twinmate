@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { DashboardErrorBoundary } from './error-boundary'
 
 export default function DashboardLayout({
   children,
@@ -46,7 +47,9 @@ export default function DashboardLayout({
           </div>
         </div>
       </nav>
-      <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        <DashboardErrorBoundary>{children}</DashboardErrorBoundary>
+      </main>
     </div>
   )
 }

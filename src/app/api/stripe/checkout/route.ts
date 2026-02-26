@@ -68,7 +68,6 @@ export async function POST() {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: PLANS.PRO.priceId, quantity: 1 }],
-      subscription_data: { trial_period_days: PLANS.PRO.trialDays },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?canceled=true`,
       metadata: { user_id: user.id },
