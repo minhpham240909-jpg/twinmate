@@ -1,7 +1,7 @@
 export const PLANS = {
   PRO: {
     priceId: process.env.STRIPE_PRO_PRICE_ID || '',
-    name: 'Adecis Pro',
+    name: 'Clerva Pro',
     price: 29,
     interval: 'month' as const,
     leadLimit: 500,

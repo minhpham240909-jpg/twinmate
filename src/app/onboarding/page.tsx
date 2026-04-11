@@ -8,7 +8,7 @@ export default function OnboardingStep1() {
       <div className="text-sm text-gray-400 mb-1">Step 1 of 3</div>
       <h2 className="text-lg font-semibold text-gray-900 mb-2">Connect Slack</h2>
       <p className="text-gray-500 text-sm mb-6">
-        Adecis will listen for lead messages in your Slack channels and
+        Clerva will listen for lead messages in your Slack channels and
         instantly score them with AI.
       </p>
 

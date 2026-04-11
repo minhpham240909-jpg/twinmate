@@ -1,4 +1,4 @@
-# Adecis — Future Development Roadmap
+# Clerva — Future Development Roadmap
 
 Deferred improvements identified during the full codebase audit. Organized by priority.
 
@@ -77,4 +77,4 @@ The current dashboard works on desktop but needs responsive layout for mobile. P
 Let power users generate API keys to submit leads programmatically. Enables integration with custom forms, chatbots, or other sources beyond Slack/email.
 
 ### White-label / reseller mode
-Allow agencies to use Adecis under their own brand. Custom domain, logo, colors stored per organization.
+Allow agencies to use Clerva under their own brand. Custom domain, logo, colors stored per organization.

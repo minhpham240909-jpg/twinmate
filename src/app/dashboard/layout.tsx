@@ -22,7 +22,7 @@ export default function DashboardLayout({
       <nav className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="font-bold text-gray-900">
-            Adecis
+            Clerva
           </Link>
           <div className="flex items-center gap-6 text-sm">
             {navItems.map((item) => {

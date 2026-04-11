@@ -1,5 +1,5 @@
 -- =============================================
--- Adecis v1 — Production Hardening Migration
+-- Clerva v1 — Production Hardening Migration
 -- Missing indexes, columns, and functions for
 -- concurrent multi-user load
 -- =============================================

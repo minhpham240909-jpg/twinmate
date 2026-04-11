@@ -68,7 +68,7 @@ export default function OnboardingStep3() {
         Set Up Email Forwarding
       </h2>
       <p className="text-gray-500 text-sm mb-6">
-        Forward your inquiry emails to this address. Adecis will score them
+        Forward your inquiry emails to this address. Clerva will score them
         automatically.
       </p>
 
@@ -108,8 +108,8 @@ export default function OnboardingStep3() {
               <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
                 <li>Go to Settings → Forwarding and POP/IMAP</li>
                 <li>Click &quot;Add a forwarding address&quot;</li>
-                <li>Paste your Adecis email address above</li>
-                <li>Gmail will send a confirmation email to your Adecis address — it will appear as a lead on your dashboard</li>
+                <li>Paste your Clerva email address above</li>
+                <li>Gmail will send a confirmation email to your Clerva address — it will appear as a lead on your dashboard</li>
                 <li>Open that lead, find the long confirmation link in the message, and open it in a new browser tab</li>
                 <li>Click &quot;Confirm&quot; on the Google page to activate forwarding</li>
                 <li>Back in Gmail, select &quot;Forward a copy&quot; and save</li>
@@ -122,7 +122,7 @@ export default function OnboardingStep3() {
               <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
                 <li>Go to Settings → Mail → Forwarding</li>
                 <li>Enable forwarding</li>
-                <li>Paste your Adecis email address above</li>
+                <li>Paste your Clerva email address above</li>
                 <li>Optionally keep a copy in your inbox</li>
               </ol>
             </div>

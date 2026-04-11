@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Adecis — AI Lead Scoring for Freelancers",
+  title: "Clerva — AI-Powered Learning Platform",
   description:
     "Instantly score inbound leads, get clear summaries, and draft replies — right in Slack and email.",
 };

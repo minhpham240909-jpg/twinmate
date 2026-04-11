@@ -2,8 +2,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Terms and Conditions — Adecis',
-  description: 'Terms and Conditions for Adecis, AI-powered lead scoring for freelancers.',
+  title: 'Terms and Conditions — Clerva',
+  description: 'Terms and Conditions for Clerva, AI-powered learning platform.',
 }
 
 export default function TermsPage() {
@@ -12,7 +12,7 @@ export default function TermsPage() {
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-gray-900 tracking-tight">
-            Adecis
+            Clerva
           </Link>
           <Link
             href="/"
@@ -30,7 +30,7 @@ export default function TermsPage() {
         <div className="prose prose-sm prose-gray max-w-none">
           <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">Agreement to Our Legal Terms</h2>
           <p>
-            We are Gia Minh Pham, doing business as Adecis (&quot;Company,&quot; &quot;we,&quot;
+            We are Clerva Inc. (&quot;Company,&quot; &quot;we,&quot;
             &quot;us,&quot; or &quot;our&quot;).
           </p>
           <p>
@@ -40,12 +40,12 @@ export default function TermsPage() {
             these legal terms (the &quot;Legal Terms&quot;) (collectively, the &quot;Services&quot;).
           </p>
           <p>
-            Adecis is an AI-powered lead scoring platform that helps freelancers and agencies filter,
-            score, and respond to inbound leads from Slack and email.
+            Clerva is an AI-powered learning platform that helps students learn effectively through
+            personalized guidance, flashcards, and interactive study tools.
           </p>
           <p>
             These Legal Terms constitute a legally binding agreement made between you, whether personally or
-            on behalf of an entity (&quot;you&quot;), and Adecis, concerning your access to and use of the
+            on behalf of an entity (&quot;you&quot;), and Clerva Inc., concerning your access to and use of the
             Services. You agree that by accessing the Services, you have read, understood, and agreed to be
             bound by all of these Legal Terms.
           </p>
@@ -252,7 +252,7 @@ export default function TermsPage() {
 
       <footer className="border-t border-gray-100">
         <div className="max-w-3xl mx-auto px-6 py-8 text-center text-sm text-gray-400">
-          Adecis &mdash; AI deal filter for freelancers and agencies.
+          Clerva &mdash; AI-powered learning platform.
         </div>
       </footer>
     </div>

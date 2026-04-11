@@ -7,7 +7,7 @@ export default function Home() {
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-gray-900 tracking-tight">
-            Adecis
+            Clerva
           </Link>
           <div className="flex items-center gap-5 text-sm">
             <Link
@@ -145,7 +145,7 @@ export default function Home() {
               {
                 step: '1',
                 title: 'Lead arrives',
-                desc: 'Someone messages your Slack or emails your contact form. Adecis picks it up in seconds — no manual forwarding needed.',
+                desc: 'Someone messages your Slack or emails your contact form. Clerva picks it up in seconds — no manual forwarding needed.',
               },
               {
                 step: '2',
@@ -183,7 +183,7 @@ export default function Home() {
               Built for freelancers who pick their clients
             </h2>
             <p className="mt-3 text-gray-500">
-              If you get more inbound leads than you can respond to, Adecis tells you which ones deserve your attention.
+              If you get more inbound leads than you can respond to, Clerva tells you which ones deserve your attention.
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-3 mt-10">
@@ -274,7 +274,7 @@ export default function Home() {
       <footer className="border-t border-gray-100">
         <div className="max-w-5xl mx-auto px-6 py-10">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-400">
-            <span>Adecis — AI deal filter for freelancers and agencies.</span>
+            <span>Clerva — AI-powered learning platform.</span>
             <div className="flex items-center gap-6">
               <Link href="/privacy" className="hover:text-gray-600 transition-colors">
                 Privacy

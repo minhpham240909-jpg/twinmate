@@ -150,7 +150,7 @@ export async function GET(request: Request) {
       elements: [
         {
           type: 'mrkdwn',
-          text: `<${process.env.NEXT_PUBLIC_APP_URL || 'https://clerva.app'}/dashboard|View all leads in Adecis>`,
+          text: `<${process.env.NEXT_PUBLIC_APP_URL || 'https://clerva.app'}/dashboard|View all leads in Clerva>`,
         },
       ],
     })

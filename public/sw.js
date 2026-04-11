@@ -1,7 +1,7 @@
-// Service Worker for Adecis PWA
+// Service Worker for Clerva PWA
 // Handles push notifications for high-intent lead alerts
 
-const CACHE_NAME = 'adecis-v1'
+const CACHE_NAME = 'clerva-v1'
 
 // Install — minimal caching, app is primarily online
 self.addEventListener('install', () => {
@@ -30,7 +30,7 @@ self.addEventListener('push', (event) => {
       body: data.body || 'You have a new lead',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      tag: data.tag || 'adecis-default',
+      tag: data.tag || 'clerva-default',
       renotify: true,
       requireInteraction: data.requireInteraction || false,
       vibrate: [200, 100, 200],
@@ -42,12 +42,12 @@ self.addEventListener('push', (event) => {
     }
 
     event.waitUntil(
-      self.registration.showNotification(data.title || 'Adecis', options)
+      self.registration.showNotification(data.title || 'Clerva', options)
     )
   } catch (err) {
     console.error('[SW] Error showing notification:', err)
     event.waitUntil(
-      self.registration.showNotification('Adecis', {
+      self.registration.showNotification('Clerva', {
         body: event.data.text(),
         icon: '/icon-192.png',
       })

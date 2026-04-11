@@ -152,7 +152,7 @@ export async function POST(
       .eq('id', user.id)
       .single()
 
-    const fromName = profile?.reply_from_name || profile?.business_name || 'Adecis'
+    const fromName = profile?.reply_from_name || profile?.business_name || 'Clerva'
     const replySubject = extractReplySubject(claimedLead.raw_message || '')
 
     // Use the user's real email as reply-to so responses go to their inbox

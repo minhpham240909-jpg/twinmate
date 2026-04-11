@@ -1,5 +1,5 @@
 -- =============================================
--- Adecis v1 — Add reminder_sent to leads table
+-- Clerva v1 — Add reminder_sent to leads table
 -- Tracks whether a 24h reminder was sent for
 -- unreplied high-intent leads
 -- =============================================

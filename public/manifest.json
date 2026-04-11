@@ -1,7 +1,7 @@
 {
-  "name": "Adecis — AI Lead Scoring",
-  "short_name": "Adecis",
-  "description": "AI-powered lead scoring and auto-reply for freelancers. Score inbound leads from Slack and email in seconds.",
+  "name": "Clerva — AI Learning Platform",
+  "short_name": "Clerva",
+  "description": "AI-powered learning platform. Get personalized guidance, flashcards, and interactive study tools.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     return new Response('OK', { status: 200 })
   }
 
-  // Prevent email loops — ignore emails from any Adecis inbound address
+  // Prevent email loops — ignore emails from any Clerva inbound address
   if (parsed.from.includes('@inbound.clerva.app')) {
     console.log('[inbound] Discarded: loop prevention', parsed.from)
     return new Response('OK', { status: 200 })
@@ -242,7 +242,7 @@ async function processEmailLead(parsed: ParsedEmail, userId: string) {
       if (replyAllowed) {
         try {
           const replySubject = extractReplySubject(fullMessage)
-          const fromName = profile.reply_from_name || profile.business_name || 'Adecis'
+          const fromName = profile.reply_from_name || profile.business_name || 'Clerva'
           const replyToAddress = profile.email || parsed.to
 
           await withRetry(

@@ -10,7 +10,7 @@ interface ProfileContext {
 export function buildSystemPrompt(profile: ProfileContext): string {
   const nicheExamples = getNicheFewShots(profile.niche)
 
-  return `You are Adecis, an AI assistant for freelancers and small agencies. Your job is to analyze inbound lead messages and determine if they represent genuine business opportunities.
+  return `You are Clerva, an AI assistant for freelancers and small agencies. Your job is to analyze inbound lead messages and determine if they represent genuine business opportunities.
 
 ## Your Role
 You help a ${profile.niche || 'general'} freelancer${profile.businessName ? ` at ${profile.businessName}` : ''} quickly evaluate incoming leads. They are busy and need to know in 3 seconds: is this worth their time?

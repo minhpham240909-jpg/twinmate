@@ -223,7 +223,7 @@ export default function SettingsClient({
     <div className="max-w-lg">
       <h1 className="text-lg font-semibold text-gray-900 mb-1">Settings</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Configure how Adecis scores your leads and drafts replies.
+        Configure how Clerva scores your leads and drafts replies.
       </p>
 
       {/* Account Section */}
@@ -349,7 +349,7 @@ export default function SettingsClient({
           Auto Reply
         </h2>
         <p className="text-xs text-gray-400 mb-4">
-          When enabled, Adecis automatically sends the AI-drafted reply to HIGH and MEDIUM intent leads — via email and Slack. LOW intent leads are never auto-replied to.
+          When enabled, Clerva automatically sends the AI-drafted reply to HIGH and MEDIUM intent leads — via email and Slack. LOW intent leads are never auto-replied to.
         </p>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -402,7 +402,7 @@ export default function SettingsClient({
           Notifications
         </h2>
         <p className="text-xs text-gray-400 mb-4">
-          Control how Adecis keeps you informed about new leads and activity.
+          Control how Clerva keeps you informed about new leads and activity.
         </p>
         <div className="space-y-5">
           {/* Push Notifications */}
@@ -589,7 +589,7 @@ export default function SettingsClient({
         ) : (
           <div>
             <p className="text-sm text-gray-500 mb-3">
-              Connect Slack so Adecis can score messages from your channels in real time.
+              Connect Slack so Clerva can score messages from your channels in real time.
             </p>
             <a
               href="/api/slack/install"
@@ -622,7 +622,7 @@ export default function SettingsClient({
         {initialEmailAddress ? (
           <div>
             <p className="text-sm text-gray-500 mb-2">
-              Forward inquiry emails to this address. Adecis will score them automatically.
+              Forward inquiry emails to this address. Clerva will score them automatically.
             </p>
             <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between mb-4">
               <code className="text-sm text-gray-700 break-all">
@@ -647,8 +647,8 @@ export default function SettingsClient({
                   <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
                     <li>Go to Settings → Forwarding and POP/IMAP</li>
                     <li>Click &quot;Add a forwarding address&quot;</li>
-                    <li>Paste your Adecis email address above</li>
-                    <li>Gmail will send a confirmation email to your Adecis address — it will appear as a lead on your dashboard</li>
+                    <li>Paste your Clerva email address above</li>
+                    <li>Gmail will send a confirmation email to your Clerva address — it will appear as a lead on your dashboard</li>
                     <li>Open that lead, find the long confirmation link in the message, and open it in a new browser tab</li>
                     <li>Click &quot;Confirm&quot; on the Google page to activate forwarding</li>
                     <li>Back in Gmail, select &quot;Forward a copy&quot; and save</li>
@@ -661,7 +661,7 @@ export default function SettingsClient({
                   <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
                     <li>Go to Settings → Mail → Forwarding</li>
                     <li>Enable forwarding</li>
-                    <li>Paste your Adecis email address above</li>
+                    <li>Paste your Clerva email address above</li>
                     <li>Optionally keep a copy in your inbox</li>
                   </ol>
                 </div>

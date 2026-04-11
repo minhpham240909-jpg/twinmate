@@ -1,4 +1,4 @@
-# Adecis — Scale & Production Readiness Roadmap
+# Clerva — Scale & Production Readiness Roadmap
 
 > Last updated: 2026-02-23
 > Status: App is production-ready for early users (100–200 active users, up to 10k leads).

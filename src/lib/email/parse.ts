@@ -28,7 +28,7 @@ export function parseInboundEmail(formData: FormData): ParsedEmail {
   const fromEmailMatch = from.match(/<(.+?)>/)
   const fromAddress = fromEmailMatch ? fromEmailMatch[1].trim().toLowerCase() : from.trim().toLowerCase()
 
-  // Find the Adecis inbound address from all recipients.
+  // Find the Clerva inbound address from all recipients.
   // When Gmail/Outlook forwards, the To: header keeps the original recipient (user@gmail.com)
   // but the SMTP envelope contains the actual forwarding destination (leads-xxx@inbound.clerva.app).
   // We check envelope first, then fall back to the To: header.
@@ -59,7 +59,7 @@ export function parseInboundEmail(formData: FormData): ParsedEmail {
     }
   }
 
-  // Prefer the @inbound.clerva.app address — that's the Adecis inbound address
+  // Prefer the @inbound.clerva.app address — that's the Clerva inbound address
   toAddress = candidates.find(a => a.includes('@inbound.clerva.app')) || candidates[0] || ''
 
   console.log('[parse] Candidates:', candidates, '| resolved to:', toAddress)

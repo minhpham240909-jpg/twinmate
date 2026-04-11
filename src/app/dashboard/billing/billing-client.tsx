@@ -163,7 +163,7 @@ export default function BillingClient({ profile: initialProfile }: BillingClient
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="font-medium text-gray-900">
-              {isActive ? 'Adecis Pro \u2014 $29/mo' : 'Free Trial'}
+              {isActive ? 'Clerva Pro \u2014 $29/mo' : 'Free Trial'}
             </div>
             {isTrialing && (
               <div className="text-sm text-gray-500">

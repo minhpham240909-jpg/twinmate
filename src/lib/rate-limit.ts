@@ -10,35 +10,35 @@ const redis = new Redis({
 export const aiRateLimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(10, '60 s'),
-  prefix: 'adecis:ai',
+  prefix: 'clerva:ai',
 })
 
 // Rate limit Slack events: 30 per minute per team
 export const slackEventRateLimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(30, '60 s'),
-  prefix: 'adecis:slack',
+  prefix: 'clerva:slack',
 })
 
 // Rate limit email inbound: 20 per minute per user
 export const emailRateLimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(20, '60 s'),
-  prefix: 'adecis:email',
+  prefix: 'clerva:email',
 })
 
 // Rate limit dashboard reads: 60 per minute per user (prevents refresh-spam and scraping)
 export const readRateLimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(60, '60 s'),
-  prefix: 'adecis:read',
+  prefix: 'clerva:read',
 })
 
 // Deduplication: prevent processing the same event twice
 // Falls back to allowing the event if Redis is down (better to process twice than drop leads)
 export async function isDuplicate(eventId: string): Promise<boolean> {
   try {
-    const key = `adecis:dedup:${eventId}`
+    const key = `clerva:dedup:${eventId}`
     const result = await redis.set(key, '1', { nx: true, ex: 86400 }) // 24h TTL
     return result === null // null = key already existed
   } catch (err) {
@@ -56,7 +56,7 @@ export async function isDuplicateEmail(from: string, subject: string, bodyPrefix
     for (let i = 0; i < raw.length; i++) {
       hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0
     }
-    const key = `adecis:email-dedup:${hash}`
+    const key = `clerva:email-dedup:${hash}`
     const result = await redis.set(key, '1', { nx: true, ex: 60 }) // 60s TTL — just enough to catch SendGrid retries
     return result === null // null = key already existed
   } catch (err) {

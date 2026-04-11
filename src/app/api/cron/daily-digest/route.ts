@@ -74,7 +74,7 @@ export async function GET(request: Request) {
 
     // Build plain text email
     const lines: string[] = []
-    lines.push(`Your Adecis Daily Summary`)
+    lines.push(`Your Clerva Daily Summary`)
     lines.push(`========================`)
     lines.push(``)
     lines.push(`${leadsReceived} lead${leadsReceived !== 1 ? 's' : ''} received | ${totalReplies} repl${totalReplies !== 1 ? 'ies' : 'y'} sent | ${leadsSkipped} skipped`)
@@ -118,14 +118,14 @@ export async function GET(request: Request) {
 
     lines.push(`View all leads: ${appUrl}/dashboard`)
     lines.push(``)
-    lines.push(`— Adecis`)
+    lines.push(`— Clerva`)
 
     try {
       await withRetry(
         () => sendEmailReply({
           to: user.email,
           fromAddress: 'noreply@clerva.app',
-          fromName: 'Adecis',
+          fromName: 'Clerva',
           subject: `Daily summary — ${leadsReceived} lead${leadsReceived !== 1 ? 's' : ''}, ${totalReplies} repl${totalReplies !== 1 ? 'ies' : 'y'} sent`,
           body: lines.join('\n'),
         }),

@@ -7,7 +7,7 @@ const redis = new Redis({
 })
 
 const CACHE_TTL_SECONDS = 24 * 60 * 60 // 24 hours
-const CACHE_PREFIX = 'adecis:score:'
+const CACHE_PREFIX = 'clerva:score:'
 
 /**
  * Generates a cache key from the message content and niche.

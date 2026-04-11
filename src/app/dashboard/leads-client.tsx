@@ -780,7 +780,7 @@ export default function LeadsClient({
               You&apos;re all set
             </h2>
             <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">
-              Adecis is listening{connections.slack && connections.email ? ' on Slack and email' : connections.slack ? ' on Slack' : ' on email'}.
+              Clerva is listening{connections.slack && connections.email ? ' on Slack and email' : connections.slack ? ' on Slack' : ' on email'}.
               New leads will appear here as soon as they come in.
             </p>
             <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
@@ -806,7 +806,7 @@ export default function LeadsClient({
                 We&apos;ll triage your inbound messages in real time.
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                When a Slack or email message comes in, Adecis scores buying
+                When a Slack or email message comes in, Clerva scores buying
                 intent and tells you what to do next — in seconds.
               </p>
             </div>

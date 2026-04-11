@@ -1,10 +1,10 @@
-# Adecis V2 Roadmap
+# Clerva V2 Roadmap
 
 ## 1. Onboarding Disqualification (User Fit Filter)
 
 **Goal**: Filter out low-fit users during onboarding to build trust and reduce churn.
 
-**Why**: Adecis works best for decision-heavy freelancers (developers, designers, consultants, agency owners). Users who don't evaluate inbound value won't get ROI from the app.
+**Why**: Clerva works best for decision-heavy freelancers (developers, designers, consultants, agency owners). Users who don't evaluate inbound value won't get ROI from the app.
 
 **Implementation**:
 - Add 2-3 qualifying questions after signup, before profile setup:
@@ -13,8 +13,8 @@
   - "Do you often feel pressure to reply even when it's not worth it?"
 - Score answers:
   - All yes → proceed to onboarding (high-fit)
-  - Mixed → show gentle note: "Adecis works best when you regularly receive new inquiries" but allow them to continue
-  - All no → politely say: "Adecis might not be the right fit yet — it's built for freelancers who evaluate inbound leads. We'll notify you when we expand."
+  - Mixed → show gentle note: "Clerva works best when you regularly receive new inquiries" but allow them to continue
+  - All no → politely say: "Clerva might not be the right fit yet — it's built for freelancers who evaluate inbound leads. We'll notify you when we expand."
 - Store fit score in `profiles` table for analytics
 
 **Files to modify**:
@@ -28,7 +28,7 @@
 
 **Goal**: Automatically send high-intent leads to the user's CRM (Pipedrive, HubSpot, Notion, Airtable, etc.)
 
-**Why**: Adecis does first-pass triage. High-intent leads should flow into whatever system the user tracks deals in, without manual copy-paste.
+**Why**: Clerva does first-pass triage. High-intent leads should flow into whatever system the user tracks deals in, without manual copy-paste.
 
 **Implementation**:
 - Add CRM integration settings page under Settings

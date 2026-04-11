@@ -2,8 +2,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Adecis',
-  description: 'Privacy Policy for Adecis, AI-powered lead scoring for freelancers.',
+  title: 'Privacy Policy — Clerva',
+  description: 'Privacy Policy for Clerva, AI-powered learning platform.',
 }
 
 export default function PrivacyPage() {
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-gray-900 tracking-tight">
-            Adecis
+            Clerva
           </Link>
           <Link
             href="/"
@@ -29,7 +29,7 @@ export default function PrivacyPage() {
 
         <div className="prose prose-sm prose-gray max-w-none">
           <p>
-            This Privacy Notice for Gia Minh Pham (doing business as Adecis)
+            This Privacy Notice for Clerva Inc.
             (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;), describes how and why we might
             access, collect, store, use, and/or share (&quot;process&quot;) your personal
             information when you use our services (&quot;Services&quot;), including when you:
@@ -232,7 +232,7 @@ export default function PrivacyPage() {
 
       <footer className="border-t border-gray-100">
         <div className="max-w-3xl mx-auto px-6 py-8 text-center text-sm text-gray-400">
-          Adecis &mdash; AI deal filter for freelancers and agencies.
+          Clerva &mdash; AI-powered learning platform.
         </div>
       </footer>
     </div>

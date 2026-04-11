@@ -1,4 +1,4 @@
-export const APP_NAME = 'Adecis'
+export const APP_NAME = 'Clerva'
 
 // Core niches — optimized AI, primary marketing focus
 export const CORE_NICHES = [
