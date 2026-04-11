@@ -141,10 +141,10 @@ export default function TermsPage() {
           <p>
             You can cancel your subscription at any time through your account billing settings or by
             contacting us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">minhpham102409@gmail.com</a>.
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">support@clerva.app</a>.
             Your cancellation will take effect at the end of the current paid term. If you are unsatisfied
             with our Services, please email us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">minhpham102409@gmail.com</a>.
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">support@clerva.app</a>.
           </p>
 
           <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">7. Prohibited Activities</h2>
@@ -245,7 +245,7 @@ export default function TermsPage() {
           <p>
             In order to resolve a complaint regarding the Services or to receive further information regarding
             use of the Services, please contact us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">minhpham102409@gmail.com</a>.
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">support@clerva.app</a>.
           </p>
         </div>
       </main>

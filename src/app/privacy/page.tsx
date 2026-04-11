@@ -43,8 +43,8 @@ export default function PrivacyPage() {
             understand your privacy rights and choices. If you do not agree with our policies
             and practices, please do not use our Services. If you still have any questions or
             concerns, please contact us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">
-              minhpham102409@gmail.com
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">
+              support@clerva.app
             </a>.
           </p>
 
@@ -187,7 +187,7 @@ export default function PrivacyPage() {
           </p>
           <p>
             If you wish to exercise any of these rights, please contact us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">minhpham102409@gmail.com</a>.
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">support@clerva.app</a>.
           </p>
 
           <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">10. Controls for Do-Not-Track Features</h2>
@@ -216,7 +216,7 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">13. How Can You Contact Us About This Notice?</h2>
           <p>
             If you have questions or comments about this notice, you may email us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">minhpham102409@gmail.com</a>.
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">support@clerva.app</a>.
           </p>
 
           <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-4">14. How Can You Review, Update, or Delete the Data We Collect From You?</h2>
@@ -225,7 +225,7 @@ export default function PrivacyPage() {
             request access to the personal information we collect from you, details about how we have
             processed it, correct inaccuracies, or delete your personal information. To request to review,
             update, or delete your personal information, please contact us at{' '}
-            <a href="mailto:minhpham102409@gmail.com" className="text-blue-600 hover:underline">minhpham102409@gmail.com</a>.
+            <a href="mailto:support@clerva.app" className="text-blue-600 hover:underline">support@clerva.app</a>.
           </p>
         </div>
       </main>
